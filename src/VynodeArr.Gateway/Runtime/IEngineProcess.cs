@@ -22,4 +22,5 @@ public sealed record EngineLaunch(
     string Arguments,
     string WorkingDirectory,
     string DataDirectory,
-    int Port);
+    int Port,
+    IReadOnlyDictionary<string, string> EnvironmentVariables);

@@ -9,6 +9,48 @@ namespace VynodeArr.Gateway.Tests;
 public sealed class EngineSupervisorTests
 {
     [Fact]
+    public async Task LaunchesEnginesWithSeparateLoopbackConfiguration()
+    {
+        var dataRoot = Path.Combine(Path.GetTempPath(), $"vynodearr-tests-{Guid.NewGuid():N}");
+        var registry = new EngineRegistry(TimeProvider.System);
+        var factory = new FakeEngineProcessFactory();
+        var supervisor = new EngineSupervisor(
+            Options.Create(CreateOptions(dataRoot)),
+            new TestHostEnvironment(dataRoot),
+            new SequentialPortAllocator(),
+            factory,
+            new ImmediateReadinessProbe(),
+            new StaticApiKeyProvider(),
+            registry,
+            NullLogger<EngineSupervisor>.Instance);
+
+        try
+        {
+            await supervisor.StartAsync(CancellationToken.None);
+            await WaitForAsync(() => factory.Launches.Count == 2);
+
+            var movie = factory.Launches[EngineDomain.Movie];
+            var television = factory.Launches[EngineDomain.Television];
+            Assert.Equal("127.0.0.1", movie.EnvironmentVariables["Radarr__Server__BindAddress"]);
+            Assert.Equal(movie.Port.ToString(), movie.EnvironmentVariables["Radarr__Server__Port"]);
+            Assert.Equal("127.0.0.1", television.EnvironmentVariables["Sonarr__Server__BindAddress"]);
+            Assert.Equal(television.Port.ToString(), television.EnvironmentVariables["Sonarr__Server__Port"]);
+            Assert.NotEqual(movie.Port, television.Port);
+            Assert.DoesNotContain("port", movie.Arguments, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("port", television.Arguments, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            await supervisor.StopAsync(CancellationToken.None);
+            supervisor.Dispose();
+            if (Directory.Exists(dataRoot))
+            {
+                Directory.Delete(dataRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task UnreadyMovieIsStoppedWithoutStoppingTelevisionEngine()
     {
         var dataRoot = Path.Combine(Path.GetTempPath(), $"vynodearr-tests-{Guid.NewGuid():N}");
@@ -20,6 +62,7 @@ public sealed class EngineSupervisorTests
             new SequentialPortAllocator(),
             factory,
             new DomainReadinessProbe(EngineDomain.Movie),
+            new StaticApiKeyProvider(),
             registry,
             NullLogger<EngineSupervisor>.Instance);
 
@@ -57,6 +100,7 @@ public sealed class EngineSupervisorTests
             new SequentialPortAllocator(),
             factory,
             new ImmediateReadinessProbe(),
+            new StaticApiKeyProvider(),
             registry,
             NullLogger<EngineSupervisor>.Instance);
 
@@ -98,13 +142,13 @@ public sealed class EngineSupervisorTests
             {
                 Enabled = true,
                 ExecutablePath = "movie.exe",
-                Arguments = "--data={data} --port={port}"
+                Arguments = "/nobrowser /data={data}"
             },
             Television = new EngineOptions
             {
                 Enabled = true,
                 ExecutablePath = "television.exe",
-                Arguments = "--data={data} --port={port}"
+                Arguments = "/nobrowser /data={data}"
             }
         }
     };
@@ -149,16 +193,27 @@ public sealed class EngineSupervisorTests
                 : Task.CompletedTask;
     }
 
+    private sealed class StaticApiKeyProvider : IEngineApiKeyProvider
+    {
+        public Task<string> ReadAsync(
+            string dataDirectory,
+            TimeSpan timeout,
+            CancellationToken cancellationToken) => Task.FromResult("test-api-key");
+    }
+
     private sealed class FakeEngineProcessFactory : IEngineProcessFactory
     {
         public Dictionary<EngineDomain, FakeEngineProcess> Processes { get; } = [];
 
         public Dictionary<EngineDomain, int> StartCounts { get; } = [];
 
+        public Dictionary<EngineDomain, EngineLaunch> Launches { get; } = [];
+
         public IEngineProcess Start(EngineLaunch launch)
         {
             var process = new FakeEngineProcess(launch.Domain == EngineDomain.Movie ? 101 : 202);
             Processes[launch.Domain] = process;
+            Launches[launch.Domain] = launch;
             StartCounts[launch.Domain] = StartCounts.GetValueOrDefault(launch.Domain) + 1;
             return process;
         }

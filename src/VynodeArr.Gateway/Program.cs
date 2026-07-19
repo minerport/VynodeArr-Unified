@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using System.Net;
 using System.Text.Json.Serialization;
 using VynodeArr.Gateway.Configuration;
 using VynodeArr.Gateway.Proxy;
@@ -15,6 +16,7 @@ builder.Services
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IPortAllocator, LoopbackPortAllocator>();
 builder.Services.AddSingleton<IEngineProcessFactory, EngineProcessFactory>();
+builder.Services.AddSingleton<IEngineApiKeyProvider, XmlEngineApiKeyProvider>();
 builder.Services.AddHttpClient<IEngineReadinessProbe, HttpEngineReadinessProbe>()
     .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
     {
@@ -40,6 +42,16 @@ Directory.CreateDirectory(options.ResolveDataRoot(app.Environment.ContentRootPat
 
 app.MapGet("/health", () => Results.Ok(registry.CreateHealthSnapshot()));
 app.MapGet("/api/unified/v1/engines", () => Results.Ok(registry.CreateHealthSnapshot().Engines));
+app.MapPost("/api/unified/v1/shutdown", (HttpContext context, IHostApplicationLifetime lifetime) =>
+{
+    if (context.Connection.RemoteIpAddress is not { } remoteAddress || !IPAddress.IsLoopback(remoteAddress))
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    lifetime.StopApplication();
+    return Results.Accepted();
+});
 app.MapEngineProxy("movies", EngineDomain.Movie);
 app.MapEngineProxy("television", EngineDomain.Television);
 

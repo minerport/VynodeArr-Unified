@@ -25,6 +25,11 @@ public sealed class EngineProcessFactory(ILogger<EngineProcessFactory> logger) :
         };
 
         var process = new Process { StartInfo = info, EnableRaisingEvents = true };
+        foreach (var (name, value) in launch.EnvironmentVariables)
+        {
+            process.StartInfo.Environment[name] = value;
+        }
+
         if (!process.Start())
         {
             process.Dispose();

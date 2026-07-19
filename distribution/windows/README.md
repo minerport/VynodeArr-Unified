@@ -16,12 +16,25 @@ VynodeArr-win-x64/
 
 ## Create a staging package
 
-Build both native repositories using their own documented release pipelines, then run:
+Build both native repositories using their own release pipelines and assemble complete payloads:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File .\distribution\windows\build-native-engines.ps1 `
+  -MovieSource C:\src\VydodeArr `
+  -TelevisionSource C:\src\VynodeArr2 `
+  -YarnJs C:\tools\yarn-1.22.22\bin\yarn.js `
+  -NodePath C:\tools\node.exe
+```
+
+The script verifies both locked Git revisions and refuses tracked source modifications. It preserves each native output layout, UI, updater, Windows host, and license. Sonarr's `NU1510` restore diagnostic is demoted during the build without editing its source.
+
+Then create the unified package:
 
 ```powershell
 .\distribution\windows\package.ps1 `
-  -MovieEnginePath C:\build\VydodeArr `
-  -TelevisionEnginePath C:\build\VynodeArr2
+  -MovieEnginePath .\artifacts\native-inputs\movie `
+  -TelevisionEnginePath .\artifacts\native-inputs\television
 ```
 
 The command fails before packaging if either native entry point is missing. Output is written only under `artifacts/windows`, which is excluded from source control.

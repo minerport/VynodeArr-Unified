@@ -23,6 +23,8 @@ Exit criterion: both unmodified engines pass their native checks and adapter con
 
 Exit criterion: one Windows process/service exposes both engines through namespaced routes, with failure-isolation tests.
 
+Current validation: both locked Windows x64 engines have been built with their native SDKs and UIs, launched from a unified staged package, authenticated through private per-engine API keys, queried through namespaced status routes, and stopped without orphaned staged processes.
+
 ## Phase 2 — Unified shell
 
 - Create top navigation with Movies and Television destinations.

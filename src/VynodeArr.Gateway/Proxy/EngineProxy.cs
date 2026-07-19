@@ -14,8 +14,7 @@ public static class EngineProxy
         "Content-Type",
         "If-Modified-Since",
         "If-None-Match",
-        "Range",
-        "X-Api-Key"
+        "Range"
     ];
 
     public static IEndpointRouteBuilder MapEngineProxy(
@@ -61,6 +60,19 @@ public static class EngineProxy
         }.Uri;
 
         using var request = new HttpRequestMessage(new HttpMethod(context.Request.Method), target);
+        var apiKey = registry.GetApiKey(domain);
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+            await context.Response.WriteAsJsonAsync(new
+            {
+                error = "engine_credentials_unavailable",
+                domain = domain.Key()
+            });
+            return;
+        }
+
+        request.Headers.TryAddWithoutValidation("X-Api-Key", apiKey);
         if (context.Request.ContentLength > 0 || context.Request.Headers.ContainsKey("Transfer-Encoding"))
         {
             request.Content = new StreamContent(context.Request.Body);

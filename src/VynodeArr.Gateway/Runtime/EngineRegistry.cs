@@ -5,6 +5,7 @@ namespace VynodeArr.Gateway.Runtime;
 public sealed class EngineRegistry(TimeProvider timeProvider)
 {
     private readonly ConcurrentDictionary<EngineDomain, EngineStatus> _statuses = new();
+    private readonly ConcurrentDictionary<EngineDomain, string> _apiKeys = new();
 
     public EngineStatus Get(EngineDomain domain) => _statuses.GetOrAdd(
         domain,
@@ -48,4 +49,11 @@ public sealed class EngineRegistry(TimeProvider timeProvider)
 
         return new UnifiedHealth(status, timeProvider.GetUtcNow(), engines);
     }
+
+    public void SetApiKey(EngineDomain domain, string apiKey) => _apiKeys[domain] = apiKey;
+
+    public string? GetApiKey(EngineDomain domain) =>
+        _apiKeys.TryGetValue(domain, out var apiKey) ? apiKey : null;
+
+    public void ClearApiKey(EngineDomain domain) => _apiKeys.TryRemove(domain, out _);
 }
