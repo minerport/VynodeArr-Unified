@@ -1,6 +1,6 @@
 # Design tokens
 
-## Proposed contract
+## Implemented Phase 1 contract
 
 Tokens should be CSS custom properties emitted by the gateway shell and mapped into each engine's existing theme variables. Do not introduce a runtime TypeScript theme dependency across the two separately built frontends.
 
@@ -41,10 +41,16 @@ Breakpoints retain the engines' existing 480/768/992/1200/1450px contract in Pha
 
 ## Adoption
 
-1. Add a versioned gateway token stylesheet with dark/light sets and reduced-motion overrides.
+1. The gateway embeds and serves `VynodeArrTokens.v1.css` with dark/light sets and reduced-motion overrides.
 2. Map existing shell values to tokens with unchanged markup.
 3. Add engine adapter styles that map Movies and Television theme variables without editing page logic.
 4. Migrate one low-risk shared primitive family at a time.
 5. Add automated contrast snapshots and token fallback tests.
 
 Existing status colors remain until contrast and semantic mapping are verified. No hard-coded component colors should be added after the token layer lands.
+
+## Phase 1 deviations
+
+The implementation keeps the approved contract except for two contrast-driven refinements: muted text and subtle borders are slightly brighter than the assessment draft so they remain legible against the app and panel surfaces. Status colors are not remapped in engine-owned components. The light palette is a complete token override, not a component-specific color patch. Forced-colors mode preserves system colors and focus outlines, while reduced-motion sets transition and animation durations to effectively zero.
+
+Ownership remains in the gateway. Movies and Television consume the stylesheet through injection and receive only a stable engine context; neither frontend gains a shared runtime theme dependency.

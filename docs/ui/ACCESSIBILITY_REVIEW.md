@@ -19,3 +19,9 @@ Semantic links/buttons are widely used; modal focus locking exists; the Televisi
 ## Acceptance checks
 
 Keyboard-only route/action walkthrough; axe on representative routes; WCAG 2.2 AA contrast; 200% and 400% zoom; reduced-motion; Windows high contrast; screen-reader names/landmarks/headings; modal focus; error association; 44px touch targets; no hover-only required action.
+
+## Phase 1 implementation result
+
+The unified header is a labeled `nav`; the dashboard uses `main`, labeled regions, headings, articles, definition lists, visible state text, and a polite live region that updates only when an engine state changes. Focus-visible styling uses tokenized high-contrast outlines and `scroll-margin-top`. Desktop targets are at least 40px and coarse-pointer targets are 44px. Engine badges contain explicit Movies or Television text rather than color alone. Reduced-motion and forced-colors rules are present in the versioned stylesheet and covered by tests.
+
+Pending manual checks: axe, screen-reader output, 200%/400% zoom, Windows High Contrast rendering, and keyboard traversal through native engine modals. These were not claimed as complete from screenshots alone.

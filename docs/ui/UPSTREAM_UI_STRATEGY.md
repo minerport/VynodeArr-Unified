@@ -17,6 +17,8 @@ Movies currently uses React Router 5, Redux 4, connected routing, and Redux loca
 
 Gateway injection is low-conflict upstream but DOM-selector brittle. Prefer adding explicit stable marker classes in the owned engine forks over increasingly complex `:has` selectors/text mutation. Keep adapters per engine and version.
 
+Phase 1 narrows that conflict surface to gateway files only: embedded token delivery, HTML context attributes, and targeted head/header injection. Broad `MutationObserver` label replacement was removed. No Movies or Television source file, route, store, API hook, database, migration, command, or source-lock entry changed.
+
 ## Testing/maintenance
 
 Run each engine's lint, stylelint, TypeScript/build, route smoke tests, and visual snapshots separately. Then package through VynodeArr and test proxied base paths, navigation, authentication, refresh/deep links, lifecycle/offline states, and all supported platforms. Rollback is feature-flag disable plus source-lock reversal; databases/APIs are untouched.

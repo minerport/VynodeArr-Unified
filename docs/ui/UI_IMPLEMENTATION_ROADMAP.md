@@ -19,9 +19,9 @@
 
 Inventory and source assessment only. No route, API, database, action, form, or engine UI behavior changed.
 
-### Phase 1 — design foundation (recommended next)
+### Phase 1 — design foundation (implemented; awaiting review approval)
 
-Add `VynodeArrTokens.css`, dark/light token sets, reduced-motion rules, engine-context attributes/classes, and token tests. Restyle only the gateway dashboard and injected top shell. Expected files: `src/VynodeArr.Gateway/UnifiedShell.cs`, `src/VynodeArr.Gateway/Proxy/NativeShellBranding.cs`, gateway project embedded/static assets, `UnifiedShellTests.cs`, `NativeShellBrandingTests.cs`. No engine source-lock change.
+Added `VynodeArrTokens.v1.css`, dark/light token sets, reduced-motion and forced-color rules, engine-context attributes/classes, and token tests. Restyled only the gateway dashboard and injected top shell. No engine source-lock changed. Phase 2 must not begin until the authentication-gated engine-entry visual limitation and light-mode capture are reviewed.
 
 ### Phase 2 — unified shell
 

@@ -16,5 +16,7 @@
 | Upstream merge conflicts | High / high | additive CSS/markers, narrow commits | conflict review per sync |
 | Light/high-contrast regression | Medium / high | paired token sets | visual/contrast tests |
 | Screenshots overstate unrendered findings | Low / medium | evidence labels | review checklist |
+| Fresh-engine authentication masks library view | Medium / low | label captures as shell/auth-entry evidence; repeat with approved seeded fixture | visual review gate |
+| Browser runner cannot force light/reduced media | Medium / medium | unit-test token rules; capture in a runner with media emulation before Phase 2 | visual review gate |
 
 Stop-ship: inaccessible required action, missing route, broken deep link, changed API/database behavior, cross-engine command, hidden advanced setting, failed import/save/backup confirmation, or inability to disable the new shell.
