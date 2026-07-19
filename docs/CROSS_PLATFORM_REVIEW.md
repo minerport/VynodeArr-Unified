@@ -4,7 +4,7 @@
 
 The VynodeArr gateway and engine-isolation model can support Linux and Unraid without merging or rewriting the native applications. The original movie and television projects already publish self-contained Posix payloads. VynodeArr must build those exact locked sources for the target runtime, compose them behind the portable gateway, and replace Windows host integration with systemd or a container boundary.
 
-The experimental branch now implements that foundation. It is not a stable release until the end-to-end workflow builds the complete native payloads and passes container shutdown and persistence tests.
+The experimental branch now implements that foundation. The `linux-x64` end-to-end workflow has built both complete native payloads, composed the archive, started both engines in the container, and passed coordinated shutdown. It is not a stable release until application workflows, persistence, and a real Unraid host are validated.
 
 ## Findings from the current source
 
@@ -51,7 +51,8 @@ The experimental branch now implements that foundation. It is not a stable relea
   - points to the same experimental container image used by other Docker hosts.
 - Linux GitHub Actions validation
   - tests and publishes the gateway on Ubuntu for every PR;
-  - provides a manual full native-build, package, image, engine-readiness, and shutdown workflow.
+  - provides a dispatchable full native-build, package, image, engine-readiness, and shutdown workflow;
+  - passed the complete `linux-x64` workflow on July 19, 2026 ([run 29701061845](https://github.com/minerport/VynodeArr-Unified/actions/runs/29701061845)).
 
 ## Isolation requirements that must remain true
 
@@ -65,10 +66,9 @@ The experimental branch now implements that foundation. It is not a stable relea
 
 ## Remaining release gates
 
-- Run the manual `Experimental Linux package` workflow successfully with both locked Linux engines.
-- Confirm the native applications create configuration and databases under the intended mounted paths.
+- Confirm the native applications create databases under the intended mounted paths during real library setup (first-run configuration and API-key persistence are covered by tests and the container smoke test).
 - Confirm dashboard navigation, API proxying, SignalR, import, search, download-client, and media rename operations inside the container.
-- Stop the container during active engines and verify no descendants remain.
+- Stop the container during active import/download work and verify graceful completion or recovery; the baseline two-engine coordinated shutdown test passes.
 - Recreate the container and verify all settings and databases persist.
 - Validate Unraid appdata ownership and the common `99:100` identity on a real Unraid host.
 - Add backup, upgrade, rollback, and prerelease publication procedures.
