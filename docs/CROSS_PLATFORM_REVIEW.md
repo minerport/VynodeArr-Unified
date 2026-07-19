@@ -45,7 +45,7 @@ The experimental branch now implements that foundation. The `linux-x64` end-to-e
   - exposes one port and one persistent configuration root;
   - includes a unified health check;
   - leaves both databases and media domains separate.
-- `distribution/unraid/vynodearr.xml`
+- `templates/vynodearr.xml`
   - maps appdata, movies, television, downloads, timezone, port, and lifecycle key;
   - uses Unraid’s standard `nobody:users` runtime identity;
   - points to the same experimental container image used by other Docker hosts.

@@ -9,7 +9,7 @@ public sealed class UnraidTemplateTests
     {
         var repositoryRoot = FindRepositoryRoot();
         var document = XDocument.Load(
-            Path.Combine(repositoryRoot, "distribution", "unraid", "vynodearr.xml"));
+            Path.Combine(repositoryRoot, "templates", "vynodearr.xml"));
         var root = Assert.IsType<XElement>(document.Root);
         var repository = root.Element("Repository")?.Value;
         var configs = root.Elements("Config").ToArray();
@@ -33,18 +33,6 @@ public sealed class UnraidTemplateTests
             config => Attribute(config, "Target") == "/config" &&
                 (config.Value.Contains("radarr", StringComparison.OrdinalIgnoreCase) ||
                  config.Value.Contains("sonarr", StringComparison.OrdinalIgnoreCase)));
-    }
-
-    [Fact]
-    public void CommunityApplicationsTemplateMatchesDistributionTemplate()
-    {
-        var repositoryRoot = FindRepositoryRoot();
-        var distribution = XDocument.Load(
-            Path.Combine(repositoryRoot, "distribution", "unraid", "vynodearr.xml"));
-        var communityApplications = XDocument.Load(
-            Path.Combine(repositoryRoot, "templates", "vynodearr.xml"));
-
-        Assert.True(XNode.DeepEquals(distribution, communityApplications));
     }
 
     private static string? Attribute(XElement element, string name) => element.Attribute(name)?.Value;
