@@ -14,7 +14,29 @@ public sealed class XmlEngineApiKeyProvider : IEngineApiKeyProvider
         TimeSpan timeout,
         CancellationToken cancellationToken)
     {
+        Directory.CreateDirectory(dataDirectory);
         var configPath = Path.Combine(dataDirectory, "config.xml");
+        if (!File.Exists(configPath))
+        {
+            var initialDocument = new XDocument(
+                new XElement("Config", new XElement("ApiKey", Guid.NewGuid().ToString("N"))));
+            try
+            {
+                await using var initialStream = new FileStream(
+                    configPath,
+                    FileMode.CreateNew,
+                    FileAccess.Write,
+                    FileShare.Read,
+                    bufferSize: 4096,
+                    useAsync: true);
+                await initialDocument.SaveAsync(initialStream, SaveOptions.None, cancellationToken);
+            }
+            catch (IOException) when (File.Exists(configPath))
+            {
+                // Another startup path created the file between the existence check and CreateNew.
+            }
+        }
+
         using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeoutSource.CancelAfter(timeout);
         Exception? lastError = null;

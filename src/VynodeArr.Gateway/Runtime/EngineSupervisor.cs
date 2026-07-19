@@ -55,6 +55,10 @@ public sealed class EngineSupervisor(
             {
                 registry.Set(domain, EngineState.Starting, port: port);
                 var launch = CreateLaunch(domain, settings, port);
+                var apiKey = await apiKeyProvider.ReadAsync(
+                    launch.DataDirectory,
+                    TimeSpan.FromSeconds(options.Value.StartupTimeoutSeconds),
+                    stoppingToken);
                 process = processFactory.Start(launch);
                 _processes[domain] = process;
                 await readinessProbe.WaitUntilReadyAsync(
@@ -62,10 +66,6 @@ public sealed class EngineSupervisor(
                     settings,
                     process,
                     port,
-                    TimeSpan.FromSeconds(options.Value.StartupTimeoutSeconds),
-                    stoppingToken);
-                var apiKey = await apiKeyProvider.ReadAsync(
-                    launch.DataDirectory,
                     TimeSpan.FromSeconds(options.Value.StartupTimeoutSeconds),
                     stoppingToken);
                 registry.SetApiKey(domain, apiKey);
