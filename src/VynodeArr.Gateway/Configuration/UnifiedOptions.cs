@@ -23,7 +23,10 @@ public sealed class UnifiedOptions
     public EngineOptionsGroup Engines { get; init; } = new();
 
     public string ResolveDataRoot(string contentRoot) =>
-        Path.GetFullPath(Path.IsPathRooted(DataRoot) ? DataRoot : Path.Combine(contentRoot, DataRoot));
+        ResolvePath(contentRoot, Environment.ExpandEnvironmentVariables(DataRoot));
+
+    private static string ResolvePath(string contentRoot, string path) =>
+        Path.GetFullPath(Path.IsPathRooted(path) ? path : Path.Combine(contentRoot, path));
 }
 
 public sealed class EngineOptionsGroup

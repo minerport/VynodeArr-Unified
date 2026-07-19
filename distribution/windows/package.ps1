@@ -65,6 +65,17 @@ if ($LASTEXITCODE -ne 0) {
     throw "Gateway publish failed with exit code $LASTEXITCODE."
 }
 
+$installedConfigPath = Join-Path $gatewayRoot 'appsettings.json'
+$installedConfig = Get-Content -LiteralPath $installedConfigPath -Raw | ConvertFrom-Json
+$installedConfig.VynodeArr.DataRoot = '%ProgramData%\VynodeArr'
+$installedConfig.VynodeArr.Engines.Movie.Enabled = $true
+$installedConfig.VynodeArr.Engines.Television.Enabled = $true
+$installedConfigJson = $installedConfig | ConvertTo-Json -Depth 10
+[System.IO.File]::WriteAllText(
+    $installedConfigPath,
+    $installedConfigJson,
+    [System.Text.UTF8Encoding]::new($false))
+
 Copy-Item -Path (Join-Path $movieSource '*') -Destination $movieTarget -Recurse -Force
 Copy-Item -Path (Join-Path $televisionSource '*') -Destination $televisionTarget -Recurse -Force
 Copy-Item -LiteralPath (Join-Path $repositoryRoot 'distribution\source-lock.json') -Destination $stageRoot

@@ -13,6 +13,7 @@ builder.Services
     .Bind(builder.Configuration.GetSection(UnifiedOptions.SectionName))
     .ValidateDataAnnotations()
     .ValidateOnStart();
+builder.Services.AddWindowsService(options => options.ServiceName = "VynodeArr");
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IPortAllocator, LoopbackPortAllocator>();
