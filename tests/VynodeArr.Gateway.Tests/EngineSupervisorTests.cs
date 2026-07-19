@@ -34,9 +34,13 @@ public sealed class EngineSupervisorTests
             Assert.Equal("127.0.0.1", movie.EnvironmentVariables["Radarr__Server__BindAddress"]);
             Assert.Equal(movie.Port.ToString(), movie.EnvironmentVariables["Radarr__Server__Port"]);
             Assert.Equal("/movies", movie.EnvironmentVariables["Radarr__Server__UrlBase"]);
+            Assert.Equal("127.0.0.1", movie.EnvironmentVariables["VynodeMovies__Server__BindAddress"]);
+            Assert.Equal("/movies", movie.EnvironmentVariables["VynodeMovies__Server__UrlBase"]);
             Assert.Equal("127.0.0.1", television.EnvironmentVariables["Sonarr__Server__BindAddress"]);
             Assert.Equal(television.Port.ToString(), television.EnvironmentVariables["Sonarr__Server__Port"]);
             Assert.Equal("/television", television.EnvironmentVariables["Sonarr__Server__UrlBase"]);
+            Assert.Equal("127.0.0.1", television.EnvironmentVariables["VynodeTV__Server__BindAddress"]);
+            Assert.Equal("/television", television.EnvironmentVariables["VynodeTV__Server__UrlBase"]);
             Assert.NotEqual(movie.Port, television.Port);
             Assert.DoesNotContain("port", movie.Arguments, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("port", television.Arguments, StringComparison.OrdinalIgnoreCase);

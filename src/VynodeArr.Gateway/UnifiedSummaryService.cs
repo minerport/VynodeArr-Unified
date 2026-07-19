@@ -71,7 +71,7 @@ public sealed class UnifiedSummaryService(
             return new DomainSummary(
                 domain.Key(),
                 EngineState.Running.ToString(),
-                ReadString(status.RootElement, "appName"),
+                domain == EngineDomain.Movie ? "VynodeArr Movies" : "VynodeArr Television",
                 ReadString(status.RootElement, "version"),
                 items.Length,
                 items.Count(item => ReadBoolean(item, "monitored")),

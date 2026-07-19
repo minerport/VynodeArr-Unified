@@ -24,6 +24,8 @@ public sealed class UnifiedSummaryServiceTests
         Assert.Equal(5, result.Domains["television"].DownloadedFiles);
         Assert.Equal(3, result.Domains["movie"].MissingMonitored);
         Assert.Equal(7, result.Domains["television"].MissingMonitored);
+        Assert.Equal("VynodeArr Movies", result.Domains["movie"].Application);
+        Assert.Equal("VynodeArr Television", result.Domains["television"].Application);
         Assert.All(handler.MovieRequests, request => Assert.Equal("movie-key", request.ApiKey));
         Assert.All(handler.TelevisionRequests, request => Assert.Equal("tv-key", request.ApiKey));
     }

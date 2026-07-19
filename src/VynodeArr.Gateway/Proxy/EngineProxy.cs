@@ -118,12 +118,29 @@ public static class EngineProxy
             context.RequestAborted);
 
         context.Response.StatusCode = (int)response.StatusCode;
+        var isHtml = response.Content.Headers.ContentType?.MediaType?.Equals(
+            "text/html",
+            StringComparison.OrdinalIgnoreCase) == true;
         foreach (var header in response.Headers.Concat(response.Content.Headers))
         {
+            if (isHtml && header.Key.Equals("Content-Length", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
             context.Response.Headers[header.Key] = header.Value.ToArray();
         }
 
         context.Response.Headers.Remove("transfer-encoding");
+        if (isHtml && context.Response.StatusCode == StatusCodes.Status200OK)
+        {
+            var html = await response.Content.ReadAsStringAsync(context.RequestAborted);
+            await context.Response.WriteAsync(
+                NativeShellBranding.Transform(html, domain),
+                context.RequestAborted);
+            return;
+        }
+
         await response.Content.CopyToAsync(context.Response.Body, context.RequestAborted);
     }
 

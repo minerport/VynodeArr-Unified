@@ -132,6 +132,8 @@ Frontend state is split into `shell`, `movies`, and `television` namespaces. The
 
 The compatibility shell currently mounts the unchanged native interfaces at `/movies` and `/television`. Each engine is configured with its matching native URL base, so generated static-asset, API, deep-link, authentication, feed, and SignalR URLs remain valid behind the gateway. The root route is owned by VynodeArr and provides accessible domain navigation. This compatibility layer preserves complete behavior while native combined screens are developed incrementally.
 
+The gateway injects the same accessible VynodeArr navigation into both native interfaces and translates user-visible product identity to `VynodeArr Movies` and `VynodeArr Television`. Historical executable, environment, API, database, and updater identifiers remain confined to the compatibility layer where changing them would break native behavior. New supervisor-facing configuration aliases use `VynodeMovies` and `VynodeTV`.
+
 `/api/unified/v1/summary` is a read-only adapter. It queries each engine independently for system status, library counts, monitored items, downloaded files, wanted totals, queue totals, and health issues. Responses retain `movie` and `television` keys; numeric IDs and credentials never cross the boundary. A request failure produces an error only in that domain's summary.
 
 Initially, existing domain screens should be hosted through compatibility boundaries while the unified shell and normalized combined screens are built. Shared components may be extracted only when their inputs, behavior, accessibility, and tests are equivalent. Same filename is not sufficient evidence.

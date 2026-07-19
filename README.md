@@ -1,6 +1,6 @@
 # VynodeArr Unified
 
-VynodeArr Unified is the local integration workspace for one application that manages both movies and television without blending the Radarr and Sonarr domain engines.
+VynodeArr Unified is one application for managing movies and television while keeping both media domains operationally isolated.
 
 This is the standalone `minerport/VynodeArr-Unified` repository. The two source products remain unchanged while their reviewed native builds are composed behind an isolation boundary.
 
@@ -8,8 +8,8 @@ This is the standalone `minerport/VynodeArr-Unified` repository. The two source 
 
 - One Windows installer and supervisor
 - One browser origin and navigation shell
-- A movie engine derived from `minerport/VydodeArr`
-- A television engine derived from `minerport/VynodeArr2`
+- VynodeArr Movies for movie library management
+- VynodeArr Television for series, season, and episode management
 - Separate processes, configuration, databases, migrations, queues, commands, events, logs, and update lifecycles
 - A gateway exposing namespaced contracts to the unified frontend
 - Shared UI primitives only after behavior is proven equivalent
@@ -36,7 +36,7 @@ When packaged engines are enabled, browse to `http://127.0.0.1:8686/` for an ind
 
 ## Windows packaging
 
-The Windows package is a self-contained x64 gateway plus reviewed Radarr and Sonarr engine payloads. It installs one `VynodeArr` Windows service and listens on `http://127.0.0.1:8686/`.
+The Windows package is a self-contained x64 gateway plus reviewed VynodeArr Movies and VynodeArr Television payloads. It installs one `VynodeArr` Windows service and listens on `http://127.0.0.1:8686/`.
 
 - Program binaries: `C:\Program Files\VynodeArr`
 - Persistent movie data: `C:\ProgramData\VynodeArr\movie`

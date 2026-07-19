@@ -1,5 +1,5 @@
-using Microsoft.Extensions.Options;
 using System.Collections.Concurrent;
+using Microsoft.Extensions.Options;
 using VynodeArr.Gateway.Configuration;
 
 namespace VynodeArr.Gateway.Runtime;
@@ -136,14 +136,18 @@ public sealed class EngineSupervisor(
 
     private static IReadOnlyDictionary<string, string> CreateEnvironment(EngineDomain domain, int port)
     {
-        var product = domain == EngineDomain.Movie ? "Radarr" : "Sonarr";
-        return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        var publicProduct = domain == EngineDomain.Movie ? "VynodeMovies" : "VynodeTV";
+        var compatibilityProduct = domain == EngineDomain.Movie ? "Radarr" : "Sonarr";
+        var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var product in new[] { publicProduct, compatibilityProduct })
         {
-            [$"{product}__Server__Port"] = port.ToString(System.Globalization.CultureInfo.InvariantCulture),
-            [$"{product}__Server__BindAddress"] = "127.0.0.1",
-            [$"{product}__Server__EnableSsl"] = "false",
-            [$"{product}__Server__UrlBase"] = domain.NativePathBase()
-        };
+            values[$"{product}__Server__Port"] = port.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            values[$"{product}__Server__BindAddress"] = "127.0.0.1";
+            values[$"{product}__Server__EnableSsl"] = "false";
+            values[$"{product}__Server__UrlBase"] = domain.NativePathBase();
+        }
+
+        return values;
     }
 
     public override async Task StopAsync(CancellationToken cancellationToken)
