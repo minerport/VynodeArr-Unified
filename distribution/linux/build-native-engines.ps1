@@ -40,9 +40,11 @@ function Assert-Revision([string] $Source, [string] $Expected, [string] $Label) 
 
 function Build-Frontend([string] $Source) {
     Push-Location $Source
+    $previousNodeOptions = $env:NODE_OPTIONS
     try {
-        $previousNodeOptions = $env:NODE_OPTIONS
-        $env:NODE_OPTIONS = '--use-system-ca'
+        if ($IsWindows) {
+            $env:NODE_OPTIONS = '--use-system-ca'
+        }
         if ([System.IO.Path]::GetExtension($YarnPath) -eq '.js') {
             Invoke-Checked { & $NodePath $YarnPath install --frozen-lockfile --network-timeout 120000 } 'Yarn install'
             Invoke-Checked { & $NodePath $YarnPath run build --env production } 'Frontend build'
@@ -51,9 +53,11 @@ function Build-Frontend([string] $Source) {
             Invoke-Checked { & $YarnPath install --frozen-lockfile --network-timeout 120000 } 'Yarn install'
             Invoke-Checked { & $YarnPath run build --env production } 'Frontend build'
         }
-        $env:NODE_OPTIONS = $previousNodeOptions
     }
-    finally { Pop-Location }
+    finally {
+        $env:NODE_OPTIONS = $previousNodeOptions
+        Pop-Location
+    }
 }
 
 function Build-Backend([string] $Source, [string] $Solution, [string] $AdditionalProperty) {
