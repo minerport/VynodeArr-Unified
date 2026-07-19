@@ -92,6 +92,16 @@ jobs:
           -TelevisionEnginePath ./artifacts/native-inputs/${{ env.TARGET_RUNTIME }}/television
           -RuntimeIdentifier '${{ env.TARGET_RUNTIME }}'
 
+      - name: Verify Linux installer payload
+        working-directory: unified
+        run: |
+          test -x artifacts/linux/VynodeArr-${TARGET_RUNTIME}/install.sh
+          test -x artifacts/linux/VynodeArr-${TARGET_RUNTIME}/uninstall.sh
+          bash -n artifacts/linux/VynodeArr-${TARGET_RUNTIME}/install.sh
+          bash -n artifacts/linux/VynodeArr-${TARGET_RUNTIME}/uninstall.sh
+          test -f artifacts/linux/VynodeArr-${TARGET_RUNTIME}/vynodearr.service
+          test -f artifacts/linux/VynodeArr-${TARGET_RUNTIME}/vynodearr.env.example
+
       - name: Build and smoke-test x64 container
         if: env.TARGET_RUNTIME == 'linux-x64'
         working-directory: unified

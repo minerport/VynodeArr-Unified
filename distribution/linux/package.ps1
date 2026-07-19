@@ -90,6 +90,10 @@ if ($LASTEXITCODE -ne 0) {
 Copy-Item -Path (Join-Path $movieSource '*') -Destination $movieTarget -Recurse -Force
 Copy-Item -Path (Join-Path $televisionSource '*') -Destination $televisionTarget -Recurse -Force
 Copy-Item -LiteralPath (Join-Path $repositoryRoot 'distribution/source-lock.json') -Destination $stageRoot
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'install.sh') -Destination $stageRoot
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'uninstall.sh') -Destination $stageRoot
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'vynodearr.service') -Destination $stageRoot
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'vynodearr.env.example') -Destination $stageRoot
 
 $installedConfigPath = Join-Path $gatewayRoot 'appsettings.json'
 $installedConfig = Get-Content -LiteralPath $installedConfigPath -Raw | ConvertFrom-Json

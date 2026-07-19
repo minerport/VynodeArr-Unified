@@ -1,4 +1,34 @@
-# Experimental Linux packaging
+# Linux installation and packaging
+
+## Install a published x64 prerelease on Ubuntu
+
+Download both files from the VynodeArr GitHub release, verify the archive, extract it, and run the installer:
+
+```bash
+wget https://github.com/minerport/VynodeArr-Unified/releases/download/v0.4.0/VynodeArr-0.4.0-linux-x64.tar.gz
+wget https://github.com/minerport/VynodeArr-Unified/releases/download/v0.4.0/VynodeArr-0.4.0-linux-x64.tar.gz.sha256
+sha256sum --check VynodeArr-0.4.0-linux-x64.tar.gz.sha256
+tar -xzf VynodeArr-0.4.0-linux-x64.tar.gz
+cd VynodeArr-linux-x64
+sudo ./install.sh
+```
+
+Open `http://<ubuntu-ip>:8686`. The installer creates a dedicated `vynodearr` service account, installs the application under `/opt/vynodearr`, stores persistent data under `/var/lib/vynodearr`, generates a lifecycle-control key, and enables the single `vynodearr` systemd service.
+
+Useful commands:
+
+```bash
+sudo systemctl status vynodearr
+sudo journalctl -u vynodearr -f
+sudo systemctl restart vynodearr
+sudo /opt/vynodearr/uninstall.sh
+```
+
+Normal uninstall preserves configuration and databases. `sudo /opt/vynodearr/uninstall.sh --purge` permanently removes them and should only be used when all VynodeArr data is no longer needed.
+
+The first Linux release is an experimental x86-64 prerelease. ARM64 is not advertised until its native payload and runtime tests pass.
+
+## Maintainer packaging
 
 The Linux package pipeline publishes the portable gateway for `linux-x64` or `linux-arm64` and composes it with matching native movie and television builds. It does not reuse Windows payloads.
 
@@ -50,4 +80,4 @@ The unit uses `KillMode=control-group` as a final Linux-specific safety boundary
 
 Replace the lifecycle control key in the environment file with a long random secret. Browsers connecting from another device must provide this key for engine start, stop, and full shutdown actions. An unset key denies remote lifecycle mutations.
 
-This branch does not yet publish Linux-native engine artifacts, so these files are experimental scaffolding rather than an end-user release.
+The GitHub experimental packaging workflow builds the locked Linux-native engines, validates the installer payload, starts both engines in Docker, verifies readiness and coordinated shutdown, and uploads the completed archive.
