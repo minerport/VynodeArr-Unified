@@ -8,6 +8,21 @@ public enum EngineDomain
 
 public static class EngineDomainExtensions
 {
+    public static bool TryParseKey(string value, out EngineDomain domain)
+    {
+        domain = value.ToLowerInvariant() switch
+        {
+            "movie" or "movies" => EngineDomain.Movie,
+            "television" or "tv" => EngineDomain.Television,
+            _ => default
+        };
+
+        return value.Equals("movie", StringComparison.OrdinalIgnoreCase) ||
+               value.Equals("movies", StringComparison.OrdinalIgnoreCase) ||
+               value.Equals("television", StringComparison.OrdinalIgnoreCase) ||
+               value.Equals("tv", StringComparison.OrdinalIgnoreCase);
+    }
+
     public static string Key(this EngineDomain domain) => domain switch
     {
         EngineDomain.Movie => "movie",

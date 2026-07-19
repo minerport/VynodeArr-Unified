@@ -19,6 +19,7 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IPortAllocator, LoopbackPortAllocator>();
 builder.Services.AddSingleton<IEngineProcessFactory, EngineProcessFactory>();
 builder.Services.AddSingleton<IEngineApiKeyProvider, XmlEngineApiKeyProvider>();
+builder.Services.AddHttpClient<IEngineShutdownClient, HttpEngineShutdownClient>();
 builder.Services.AddHttpClient<IEngineReadinessProbe, HttpEngineReadinessProbe>()
     .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
     {
@@ -27,7 +28,8 @@ builder.Services.AddHttpClient<IEngineReadinessProbe, HttpEngineReadinessProbe>(
     });
 builder.Services.AddSingleton<EngineRegistry>();
 builder.Services.AddHttpClient<UnifiedSummaryService>();
-builder.Services.AddHostedService<EngineSupervisor>();
+builder.Services.AddSingleton<EngineSupervisor>();
+builder.Services.AddHostedService(provider => provider.GetRequiredService<EngineSupervisor>());
 builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddHttpClient(EngineProxy.ClientName)
@@ -49,13 +51,43 @@ app.MapGet("/", () => Results.Content(UnifiedShell.Html, "text/html"));
 app.MapGet("/api/unified/v1/engines", () => Results.Ok(registry.CreateHealthSnapshot().Engines));
 app.MapGet("/api/unified/v1/summary", (UnifiedSummaryService summary, CancellationToken cancellationToken) =>
     summary.GetAsync(cancellationToken));
-app.MapPost("/api/unified/v1/shutdown", (HttpContext context, IHostApplicationLifetime lifetime) =>
+app.MapPost("/api/unified/v1/engines/{domain}/{action}", async (
+    HttpContext context,
+    string domain,
+    string action,
+    EngineSupervisor supervisor,
+    CancellationToken cancellationToken) =>
 {
-    if (context.Connection.RemoteIpAddress is not { } remoteAddress || !IPAddress.IsLoopback(remoteAddress))
+    if (!IsLoopback(context) || !EngineDomainExtensions.TryParseKey(domain, out var engineDomain))
     {
         return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
 
+    var enabled = action.ToLowerInvariant() switch
+    {
+        "start" => true,
+        "stop" => false,
+        _ => (bool?)null
+    };
+    if (enabled is null)
+    {
+        return Results.NotFound();
+    }
+
+    await supervisor.SetDomainEnabledAsync(engineDomain, enabled.Value, cancellationToken);
+    return Results.Accepted(value: new { domain = engineDomain.Key(), requestedState = enabled.Value ? "running" : "stopped" });
+});
+app.MapPost("/api/unified/v1/shutdown", async (
+    HttpContext context,
+    EngineSupervisor supervisor,
+    IHostApplicationLifetime lifetime) =>
+{
+    if (!IsLoopback(context))
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    await supervisor.StopAsync(CancellationToken.None);
     lifetime.StopApplication();
     return Results.Accepted();
 });
@@ -65,5 +97,8 @@ app.MapNativeEngineProxy("movies", EngineDomain.Movie);
 app.MapNativeEngineProxy("television", EngineDomain.Television);
 
 app.Run();
+
+static bool IsLoopback(HttpContext context) =>
+    context.Connection.RemoteIpAddress is { } remoteAddress && IPAddress.IsLoopback(remoteAddress);
 
 public partial class Program;

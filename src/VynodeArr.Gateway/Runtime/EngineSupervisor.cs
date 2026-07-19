@@ -10,11 +10,18 @@ public sealed class EngineSupervisor(
     IPortAllocator portAllocator,
     IEngineProcessFactory processFactory,
     IEngineReadinessProbe readinessProbe,
+    IEngineShutdownClient shutdownClient,
     IEngineApiKeyProvider apiKeyProvider,
     EngineRegistry registry,
     ILogger<EngineSupervisor> logger) : BackgroundService
 {
     private readonly ConcurrentDictionary<EngineDomain, IEngineProcess> _processes = new();
+    private readonly ConcurrentDictionary<EngineDomain, bool> _requestedEnabled = new(
+        Enum.GetValues<EngineDomain>().ToDictionary(
+            domain => domain,
+            domain => options.Value.Engines.For(domain).Enabled));
+    private readonly IReadOnlyDictionary<EngineDomain, SemaphoreSlim> _controlSignals =
+        Enum.GetValues<EngineDomain>().ToDictionary(domain => domain, _ => new SemaphoreSlim(0, 1));
     private readonly CancellationTokenSource _shutdownSource = new();
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -31,14 +38,16 @@ public sealed class EngineSupervisor(
     private async Task SuperviseAsync(EngineDomain domain, CancellationToken stoppingToken)
     {
         var settings = options.Value.Engines.For(domain);
-        if (!settings.Enabled)
-        {
-            registry.Set(domain, EngineState.Disabled, detail: "Engine is disabled in configuration.");
-            return;
-        }
 
         while (!stoppingToken.IsCancellationRequested)
         {
+            if (!_requestedEnabled[domain])
+            {
+                registry.Set(domain, EngineState.Stopped, detail: "Engine was stopped by the user.");
+                await _controlSignals[domain].WaitAsync(stoppingToken);
+                continue;
+            }
+
             IEngineProcess? process = null;
             var port = portAllocator.Allocate();
 
@@ -63,19 +72,26 @@ public sealed class EngineSupervisor(
                 registry.Set(domain, EngineState.Running, process.Id, port);
 
                 var exitCode = await process.WaitForExitAsync(stoppingToken);
-                registry.Set(
-                    domain,
-                    EngineState.Faulted,
-                    process.Id,
-                    port,
-                    $"Engine exited with code {exitCode}.");
+                if (_requestedEnabled[domain])
+                {
+                    registry.Set(
+                        domain,
+                        EngineState.Faulted,
+                        process.Id,
+                        port,
+                        $"Engine exited with code {exitCode}.");
+                }
+                else
+                {
+                    registry.Set(domain, EngineState.Stopped, detail: "Engine was stopped by the user.");
+                }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
                 if (process is { HasExited: false })
                 {
                     registry.Set(domain, EngineState.Stopping, process.Id, port);
-                    await StopProcessSafelyAsync(domain, process);
+                    await StopProcessSafelyAsync(domain, process, port);
                     registry.Set(domain, EngineState.Stopped);
                 }
 
@@ -88,7 +104,7 @@ public sealed class EngineSupervisor(
 
                 if (process is { HasExited: false })
                 {
-                    await StopProcessSafelyAsync(domain, process);
+                    await StopProcessSafelyAsync(domain, process, port);
                 }
             }
             finally
@@ -99,6 +115,11 @@ public sealed class EngineSupervisor(
                 {
                     await process.DisposeAsync();
                 }
+            }
+
+            if (!_requestedEnabled[domain])
+            {
+                continue;
             }
 
             try
@@ -153,17 +174,73 @@ public sealed class EngineSupervisor(
     public override async Task StopAsync(CancellationToken cancellationToken)
     {
         _shutdownSource.Cancel();
-        await base.StopAsync(cancellationToken);
+        await base.StopAsync(CancellationToken.None);
+    }
+
+    public async Task SetDomainEnabledAsync(
+        EngineDomain domain,
+        bool enabled,
+        CancellationToken cancellationToken)
+    {
+        var wasEnabled = _requestedEnabled[domain];
+        _requestedEnabled[domain] = enabled;
+
+        if (enabled)
+        {
+            if (!wasEnabled && _controlSignals[domain].CurrentCount == 0)
+            {
+                _controlSignals[domain].Release();
+            }
+
+            return;
+        }
+
+        if (_processes.TryGetValue(domain, out var process) && !process.HasExited)
+        {
+            var engine = registry.Get(domain);
+            registry.Set(domain, EngineState.Stopping, process.Id, engine.Port);
+            await StopProcessSafelyAsync(domain, process, engine.Port, cancellationToken);
+        }
     }
 
     public override void Dispose()
     {
         _shutdownSource.Dispose();
+        foreach (var signal in _controlSignals.Values)
+        {
+            signal.Dispose();
+        }
         base.Dispose();
     }
 
-    private async Task StopProcessSafelyAsync(EngineDomain domain, IEngineProcess process)
+    private async Task StopProcessSafelyAsync(
+        EngineDomain domain,
+        IEngineProcess process,
+        int? port,
+        CancellationToken cancellationToken = default)
     {
+        var apiKey = registry.GetApiKey(domain);
+        if (port is not null && !string.IsNullOrWhiteSpace(apiKey))
+        {
+            try
+            {
+                using var gracefulTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                gracefulTimeout.CancelAfter(TimeSpan.FromSeconds(5));
+                await shutdownClient.RequestShutdownAsync(
+                    domain,
+                    port.Value,
+                    apiKey,
+                    gracefulTimeout.Token);
+            }
+            catch (Exception shutdownException)
+            {
+                logger.LogWarning(
+                    shutdownException,
+                    "The {Domain} engine did not accept a graceful shutdown request",
+                    domain.Key());
+            }
+        }
+
         try
         {
             await process.StopAsync(

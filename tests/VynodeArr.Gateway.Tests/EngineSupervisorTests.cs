@@ -20,6 +20,7 @@ public sealed class EngineSupervisorTests
             new SequentialPortAllocator(),
             factory,
             new ImmediateReadinessProbe(),
+            new RecordingShutdownClient(),
             new StaticApiKeyProvider(),
             registry,
             NullLogger<EngineSupervisor>.Instance);
@@ -68,6 +69,7 @@ public sealed class EngineSupervisorTests
             new SequentialPortAllocator(),
             factory,
             new DomainReadinessProbe(EngineDomain.Movie),
+            new RecordingShutdownClient(),
             new StaticApiKeyProvider(),
             registry,
             NullLogger<EngineSupervisor>.Instance);
@@ -106,6 +108,7 @@ public sealed class EngineSupervisorTests
             new SequentialPortAllocator(),
             factory,
             new ImmediateReadinessProbe(),
+            new RecordingShutdownClient(),
             new StaticApiKeyProvider(),
             registry,
             NullLogger<EngineSupervisor>.Instance);
@@ -125,6 +128,52 @@ public sealed class EngineSupervisorTests
             Assert.Equal(EngineState.Running, television.State);
             Assert.False(factory.Processes[EngineDomain.Television].StopRequested);
             Assert.Equal(1, factory.StartCounts[EngineDomain.Television]);
+        }
+        finally
+        {
+            await supervisor.StopAsync(CancellationToken.None);
+            supervisor.Dispose();
+            if (Directory.Exists(dataRoot))
+            {
+                Directory.Delete(dataRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task StopsAndRestartsOneDomainWithoutAffectingTheOther()
+    {
+        var dataRoot = Path.Combine(Path.GetTempPath(), $"vynodearr-tests-{Guid.NewGuid():N}");
+        var registry = new EngineRegistry(TimeProvider.System);
+        var factory = new FakeEngineProcessFactory();
+        var shutdown = new RecordingShutdownClient();
+        var supervisor = new EngineSupervisor(
+            Options.Create(CreateOptions(dataRoot)),
+            new TestHostEnvironment(dataRoot),
+            new SequentialPortAllocator(),
+            factory,
+            new ImmediateReadinessProbe(),
+            shutdown,
+            new StaticApiKeyProvider(),
+            registry,
+            NullLogger<EngineSupervisor>.Instance);
+
+        try
+        {
+            await supervisor.StartAsync(CancellationToken.None);
+            await WaitForAsync(() => registry.Get(EngineDomain.Movie).State == EngineState.Running &&
+                                     registry.Get(EngineDomain.Television).State == EngineState.Running);
+
+            await supervisor.SetDomainEnabledAsync(EngineDomain.Movie, false, CancellationToken.None);
+            await WaitForAsync(() => registry.Get(EngineDomain.Movie).State == EngineState.Stopped);
+
+            Assert.Equal(EngineState.Running, registry.Get(EngineDomain.Television).State);
+            Assert.False(factory.Processes[EngineDomain.Television].StopRequested);
+            Assert.Contains(EngineDomain.Movie, shutdown.RequestedDomains);
+
+            await supervisor.SetDomainEnabledAsync(EngineDomain.Movie, true, CancellationToken.None);
+            await WaitForAsync(() => factory.StartCounts[EngineDomain.Movie] == 2 &&
+                                     registry.Get(EngineDomain.Movie).State == EngineState.Running);
         }
         finally
         {
@@ -205,6 +254,21 @@ public sealed class EngineSupervisorTests
             string dataDirectory,
             TimeSpan timeout,
             CancellationToken cancellationToken) => Task.FromResult("test-api-key");
+    }
+
+    private sealed class RecordingShutdownClient : IEngineShutdownClient
+    {
+        public List<EngineDomain> RequestedDomains { get; } = [];
+
+        public Task RequestShutdownAsync(
+            EngineDomain domain,
+            int port,
+            string apiKey,
+            CancellationToken cancellationToken)
+        {
+            RequestedDomains.Add(domain);
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class FakeEngineProcessFactory : IEngineProcessFactory

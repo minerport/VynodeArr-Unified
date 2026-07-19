@@ -156,6 +156,8 @@ The target package installs:
 
 Program binaries belong under Program Files. Mutable state belongs under a single VynodeArr data root with `movie`, `television`, and `unified` children. Service recovery restarts the supervisor; the supervisor independently recovers its children.
 
+The gateway is the sole lifecycle owner. Unified shutdown first sends authenticated graceful-shutdown requests to both domain engines, waits for their processes, uses bounded process-tree termination only as a fallback, and then stops the gateway. Platform-neutral dashboard controls can stop or start either domain without affecting the other. The Windows package adds one per-user tray controller for the unified service; it never controls the two engines as separate Windows services.
+
 Existing Radarr/Sonarr installations are imported by copying or restoring into the appropriate isolated domain directory after version checks. The installer must never point both engines at an existing shared directory.
 
 ## Rejected designs

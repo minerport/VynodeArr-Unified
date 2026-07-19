@@ -34,7 +34,13 @@ public static class UnifiedShell
             .state.error { color: #f0a0a0; }
             dl { margin: 0; display: grid; grid-template-columns: 1fr auto; gap: 7px 14px; }
             dt { color: #aeb4bd; } dd { margin: 0; font-variant-numeric: tabular-nums; }
-            footer { margin-top: 22px; color: #7f8792; font-size: .9rem; }
+            button { min-height: 36px; padding: 0 14px; border: 1px solid #555c65; border-radius: 4px; color: #f3f4f6; background: #30353b; font: inherit; cursor: pointer; }
+            button:hover { background: #3a4047; }
+            button:focus-visible { outline: 2px solid #78a9ff; outline-offset: 2px; }
+            .engine-control { margin-top: 18px; }
+            footer { margin-top: 22px; display: flex; align-items: center; justify-content: space-between; gap: 16px; color: #7f8792; font-size: .9rem; }
+            .shutdown { border-color: #875151; color: #ffd8d8; background: #40272a; }
+            .shutdown:hover { background: #523034; }
             @media (max-width: 620px) { .domain-nav, .summary { grid-template-columns: 1fr; } .domain-link { min-height: 130px; } .shell-nav { padding-inline: 8px; } .shell-nav .shell-link { padding-inline: 8px; font-size: 12px; } }
             @media (prefers-reduced-motion: reduce) { .domain-link { transition: none; } }
           </style>
@@ -57,21 +63,43 @@ public static class UnifiedShell
               <article class="panel" id="movie-summary"><h2>Movies</h2><div class="state">Loading…</div></article>
               <article class="panel" id="television-summary"><h2>Television</h2><div class="state">Loading…</div></article>
             </section>
-            <footer>Movie and television data, commands, and settings remain independent.</footer>
+            <footer><span>Movie and television data, commands, and settings remain independent.</span><button class="shutdown" id="shutdown-all" type="button">Shut down VynodeArr</button></footer>
           </main>
           <script>
             const escapeHtml = (value) => String(value ?? '').replace(/[&<>\"']/g, (character) => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[character]));
             const render = (id, summary) => {
               const target = document.getElementById(id);
               const healthy = summary.state === 'Running' && !summary.error;
-              target.innerHTML = `<h2>${escapeHtml(summary.application || summary.domain)}</h2>
+              const action = healthy || summary.state === 'Starting' ? 'stop' : 'start';
+              const displayName = summary.domain === 'movie' ? 'VynodeArr Movies' : 'VynodeArr Television';
+              target.innerHTML = `<h2>${displayName}</h2>
                 <div class="state ${healthy ? '' : 'error'}">${escapeHtml(healthy ? `Running ${summary.version || ''}` : summary.error || summary.state)}</div>
-                <dl><dt>Library items</dt><dd>${summary.libraryItems}</dd><dt>Monitored</dt><dd>${summary.monitoredItems}</dd><dt>Downloaded files</dt><dd>${summary.downloadedFiles}</dd><dt>Missing monitored</dt><dd>${summary.missingMonitored}</dd><dt>Queue</dt><dd>${summary.queueItems}</dd><dt>Health issues</dt><dd>${summary.healthIssues}</dd></dl>`;
+                <dl><dt>Library items</dt><dd>${summary.libraryItems}</dd><dt>Monitored</dt><dd>${summary.monitoredItems}</dd><dt>Downloaded files</dt><dd>${summary.downloadedFiles}</dd><dt>Missing monitored</dt><dd>${summary.missingMonitored}</dd><dt>Queue</dt><dd>${summary.queueItems}</dd><dt>Health issues</dt><dd>${summary.healthIssues}</dd></dl>
+                <button class="engine-control" type="button" data-domain="${escapeHtml(summary.domain)}" data-action="${action}">${action === 'stop' ? 'Stop' : 'Start'} ${summary.domain === 'movie' ? 'Movies' : 'Television'}</button>`;
             };
-            fetch('/api/unified/v1/summary', { headers: { Accept: 'application/json' } })
+            const loadSummary = () => fetch('/api/unified/v1/summary', { headers: { Accept: 'application/json' } })
               .then((response) => response.ok ? response.json() : Promise.reject(new Error(`HTTP ${response.status}`)))
               .then((summary) => { render('movie-summary', summary.domains.movie); render('television-summary', summary.domains.television); })
               .catch((error) => document.querySelectorAll('.summary .state').forEach((node) => { node.className = 'state error'; node.textContent = `Summary unavailable: ${error.message}`; }));
+            loadSummary();
+            document.querySelector('.summary').addEventListener('click', (event) => {
+              const button = event.target.closest('.engine-control');
+              if (!button) return;
+              const label = button.dataset.domain === 'movie' ? 'Movies' : 'Television';
+              if (button.dataset.action === 'stop' && !confirm(`Stop ${label}? Active operations in that domain will pause.`)) return;
+              button.disabled = true;
+              fetch(`/api/unified/v1/engines/${button.dataset.domain}/${button.dataset.action}`, { method: 'POST' })
+                .then((response) => response.ok ? response : Promise.reject(new Error(`HTTP ${response.status}`)))
+                .then(() => setTimeout(loadSummary, 800))
+                .catch((error) => { button.disabled = false; alert(`Unable to change ${label}: ${error.message}`); });
+            });
+            document.getElementById('shutdown-all').addEventListener('click', (event) => {
+              if (!confirm('Shut down VynodeArr, including Movies and Television?')) return;
+              event.currentTarget.disabled = true;
+              fetch('/api/unified/v1/shutdown', { method: 'POST' })
+                .then(() => { document.querySelector('main').innerHTML = '<h1>VynodeArr is shutting down...</h1><p>You can close this window. Use the VynodeArr tray icon to start it again.</p>'; })
+                .catch((error) => { event.currentTarget.disabled = false; alert(`Unable to shut down VynodeArr: ${error.message}`); });
+            });
           </script>
         </body>
         </html>
