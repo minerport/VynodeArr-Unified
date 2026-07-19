@@ -15,6 +15,13 @@ sudo ./install.sh
 
 Open `http://<ubuntu-ip>:8686`. The installer creates a dedicated `vynodearr` service account, installs the application under `/opt/vynodearr`, stores persistent data under `/var/lib/vynodearr`, generates a lifecycle-control key, and enables the single `vynodearr` systemd service.
 
+The service does not restrict media to a hard-coded directory list. Root folders may be located under `/srv`, `/mnt`, `/media`, `/home`, or another administrator-selected location. Normal Linux ownership and mode rules still apply: the `vynodearr` account must have read and write access to any root folder selected in the UI. For example:
+
+```bash
+sudo chown -R vynodearr:vynodearr /path/to/media
+sudo chmod -R u+rwX,g+rwX /path/to/media
+```
+
 Useful commands:
 
 ```bash

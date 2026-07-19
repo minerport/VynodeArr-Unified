@@ -22,6 +22,8 @@ Linux x64 packages are built from the two locked native source revisions and dis
 
 The installer uses one systemd service and keeps application files, administrator configuration, and persistent data separate. A normal uninstall preserves configuration and databases; the explicit `--purge` option permanently deletes them.
 
+The service hardening keeps operating-system and application directories read-only without imposing a fixed `ReadWritePaths` allowlist or hiding home directories. Users may select media locations anywhere the non-root `vynodearr` account has ordinary Linux filesystem permission to access.
+
 ## Why Linux is still experimental
 
 The gateway targets .NET 8 and most of its supervision code is portable. Windows job-object handling already degrades to a platform-neutral path outside Windows. The complete installed product still has Windows-specific assumptions:

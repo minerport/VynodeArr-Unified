@@ -17,9 +17,8 @@ TimeoutStopSec=60s
 KillMode=control-group
 NoNewPrivileges=true
 PrivateTmp=true
-ProtectHome=true
-ProtectSystem=strict
-ReadWritePaths=/var/lib/vynodearr
+ProtectHome=false
+ProtectSystem=full
 
 [Install]
 WantedBy=multi-user.target
