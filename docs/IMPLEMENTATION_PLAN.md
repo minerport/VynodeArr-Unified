@@ -16,6 +16,7 @@ Exit criterion: both unmodified engines pass their native checks and adapter con
 - Create a .NET supervisor targeting the chosen product runtime.
 - Allocate loopback ports and isolated data folders.
 - Start, probe, restart, and stop both child engines.
+- Refuse traffic until each child passes its native readiness endpoint.
 - Proxy namespaced API and event traffic.
 - Add unified health showing each engine independently.
 - Ensure one engine can be unavailable while the other remains usable.
@@ -53,6 +54,7 @@ Exit criterion: principal workflows are native to the unified shell with parity 
 ## Phase 5 — Packaging, migration, and recovery
 
 - Build one Windows installer and service.
+- Stage complete immutable engine payloads with a source lock and SHA-256 package manifest.
 - Add per-engine import/restore assistants.
 - Add composite backup manifest and independent restore.
 - Add upgrade compatibility matrix and rollback.

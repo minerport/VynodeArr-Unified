@@ -9,6 +9,7 @@ public sealed class EngineSupervisor(
     IHostEnvironment environment,
     IPortAllocator portAllocator,
     IEngineProcessFactory processFactory,
+    IEngineReadinessProbe readinessProbe,
     EngineRegistry registry,
     ILogger<EngineSupervisor> logger) : BackgroundService
 {
@@ -42,6 +43,13 @@ public sealed class EngineSupervisor(
                 var launch = CreateLaunch(domain, settings, port);
                 process = processFactory.Start(launch);
                 _processes[domain] = process;
+                await readinessProbe.WaitUntilReadyAsync(
+                    domain,
+                    settings,
+                    process,
+                    port,
+                    TimeSpan.FromSeconds(options.Value.StartupTimeoutSeconds),
+                    stoppingToken);
                 registry.Set(domain, EngineState.Running, process.Id, port);
 
                 var exitCode = await process.WaitForExitAsync(stoppingToken);
@@ -60,6 +68,23 @@ public sealed class EngineSupervisor(
             {
                 registry.Set(domain, EngineState.Faulted, process?.Id, port, exception.Message);
                 logger.LogError(exception, "The {Domain} engine failed", domain.Key());
+
+                if (process is { HasExited: false })
+                {
+                    try
+                    {
+                        await process.StopAsync(
+                            TimeSpan.FromSeconds(options.Value.ShutdownTimeoutSeconds),
+                            CancellationToken.None);
+                    }
+                    catch (Exception stopException)
+                    {
+                        logger.LogError(
+                            stopException,
+                            "The unhealthy {Domain} engine could not be stopped cleanly",
+                            domain.Key());
+                    }
+                }
             }
             finally
             {

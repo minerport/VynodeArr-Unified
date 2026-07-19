@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "engines": {
+    "movie": {
+      "repository": "https://github.com/minerport/VydodeArr",
+      "branch": "main",
+      "commit": "de4811318ef1eb6560a5e480cc4bba2afc008ca9",
+      "entryPoint": "Radarr.Console.exe",
+      "database": "radarr.db",
+      "nativeRuntime": ".NET 8"
+    },
+    "television": {
+      "repository": "https://github.com/minerport/VynodeArr2",
+      "branch": "main",
+      "commit": "a29f15e92bd2c21e646d065d9d78066952cac05d",
+      "entryPoint": "Sonarr.Console.exe",
+      "database": "sonarr.db",
+      "nativeRuntime": ".NET 10"
+    }
+  }
+}

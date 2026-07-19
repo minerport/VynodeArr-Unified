@@ -9,6 +9,43 @@ namespace VynodeArr.Gateway.Tests;
 public sealed class EngineSupervisorTests
 {
     [Fact]
+    public async Task UnreadyMovieIsStoppedWithoutStoppingTelevisionEngine()
+    {
+        var dataRoot = Path.Combine(Path.GetTempPath(), $"vynodearr-tests-{Guid.NewGuid():N}");
+        var registry = new EngineRegistry(TimeProvider.System);
+        var factory = new FakeEngineProcessFactory();
+        var supervisor = new EngineSupervisor(
+            Options.Create(CreateOptions(dataRoot)),
+            new TestHostEnvironment(dataRoot),
+            new SequentialPortAllocator(),
+            factory,
+            new DomainReadinessProbe(EngineDomain.Movie),
+            registry,
+            NullLogger<EngineSupervisor>.Instance);
+
+        try
+        {
+            await supervisor.StartAsync(CancellationToken.None);
+            await WaitForAsync(
+                () => registry.Get(EngineDomain.Movie).State == EngineState.Faulted &&
+                      registry.Get(EngineDomain.Television).State == EngineState.Running);
+
+            Assert.True(factory.Processes[EngineDomain.Movie].StopRequested);
+            Assert.False(factory.Processes[EngineDomain.Television].StopRequested);
+            Assert.Equal(1, factory.StartCounts[EngineDomain.Television]);
+        }
+        finally
+        {
+            await supervisor.StopAsync(CancellationToken.None);
+            supervisor.Dispose();
+            if (Directory.Exists(dataRoot))
+            {
+                Directory.Delete(dataRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task MovieExitDoesNotStopTelevisionEngine()
     {
         var dataRoot = Path.Combine(Path.GetTempPath(), $"vynodearr-tests-{Guid.NewGuid():N}");
@@ -19,6 +56,7 @@ public sealed class EngineSupervisorTests
             new TestHostEnvironment(dataRoot),
             new SequentialPortAllocator(),
             factory,
+            new ImmediateReadinessProbe(),
             registry,
             NullLogger<EngineSupervisor>.Instance);
 
@@ -85,6 +123,30 @@ public sealed class EngineSupervisorTests
         private int _port = 12000;
 
         public int Allocate() => Interlocked.Increment(ref _port);
+    }
+
+    private sealed class ImmediateReadinessProbe : IEngineReadinessProbe
+    {
+        public Task WaitUntilReadyAsync(
+            EngineDomain domain,
+            EngineOptions settings,
+            IEngineProcess process,
+            int port,
+            TimeSpan timeout,
+            CancellationToken cancellationToken) => Task.CompletedTask;
+    }
+
+    private sealed class DomainReadinessProbe(EngineDomain failingDomain) : IEngineReadinessProbe
+    {
+        public Task WaitUntilReadyAsync(
+            EngineDomain domain,
+            EngineOptions settings,
+            IEngineProcess process,
+            int port,
+            TimeSpan timeout,
+            CancellationToken cancellationToken) => domain == failingDomain
+                ? Task.FromException(new TimeoutException($"{domain.Key()} did not become ready."))
+                : Task.CompletedTask;
     }
 
     private sealed class FakeEngineProcessFactory : IEngineProcessFactory

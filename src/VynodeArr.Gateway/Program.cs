@@ -15,6 +15,12 @@ builder.Services
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IPortAllocator, LoopbackPortAllocator>();
 builder.Services.AddSingleton<IEngineProcessFactory, EngineProcessFactory>();
+builder.Services.AddHttpClient<IEngineReadinessProbe, HttpEngineReadinessProbe>()
+    .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+    {
+        AllowAutoRedirect = false,
+        UseCookies = false
+    });
 builder.Services.AddSingleton<EngineRegistry>();
 builder.Services.AddHostedService<EngineSupervisor>();
 builder.Services.ConfigureHttpJsonOptions(options =>

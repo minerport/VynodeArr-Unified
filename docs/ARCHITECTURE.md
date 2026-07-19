@@ -84,6 +84,9 @@ The gateway is the only public listener. Internal engine ports bind to loopback 
 10. Backups and restores operate per engine. A product backup is a manifest plus two engine backups and unified settings.
 11. Updating one engine cannot migrate, stop, or replace the other engine.
 12. Combined screens are read models. Mutations are routed to exactly one engine.
+13. Engine binaries are packaged as complete immutable directory payloads; shared DLL deduplication is prohibited.
+14. An engine is routable only after its own readiness endpoint succeeds.
+15. Package manifests lock source revisions and hash every staged file so missing or substituted payloads are detectable.
 
 ## Gateway contract
 
