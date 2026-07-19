@@ -5,10 +5,10 @@
 Download both files from the VynodeArr GitHub release, verify the archive, extract it, and run the installer:
 
 ```bash
-wget https://github.com/minerport/VynodeArr-Unified/releases/download/v0.4.0/VynodeArr-0.4.0-linux-x64.tar.gz
-wget https://github.com/minerport/VynodeArr-Unified/releases/download/v0.4.0/VynodeArr-0.4.0-linux-x64.tar.gz.sha256
-sha256sum --check VynodeArr-0.4.0-linux-x64.tar.gz.sha256
-tar -xzf VynodeArr-0.4.0-linux-x64.tar.gz
+wget https://github.com/minerport/VynodeArr-Unified/releases/download/v0.4.1/VynodeArr-0.4.1-linux-x64.tar.gz
+wget https://github.com/minerport/VynodeArr-Unified/releases/download/v0.4.1/VynodeArr-0.4.1-linux-x64.tar.gz.sha256
+sha256sum --check VynodeArr-0.4.1-linux-x64.tar.gz.sha256
+tar -xzf VynodeArr-0.4.1-linux-x64.tar.gz
 cd VynodeArr-linux-x64
 sudo ./install.sh
 ```
