@@ -97,8 +97,10 @@ $installedConfig.Urls = 'http://0.0.0.0:8686'
 $installedConfig.VynodeArr.DataRoot = '/config'
 $installedConfig.VynodeArr.Engines.Movie.Enabled = $true
 $installedConfig.VynodeArr.Engines.Movie.ExecutablePath = "/opt/vynodearr/engines/movie/$MovieEntryPoint"
+$installedConfig.VynodeArr.Engines.Movie.Arguments = '-nobrowser -data={data}'
 $installedConfig.VynodeArr.Engines.Television.Enabled = $true
 $installedConfig.VynodeArr.Engines.Television.ExecutablePath = "/opt/vynodearr/engines/television/$TelevisionEntryPoint"
+$installedConfig.VynodeArr.Engines.Television.Arguments = '-nobrowser -data={data}'
 [System.IO.File]::WriteAllText(
     $installedConfigPath,
     ($installedConfig | ConvertTo-Json -Depth 10),
