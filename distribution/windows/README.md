@@ -7,6 +7,8 @@ The package pipeline treats both native applications as immutable payloads. It d
 ```text
 VynodeArr-win-x64/
   gateway/                  self-contained supervisor/gateway
+  tray/                     notification-area controller and shortcut launcher
+  branding/                 installer and shell branding assets
   engines/movie/            complete native movie application
   engines/television/       complete native television application
   data/                     initially empty; populated after installation
@@ -39,4 +41,18 @@ Then create the unified package:
 
 The command fails before packaging if either native entry point is missing. Output is written only under `artifacts/windows`, which is excluded from source control.
 
-The staged directory is the input for the final Windows installer project. Installer work will add service registration, Program Files placement, ProgramData data roots, upgrade detection, rollback, and uninstall-with-data-preservation around this unchanged payload layout.
+## Compile the installer
+
+Install Inno Setup 7 and compile the staged package:
+
+```powershell
+.\distribution\windows\build-installer.ps1 `
+  -IsccPath "$env:LOCALAPPDATA\Programs\Inno Setup 7\ISCC.exe" `
+  -Version 0.3.3
+```
+
+The installer registers one `VynodeArr` Windows service, creates branded Start menu and desktop shortcuts, starts one notification-area controller, and places application files under `C:\Program Files\VynodeArr`. Persistent domain data remains isolated under `C:\ProgramData\VynodeArr` and is preserved during uninstall.
+
+During uninstall, the tray launcher first requests a graceful gateway shutdown. The gateway stops both native engines and closes their Windows job object. The installer then stops and removes the service and performs VynodeArr-specific process cleanup before deleting program files.
+
+Generated packages and installers remain under `artifacts/`, which is excluded from source control. Upload approved installers as GitHub Release assets rather than committing them to the repository.

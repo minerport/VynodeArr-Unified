@@ -1,65 +1,114 @@
-# VynodeArr Unified
+# VynodeArr
 
-VynodeArr Unified is one application for managing movies and television while keeping both media domains operationally isolated.
+VynodeArr is one self-hosted application for managing movie and television libraries. It presents one dashboard, one Windows service, one installer, and one system-tray controller while keeping the movie and television engines operationally isolated.
 
-This is the standalone `minerport/VynodeArr-Unified` repository. The two source products remain unchanged while their reviewed native builds are composed behind an isolation boundary.
+> VynodeArr is under active development. Back up existing media-manager configuration before testing upgrades.
 
-## Foundation architecture
+## What works today
 
-- One Windows installer and supervisor
-- One browser origin and navigation shell
-- VynodeArr Movies for movie library management
-- VynodeArr Television for series, season, and episode management
-- Separate processes, configuration, databases, migrations, queues, commands, events, logs, and update lifecycles
-- A gateway exposing namespaced contracts to the unified frontend
-- Shared UI primitives only after behavior is proven equivalent
+- Unified dashboard at `http://127.0.0.1:8686/`
+- Complete movie interface under `/movies/`
+- Complete television interface under `/television/`
+- Persistent navigation between Dashboard, Movies, and Television
+- Independent movie and television databases, settings, queues, commands, logs, and data roots
+- Combined library, wanted, queue, download, and health summaries
+- Independent start and stop controls for each media engine
+- One action to shut down the gateway and both engines
+- One Windows service and one notification-area controller
+- Branded installer, executables, tray icon, Start menu entry, and desktop shortcut
+- Graceful uninstall shutdown with forced VynodeArr-only cleanup as a fallback
+- Automatic dashboard refresh during engine start and stop transitions
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the detailed analysis and [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) for the staged build plan.
+The movie and television payloads remain separate processes. A failure, command, database migration, or configuration change in one domain is not routed into the other domain.
 
-## Current status
+## Architecture
 
-Phase 2 is in progress. The supervisor/gateway runs independent movie and television processes with isolated data roots, health, recovery, private credentials, and namespaced proxy routes. A unified launcher at `/` mounts the complete native movie UI under `/movies` and television UI under `/television`, including deep links and SignalR. Source development keeps both engines disabled until reviewed binaries are supplied; packaged Windows builds enable both. No source code from either engine has been modified.
+```text
+Browser
+  |
+  v
+VynodeArr Gateway :8686
+  |-- /                    Unified dashboard
+  |-- /movies/*            Movie engine proxy
+  |-- /television/*        Television engine proxy
+  |-- /api/unified/v1/*    Unified status and lifecycle API
+  |
+  |-- VynodeArr Movies     Private loopback process and data
+  `-- VynodeArr Television Private loopback process and data
+```
+
+The locked engine revisions and provenance are recorded in [`distribution/source-lock.json`](distribution/source-lock.json). See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/SOURCE_INVENTORY.md`](docs/SOURCE_INVENTORY.md), and [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md) for the detailed design and roadmap.
+
+## Windows installation
+
+VynodeArr currently targets 64-bit Windows. Run the latest `VynodeArr-<version>-win-x64-setup.exe` from the project’s GitHub Releases when a release is published.
+
+The installer creates:
+
+- Windows service: `VynodeArr`
+- Application files: `C:\Program Files\VynodeArr`
+- Movie data: `C:\ProgramData\VynodeArr\movie`
+- Television data: `C:\ProgramData\VynodeArr\television`
+- Unified state: `C:\ProgramData\VynodeArr\unified`
+- Desktop and Start menu shortcuts
+- One notification-area controller that starts with the signed-in user
+
+Open `http://127.0.0.1:8686/` after installation. The tray menu can open the dashboard, start the service, or shut down the gateway and both engines.
+
+Uninstall removes services and program files but intentionally preserves `C:\ProgramData\VynodeArr` so library settings and databases are not silently destroyed.
 
 ## Development
 
-The supervisor/gateway targets .NET 8 LTS and is pinned by `global.json`. Each packaged media engine retains its own native runtime, including the television engine's .NET 10 baseline.
+Requirements:
+
+- .NET SDK 8.0.423 or a compatible 8.0 patch selected by `global.json`
+- PowerShell 7 or Windows PowerShell
+- Windows x64 for producing the complete installer
+- Inno Setup 7 for installer compilation
+- Reviewed movie and television engine payloads for full runtime packaging
+
+Build and test the gateway:
 
 ```powershell
 dotnet restore VynodeArr.Unified.sln
-dotnet build VynodeArr.Unified.sln --no-restore
+dotnet build VynodeArr.Unified.sln --configuration Release --no-restore
+dotnet test VynodeArr.Unified.sln --configuration Release --no-build
 dotnet run --project src/VynodeArr.Gateway
 ```
 
-With the default safe configuration, browse to `http://127.0.0.1:8686/health`. Both engines will report `disabled` until their executable paths and `Enabled` flags are configured. Port 8686 intentionally avoids the native Radarr and Sonarr defaults.
+The development configuration keeps both native engines disabled until their reviewed executables are supplied. The health endpoint remains available at `http://127.0.0.1:8686/health`.
 
-When packaged engines are enabled, browse to `http://127.0.0.1:8686/` for an independent movie/television library, monitoring, download, missing-item, queue, and health summary. Choose Movies or Television to enter the full native interface. Native functionality remains at `/movies/` and `/television/`; the gateway selects the correct private engine API and event stream by route.
+## Building the Windows installer
 
-## Windows packaging
-
-The Windows package is a self-contained x64 gateway plus reviewed VynodeArr Movies and VynodeArr Television payloads. It installs one `VynodeArr` Windows service and listens on `http://127.0.0.1:8686/`.
-
-One VynodeArr notification-area icon starts with the signed-in Windows user. Its menu opens the dashboard, starts the unified service, or shuts down the gateway and both media engines together. The dashboard provides the same platform-neutral unified shutdown action plus independent stop/start controls for Movies and Television.
-
-- Program binaries: `C:\Program Files\VynodeArr`
-- Persistent movie data: `C:\ProgramData\VynodeArr\movie`
-- Persistent television data: `C:\ProgramData\VynodeArr\television`
-- Unified state: `C:\ProgramData\VynodeArr\unified`
-
-Build the staged payload, then compile the installer:
+Stage reviewed engine builds and compile the installer:
 
 ```powershell
 .\distribution\windows\package.ps1 `
-  -MovieEnginePath .\runtime\native\movie `
-  -TelevisionEnginePath .\runtime\native\television `
+  -MovieEnginePath C:\path\to\movie-build `
+  -TelevisionEnginePath C:\path\to\television-build `
   -SkipArchive
 
 .\distribution\windows\build-installer.ps1 `
   -IsccPath "$env:LOCALAPPDATA\Programs\Inno Setup 7\ISCC.exe" `
-  -Version 0.1.0
+  -Version 0.3.3
 ```
 
-Generated packages remain under `artifacts/` and are intentionally excluded from Git. Uninstalling removes the service and program files but deliberately preserves the data under `C:\ProgramData\VynodeArr`.
+Generated packages are written under `artifacts/` and excluded from Git. Publish installers as GitHub Release assets rather than committing generated binaries.
 
-## Library import notes
+## Library import note
 
-VynodeArr Movies Library Import expects an organized library with one subfolder per movie. Loose video files placed directly in a root such as `E:\Movies` are not import candidates. Organize them as `E:\Movies\Movie Title (Year)\video-file.mkv` before starting Library Import. VynodeArr displays this requirement directly on the import screen.
+Movie Library Import expects one directory per movie. Loose media files directly inside a root folder are not import candidates.
+
+```text
+E:\Movies\Movie Title (Year)\movie-file.mkv
+```
+
+## Contributing
+
+Read [`CONTRIBUTING.md`](CONTRIBUTING.md) before changing engine lifecycle, proxy routing, packaging, or data isolation behavior. Changes must keep both domains independently testable and must not merge their databases, dependency-injection containers, background jobs, or command buses.
+
+## Source and licensing
+
+The locked movie and television source repositories are both distributed under GPL-3.0. Their repository URLs and exact revisions are recorded in the source lock and source inventory. Preserve upstream copyright and license notices when redistributing engine payloads.
+
+VynodeArr is an independent project and is not affiliated with or endorsed by the Radarr or Sonarr projects.
