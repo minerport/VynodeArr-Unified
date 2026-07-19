@@ -1,5 +1,7 @@
 using System.Net;
 using System.Net.WebSockets;
+using Microsoft.Extensions.Options;
+using VynodeArr.Gateway.Configuration;
 using VynodeArr.Gateway.Runtime;
 
 namespace VynodeArr.Gateway.Proxy;
@@ -40,8 +42,8 @@ public static class EngineProxy
         endpoints.MapMethods(
             $"/{routeDomain}/{{**path}}",
             ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"],
-            (HttpContext context, string? path, EngineRegistry registry, IHttpClientFactory clients) =>
-                ForwardAsync(context, $"/{routeDomain}/{path ?? string.Empty}", domain, registry, clients));
+            (HttpContext context, string? path, EngineRegistry registry, IHttpClientFactory clients, IOptions<UnifiedOptions> options) =>
+                ForwardAsync(context, $"/{routeDomain}/{path ?? string.Empty}", domain, registry, clients, options.Value.Ui));
 
         return endpoints;
     }
@@ -51,7 +53,8 @@ public static class EngineProxy
         string targetPath,
         EngineDomain domain,
         EngineRegistry registry,
-        IHttpClientFactory clients)
+        IHttpClientFactory clients,
+        UiOptions? ui = null)
     {
         var engine = registry.Get(domain);
         if (engine.State != EngineState.Running || engine.Port is null)
@@ -136,7 +139,7 @@ public static class EngineProxy
         {
             var html = await response.Content.ReadAsStringAsync(context.RequestAborted);
             await context.Response.WriteAsync(
-                NativeShellBranding.Transform(html, domain),
+                NativeShellBranding.Transform(html, domain, ui ?? new UiOptions()),
                 context.RequestAborted);
             return;
         }

@@ -1,10 +1,11 @@
+using VynodeArr.Gateway.Configuration;
 using VynodeArr.Gateway.Runtime;
 
 namespace VynodeArr.Gateway.Proxy;
 
 public static class NativeShellBranding
 {
-    private const string HeadContent = """
+    private const string LegacyStyle = """
         <style id="vynodearr-shell-style">
           :root { --vynodearr-shell-height: 46px; }
           #vynodearr-shell { position: fixed; inset: 0 0 auto 0; z-index: 2147483647; height: var(--vynodearr-shell-height); display: flex; align-items: center; gap: 4px; padding: 0 12px; color: #f5f7fa; background: #17191c; border-bottom: 1px solid #41464d; box-shadow: 0 1px 4px rgb(0 0 0 / 28%); font: 600 14px/1 Inter, "Segoe UI", sans-serif; }
@@ -16,80 +17,100 @@ public static class NativeShellBranding
           #vynodearr-shell .vynodearr-link[aria-current="page"] { color: #fff; background: #30353b; border-color: #555c65; }
           body > #root { position: relative; top: var(--vynodearr-content-offset, var(--vynodearr-shell-height)); height: calc(100% - var(--vynodearr-content-offset, var(--vynodearr-shell-height))) !important; }
           #vynodearr-import-notice { position: fixed; inset: var(--vynodearr-shell-height) 0 auto 0; z-index: 2147483646; min-height: 44px; display: flex; align-items: center; justify-content: center; padding: 8px 16px; color: #f8e7b2; background: #3d3420; border-bottom: 1px solid #796a3f; font: 600 13px/1.35 Inter, "Segoe UI", sans-serif; text-align: center; }
-          @media (max-width: 520px) {
-            #vynodearr-shell { padding: 0 5px; }
-            #vynodearr-shell .vynodearr-brand { width: 36px; }
-            #vynodearr-shell .vynodearr-link { padding-inline: 8px; font-size: 12px; }
-          }
+          @media (max-width: 520px) { #vynodearr-shell { padding: 0 5px; } #vynodearr-shell .vynodearr-brand { width: 36px; } #vynodearr-shell .vynodearr-link { padding-inline: 8px; font-size: 12px; } }
         </style>
         """;
 
-    public static string Transform(string html, EngineDomain domain)
-    {
-        var legacyName = domain == EngineDomain.Movie ? "Radarr" : "Sonarr";
-        var productName = domain == EngineDomain.Movie ? "VynodeArr Movies" : "VynodeArr Television";
-        var activePath = domain == EngineDomain.Movie ? "/movies/" : "/television/";
-        var activePathWithoutSlash = activePath.TrimEnd('/');
-        var movieImportNotice = domain == EngineDomain.Movie
-            ? """
-              if (location.pathname.startsWith('/movies/add/import')) {
-                document.documentElement.style.setProperty('--vynodearr-content-offset', '90px');
-                const notice = document.createElement('div');
-                notice.id = 'vynodearr-import-notice';
-                notice.setAttribute('role', 'note');
-                notice.textContent = 'Library Import requires one folder per movie. Loose video files directly inside the root folder are not listed; organize each movie into its own folder first.';
-                document.body.appendChild(notice);
-              }
-              """
-            : string.Empty;
-        var nativeBrandStyle = $$"""
-            <style id="vynodearr-native-brand-style">
-              #root a[href="{{activePath}}"]:has(> img) > img,
-              #root a[href="{{activePathWithoutSlash}}"]:has(> img) > img { display: none !important; }
-              #root a[href="{{activePath}}"]:has(> img)::after,
-              #root a[href="{{activePathWithoutSlash}}"]:has(> img)::after { content: ""; display: inline-block; width: 42px; height: 42px; margin: 3px 10px; border-radius: 8px; background: url('/assets/vynodearr.png') center/cover no-repeat; }
-            </style>
-            """;
-        var navigation = $$"""
-            <nav id="vynodearr-shell" aria-label="VynodeArr sections">
-              <a class="vynodearr-brand" href="/" aria-label="VynodeArr dashboard"><img src="/assets/vynodearr.png" alt=""></a>
-              <a class="vynodearr-link" href="/">Dashboard</a>
-              <a class="vynodearr-link" href="/movies/"{{(activePath == "/movies/" ? " aria-current=\"page\"" : string.Empty)}}>Movies</a>
-              <a class="vynodearr-link" href="/television/"{{(activePath == "/television/" ? " aria-current=\"page\"" : string.Empty)}}>Television</a>
-            </nav>
-            <script id="vynodearr-branding-script">
-            (() => {
-              const legacy = '{{legacyName}}';
-              const product = '{{productName}}';
-              const replace = (value) => typeof value === 'string' ? value.replaceAll(legacy, product) : value;
-              const brand = (root) => {
-                const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-                const nodes = [];
-                while (walker.nextNode()) nodes.push(walker.currentNode);
-                nodes.forEach((node) => { if (!node.parentElement?.closest('#vynodearr-shell') && node.data.includes(legacy)) node.data = replace(node.data); });
-                root.querySelectorAll?.('[title],[aria-label],[alt]').forEach((element) => {
-                  for (const name of ['title', 'aria-label', 'alt']) {
-                    const value = element.getAttribute(name);
-                    if (value?.includes(legacy)) element.setAttribute(name, replace(value));
-                  }
-                });
-                document.title = replace(document.title) || product;
-              };
-              const observer = new MutationObserver((entries) => entries.forEach((entry) => entry.addedNodes.forEach((node) => {
-                if (node.nodeType === Node.ELEMENT_NODE && !node.closest?.('#vynodearr-shell')) brand(node);
-                else if (node.nodeType === Node.TEXT_NODE && node.data.includes(legacy)) node.data = replace(node.data);
-              })));
-              brand(document.body);
-              observer.observe(document.body, { childList: true, subtree: true });
-              {{movieImportNotice}}
-            })();
-            </script>
-            """;
+    private const string FoundationStyle = """
+        <style id="vynodearr-shell-style" data-vy-adapter-version="1">
+          :root { --vynodearr-content-offset: var(--vy-shell-height, 48px); scroll-padding-top: calc(var(--vy-shell-height, 48px) + 8px); }
+          .vy-shell-header { position: fixed; inset: 0 0 auto 0; z-index: var(--vy-z-shell, 1000); min-height: var(--vy-shell-height, 48px); display: flex; align-items: center; gap: var(--vy-space-1, 4px); padding: 0 var(--vy-space-3, 12px); color: var(--vy-text-primary, #f2f5f8); background: var(--vy-surface-sidebar, #171c24); border-bottom: 1px solid var(--vy-border-subtle, #303946); box-shadow: 0 1px 6px rgb(0 0 0 / 18%); font: 600 var(--vy-font-size-body, 14px)/1 var(--vy-font-sans, sans-serif); }
+          .vy-shell-header::after { content: ""; position: absolute; inset: auto 0 -1px 0; height: 2px; background: var(--vy-engine-accent, #8aa0b8); }
+          .vy-shell-brand { width: var(--vy-target-desktop, 40px); min-height: var(--vy-target-desktop, 40px); display: grid; place-items: center; border-radius: var(--vy-radius-md, 7px); }
+          .vy-shell-brand img { width: 32px; height: 32px; border-radius: var(--vy-radius-md, 7px); object-fit: cover; }
+          .vy-engine-badge { margin-right: auto; display: inline-flex; align-items: center; gap: var(--vy-space-2, 8px); min-height: 28px; padding: 0 var(--vy-space-3, 12px); color: var(--vy-text-primary, #f2f5f8); border: 1px solid var(--vy-border-strong, #526074); border-left: 3px solid var(--vy-engine-accent, #8aa0b8); border-radius: 999px; background: var(--vy-surface-panel, #1d232d); font-size: var(--vy-font-size-meta, 12px); letter-spacing: .02em; }
+          .vy-engine-badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--vy-engine-accent, #8aa0b8); forced-color-adjust: none; }
+          .vy-shell-link { min-height: var(--vy-target-desktop, 40px); display: inline-flex; align-items: center; padding: 0 var(--vy-space-3, 12px); color: var(--vy-text-secondary, #b8c0cb); border: 1px solid transparent; border-radius: var(--vy-radius-sm, 4px); text-decoration: none; transition: color var(--vy-motion-fast, 120ms) var(--vy-ease-standard, ease), background var(--vy-motion-fast, 120ms) var(--vy-ease-standard, ease); }
+          .vy-shell-link:hover { color: var(--vy-text-primary, #f2f5f8); background: var(--vy-surface-hover, #2b3441); }
+          .vy-shell-link:focus-visible, .vy-shell-brand:focus-visible { outline: var(--vy-focus-ring, 3px solid #93c5fd); outline-offset: var(--vy-focus-offset, 2px); }
+          .vy-shell-link[aria-current="page"] { color: var(--vy-text-primary, #f2f5f8); background: var(--vy-surface-selected, #303b4b); border-color: var(--vy-engine-accent, #8aa0b8); }
+          body > #root { position: relative; top: var(--vynodearr-content-offset); height: calc(100% - var(--vynodearr-content-offset)) !important; }
+          #vynodearr-import-notice { position: fixed; inset: var(--vy-shell-height, 48px) 0 auto 0; z-index: calc(var(--vy-z-shell, 1000) - 1); min-height: 44px; display: flex; align-items: center; justify-content: center; padding: var(--vy-space-2, 8px) var(--vy-space-4, 16px); color: var(--vy-text-primary, #f2f5f8); background: var(--vy-surface-elevated, #242b36); border-bottom: 2px solid var(--vy-status-warning, #fbbf24); font: 600 var(--vy-font-size-meta, 13px)/1.4 var(--vy-font-sans, sans-serif); text-align: center; }
+          @media (max-width: 620px) { .vy-shell-header { padding-inline: var(--vy-space-1, 4px); } .vy-shell-brand { width: 36px; } .vy-engine-badge { max-width: 116px; padding-inline: var(--vy-space-2, 8px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .vy-shell-link { padding-inline: var(--vy-space-2, 8px); font-size: 12px; } }
+          @media (max-width: 430px) { .vy-shell-link { padding-inline: 6px; } .vy-engine-badge { max-width: 92px; } }
+          @media (forced-colors: active) { .vy-shell-header::after, .vy-engine-badge::before { forced-color-adjust: auto; } }
+        </style>
+        """;
 
-        var transformed = html
-            .Replace($"<title>{legacyName}</title>", $"<title>{productName}</title>", StringComparison.Ordinal)
-            .Replace($"content=\"{legacyName}\"", $"content=\"{productName}\"", StringComparison.Ordinal);
-        transformed = transformed.Replace("</head>", $"{HeadContent}{nativeBrandStyle}</head>", StringComparison.OrdinalIgnoreCase);
-        return transformed.Replace("<body>", $"<body>{navigation}", StringComparison.OrdinalIgnoreCase);
+    public static string Transform(string html, EngineDomain domain, UiOptions? ui = null)
+    {
+        ui ??= new UiOptions();
+        var compatibilityName = domain == EngineDomain.Movie ? "Radarr" : "Sonarr";
+        var productName = domain == EngineDomain.Movie ? "VynodeArr Movies" : "VynodeArr Television";
+        var engineKey = domain == EngineDomain.Movie ? "movies" : "television";
+        var activePath = domain == EngineDomain.Movie ? "/movies/" : "/television/";
+        var tokenLink = ui.TokensEnabled
+            ? "<link id=\"vynodearr-token-styles\" rel=\"stylesheet\" href=\"/assets/vynodearr-tokens.v1.css\">"
+            : string.Empty;
+        var style = ui.NewShellStylingEnabled ? FoundationStyle : LegacyStyle;
+        var navigation = ui.NewShellStylingEnabled
+            ? BuildFoundationNavigation(productName, activePath)
+            : BuildLegacyNavigation(activePath);
+        var importNotice = domain == EngineDomain.Movie ? BuildMovieImportNotice() : string.Empty;
+
+        var transformed = AddEngineContext(html, engineKey);
+        transformed = ReplaceExactMetadata(transformed, compatibilityName, productName);
+        transformed = transformed.Replace("</head>", $"{tokenLink}{style}</head>", StringComparison.OrdinalIgnoreCase);
+        return transformed.Replace("<body>", $"<body>{navigation}{importNotice}", StringComparison.OrdinalIgnoreCase);
     }
+
+    private static string AddEngineContext(string html, string engineKey)
+    {
+        var marker = $"data-vy-engine=\"{engineKey}\" class=\"vy-engine-{engineKey}\"";
+        var htmlStart = html.IndexOf("<html", StringComparison.OrdinalIgnoreCase);
+        if (htmlStart < 0)
+        {
+            return html;
+        }
+
+        var insertAt = htmlStart + "<html".Length;
+        return html.Insert(insertAt, $" {marker}");
+    }
+
+    private static string ReplaceExactMetadata(string html, string compatibilityName, string productName) => html
+        .Replace($"<title>{compatibilityName}</title>", $"<title>{productName}</title>", StringComparison.Ordinal)
+        .Replace($"content=\"{compatibilityName}\"", $"content=\"{productName}\"", StringComparison.Ordinal);
+
+    private static string BuildFoundationNavigation(string productName, string activePath) => $$"""
+        <nav id="vynodearr-shell" class="vy-shell vy-shell-header" aria-label="VynodeArr sections">
+          <a class="vy-shell-brand" href="/" aria-label="VynodeArr dashboard"><img src="/assets/vynodearr.png" alt=""></a>
+          <span class="vy-engine-badge" aria-label="Current engine: {{productName}}">{{productName}}</span>
+          <a class="vy-shell-link" href="/">Dashboard</a>
+          <a class="vy-shell-link" href="/movies/"{{(activePath == "/movies/" ? " aria-current=\"page\"" : string.Empty)}}>Movies</a>
+          <a class="vy-shell-link" href="/television/"{{(activePath == "/television/" ? " aria-current=\"page\"" : string.Empty)}}>Television</a>
+        </nav>
+        """;
+
+    private static string BuildLegacyNavigation(string activePath) => $$"""
+        <nav id="vynodearr-shell" aria-label="VynodeArr sections">
+          <a class="vynodearr-brand" href="/" aria-label="VynodeArr dashboard"><img src="/assets/vynodearr.png" alt=""></a>
+          <a class="vynodearr-link" href="/">Dashboard</a>
+          <a class="vynodearr-link" href="/movies/"{{(activePath == "/movies/" ? " aria-current=\"page\"" : string.Empty)}}>Movies</a>
+          <a class="vynodearr-link" href="/television/"{{(activePath == "/television/" ? " aria-current=\"page\"" : string.Empty)}}>Television</a>
+        </nav>
+        """;
+
+    private static string BuildMovieImportNotice() => """
+        <script id="vynodearr-import-guidance">
+        (() => {
+          if (!location.pathname.startsWith('/movies/add/import')) return;
+          document.documentElement.style.setProperty('--vynodearr-content-offset', '92px');
+          const notice = document.createElement('div');
+          notice.id = 'vynodearr-import-notice';
+          notice.setAttribute('role', 'note');
+          notice.textContent = 'Library Import requires one folder per movie. Loose video files directly inside the root folder are not listed; organize each movie into its own folder first.';
+          document.body.appendChild(notice);
+        })();
+        </script>
+        """;
 }
