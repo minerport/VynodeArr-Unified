@@ -43,6 +43,8 @@ The locked engine revisions and provenance are recorded in [`distribution/source
 
 VynodeArr currently targets 64-bit Windows. Run the latest `VynodeArr-<version>-win-x64-setup.exe` from the project’s GitHub Releases when a release is published.
 
+The tracked [`installers/`](installers/) index identifies approved builds, checksums, and download locations. Installer binaries are stored as GitHub Release assets because they exceed GitHub's normal source-file size limit.
+
 The installer creates:
 
 - Windows service: `VynodeArr`

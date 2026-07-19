@@ -1,6 +1,9 @@
 .vs/
 .vscode/
 artifacts/
+installers/*.exe
+installers/*.msi
+installers/*.zip
 **/bin/
 **/obj/
 engines/
