@@ -20,6 +20,7 @@ public sealed class NativeShellBrandingTests
 
         Assert.Contains($"<title>{productName}</title>", result, StringComparison.Ordinal);
         Assert.Contains("aria-label=\"VynodeArr sections\"", result, StringComparison.Ordinal);
+        Assert.Contains("src=\"/assets/vynodearr.png\"", result, StringComparison.Ordinal);
         Assert.Contains($"href=\"{activePath}\" aria-current=\"page\"", result, StringComparison.Ordinal);
         Assert.Contains("href=\"/\">Dashboard</a>", result, StringComparison.Ordinal);
         Assert.Contains($"window.{compatibilityName}", result, StringComparison.Ordinal);

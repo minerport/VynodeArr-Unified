@@ -65,6 +65,13 @@ await using var heldInstanceLock = instanceLock;
 
 app.MapGet("/health", () => Results.Ok(registry.CreateHealthSnapshot()));
 app.UseWebSockets();
+app.MapGet("/assets/vynodearr.png", () =>
+{
+    var stream = typeof(UnifiedShell).Assembly.GetManifestResourceStream("VynodeArr.Branding.png");
+    return stream is null
+        ? Results.NotFound()
+        : Results.Stream(stream, "image/png", enableRangeProcessing: true);
+});
 app.MapGet("/", () => Results.Content(UnifiedShell.Html, "text/html"));
 app.MapGet("/api/unified/v1/engines", () => Results.Ok(registry.CreateHealthSnapshot().Engines));
 app.MapGet("/api/unified/v1/summary", (UnifiedSummaryService summary, CancellationToken cancellationToken) =>

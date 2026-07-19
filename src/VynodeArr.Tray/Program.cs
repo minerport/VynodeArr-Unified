@@ -7,8 +7,14 @@ namespace VynodeArr.Tray;
 internal static class Program
 {
     [STAThread]
-    private static void Main(string[] args)
+    private static async Task Main(string[] args)
     {
+        if (args.Any((argument) => string.Equals(argument, "--shutdown", StringComparison.OrdinalIgnoreCase)))
+        {
+            await VynodeArrTrayContext.ShutdownGatewayAsync();
+            return;
+        }
+
         if (args.Any((argument) => string.Equals(argument, "--open", StringComparison.OrdinalIgnoreCase)))
         {
             VynodeArrTrayContext.OpenDashboard();
@@ -78,6 +84,42 @@ internal sealed class VynodeArrTrayContext : ApplicationContext
     internal static void OpenDashboard()
     {
         Process.Start(new ProcessStartInfo(DashboardUri.AbsoluteUri) { UseShellExecute = true });
+    }
+
+    internal static async Task ShutdownGatewayAsync()
+    {
+        using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+        try
+        {
+            using var response = await client.PostAsync(new Uri(DashboardUri, "api/unified/v1/shutdown"), null);
+            response.EnsureSuccessStatusCode();
+        }
+        catch (HttpRequestException)
+        {
+            return;
+        }
+
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        while (!timeout.IsCancellationRequested)
+        {
+            try
+            {
+                using var response = await client.GetAsync(new Uri(DashboardUri, "health"), timeout.Token);
+            }
+            catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
+            {
+                return;
+            }
+
+            try
+            {
+                await Task.Delay(250, timeout.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+        }
     }
 
     private static void StartService()

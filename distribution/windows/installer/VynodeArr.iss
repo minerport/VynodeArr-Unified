@@ -59,8 +59,10 @@ Filename: "{app}\tray\VynodeArr.Tray.exe"; Description: "Start the VynodeArr tra
 Filename: "http://127.0.0.1:8686/"; Description: "Open VynodeArr"; Flags: postinstall shellexec skipifsilent nowait
 
 [UninstallRun]
+Filename: "{app}\tray\VynodeArr.Tray.exe"; Parameters: "--shutdown"; Flags: runhidden waituntilterminated skipifdoesntexist; RunOnceId: "ShutdownVynodeArrEngines"
 Filename: "{sys}\taskkill.exe"; Parameters: "/IM VynodeArr.Tray.exe /T /F"; Flags: runhidden waituntilterminated; RunOnceId: "StopVynodeArrTray"
 Filename: "{sys}\sc.exe"; Parameters: "stop {#ServiceName}"; Flags: runhidden waituntilterminated skipifdoesntexist; RunOnceId: "StopVynodeArr"
+Filename: "{sys}\taskkill.exe"; Parameters: "/IM VynodeArr.Gateway.exe /T /F"; Flags: runhidden waituntilterminated; RunOnceId: "StopVynodeArrGateway"
 Filename: "{sys}\sc.exe"; Parameters: "delete {#ServiceName}"; Flags: runhidden waituntilterminated skipifdoesntexist; RunOnceId: "DeleteVynodeArr"
 
 [Code]

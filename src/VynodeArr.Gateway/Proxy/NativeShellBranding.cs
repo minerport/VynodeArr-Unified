@@ -8,7 +8,8 @@ public static class NativeShellBranding
         <style id="vynodearr-shell-style">
           :root { --vynodearr-shell-height: 46px; }
           #vynodearr-shell { position: fixed; inset: 0 0 auto 0; z-index: 2147483647; height: var(--vynodearr-shell-height); display: flex; align-items: center; gap: 4px; padding: 0 12px; color: #f5f7fa; background: #17191c; border-bottom: 1px solid #41464d; box-shadow: 0 1px 4px rgb(0 0 0 / 28%); font: 600 14px/1 Inter, "Segoe UI", sans-serif; }
-          #vynodearr-shell .vynodearr-brand { margin-right: auto; padding: 8px 10px; color: #fff; font-size: 16px; letter-spacing: -.02em; text-decoration: none; }
+          #vynodearr-shell .vynodearr-brand { width: 38px; height: 38px; margin-right: auto; display: grid; place-items: center; border-radius: 7px; }
+          #vynodearr-shell .vynodearr-brand img { width: 34px; height: 34px; border-radius: 7px; object-fit: cover; }
           #vynodearr-shell .vynodearr-link { min-height: 34px; display: inline-flex; align-items: center; padding: 0 12px; color: #cbd0d7; border: 1px solid transparent; border-radius: 4px; text-decoration: none; }
           #vynodearr-shell .vynodearr-link:hover { color: #fff; background: #292d32; }
           #vynodearr-shell .vynodearr-link:focus-visible { color: #fff; outline: 2px solid #78a9ff; outline-offset: 1px; }
@@ -17,7 +18,7 @@ public static class NativeShellBranding
           #vynodearr-import-notice { position: fixed; inset: var(--vynodearr-shell-height) 0 auto 0; z-index: 2147483646; min-height: 44px; display: flex; align-items: center; justify-content: center; padding: 8px 16px; color: #f8e7b2; background: #3d3420; border-bottom: 1px solid #796a3f; font: 600 13px/1.35 Inter, "Segoe UI", sans-serif; text-align: center; }
           @media (max-width: 520px) {
             #vynodearr-shell { padding: 0 5px; }
-            #vynodearr-shell .vynodearr-brand { padding-inline: 6px; font-size: 14px; }
+            #vynodearr-shell .vynodearr-brand { width: 36px; }
             #vynodearr-shell .vynodearr-link { padding-inline: 8px; font-size: 12px; }
           }
         </style>
@@ -46,12 +47,12 @@ public static class NativeShellBranding
               #root a[href="{{activePath}}"]:has(> img) > img,
               #root a[href="{{activePathWithoutSlash}}"]:has(> img) > img { display: none !important; }
               #root a[href="{{activePath}}"]:has(> img)::after,
-              #root a[href="{{activePathWithoutSlash}}"]:has(> img)::after { content: "{{productName}}"; display: inline-block; padding: 8px 12px; color: #f5f7fa; font: 700 17px/1 Inter, "Segoe UI", sans-serif; white-space: nowrap; }
+              #root a[href="{{activePathWithoutSlash}}"]:has(> img)::after { content: ""; display: inline-block; width: 42px; height: 42px; margin: 3px 10px; border-radius: 8px; background: url('/assets/vynodearr.png') center/cover no-repeat; }
             </style>
             """;
         var navigation = $$"""
             <nav id="vynodearr-shell" aria-label="VynodeArr sections">
-              <a class="vynodearr-brand" href="/">VynodeArr</a>
+              <a class="vynodearr-brand" href="/" aria-label="VynodeArr dashboard"><img src="/assets/vynodearr.png" alt=""></a>
               <a class="vynodearr-link" href="/">Dashboard</a>
               <a class="vynodearr-link" href="/movies/"{{(activePath == "/movies/" ? " aria-current=\"page\"" : string.Empty)}}>Movies</a>
               <a class="vynodearr-link" href="/television/"{{(activePath == "/television/" ? " aria-current=\"page\"" : string.Empty)}}>Television</a>

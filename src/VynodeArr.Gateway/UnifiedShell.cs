@@ -14,10 +14,11 @@ public static class UnifiedShell
             * { box-sizing: border-box; }
             body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding-top: 46px; background: #17191c; }
             main { width: min(880px, calc(100% - 32px)); }
-            h1 { margin: 0 0 8px; font-size: clamp(2rem, 6vw, 3.5rem); letter-spacing: -.04em; }
+            .hero-logo { display: block; width: min(260px, 65vw); height: auto; margin: 0 0 16px; border-radius: 18%; }
             p { margin: 0 0 32px; color: #aeb4bd; font-size: 1.05rem; }
             .shell-nav { position: fixed; inset: 0 0 auto 0; z-index: 10; height: 46px; display: flex; align-items: center; gap: 4px; padding: 0 12px; border-bottom: 1px solid #41464d; background: #17191c; }
-            .shell-nav .brand { margin-right: auto; color: #fff; font-size: 16px; font-weight: 700; text-decoration: none; }
+            .shell-nav .brand { width: 38px; height: 38px; margin-right: auto; display: grid; place-items: center; border-radius: 7px; }
+            .shell-nav .brand img { width: 34px; height: 34px; border-radius: 7px; object-fit: cover; }
             .shell-nav .shell-link { min-height: 34px; display: inline-flex; align-items: center; padding: 0 12px; color: #cbd0d7; border: 1px solid transparent; border-radius: 4px; text-decoration: none; }
             .shell-nav .shell-link:hover { color: #fff; background: #292d32; }
             .shell-nav .shell-link:focus-visible { color: #fff; outline: 2px solid #78a9ff; outline-offset: 1px; }
@@ -47,13 +48,13 @@ public static class UnifiedShell
         </head>
         <body>
           <nav class="shell-nav" aria-label="VynodeArr sections">
-            <a class="brand" href="/">VynodeArr</a>
+            <a class="brand" href="/" aria-label="VynodeArr dashboard"><img src="/assets/vynodearr.png" alt=""></a>
             <a class="shell-link" href="/" aria-current="page">Dashboard</a>
             <a class="shell-link" href="/movies/">Movies</a>
             <a class="shell-link" href="/television/">Television</a>
           </nav>
           <main>
-            <h1>VynodeArr</h1>
+            <img class="hero-logo" src="/assets/vynodearr.png" alt="VynodeArr">
             <p>One application. Two isolated media engines.</p>
             <nav class="domain-nav" aria-label="Media libraries">
               <a class="domain-link" href="/movies/"><strong>Movies</strong><span>Open the complete movie library and management interface.</span></a>
@@ -77,10 +78,16 @@ public static class UnifiedShell
                 <dl><dt>Library items</dt><dd>${summary.libraryItems}</dd><dt>Monitored</dt><dd>${summary.monitoredItems}</dd><dt>Downloaded files</dt><dd>${summary.downloadedFiles}</dd><dt>Missing monitored</dt><dd>${summary.missingMonitored}</dd><dt>Queue</dt><dd>${summary.queueItems}</dd><dt>Health issues</dt><dd>${summary.healthIssues}</dd></dl>
                 <button class="engine-control" type="button" data-domain="${escapeHtml(summary.domain)}" data-action="${action}">${action === 'stop' ? 'Stop' : 'Start'} ${summary.domain === 'movie' ? 'Movies' : 'Television'}</button>`;
             };
-            const loadSummary = () => fetch('/api/unified/v1/summary', { headers: { Accept: 'application/json' } })
+            let refreshTimer;
+            const scheduleRefresh = (delay = 2500) => {
+              clearTimeout(refreshTimer);
+              refreshTimer = setTimeout(loadSummary, delay);
+            };
+            const loadSummary = () => fetch('/api/unified/v1/summary', { cache: 'no-store', headers: { Accept: 'application/json' } })
               .then((response) => response.ok ? response.json() : Promise.reject(new Error(`HTTP ${response.status}`)))
               .then((summary) => { render('movie-summary', summary.domains.movie); render('television-summary', summary.domains.television); })
-              .catch((error) => document.querySelectorAll('.summary .state').forEach((node) => { node.className = 'state error'; node.textContent = `Summary unavailable: ${error.message}`; }));
+              .catch((error) => document.querySelectorAll('.summary .state').forEach((node) => { node.className = 'state error'; node.textContent = `Summary unavailable: ${error.message}`; }))
+              .finally(() => scheduleRefresh());
             loadSummary();
             document.querySelector('.summary').addEventListener('click', (event) => {
               const button = event.target.closest('.engine-control');
@@ -88,9 +95,10 @@ public static class UnifiedShell
               const label = button.dataset.domain === 'movie' ? 'Movies' : 'Television';
               if (button.dataset.action === 'stop' && !confirm(`Stop ${label}? Active operations in that domain will pause.`)) return;
               button.disabled = true;
+              button.textContent = `${button.dataset.action === 'start' ? 'Starting' : 'Stopping'} ${label}...`;
               fetch(`/api/unified/v1/engines/${button.dataset.domain}/${button.dataset.action}`, { method: 'POST' })
                 .then((response) => response.ok ? response : Promise.reject(new Error(`HTTP ${response.status}`)))
-                .then(() => setTimeout(loadSummary, 800))
+                .then(() => { clearTimeout(refreshTimer); return loadSummary(); })
                 .catch((error) => { button.disabled = false; alert(`Unable to change ${label}: ${error.message}`); });
             });
             document.getElementById('shutdown-all').addEventListener('click', (event) => {
