@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "installers": [
+    {
+      "version": "0.3.3",
+      "channel": "development",
+      "platform": "windows",
+      "architecture": "x64",
+      "filename": "VynodeArr-0.3.3-win-x64-setup.exe",
+      "size": 282239107,
+      "sha256": "3e3cd3a5197cffd3490f45ed9038348b0f0ec7e29c44db9f5c83b6099a154bf8",
+      "releaseUrl": "https://github.com/minerport/VynodeArr-Unified/releases/tag/v0.3.3"
+    }
+  ]
+}
