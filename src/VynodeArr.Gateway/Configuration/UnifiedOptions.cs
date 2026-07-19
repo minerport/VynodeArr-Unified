@@ -21,6 +21,8 @@ public sealed class UnifiedOptions
 
     public string? LifecycleApiKey { get; init; }
 
+    public UiOptions Ui { get; init; } = new();
+
     [Required]
     public EngineOptionsGroup Engines { get; init; } = new();
 
@@ -29,6 +31,13 @@ public sealed class UnifiedOptions
 
     private static string ResolvePath(string contentRoot, string path) =>
         Path.GetFullPath(Path.IsPathRooted(path) ? path : Path.Combine(contentRoot, path));
+}
+
+public sealed class UiOptions
+{
+    public bool TokensEnabled { get; init; } = true;
+
+    public bool NewShellStylingEnabled { get; init; } = true;
 }
 
 public sealed class EngineOptionsGroup

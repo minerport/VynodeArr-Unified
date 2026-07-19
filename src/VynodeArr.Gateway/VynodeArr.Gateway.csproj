@@ -12,5 +12,6 @@
 
   <ItemGroup>
     <EmbeddedResource Include="..\..\assets\branding\VynodeArr.png" LogicalName="VynodeArr.Branding.png" />
+    <EmbeddedResource Include="Assets\VynodeArrTokens.v1.css" LogicalName="VynodeArr.Assets.VynodeArrTokens.v1.css" />
   </ItemGroup>
 </Project>

@@ -1,0 +1,126 @@
+:root {
+  color-scheme: dark light;
+  --vy-surface-app: #12161c;
+  --vy-surface-sidebar: #171c24;
+  --vy-surface-panel: #1d232d;
+  --vy-surface-elevated: #242b36;
+  --vy-surface-hover: #2b3441;
+  --vy-surface-selected: #303b4b;
+  --vy-text-primary: #f2f5f8;
+  --vy-text-secondary: #b8c0cb;
+  --vy-text-muted: #96a1af;
+  --vy-text-inverse: #111827;
+  --vy-border-subtle: #303946;
+  --vy-border-strong: #526074;
+  --vy-engine-movies: #38bdf8;
+  --vy-engine-television: #a78bfa;
+  --vy-engine-shared: #8aa0b8;
+  --vy-engine-accent: var(--vy-engine-shared);
+  --vy-status-success: #4ade80;
+  --vy-status-warning: #fbbf24;
+  --vy-status-error: #fb7185;
+  --vy-status-info: #60a5fa;
+  --vy-status-offline: #a8b2c1;
+  --vy-space-1: 4px;
+  --vy-space-2: 8px;
+  --vy-space-3: 12px;
+  --vy-space-4: 16px;
+  --vy-space-5: 20px;
+  --vy-space-6: 24px;
+  --vy-radius-sm: 4px;
+  --vy-radius-md: 7px;
+  --vy-radius-lg: 10px;
+  --vy-shadow-raised: 0 6px 18px rgb(0 0 0 / 22%);
+  --vy-font-sans: Inter, "Segoe UI", system-ui, sans-serif;
+  --vy-font-mono: "Cascadia Code", Consolas, monospace;
+  --vy-font-size-meta: 0.75rem;
+  --vy-font-size-body: 0.875rem;
+  --vy-font-size-section: 1rem;
+  --vy-font-size-title: clamp(1.35rem, 2vw, 1.75rem);
+  --vy-line-height: 1.45;
+  --vy-motion-fast: 120ms;
+  --vy-motion-normal: 180ms;
+  --vy-ease-standard: cubic-bezier(.2, 0, 0, 1);
+  --vy-z-shell: 1000;
+  --vy-z-dropdown: 1100;
+  --vy-z-modal: 1200;
+  --vy-focus-ring-color: #93c5fd;
+  --vy-focus-ring: 3px solid var(--vy-focus-ring-color);
+  --vy-focus-offset: 2px;
+  --vy-target-desktop: 40px;
+  --vy-target-touch: 44px;
+  --vy-table-row-compact: 36px;
+  --vy-table-row-comfortable: 44px;
+  --vy-shell-height: 48px;
+}
+
+:root[data-vy-engine="movies"], .vy-engine-movies { --vy-engine-accent: var(--vy-engine-movies); }
+:root[data-vy-engine="television"], .vy-engine-television { --vy-engine-accent: var(--vy-engine-television); }
+:root[data-vy-engine="shared"], .vy-engine-shared { --vy-engine-accent: var(--vy-engine-shared); }
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-vy-theme="dark"]) {
+    --vy-surface-app: #f4f7fa;
+    --vy-surface-sidebar: #ffffff;
+    --vy-surface-panel: #ffffff;
+    --vy-surface-elevated: #eef2f6;
+    --vy-surface-hover: #e5ebf2;
+    --vy-surface-selected: #dbe7f3;
+    --vy-text-primary: #17202b;
+    --vy-text-secondary: #445164;
+    --vy-text-muted: #5f6c7c;
+    --vy-border-subtle: #d2dae4;
+    --vy-border-strong: #9eacbd;
+    --vy-shadow-raised: 0 6px 18px rgb(26 39 55 / 14%);
+    --vy-focus-ring-color: #075985;
+  }
+}
+
+:root[data-vy-theme="light"] {
+  --vy-surface-app: #f4f7fa;
+  --vy-surface-sidebar: #ffffff;
+  --vy-surface-panel: #ffffff;
+  --vy-surface-elevated: #eef2f6;
+  --vy-surface-hover: #e5ebf2;
+  --vy-surface-selected: #dbe7f3;
+  --vy-text-primary: #17202b;
+  --vy-text-secondary: #445164;
+  --vy-text-muted: #5f6c7c;
+  --vy-border-subtle: #d2dae4;
+  --vy-border-strong: #9eacbd;
+  --vy-shadow-raised: 0 6px 18px rgb(26 39 55 / 14%);
+  --vy-focus-ring-color: #075985;
+}
+
+@media (forced-colors: active) {
+  :root {
+    --vy-engine-movies: Highlight;
+    --vy-engine-television: Highlight;
+    --vy-engine-shared: Highlight;
+    --vy-status-success: CanvasText;
+    --vy-status-warning: CanvasText;
+    --vy-status-error: CanvasText;
+    --vy-status-info: CanvasText;
+    --vy-status-offline: GrayText;
+    --vy-border-subtle: CanvasText;
+    --vy-border-strong: CanvasText;
+    --vy-focus-ring-color: Highlight;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --vy-motion-fast: 0ms;
+    --vy-motion-normal: 0ms;
+  }
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (pointer: coarse) {
+  :root { --vy-target-desktop: var(--vy-target-touch); }
+}
