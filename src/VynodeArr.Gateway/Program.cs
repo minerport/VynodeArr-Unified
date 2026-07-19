@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Options;
 using System.Net;
 using System.Text.Json.Serialization;
+using VynodeArr.Gateway;
 using VynodeArr.Gateway.Configuration;
 using VynodeArr.Gateway.Proxy;
 using VynodeArr.Gateway.Runtime;
@@ -41,6 +42,8 @@ var registry = app.Services.GetRequiredService<EngineRegistry>();
 Directory.CreateDirectory(options.ResolveDataRoot(app.Environment.ContentRootPath));
 
 app.MapGet("/health", () => Results.Ok(registry.CreateHealthSnapshot()));
+app.UseWebSockets();
+app.MapGet("/", () => Results.Content(UnifiedShell.Html, "text/html"));
 app.MapGet("/api/unified/v1/engines", () => Results.Ok(registry.CreateHealthSnapshot().Engines));
 app.MapPost("/api/unified/v1/shutdown", (HttpContext context, IHostApplicationLifetime lifetime) =>
 {
@@ -54,6 +57,8 @@ app.MapPost("/api/unified/v1/shutdown", (HttpContext context, IHostApplicationLi
 });
 app.MapEngineProxy("movies", EngineDomain.Movie);
 app.MapEngineProxy("television", EngineDomain.Television);
+app.MapNativeEngineProxy("movies", EngineDomain.Movie);
+app.MapNativeEngineProxy("television", EngineDomain.Television);
 
 app.Run();
 

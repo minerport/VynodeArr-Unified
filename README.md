@@ -18,7 +18,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the detailed analysis and [
 
 ## Current status
 
-Phase 1 is in progress: the supervisor/gateway foundation now models independent movie and television processes, isolated data roots, health, recovery, and namespaced proxy routes. Both engines remain disabled by default until reviewed binaries are supplied. No source code from either engine has been modified.
+Phase 2 is in progress. The supervisor/gateway runs independent movie and television processes with isolated data roots, health, recovery, private credentials, and namespaced proxy routes. A unified launcher at `/` mounts the complete native movie UI under `/movies` and television UI under `/television`, including deep links and SignalR. Both engines remain disabled by default until reviewed binaries are supplied. No source code from either engine has been modified.
 
 ## Development
 
@@ -31,3 +31,5 @@ dotnet run --project src/VynodeArr.Gateway
 ```
 
 With the default safe configuration, browse to `http://127.0.0.1:8686/health`. Both engines will report `disabled` until their executable paths and `Enabled` flags are configured. Port 8686 intentionally avoids the native Radarr and Sonarr defaults.
+
+When packaged engines are enabled, browse to `http://127.0.0.1:8686/` and choose Movies or Television. Native interfaces keep their original functionality at `/movies/` and `/television/`; the gateway selects the correct private engine API and event stream by route.

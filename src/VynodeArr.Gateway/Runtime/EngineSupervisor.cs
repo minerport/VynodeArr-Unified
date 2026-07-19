@@ -141,7 +141,8 @@ public sealed class EngineSupervisor(
         {
             [$"{product}__Server__Port"] = port.ToString(System.Globalization.CultureInfo.InvariantCulture),
             [$"{product}__Server__BindAddress"] = "127.0.0.1",
-            [$"{product}__Server__EnableSsl"] = "false"
+            [$"{product}__Server__EnableSsl"] = "false",
+            [$"{product}__Server__UrlBase"] = domain.NativePathBase()
         };
     }
 

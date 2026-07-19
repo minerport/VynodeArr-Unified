@@ -14,4 +14,11 @@ public static class EngineDomainExtensions
         EngineDomain.Television => "television",
         _ => throw new ArgumentOutOfRangeException(nameof(domain), domain, null)
     };
+
+    public static string NativePathBase(this EngineDomain domain) => domain switch
+    {
+        EngineDomain.Movie => "/movies",
+        EngineDomain.Television => "/television",
+        _ => throw new ArgumentOutOfRangeException(nameof(domain), domain, null)
+    };
 }

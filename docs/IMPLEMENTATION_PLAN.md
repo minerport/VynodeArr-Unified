@@ -35,6 +35,8 @@ Current validation: both locked Windows x64 engines have been built with their n
 
 Exit criterion: every existing destination is reachable from one origin and all original actions target the correct engine.
 
+Current validation: the unified root launcher, both native index pages, static assets, movie/series deep links, API authentication, SignalR negotiation, and real WebSocket upgrades pass through one origin while retaining separate engine processes and URL bases.
+
 ## Phase 3 — Combined read views
 
 - Combined calendar with movie/episode discriminators.

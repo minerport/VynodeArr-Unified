@@ -130,6 +130,8 @@ The first unified UI preserves the familiar visual language but assigns all rout
 
 Frontend state is split into `shell`, `movies`, and `television` namespaces. The movie and television API clients have separate base URLs, caches, request cancellation, SignalR/event connections, error boundaries, and feature flags. A failure or loading state in one domain must not block the other.
 
+The compatibility shell currently mounts the unchanged native interfaces at `/movies` and `/television`. Each engine is configured with its matching native URL base, so generated static-asset, API, deep-link, authentication, feed, and SignalR URLs remain valid behind the gateway. The root route is owned by VynodeArr and provides accessible domain navigation. This compatibility layer preserves complete behavior while native combined screens are developed incrementally.
+
 Initially, existing domain screens should be hosted through compatibility boundaries while the unified shell and normalized combined screens are built. Shared components may be extracted only when their inputs, behavior, accessibility, and tests are equivalent. Same filename is not sufficient evidence.
 
 ## Shared capabilities policy

@@ -28,7 +28,9 @@ public sealed class HttpEngineReadinessProbe(HttpClient client) : IEngineReadine
         var healthPath = settings.HealthPath.StartsWith('/')
             ? settings.HealthPath
             : $"/{settings.HealthPath}";
-        var endpoint = new Uri($"http://127.0.0.1:{port}{healthPath}", UriKind.Absolute);
+        var endpoint = new Uri(
+            $"http://127.0.0.1:{port}{domain.NativePathBase()}{healthPath}",
+            UriKind.Absolute);
         Exception? lastError = null;
 
         while (!timeoutSource.IsCancellationRequested)
