@@ -8,6 +8,19 @@ ghcr.io/minerport/vynodearr-unified:0.4.3
 
 Unraid users should use the template at [`distribution/unraid/vynodearr.xml`](../unraid/vynodearr.xml), or create a container manually with port `8686`, `/config`, `/movies`, `/tv`, and `/downloads` mappings. Keep `/config` mapped only to VynodeArr's own appdata directory. Existing Radarr and Sonarr appdata must never be mapped there.
 
+## Unraid installation requirements
+
+- x86-64 Unraid host with Docker enabled;
+- one unused host port mapped to container port `8686`;
+- a dedicated appdata path, normally `/mnt/user/appdata/vynodearr`;
+- movie, television, and download paths writable by `nobody:users` (`99:100`);
+- a lifecycle control key generated with `openssl rand -hex 32`;
+- unique download-client categories for VynodeArr if another media manager uses the same client.
+
+The Community Applications template is [`templates/vynodearr.xml`](../../templates/vynodearr.xml). Until the listing is approved, download that XML into `/boot/config/plugins/dockerMan/templates-user/my-VynodeArr.xml`, then select **VynodeArr** under **Docker → Add Container → Template**. Once approved, install it directly from the Unraid **Apps** tab.
+
+The template intentionally runs the container as `99:100`. If a mapped share is not writable, correct that share's ownership or permissions instead of removing the runtime user override or running the container as root.
+
 Use unique download-client categories such as `vynode-movies` and `vynode-tv` before re-enabling other media managers. Sharing media paths is supported; sharing application databases or processing the same download category is not.
 
 The Docker image consumes an already staged `VynodeArr-linux-x64` package. Native movie and television binaries are not downloaded implicitly; they must be built from the locked sources and supplied to `distribution/linux/package.ps1` first.

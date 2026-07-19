@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<CommunityApplications>
+  <Profile>VynodeArr is a unified, self-hosted movie and television library manager. One dashboard supervises two operationally isolated media engines with separate databases, settings, queues, logs, and persistent data. Support and source code are available through the project repository.</Profile>
+  <Icon>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/assets/branding/VynodeArr.png</Icon>
+  <WebPage>https://github.com/minerport/VynodeArr-Unified</WebPage>
+  <Forum>https://github.com/minerport/VynodeArr-Unified/issues</Forum>
+</CommunityApplications>

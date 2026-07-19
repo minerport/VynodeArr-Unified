@@ -65,7 +65,36 @@ Detailed instructions:
 - [`docs/PLATFORM_INSTALLATION.md`](docs/PLATFORM_INSTALLATION.md) — current Windows, Linux, Docker, Unraid, and other-platform status
 - [`docs/CROSS_PLATFORM_REVIEW.md`](docs/CROSS_PLATFORM_REVIEW.md) — portability findings, implemented foundation, and release gates
 
-Linux, Docker, NAS, and Unraid packages are being developed on the experimental `agent/cross-platform-installation` branch. They are not yet supported releases; the platform guide records the remaining engineering and validation work without presenting untested commands as production instructions.
+## Linux installation
+
+The validated experimental Linux x64 package is published in [VynodeArr 0.4.3](https://github.com/minerport/VynodeArr-Unified/releases/tag/v0.4.3). Download the archive and checksum, verify them, extract the package, and run `sudo ./install.sh`. Detailed commands, service management, permissions, and uninstall instructions are in [`distribution/linux/README.md`](distribution/linux/README.md).
+
+## Docker and Unraid
+
+The validated x86-64 container is:
+
+```text
+ghcr.io/minerport/vynodearr-unified:0.4.3
+```
+
+For Unraid, install VynodeArr from Community Applications after the listing is approved, or load [`templates/vynodearr.xml`](templates/vynodearr.xml) as a user template. The default mappings are:
+
+| Container path | Default Unraid path | Purpose |
+| --- | --- | --- |
+| `/config` | `/mnt/user/appdata/vynodearr` | Persistent VynodeArr configuration and databases |
+| `/movies` | `/mnt/user/movies` | Movie library |
+| `/tv` | `/mnt/user/tv` | Television library |
+| `/downloads` | `/mnt/user/downloads` | Shared download-client path |
+
+The container runs as Unraid `nobody:users` (`99:100`). Every mapped directory must be writable by that identity. Never map existing Radarr or Sonarr appdata into `/config`; VynodeArr must keep its own application data. Existing media folders may be shared, but use unique download-client categories such as `vynode-movies` and `vynode-tv` to prevent multiple managers from processing the same downloads.
+
+Generate a lifecycle control key before installation:
+
+```bash
+openssl rand -hex 32
+```
+
+Enter the result in the required **Lifecycle Control Key** template field. See [`distribution/docker/README.md`](distribution/docker/README.md) for Docker details and [`docs/PLATFORM_INSTALLATION.md`](docs/PLATFORM_INSTALLATION.md) for platform status.
 
 ## Development
 

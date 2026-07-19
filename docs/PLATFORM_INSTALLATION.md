@@ -1,14 +1,14 @@
 # Platform installation status
 
-This document separates currently working installation paths from experimental platform plans. Only Windows x64 has a completed installer pipeline today.
+This document separates currently working installation paths from experimental platform plans. Windows x64 has a completed installer pipeline, while Linux x64 and the x86-64 container are published experimental prereleases with successful end-to-end validation.
 
 | Platform | Current status | Intended package |
 | --- | --- | --- |
 | Windows x64 | Supported development build | Inno Setup `.exe`, Windows service, tray controller |
 | Linux x64 | Experimental prerelease | Tar package, installer, uninstaller, and systemd unit |
 | Linux ARM64 | Packaging foundation implemented; native payload validation pending | ARM64 tar package plus systemd unit |
-| Docker | Experimental image definition; local x64 image validation passed | Multi-architecture published container image pending |
-| Unraid | Experimental XML template implemented; image publication and host validation pending | Community Applications XML template using the Docker image |
+| Docker | Published experimental x86-64 image; automated startup, API, data-path, and shutdown validation passed | `ghcr.io/minerport/vynodearr-unified:0.4.3` |
+| Unraid | Published x86-64 image and submission-ready Community Applications template; physical Unraid validation passed | Community Applications XML template using the Docker image |
 | TrueNAS SCALE and other container NAS platforms | Experimental | Docker/OCI image after validation |
 | macOS | Not planned for the first cross-platform phase | To be evaluated after Linux support |
 
@@ -69,9 +69,9 @@ Planned installation flow:
 
 These are design steps, not commands for the current build.
 
-## Experimental Docker and Unraid design
+## Experimental Docker and Unraid implementation
 
-The planned container will run the gateway as PID 1 and supervise both native engines. It will expose one port and use separate persistent mounts:
+The published container runs the gateway as PID 1 and supervises both native engines. It exposes one port and uses separate persistent mounts:
 
 ```text
 /config/unified
@@ -82,9 +82,9 @@ The planned container will run the gateway as PID 1 and supervise both native en
 /downloads
 ```
 
-The image must forward `SIGTERM` to the gateway, wait for both engines to stop, run as a configurable non-root UID/GID, and never combine the movie and television databases. Health checks will query the unified `/health` endpoint.
+The image forwards `SIGTERM` to the gateway, waits for both engines to stop, runs as a configurable non-root UID/GID, and never combines the movie and television databases. Health checks query the unified `/health` endpoint.
 
-Unraid support will be an XML Community Applications template over the same tested image. The template will expose:
+Unraid support uses an XML Community Applications template over the same tested image. The template exposes:
 
 - dashboard port;
 - unified, movie, and television configuration paths;
