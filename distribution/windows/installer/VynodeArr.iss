@@ -35,6 +35,7 @@ SetupLogging=yes
 
 [Files]
 Source: "{#SourceRoot}\gateway\*"; DestDir: "{app}\gateway"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#SourceRoot}\tray\*"; DestDir: "{app}\tray"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#SourceRoot}\engines\movie\*"; DestDir: "{app}\engines\movie"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#SourceRoot}\engines\television\*"; DestDir: "{app}\engines\television"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#SourceRoot}\source-lock.json"; DestDir: "{app}"; Flags: ignoreversion
@@ -49,14 +50,17 @@ Name: "{commonappdata}\VynodeArr\unified"; Flags: uninsneveruninstall
 [Icons]
 Name: "{group}\VynodeArr"; Filename: "http://127.0.0.1:8686/"
 Name: "{autodesktop}\VynodeArr"; Filename: "http://127.0.0.1:8686/"; Tasks: desktopicon
+Name: "{commonstartup}\VynodeArr Tray"; Filename: "{app}\tray\VynodeArr.Tray.exe"; WorkingDir: "{app}\tray"
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional shortcuts:"; Flags: unchecked
 
 [Run]
+Filename: "{app}\tray\VynodeArr.Tray.exe"; Description: "Start the VynodeArr tray controller"; Flags: postinstall nowait runasoriginaluser skipifsilent
 Filename: "http://127.0.0.1:8686/"; Description: "Open VynodeArr"; Flags: postinstall shellexec skipifsilent nowait
 
 [UninstallRun]
+Filename: "{sys}\taskkill.exe"; Parameters: "/IM VynodeArr.Tray.exe /T /F"; Flags: runhidden waituntilterminated; RunOnceId: "StopVynodeArrTray"
 Filename: "{sys}\sc.exe"; Parameters: "stop {#ServiceName}"; Flags: runhidden waituntilterminated skipifdoesntexist; RunOnceId: "StopVynodeArr"
 Filename: "{sys}\sc.exe"; Parameters: "delete {#ServiceName}"; Flags: runhidden waituntilterminated skipifdoesntexist; RunOnceId: "DeleteVynodeArr"
 
@@ -107,6 +111,7 @@ function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
   ResultCode: Integer;
 begin
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/IM VynodeArr.Tray.exe /T /F', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Exec(ExpandConstant('{sys}\sc.exe'), 'stop {#ServiceName}', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Sleep(2000);
   Result := '';

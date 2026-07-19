@@ -38,6 +38,8 @@ When packaged engines are enabled, browse to `http://127.0.0.1:8686/` for an ind
 
 The Windows package is a self-contained x64 gateway plus reviewed VynodeArr Movies and VynodeArr Television payloads. It installs one `VynodeArr` Windows service and listens on `http://127.0.0.1:8686/`.
 
+One VynodeArr notification-area icon starts with the signed-in Windows user. Its menu opens the dashboard, starts the unified service, or shuts down the gateway and both media engines together. The dashboard provides the same platform-neutral unified shutdown action plus independent stop/start controls for Movies and Television.
+
 - Program binaries: `C:\Program Files\VynodeArr`
 - Persistent movie data: `C:\ProgramData\VynodeArr\movie`
 - Persistent television data: `C:\ProgramData\VynodeArr\television`

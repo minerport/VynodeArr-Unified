@@ -45,11 +45,12 @@ if ([System.IO.Directory]::Exists($stageRoot)) {
 }
 
 $gatewayRoot = Join-Path $stageRoot 'gateway'
+$trayRoot = Join-Path $stageRoot 'tray'
 $movieTarget = Join-Path $stageRoot 'engines\movie'
 $televisionTarget = Join-Path $stageRoot 'engines\television'
 $dataTarget = Join-Path $stageRoot 'data'
 
-New-Item -ItemType Directory -Force -Path $gatewayRoot, $movieTarget, $televisionTarget, $dataTarget | Out-Null
+New-Item -ItemType Directory -Force -Path $gatewayRoot, $trayRoot, $movieTarget, $televisionTarget, $dataTarget | Out-Null
 
 $dotnet = Get-Command dotnet -ErrorAction Stop
 & $dotnet.Source publish (Join-Path $repositoryRoot 'src\VynodeArr.Gateway\VynodeArr.Gateway.csproj') `
@@ -63,6 +64,19 @@ $dotnet = Get-Command dotnet -ErrorAction Stop
 
 if ($LASTEXITCODE -ne 0) {
     throw "Gateway publish failed with exit code $LASTEXITCODE."
+}
+
+& $dotnet.Source publish (Join-Path $repositoryRoot 'src\VynodeArr.Tray\VynodeArr.Tray.csproj') `
+    --configuration Release `
+    --runtime $RuntimeIdentifier `
+    --self-contained true `
+    --output $trayRoot `
+    -p:PublishSingleFile=true `
+    -p:DebugType=None `
+    -p:DebugSymbols=false
+
+if ($LASTEXITCODE -ne 0) {
+    throw "Tray controller publish failed with exit code $LASTEXITCODE."
 }
 
 $installedConfigPath = Join-Path $gatewayRoot 'appsettings.json'

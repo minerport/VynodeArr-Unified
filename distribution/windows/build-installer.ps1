@@ -23,6 +23,7 @@ $sourceRoot = [System.IO.Path]::GetFullPath($SourcePath)
 $outputRoot = [System.IO.Path]::GetFullPath((Join-Path $repositoryRoot 'artifacts\installer'))
 $required = @(
     'gateway\VynodeArr.Gateway.exe',
+    'tray\VynodeArr.Tray.exe',
     'engines\movie\Radarr.Console.exe',
     'engines\television\Sonarr.Console.exe',
     'source-lock.json',

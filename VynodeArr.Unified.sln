@@ -1,10 +1,14 @@
-Microsoft Visual Studio Solution File, Format Version 12.00
+﻿Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VynodeArr.Gateway", "src\VynodeArr.Gateway\VynodeArr.Gateway.csproj", "{646D77D4-0C68-4DB8-A418-E8588A93CD60}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VynodeArr.Gateway.Tests", "tests\VynodeArr.Gateway.Tests\VynodeArr.Gateway.Tests.csproj", "{26C9D16B-C62F-47A9-910C-27797F764258}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{6D8303CF-041F-4961-B8E7-714372BFC4FD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VynodeArr.Tray", "src\VynodeArr.Tray\VynodeArr.Tray.csproj", "{C8C84805-8293-4E4E-AA16-72C2A9539AED}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -20,5 +24,12 @@ Global
 		{26C9D16B-C62F-47A9-910C-27797F764258}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{26C9D16B-C62F-47A9-910C-27797F764258}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{26C9D16B-C62F-47A9-910C-27797F764258}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C8C84805-8293-4E4E-AA16-72C2A9539AED}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C8C84805-8293-4E4E-AA16-72C2A9539AED}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C8C84805-8293-4E4E-AA16-72C2A9539AED}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C8C84805-8293-4E4E-AA16-72C2A9539AED}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{C8C84805-8293-4E4E-AA16-72C2A9539AED} = {6D8303CF-041F-4961-B8E7-714372BFC4FD}
 	EndGlobalSection
 EndGlobal
