@@ -1,0 +1,25 @@
+[Unit]
+Description=VynodeArr unified movie and television manager
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=notify
+User=vynodearr
+Group=vynodearr
+WorkingDirectory=/opt/vynodearr/gateway
+EnvironmentFile=-/etc/vynodearr/vynodearr.env
+ExecStart=/opt/vynodearr/gateway/VynodeArr.Gateway
+Restart=on-failure
+RestartSec=5s
+TimeoutStartSec=120s
+TimeoutStopSec=60s
+KillMode=control-group
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/vynodearr
+
+[Install]
+WantedBy=multi-user.target

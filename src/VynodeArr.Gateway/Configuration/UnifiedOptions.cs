@@ -19,6 +19,8 @@ public sealed class UnifiedOptions
     [Range(1, 300)]
     public int RestartDelaySeconds { get; init; } = 5;
 
+    public string? LifecycleApiKey { get; init; }
+
     [Required]
     public EngineOptionsGroup Engines { get; init; } = new();
 

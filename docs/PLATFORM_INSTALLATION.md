@@ -5,10 +5,10 @@ This document separates currently working installation paths from experimental p
 | Platform | Current status | Intended package |
 | --- | --- | --- |
 | Windows x64 | Supported development build | Inno Setup `.exe`, Windows service, tray controller |
-| Linux x64 | Experimental, not installable yet | Tar package plus systemd unit |
-| Linux ARM64 | Experimental, not installable yet | ARM64 tar package plus systemd unit |
-| Docker | Experimental, not installable yet | Multi-architecture container image |
-| Unraid | Experimental, not installable yet | Community Applications XML template using the Docker image |
+| Linux x64 | Packaging foundation implemented; native payload validation pending | Tar package plus systemd unit |
+| Linux ARM64 | Packaging foundation implemented; native payload validation pending | ARM64 tar package plus systemd unit |
+| Docker | Image definition and Compose example implemented; complete image validation pending | Multi-architecture container image |
+| Unraid | Experimental XML template implemented; image publication and host validation pending | Community Applications XML template using the Docker image |
 | TrueNAS SCALE and other container NAS platforms | Experimental | Docker/OCI image after validation |
 | macOS | Not planned for the first cross-platform phase | To be evaluated after Linux support |
 
@@ -16,16 +16,16 @@ This document separates currently working installation paths from experimental p
 
 End users install a published `VynodeArr-<version>-win-x64-setup.exe`, then open `http://127.0.0.1:8686/`. See [`WINDOWS_INSTALLER.md`](WINDOWS_INSTALLER.md) for maintainer build and validation instructions.
 
-## Why Linux is not ready yet
+## Why Linux is not released yet
 
 The gateway targets .NET 8 and most of its supervision code is portable. Windows job-object handling already degrades to a platform-neutral path outside Windows. The complete installed product still has Windows-specific assumptions:
 
-- only `win-x64` gateway and engine packaging is implemented;
+- Linux gateway and composition packaging now exists, but matching locked native payloads have not passed end-to-end validation;
 - the tray controller targets Windows Forms;
 - lifecycle installation is implemented as a Windows service;
 - installed configuration uses `%ProgramData%`;
 - native movie and television payloads are currently locked and staged as Windows builds;
-- no systemd unit, Linux permissions model, archive layout, or upgrade script exists;
+- a systemd unit and archive layout exist, but the install/upgrade script and distribution-specific validation remain incomplete;
 - Linux shutdown, signal handling, file ownership, database locking, and upgrade recovery have not been validated.
 
 Publishing Linux commands before those items are implemented would risk orphaned engines, incorrect permissions, or damaged configuration. Linux installation instructions will become actionable only after the experimental acceptance criteria below pass.

@@ -1,4 +1,3 @@
-using System.Net;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Options;
 using VynodeArr.Gateway;
@@ -14,6 +13,7 @@ builder.Services
     .ValidateDataAnnotations()
     .ValidateOnStart();
 builder.Services.AddWindowsService(options => options.ServiceName = "VynodeArr");
+builder.Services.AddSystemd();
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IPortAllocator, LoopbackPortAllocator>();
@@ -83,7 +83,8 @@ app.MapPost("/api/unified/v1/engines/{domain}/{action}", async (
     EngineSupervisor supervisor,
     CancellationToken cancellationToken) =>
 {
-    if (!IsLoopback(context) || !EngineDomainExtensions.TryParseKey(domain, out var engineDomain))
+    if (!LifecycleRequestAuthorizer.IsAuthorized(context, options) ||
+        !EngineDomainExtensions.TryParseKey(domain, out var engineDomain))
     {
         return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
@@ -107,7 +108,7 @@ app.MapPost("/api/unified/v1/shutdown", async (
     EngineSupervisor supervisor,
     IHostApplicationLifetime lifetime) =>
 {
-    if (!IsLoopback(context))
+    if (!LifecycleRequestAuthorizer.IsAuthorized(context, options))
     {
         return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
@@ -122,8 +123,5 @@ app.MapNativeEngineProxy("movies", EngineDomain.Movie);
 app.MapNativeEngineProxy("television", EngineDomain.Television);
 
 app.Run();
-
-static bool IsLoopback(HttpContext context) =>
-    context.Connection.RemoteIpAddress is { } remoteAddress && IPAddress.IsLoopback(remoteAddress);
 
 public partial class Program;

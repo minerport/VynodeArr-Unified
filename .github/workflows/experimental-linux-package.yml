@@ -1,0 +1,123 @@
+name: Experimental Linux package
+
+on:
+  workflow_dispatch:
+    inputs:
+      runtime:
+        description: Linux runtime identifier
+        required: true
+        default: linux-x64
+        type: choice
+        options:
+          - linux-x64
+          - linux-arm64
+
+permissions:
+  contents: read
+
+jobs:
+  compose-linux-package:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+
+    steps:
+      - name: Check out VynodeArr
+        uses: actions/checkout@v4
+        with:
+          path: unified
+
+      - name: Check out locked movie source
+        uses: actions/checkout@v4
+        with:
+          repository: minerport/VydodeArr
+          ref: de4811318ef1eb6560a5e480cc4bba2afc008ca9
+          path: movie
+
+      - name: Check out locked television source
+        uses: actions/checkout@v4
+        with:
+          repository: minerport/VynodeArr2
+          ref: a29f15e92bd2c21e646d065d9d78066952cac05d
+          path: television
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.421
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.302
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.11.1
+          cache: yarn
+          cache-dependency-path: |
+            movie/yarn.lock
+            television/yarn.lock
+
+      - name: Install Yarn
+        run: npm install --global yarn@1.22.22
+
+      - name: Build locked Linux engines
+        shell: pwsh
+        run: >-
+          ./unified/distribution/linux/build-native-engines.ps1
+          -MovieSource ./movie
+          -TelevisionSource ./television
+          -YarnPath yarn
+          -RuntimeIdentifier '${{ inputs.runtime }}'
+          -OutputPath ./unified/artifacts/native-inputs/${{ inputs.runtime }}
+
+      - name: Compose unified Linux package
+        shell: pwsh
+        working-directory: unified
+        run: >-
+          ./distribution/linux/package.ps1
+          -MovieEnginePath ./artifacts/native-inputs/${{ inputs.runtime }}/movie
+          -TelevisionEnginePath ./artifacts/native-inputs/${{ inputs.runtime }}/television
+          -RuntimeIdentifier '${{ inputs.runtime }}'
+
+      - name: Build and smoke-test x64 container
+        if: inputs.runtime == 'linux-x64'
+        working-directory: unified
+        env:
+          VYNODEARR_CONTROL_KEY: workflow-smoke-test-key
+        run: |
+          docker build \
+            --file distribution/docker/Dockerfile \
+            --tag vynodearr:experimental \
+            artifacts/linux/VynodeArr-linux-x64
+          mkdir -p artifacts/container-config
+          chmod 777 artifacts/container-config
+          docker run --detach \
+            --name vynodearr-smoke \
+            --publish 8686:8686 \
+            --volume "$PWD/artifacts/container-config:/config" \
+            --env VynodeArr__LifecycleApiKey="$VYNODEARR_CONTROL_KEY" \
+            vynodearr:experimental
+          for attempt in $(seq 1 60); do
+            health=$(curl --silent --fail http://127.0.0.1:8686/health || true)
+            if echo "$health" | jq -e '.engines.movie.state == "Running" and .engines.television.state == "Running"' >/dev/null; then
+              break
+            fi
+            if [ "$attempt" -eq 60 ]; then
+              docker logs vynodearr-smoke
+              exit 1
+            fi
+            sleep 2
+          done
+          docker stop --time 60 vynodearr-smoke
+          test "$(docker inspect --format '{{.State.Running}}' vynodearr-smoke)" = "false"
+          docker rm vynodearr-smoke
+
+      - name: Upload Linux package
+        uses: actions/upload-artifact@v4
+        with:
+          name: VynodeArr-${{ inputs.runtime }}
+          path: unified/artifacts/linux/VynodeArr-${{ inputs.runtime }}.tar.gz
+          if-no-files-found: error
+          retention-days: 14

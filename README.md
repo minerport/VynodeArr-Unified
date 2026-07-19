@@ -63,6 +63,7 @@ Detailed instructions:
 
 - [`docs/WINDOWS_INSTALLER.md`](docs/WINDOWS_INSTALLER.md) — build and test the Windows installer
 - [`docs/PLATFORM_INSTALLATION.md`](docs/PLATFORM_INSTALLATION.md) — current Windows, Linux, Docker, Unraid, and other-platform status
+- [`docs/CROSS_PLATFORM_REVIEW.md`](docs/CROSS_PLATFORM_REVIEW.md) — portability findings, implemented foundation, and release gates
 
 Linux, Docker, NAS, and Unraid packages are being developed on the experimental `agent/cross-platform-installation` branch. They are not yet supported releases; the platform guide records the remaining engineering and validation work without presenting untested commands as production instructions.
 

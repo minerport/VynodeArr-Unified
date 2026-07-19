@@ -79,6 +79,15 @@ public static class UnifiedShell
                 <button class="engine-control" type="button" data-domain="${escapeHtml(summary.domain)}" data-action="${action}">${action === 'stop' ? 'Stop' : 'Start'} ${summary.domain === 'movie' ? 'Movies' : 'Television'}</button>`;
             };
             let refreshTimer;
+            const controlHeaders = () => {
+              if (['127.0.0.1', 'localhost', '::1'].includes(location.hostname)) return {};
+              let key = sessionStorage.getItem('vynodearr-control-key');
+              if (!key) {
+                key = prompt('Enter the VynodeArr lifecycle control key configured by the server administrator:') || '';
+                if (key) sessionStorage.setItem('vynodearr-control-key', key);
+              }
+              return key ? { 'X-VynodeArr-Control-Key': key } : {};
+            };
             const scheduleRefresh = (delay = 2500) => {
               clearTimeout(refreshTimer);
               refreshTimer = setTimeout(loadSummary, delay);
@@ -96,15 +105,15 @@ public static class UnifiedShell
               if (button.dataset.action === 'stop' && !confirm(`Stop ${label}? Active operations in that domain will pause.`)) return;
               button.disabled = true;
               button.textContent = `${button.dataset.action === 'start' ? 'Starting' : 'Stopping'} ${label}...`;
-              fetch(`/api/unified/v1/engines/${button.dataset.domain}/${button.dataset.action}`, { method: 'POST' })
+              fetch(`/api/unified/v1/engines/${button.dataset.domain}/${button.dataset.action}`, { method: 'POST', headers: controlHeaders() })
                 .then((response) => response.ok ? response : Promise.reject(new Error(`HTTP ${response.status}`)))
                 .then(() => { clearTimeout(refreshTimer); return loadSummary(); })
-                .catch((error) => { button.disabled = false; alert(`Unable to change ${label}: ${error.message}`); });
+                .catch((error) => { if (error.message === 'HTTP 403') sessionStorage.removeItem('vynodearr-control-key'); button.disabled = false; alert(`Unable to change ${label}: ${error.message}`); });
             });
             document.getElementById('shutdown-all').addEventListener('click', (event) => {
               if (!confirm('Shut down VynodeArr, including Movies and Television?')) return;
               event.currentTarget.disabled = true;
-              fetch('/api/unified/v1/shutdown', { method: 'POST' })
+              fetch('/api/unified/v1/shutdown', { method: 'POST', headers: controlHeaders() })
                 .then(() => { document.querySelector('main').innerHTML = '<h1>VynodeArr is shutting down...</h1><p>You can close this window. Use the VynodeArr tray icon to start it again.</p>'; })
                 .catch((error) => { event.currentTarget.disabled = false; alert(`Unable to shut down VynodeArr: ${error.message}`); });
             });

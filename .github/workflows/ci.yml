@@ -40,3 +40,36 @@ jobs:
           path: '**/TestResults/*.trx'
           if-no-files-found: ignore
           retention-days: 14
+
+  linux-gateway:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore gateway tests
+        run: dotnet restore tests/VynodeArr.Gateway.Tests/VynodeArr.Gateway.Tests.csproj
+
+      - name: Test gateway on Linux
+        run: dotnet test tests/VynodeArr.Gateway.Tests/VynodeArr.Gateway.Tests.csproj --configuration Release --no-restore
+
+      - name: Publish Linux x64 gateway
+        run: >-
+          dotnet publish src/VynodeArr.Gateway/VynodeArr.Gateway.csproj
+          --configuration Release
+          --runtime linux-x64
+          --self-contained true
+          --output artifacts/linux-gateway
+          -p:PublishSingleFile=true
+          -p:DebugType=None
+          -p:DebugSymbols=false
+
+      - name: Verify Linux entry point
+        run: test -x artifacts/linux-gateway/VynodeArr.Gateway
