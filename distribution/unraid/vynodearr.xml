@@ -1,14 +1,14 @@
 <?xml version="1.0"?>
 <Container version="2">
   <Name>VynodeArr</Name>
-  <Repository>ghcr.io/minerport/vynodearr-unified:experimental</Repository>
+  <Repository>ghcr.io/minerport/vynodearr-unified:0.4.1</Repository>
   <Registry>https://github.com/minerport/VynodeArr-Unified/pkgs/container/vynodearr-unified</Registry>
   <Network>bridge</Network>
   <Shell>sh</Shell>
   <Privileged>false</Privileged>
   <Support>https://github.com/minerport/VynodeArr-Unified/issues</Support>
   <Project>https://github.com/minerport/VynodeArr-Unified</Project>
-  <Overview>Experimental unified movie and television media manager. One dashboard supervises isolated movie and television engines.</Overview>
+  <Overview>Experimental unified movie and television media manager. One dashboard supervises isolated movie and television engines. Uses its own appdata and port, so existing Radarr and Sonarr containers remain separate. Use unique download-client categories such as vynode-movies and vynode-tv.</Overview>
   <Category>MediaApp:Other</Category>
   <WebUI>http://[IP]:[PORT:8686]/</WebUI>
   <Icon>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/assets/branding/VynodeArr.png</Icon>
@@ -18,7 +18,7 @@
   <DateInstalled>0</DateInstalled>
   <DonateText></DonateText>
   <DonateLink></DonateLink>
-  <Requires>Experimental image. Configure host paths and ensure UID 1000/GID 1000 can write appdata and media paths.</Requires>
+  <Requires>Experimental x86-64 image. Runs as Unraid nobody:users (99:100). Selected appdata, media, and download paths must be writable by that identity. Never map existing Radarr or Sonarr appdata into /config.</Requires>
   <Config Name="Web UI" Target="8686" Default="8686" Mode="tcp" Description="Unified VynodeArr dashboard port" Type="Port" Display="always" Required="true" Mask="false">8686</Config>
   <Config Name="Appdata" Target="/config" Default="/mnt/user/appdata/vynodearr" Mode="rw" Description="Persistent unified, movie, and television configuration" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/vynodearr</Config>
   <Config Name="Movies" Target="/movies" Default="/mnt/user/movies" Mode="rw" Description="Movie library" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/movies</Config>

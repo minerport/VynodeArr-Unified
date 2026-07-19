@@ -1,5 +1,9 @@
 FROM mcr.microsoft.com/dotnet/runtime-deps:8.0-bookworm-slim
 
+LABEL org.opencontainers.image.source="https://github.com/minerport/VynodeArr-Unified" \
+      org.opencontainers.image.title="VynodeArr" \
+      org.opencontainers.image.description="Unified movie and television media manager"
+
 ARG VYNODEARR_UID=1000
 ARG VYNODEARR_GID=1000
 
