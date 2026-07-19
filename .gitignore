@@ -6,7 +6,7 @@ artifacts/
 engines/
 node_modules/
 packages/
-runtime/
+/runtime/
 *.user
 *.suo
 *.log
