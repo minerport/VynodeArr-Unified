@@ -1,6 +1,8 @@
 .vs/
 .vscode/
 artifacts/
+**/bin/
+**/obj/
 engines/
 node_modules/
 packages/

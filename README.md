@@ -18,4 +18,16 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the detailed analysis and [
 
 ## Current status
 
-Phase 0 is in progress: architecture, collision analysis, and non-interference contracts. No source code from either engine has been modified.
+Phase 1 is in progress: the supervisor/gateway foundation now models independent movie and television processes, isolated data roots, health, recovery, and namespaced proxy routes. Both engines remain disabled by default until reviewed binaries are supplied. No source code from either engine has been modified.
+
+## Development
+
+The supervisor/gateway targets .NET 8 LTS and is pinned by `global.json`. Each packaged media engine retains its own native runtime, including the television engine's .NET 10 baseline.
+
+```powershell
+dotnet restore VynodeArr.Unified.sln
+dotnet build VynodeArr.Unified.sln --no-restore
+dotnet run --project src/VynodeArr.Gateway
+```
+
+With the default safe configuration, browse to `http://127.0.0.1:8686/health`. Both engines will report `disabled` until their executable paths and `Enabled` flags are configured. Port 8686 intentionally avoids the native Radarr and Sonarr defaults.

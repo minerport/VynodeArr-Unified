@@ -56,7 +56,7 @@ The default services already use different ports (7878 and 8989) and different S
 Browser
   |
   v
-Unified gateway and UI :7878 (public product endpoint)
+Unified gateway and UI :8686 (public product endpoint)
   |-- /api/unified/*        -> shell, combined views, preferences
   |-- /api/movies/*         -> movie adapter -> movie engine (loopback dynamic port)
   |-- /api/television/*     -> TV adapter    -> TV engine (loopback dynamic port)
