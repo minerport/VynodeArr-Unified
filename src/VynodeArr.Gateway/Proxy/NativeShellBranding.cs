@@ -13,7 +13,8 @@ public static class NativeShellBranding
           #vynodearr-shell .vynodearr-link:hover { color: #fff; background: #292d32; }
           #vynodearr-shell .vynodearr-link:focus-visible { color: #fff; outline: 2px solid #78a9ff; outline-offset: 1px; }
           #vynodearr-shell .vynodearr-link[aria-current="page"] { color: #fff; background: #30353b; border-color: #555c65; }
-          body > #root { position: relative; top: var(--vynodearr-shell-height); height: calc(100% - var(--vynodearr-shell-height)) !important; }
+          body > #root { position: relative; top: var(--vynodearr-content-offset, var(--vynodearr-shell-height)); height: calc(100% - var(--vynodearr-content-offset, var(--vynodearr-shell-height))) !important; }
+          #vynodearr-import-notice { position: fixed; inset: var(--vynodearr-shell-height) 0 auto 0; z-index: 2147483646; min-height: 44px; display: flex; align-items: center; justify-content: center; padding: 8px 16px; color: #f8e7b2; background: #3d3420; border-bottom: 1px solid #796a3f; font: 600 13px/1.35 Inter, "Segoe UI", sans-serif; text-align: center; }
           @media (max-width: 520px) {
             #vynodearr-shell { padding: 0 5px; }
             #vynodearr-shell .vynodearr-brand { padding-inline: 6px; font-size: 14px; }
@@ -28,6 +29,18 @@ public static class NativeShellBranding
         var productName = domain == EngineDomain.Movie ? "VynodeArr Movies" : "VynodeArr Television";
         var activePath = domain == EngineDomain.Movie ? "/movies/" : "/television/";
         var activePathWithoutSlash = activePath.TrimEnd('/');
+        var movieImportNotice = domain == EngineDomain.Movie
+            ? """
+              if (location.pathname.startsWith('/movies/add/import')) {
+                document.documentElement.style.setProperty('--vynodearr-content-offset', '90px');
+                const notice = document.createElement('div');
+                notice.id = 'vynodearr-import-notice';
+                notice.setAttribute('role', 'note');
+                notice.textContent = 'Library Import requires one folder per movie. Loose video files directly inside the root folder are not listed; organize each movie into its own folder first.';
+                document.body.appendChild(notice);
+              }
+              """
+            : string.Empty;
         var nativeBrandStyle = $$"""
             <style id="vynodearr-native-brand-style">
               #root a[href="{{activePath}}"]:has(> img) > img,
@@ -67,6 +80,7 @@ public static class NativeShellBranding
               })));
               brand(document.body);
               observer.observe(document.body, { childList: true, subtree: true });
+              {{movieImportNotice}}
             })();
             </script>
             """;

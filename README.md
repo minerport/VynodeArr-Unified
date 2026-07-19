@@ -59,3 +59,7 @@ Build the staged payload, then compile the installer:
 ```
 
 Generated packages remain under `artifacts/` and are intentionally excluded from Git. Uninstalling removes the service and program files but deliberately preserves the data under `C:\ProgramData\VynodeArr`.
+
+## Library import notes
+
+VynodeArr Movies Library Import expects an organized library with one subfolder per movie. Loose video files placed directly in a root such as `E:\Movies` are not import candidates. Organize them as `E:\Movies\Movie Title (Year)\video-file.mkv` before starting Library Import. VynodeArr displays this requirement directly on the import screen.

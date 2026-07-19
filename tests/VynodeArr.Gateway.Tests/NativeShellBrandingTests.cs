@@ -23,5 +23,8 @@ public sealed class NativeShellBrandingTests
         Assert.Contains($"href=\"{activePath}\" aria-current=\"page\"", result, StringComparison.Ordinal);
         Assert.Contains("href=\"/\">Dashboard</a>", result, StringComparison.Ordinal);
         Assert.Contains($"window.{compatibilityName}", result, StringComparison.Ordinal);
+        Assert.Equal(
+            domain == EngineDomain.Movie,
+            result.Contains("Library Import requires one folder per movie", StringComparison.Ordinal));
     }
 }
