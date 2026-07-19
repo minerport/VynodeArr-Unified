@@ -57,6 +57,13 @@ Open `http://127.0.0.1:8686/` after installation. The tray menu can open the das
 
 Uninstall removes services and program files but intentionally preserves `C:\ProgramData\VynodeArr` so library settings and databases are not silently destroyed.
 
+Detailed instructions:
+
+- [`docs/WINDOWS_INSTALLER.md`](docs/WINDOWS_INSTALLER.md) — build and test the Windows installer
+- [`docs/PLATFORM_INSTALLATION.md`](docs/PLATFORM_INSTALLATION.md) — current Windows, Linux, Docker, Unraid, and other-platform status
+
+Linux, Docker, NAS, and Unraid packages are being developed on the experimental `agent/cross-platform-installation` branch. They are not yet supported releases; the platform guide records the remaining engineering and validation work without presenting untested commands as production instructions.
+
 ## Development
 
 Requirements:
