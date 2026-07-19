@@ -54,10 +54,6 @@ Name: "{autodesktop}\VynodeArr"; Filename: "http://127.0.0.1:8686/"; Tasks: desk
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional shortcuts:"; Flags: unchecked
 
 [Run]
-Filename: "{sys}\sc.exe"; Parameters: "create {#ServiceName} binPath= """"{app}\gateway\VynodeArr.Gateway.exe"""" start= auto DisplayName= ""VynodeArr"""; Flags: runhidden waituntilterminated; StatusMsg: "Registering VynodeArr service..."
-Filename: "{sys}\sc.exe"; Parameters: "description {#ServiceName} ""Unified movie and television media manager"""; Flags: runhidden waituntilterminated
-Filename: "{sys}\sc.exe"; Parameters: "failure {#ServiceName} reset= 86400 actions= restart/5000/restart/15000/restart/30000"; Flags: runhidden waituntilterminated
-Filename: "{sys}\sc.exe"; Parameters: "start {#ServiceName}"; Flags: runhidden waituntilterminated; StatusMsg: "Starting VynodeArr..."
 Filename: "http://127.0.0.1:8686/"; Description: "Open VynodeArr"; Flags: postinstall shellexec skipifsilent nowait
 
 [UninstallRun]
@@ -65,6 +61,48 @@ Filename: "{sys}\sc.exe"; Parameters: "stop {#ServiceName}"; Flags: runhidden wa
 Filename: "{sys}\sc.exe"; Parameters: "delete {#ServiceName}"; Flags: runhidden waituntilterminated skipifdoesntexist; RunOnceId: "DeleteVynodeArr"
 
 [Code]
+procedure RunServiceCommand(const Parameters: String);
+var
+  ResultCode: Integer;
+begin
+  if not Exec(ExpandConstant('{sys}\sc.exe'), Parameters, '', SW_HIDE,
+    ewWaitUntilTerminated, ResultCode) then
+  begin
+    RaiseException('Unable to run the Windows service command: ' + Parameters);
+  end;
+
+  if ResultCode <> 0 then
+  begin
+    RaiseException(Format('Windows service command failed with exit code %d: %s', [ResultCode, Parameters]));
+  end;
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  ExecutablePath: String;
+begin
+  if CurStep <> ssPostInstall then
+  begin
+    exit;
+  end;
+
+  ExecutablePath := ExpandConstant('{app}\gateway\VynodeArr.Gateway.exe');
+  if RegKeyExists(HKLM, 'SYSTEM\CurrentControlSet\Services\{#ServiceName}') then
+  begin
+    RunServiceCommand('config {#ServiceName} binPath= "' + ExecutablePath +
+      '" start= auto DisplayName= "VynodeArr"');
+  end
+  else
+  begin
+    RunServiceCommand('create {#ServiceName} binPath= "' + ExecutablePath +
+      '" start= auto DisplayName= "VynodeArr"');
+  end;
+
+  RunServiceCommand('description {#ServiceName} "Unified movie and television media manager"');
+  RunServiceCommand('failure {#ServiceName} reset= 86400 actions= restart/5000/restart/15000/restart/30000');
+  RunServiceCommand('start {#ServiceName}');
+end;
+
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
   ResultCode: Integer;
