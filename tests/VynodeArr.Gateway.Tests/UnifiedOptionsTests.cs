@@ -16,7 +16,7 @@ public sealed class UnifiedOptionsTests
             Environment.SetEnvironmentVariable(variableName, expectedRoot);
             var options = new UnifiedOptions
             {
-                DataRoot = $"%{variableName}%\\state",
+                DataRoot = Path.Combine($"%{variableName}%", "state"),
             };
 
             Assert.Equal(
