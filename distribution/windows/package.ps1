@@ -46,11 +46,12 @@ if ([System.IO.Directory]::Exists($stageRoot)) {
 
 $gatewayRoot = Join-Path $stageRoot 'gateway'
 $trayRoot = Join-Path $stageRoot 'tray'
+$brandingRoot = Join-Path $stageRoot 'branding'
 $movieTarget = Join-Path $stageRoot 'engines\movie'
 $televisionTarget = Join-Path $stageRoot 'engines\television'
 $dataTarget = Join-Path $stageRoot 'data'
 
-New-Item -ItemType Directory -Force -Path $gatewayRoot, $trayRoot, $movieTarget, $televisionTarget, $dataTarget | Out-Null
+New-Item -ItemType Directory -Force -Path $gatewayRoot, $trayRoot, $brandingRoot, $movieTarget, $televisionTarget, $dataTarget | Out-Null
 
 $dotnet = Get-Command dotnet -ErrorAction Stop
 & $dotnet.Source publish (Join-Path $repositoryRoot 'src\VynodeArr.Gateway\VynodeArr.Gateway.csproj') `
@@ -92,6 +93,7 @@ $installedConfigJson = $installedConfig | ConvertTo-Json -Depth 10
 
 Copy-Item -Path (Join-Path $movieSource '*') -Destination $movieTarget -Recurse -Force
 Copy-Item -Path (Join-Path $televisionSource '*') -Destination $televisionTarget -Recurse -Force
+Copy-Item -Path (Join-Path $repositoryRoot 'assets\branding\*') -Destination $brandingRoot -Force
 Copy-Item -LiteralPath (Join-Path $repositoryRoot 'distribution\source-lock.json') -Destination $stageRoot
 
 $checksums = Get-ChildItem -LiteralPath $stageRoot -Recurse -File |

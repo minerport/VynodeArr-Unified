@@ -7,8 +7,14 @@ namespace VynodeArr.Tray;
 internal static class Program
 {
     [STAThread]
-    private static void Main()
+    private static void Main(string[] args)
     {
+        if (args.Any((argument) => string.Equals(argument, "--open", StringComparison.OrdinalIgnoreCase)))
+        {
+            VynodeArrTrayContext.OpenDashboard();
+            return;
+        }
+
         using var instance = new Mutex(initiallyOwned: true, "Local\\VynodeArr.Tray", out var createdNew);
         if (!createdNew)
         {
@@ -48,7 +54,7 @@ internal sealed class VynodeArrTrayContext : ApplicationContext
 
         _icon = new NotifyIcon
         {
-            Icon = SystemIcons.Application,
+            Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath) ?? SystemIcons.Application,
             Text = "VynodeArr",
             ContextMenuStrip = menu,
             Visible = true
@@ -69,7 +75,7 @@ internal sealed class VynodeArrTrayContext : ApplicationContext
         base.ExitThreadCore();
     }
 
-    private static void OpenDashboard()
+    internal static void OpenDashboard()
     {
         Process.Start(new ProcessStartInfo(DashboardUri.AbsoluteUri) { UseShellExecute = true });
     }

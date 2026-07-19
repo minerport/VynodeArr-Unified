@@ -7,5 +7,6 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>VynodeArr.Tray</AssemblyName>
     <RootNamespace>VynodeArr.Tray</RootNamespace>
+    <ApplicationIcon>..\..\assets\branding\VynodeArr.ico</ApplicationIcon>
   </PropertyGroup>
 </Project>

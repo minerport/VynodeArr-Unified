@@ -24,6 +24,7 @@ $outputRoot = [System.IO.Path]::GetFullPath((Join-Path $repositoryRoot 'artifact
 $required = @(
     'gateway\VynodeArr.Gateway.exe',
     'tray\VynodeArr.Tray.exe',
+    'branding\VynodeArr.ico',
     'engines\movie\Radarr.Console.exe',
     'engines\television\Sonarr.Console.exe',
     'source-lock.json',

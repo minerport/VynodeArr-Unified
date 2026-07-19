@@ -28,7 +28,8 @@ OutputBaseFilename=VynodeArr-{#AppVersion}-win-x64-setup
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
-UninstallDisplayIcon={app}\gateway\VynodeArr.Gateway.exe
+SetupIconFile={#SourceRoot}\branding\VynodeArr.ico
+UninstallDisplayIcon={app}\branding\VynodeArr.ico
 CloseApplications=yes
 RestartApplications=no
 SetupLogging=yes
@@ -36,6 +37,7 @@ SetupLogging=yes
 [Files]
 Source: "{#SourceRoot}\gateway\*"; DestDir: "{app}\gateway"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#SourceRoot}\tray\*"; DestDir: "{app}\tray"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#SourceRoot}\branding\*"; DestDir: "{app}\branding"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#SourceRoot}\engines\movie\*"; DestDir: "{app}\engines\movie"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#SourceRoot}\engines\television\*"; DestDir: "{app}\engines\television"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#SourceRoot}\source-lock.json"; DestDir: "{app}"; Flags: ignoreversion
@@ -48,12 +50,9 @@ Name: "{commonappdata}\VynodeArr\television"; Flags: uninsneveruninstall
 Name: "{commonappdata}\VynodeArr\unified"; Flags: uninsneveruninstall
 
 [Icons]
-Name: "{group}\VynodeArr"; Filename: "http://127.0.0.1:8686/"
-Name: "{autodesktop}\VynodeArr"; Filename: "http://127.0.0.1:8686/"; Tasks: desktopicon
+Name: "{group}\VynodeArr"; Filename: "{app}\tray\VynodeArr.Tray.exe"; Parameters: "--open"; WorkingDir: "{app}\tray"; IconFilename: "{app}\branding\VynodeArr.ico"
+Name: "{commondesktop}\VynodeArr"; Filename: "{app}\tray\VynodeArr.Tray.exe"; Parameters: "--open"; WorkingDir: "{app}\tray"; IconFilename: "{app}\branding\VynodeArr.ico"
 Name: "{commonstartup}\VynodeArr Tray"; Filename: "{app}\tray\VynodeArr.Tray.exe"; WorkingDir: "{app}\tray"
-
-[Tasks]
-Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional shortcuts:"; Flags: unchecked
 
 [Run]
 Filename: "{app}\tray\VynodeArr.Tray.exe"; Description: "Start the VynodeArr tray controller"; Flags: postinstall nowait runasoriginaluser skipifsilent
