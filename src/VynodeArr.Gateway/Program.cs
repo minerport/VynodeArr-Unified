@@ -43,7 +43,25 @@ var app = builder.Build();
 var options = app.Services.GetRequiredService<IOptions<UnifiedOptions>>().Value;
 var registry = app.Services.GetRequiredService<EngineRegistry>();
 
-Directory.CreateDirectory(options.ResolveDataRoot(app.Environment.ContentRootPath));
+var dataRoot = options.ResolveDataRoot(app.Environment.ContentRootPath);
+var unifiedDataRoot = Path.Combine(dataRoot, "unified");
+Directory.CreateDirectory(unifiedDataRoot);
+FileStream instanceLock;
+try
+{
+    instanceLock = new FileStream(
+        Path.Combine(unifiedDataRoot, "gateway.lock"),
+        FileMode.OpenOrCreate,
+        FileAccess.ReadWrite,
+        FileShare.None);
+}
+catch (IOException exception)
+{
+    app.Logger.LogCritical(exception, "Another VynodeArr gateway already owns this data root");
+    return;
+}
+
+await using var heldInstanceLock = instanceLock;
 
 app.MapGet("/health", () => Results.Ok(registry.CreateHealthSnapshot()));
 app.UseWebSockets();

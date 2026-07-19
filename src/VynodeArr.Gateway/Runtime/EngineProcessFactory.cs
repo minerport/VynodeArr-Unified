@@ -2,8 +2,10 @@ using System.Diagnostics;
 
 namespace VynodeArr.Gateway.Runtime;
 
-public sealed class EngineProcessFactory(ILogger<EngineProcessFactory> logger) : IEngineProcessFactory
+public sealed class EngineProcessFactory(ILogger<EngineProcessFactory> logger) : IEngineProcessFactory, IDisposable
 {
+    private readonly WindowsProcessJob? _processJob = WindowsProcessJob.CreateIfSupported();
+
     public IEngineProcess Start(EngineLaunch launch)
     {
         var executable = Path.GetFullPath(launch.ExecutablePath);
@@ -11,6 +13,8 @@ public sealed class EngineProcessFactory(ILogger<EngineProcessFactory> logger) :
         {
             throw new FileNotFoundException($"The {launch.Domain.Key()} engine executable was not found.", executable);
         }
+
+        TerminateOrphanedPayloadInstances(executable);
 
         Directory.CreateDirectory(launch.DataDirectory);
         var info = new ProcessStartInfo
@@ -36,6 +40,17 @@ public sealed class EngineProcessFactory(ILogger<EngineProcessFactory> logger) :
             throw new InvalidOperationException($"The {launch.Domain.Key()} engine did not start.");
         }
 
+        try
+        {
+            _processJob?.Assign(process);
+        }
+        catch
+        {
+            process.Kill(entireProcessTree: true);
+            process.Dispose();
+            throw;
+        }
+
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
         logger.LogInformation(
@@ -45,6 +60,52 @@ public sealed class EngineProcessFactory(ILogger<EngineProcessFactory> logger) :
             launch.Port);
 
         return new SystemEngineProcess(process);
+    }
+
+    public void Dispose() => _processJob?.Dispose();
+
+    private void TerminateOrphanedPayloadInstances(string executable)
+    {
+        var processName = Path.GetFileNameWithoutExtension(executable);
+        foreach (var existing in Process.GetProcessesByName(processName))
+        {
+            using (existing)
+            {
+                try
+                {
+                    var existingPath = existing.MainModule?.FileName;
+                    if (!string.Equals(existingPath, executable, StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    logger.LogWarning(
+                        "Stopping orphaned {Executable} process {ProcessId} before engine startup",
+                        Path.GetFileName(executable),
+                        existing.Id);
+                    existing.Kill(entireProcessTree: true);
+                    existing.WaitForExit(10000);
+                }
+                catch (InvalidOperationException)
+                {
+                    // The process exited while it was being inspected.
+                }
+                catch (System.ComponentModel.Win32Exception exception)
+                {
+                    logger.LogDebug(
+                        exception,
+                        "Unable to inspect unrelated {ProcessName} process {ProcessId}",
+                        processName,
+                        existing.Id);
+                }
+                catch (Exception exception)
+                {
+                    throw new InvalidOperationException(
+                        $"An existing {Path.GetFileName(executable)} process could not be stopped safely.",
+                        exception);
+                }
+            }
+        }
     }
 
     private sealed class SystemEngineProcess(Process process) : IEngineProcess

@@ -158,6 +158,8 @@ Program binaries belong under Program Files. Mutable state belongs under a singl
 
 The gateway is the sole lifecycle owner. Unified shutdown first sends authenticated graceful-shutdown requests to both domain engines, waits for their processes, uses bounded process-tree termination only as a fallback, and then stops the gateway. Platform-neutral dashboard controls can stop or start either domain without affecting the other. The Windows package adds one per-user tray controller for the unified service; it never controls the two engines as separate Windows services.
 
+Only one gateway may own a data root: an exclusive lock is acquired before hosted services start. On Windows, both engine trees are assigned to a kill-on-close Job Object, so an abnormal gateway exit cannot orphan consoles. Engine startup also removes stale instances from the same payload path before either database is opened; unrelated native installations at other paths are not touched.
+
 Existing Radarr/Sonarr installations are imported by copying or restoring into the appropriate isolated domain directory after version checks. The installer must never point both engines at an existing shared directory.
 
 ## Rejected designs
