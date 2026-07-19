@@ -25,6 +25,7 @@ builder.Services.AddHttpClient<IEngineReadinessProbe, HttpEngineReadinessProbe>(
         UseCookies = false
     });
 builder.Services.AddSingleton<EngineRegistry>();
+builder.Services.AddHttpClient<UnifiedSummaryService>();
 builder.Services.AddHostedService<EngineSupervisor>();
 builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
@@ -45,6 +46,8 @@ app.MapGet("/health", () => Results.Ok(registry.CreateHealthSnapshot()));
 app.UseWebSockets();
 app.MapGet("/", () => Results.Content(UnifiedShell.Html, "text/html"));
 app.MapGet("/api/unified/v1/engines", () => Results.Ok(registry.CreateHealthSnapshot().Engines));
+app.MapGet("/api/unified/v1/summary", (UnifiedSummaryService summary, CancellationToken cancellationToken) =>
+    summary.GetAsync(cancellationToken));
 app.MapPost("/api/unified/v1/shutdown", (HttpContext context, IHostApplicationLifetime lifetime) =>
 {
     if (context.Connection.RemoteIpAddress is not { } remoteAddress || !IPAddress.IsLoopback(remoteAddress))

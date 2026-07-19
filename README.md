@@ -32,4 +32,4 @@ dotnet run --project src/VynodeArr.Gateway
 
 With the default safe configuration, browse to `http://127.0.0.1:8686/health`. Both engines will report `disabled` until their executable paths and `Enabled` flags are configured. Port 8686 intentionally avoids the native Radarr and Sonarr defaults.
 
-When packaged engines are enabled, browse to `http://127.0.0.1:8686/` and choose Movies or Television. Native interfaces keep their original functionality at `/movies/` and `/television/`; the gateway selects the correct private engine API and event stream by route.
+When packaged engines are enabled, browse to `http://127.0.0.1:8686/` for an independent movie/television library, monitoring, download, missing-item, queue, and health summary. Choose Movies or Television to enter the full native interface. Native functionality remains at `/movies/` and `/television/`; the gateway selects the correct private engine API and event stream by route.
