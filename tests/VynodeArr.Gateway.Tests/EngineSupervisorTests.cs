@@ -186,6 +186,43 @@ public sealed class EngineSupervisorTests
         }
     }
 
+    [Fact]
+    public async Task UsesTheEngineApiKeyFinalizedAfterStartup()
+    {
+        var dataRoot = Path.Combine(Path.GetTempPath(), $"vynodearr-tests-{Guid.NewGuid():N}");
+        var registry = new EngineRegistry(TimeProvider.System);
+        var supervisor = new EngineSupervisor(
+            Options.Create(CreateOptions(dataRoot)),
+            new TestHostEnvironment(dataRoot),
+            new SequentialPortAllocator(),
+            new FakeEngineProcessFactory(),
+            new ImmediateReadinessProbe(),
+            new RecordingShutdownClient(),
+            new FinalizingApiKeyProvider(),
+            registry,
+            NullLogger<EngineSupervisor>.Instance);
+
+        try
+        {
+            await supervisor.StartAsync(CancellationToken.None);
+            await WaitForAsync(() =>
+                registry.Get(EngineDomain.Movie).State == EngineState.Running &&
+                registry.Get(EngineDomain.Television).State == EngineState.Running);
+
+            Assert.Equal("finalized-api-key", registry.GetApiKey(EngineDomain.Movie));
+            Assert.Equal("finalized-api-key", registry.GetApiKey(EngineDomain.Television));
+        }
+        finally
+        {
+            await supervisor.StopAsync(CancellationToken.None);
+            supervisor.Dispose();
+            if (Directory.Exists(dataRoot))
+            {
+                Directory.Delete(dataRoot, recursive: true);
+            }
+        }
+    }
+
     private static UnifiedOptions CreateOptions(string dataRoot) => new()
     {
         DataRoot = dataRoot,
@@ -254,6 +291,20 @@ public sealed class EngineSupervisorTests
             string dataDirectory,
             TimeSpan timeout,
             CancellationToken cancellationToken) => Task.FromResult("test-api-key");
+    }
+
+    private sealed class FinalizingApiKeyProvider : IEngineApiKeyProvider
+    {
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<string, int> _reads = [];
+
+        public Task<string> ReadAsync(
+            string dataDirectory,
+            TimeSpan timeout,
+            CancellationToken cancellationToken)
+        {
+            var read = _reads.AddOrUpdate(dataDirectory, 1, static (_, current) => current + 1);
+            return Task.FromResult(read == 1 ? "provisioned-api-key" : "finalized-api-key");
+        }
     }
 
     private sealed class RecordingShutdownClient : IEngineShutdownClient

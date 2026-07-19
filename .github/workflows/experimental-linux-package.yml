@@ -28,7 +28,7 @@ on:
       image_tag:
         description: Version tag to publish when image publishing is enabled
         required: true
-        default: 0.4.1
+        default: 0.4.2
         type: string
 
 permissions:
@@ -153,7 +153,7 @@ jobs:
           (github.event_name == 'push' && contains(github.event.head_commit.message, '[publish-image]')))
         working-directory: unified
         env:
-          IMAGE_TAG: ${{ inputs.image_tag || '0.4.1' }}
+          IMAGE_TAG: ${{ inputs.image_tag || '0.4.2' }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if ! echo "$IMAGE_TAG" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+([._-][A-Za-z0-9._-]+)?$'; then
