@@ -28,7 +28,7 @@ on:
       image_tag:
         description: Version tag to publish when image publishing is enabled
         required: true
-        default: 0.4.2
+        default: 0.4.3
         type: string
 
 permissions:
@@ -142,6 +142,14 @@ jobs:
             fi
             sleep 2
           done
+          curl --fail --silent http://127.0.0.1:8686/api/unified/v1/summary | jq -e \
+            '.engines.movie.error == null and .engines.television.error == null' >/dev/null
+          curl --fail --silent http://127.0.0.1:8686/movies/api/v3/system/status | jq -e '.version != null' >/dev/null
+          curl --fail --silent http://127.0.0.1:8686/television/api/v5/system/status | jq -e '.version != null' >/dev/null
+          docker exec vynodearr-smoke sh -c \
+            'for file in /proc/[0-9]*/cmdline; do first=$(tr "\0" "\n" <"$file" | head -n 1); if [ "$first" = "/opt/vynodearr/engines/movie/Radarr" ]; then tr "\0" "\n" <"$file"; fi; done | grep -Fx -- "-data=/config/movie"'
+          docker exec vynodearr-smoke sh -c \
+            'for file in /proc/[0-9]*/cmdline; do first=$(tr "\0" "\n" <"$file" | head -n 1); if [ "$first" = "/opt/vynodearr/engines/television/Sonarr" ]; then tr "\0" "\n" <"$file"; fi; done | grep -Fx -- "-data=/config/television"'
           docker stop --time 60 vynodearr-smoke
           test "$(docker inspect --format '{{.State.Running}}' vynodearr-smoke)" = "false"
           docker rm vynodearr-smoke
@@ -153,7 +161,7 @@ jobs:
           (github.event_name == 'push' && contains(github.event.head_commit.message, '[publish-image]')))
         working-directory: unified
         env:
-          IMAGE_TAG: ${{ inputs.image_tag || '0.4.2' }}
+          IMAGE_TAG: ${{ inputs.image_tag || '0.4.3' }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if ! echo "$IMAGE_TAG" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+([._-][A-Za-z0-9._-]+)?$'; then

@@ -28,13 +28,16 @@ ENV ASPNETCORE_URLS=http://0.0.0.0:8686 \
     VynodeArr__DataRoot=/config \
     VynodeArr__Engines__Movie__Enabled=true \
     VynodeArr__Engines__Movie__ExecutablePath=/opt/vynodearr/engines/movie/Radarr \
+    VynodeArr__Engines__Movie__Arguments="-nobrowser -data={data}" \
     VynodeArr__Engines__Television__Enabled=true \
     VynodeArr__Engines__Television__ExecutablePath=/opt/vynodearr/engines/television/Sonarr \
+    VynodeArr__Engines__Television__Arguments="-nobrowser -data={data}" \
     DOTNET_RUNNING_IN_CONTAINER=true
 
 VOLUME ["/config"]
 EXPOSE 8686
 USER vynodearr
+WORKDIR /opt/vynodearr/gateway
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=3 \
   CMD ["curl", "--fail", "--silent", "http://127.0.0.1:8686/health"]

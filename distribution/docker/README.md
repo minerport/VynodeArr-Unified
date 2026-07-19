@@ -3,7 +3,7 @@
 The published experimental x86-64 image is:
 
 ```text
-ghcr.io/minerport/vynodearr-unified:0.4.2
+ghcr.io/minerport/vynodearr-unified:0.4.3
 ```
 
 Unraid users should use the template at [`distribution/unraid/vynodearr.xml`](../unraid/vynodearr.xml), or create a container manually with port `8686`, `/config`, `/movies`, `/tv`, and `/downloads` mappings. Keep `/config` mapped only to VynodeArr's own appdata directory. Existing Radarr and Sonarr appdata must never be mapped there.

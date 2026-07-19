@@ -14,7 +14,7 @@ public sealed class UnraidTemplateTests
         var repository = root.Element("Repository")?.Value;
         var configs = root.Elements("Config").ToArray();
 
-        Assert.Equal("ghcr.io/minerport/vynodearr-unified:0.4.2", repository);
+        Assert.Equal("ghcr.io/minerport/vynodearr-unified:0.4.3", repository);
         Assert.Equal("bridge", root.Element("Network")?.Value);
         Assert.Contains("--user 99:100", root.Element("ExtraParams")?.Value, StringComparison.Ordinal);
         Assert.Contains(configs, config => Attribute(config, "Target") == "8686");
