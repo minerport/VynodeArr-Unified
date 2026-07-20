@@ -5,10 +5,10 @@
 Download both files from the VynodeArr GitHub release, verify the archive, extract it, and run the installer:
 
 ```bash
-wget https://github.com/minerport/VynodeArr-Unified/releases/download/v0.4.3/VynodeArr-0.4.3-linux-x64.tar.gz
-wget https://github.com/minerport/VynodeArr-Unified/releases/download/v0.4.3/VynodeArr-0.4.3-linux-x64.tar.gz.sha256
-sha256sum --check VynodeArr-0.4.3-linux-x64.tar.gz.sha256
-tar -xzf VynodeArr-0.4.3-linux-x64.tar.gz
+wget https://github.com/minerport/VynodeArr-Unified/releases/download/v0.4.4/VynodeArr-0.4.4-linux-x64.tar.gz
+wget https://github.com/minerport/VynodeArr-Unified/releases/download/v0.4.4/VynodeArr-0.4.4-linux-x64.tar.gz.sha256
+sha256sum --check VynodeArr-0.4.4-linux-x64.tar.gz.sha256
+tar -xzf VynodeArr-0.4.4-linux-x64.tar.gz
 cd VynodeArr-linux-x64
 sudo ./install.sh
 ```
@@ -33,7 +33,7 @@ sudo /opt/vynodearr/uninstall.sh
 
 Normal uninstall preserves configuration and databases. `sudo /opt/vynodearr/uninstall.sh --purge` permanently removes them and should only be used when all VynodeArr data is no longer needed.
 
-The first Linux release is an experimental x86-64 prerelease. ARM64 is not advertised until its native payload and runtime tests pass.
+Linux x86-64 is supported. ARM64 is not advertised until its native payload and runtime tests pass.
 
 ## Maintainer packaging
 
@@ -87,4 +87,4 @@ The unit uses `KillMode=control-group` as a final Linux-specific safety boundary
 
 Replace the lifecycle control key in the environment file with a long random secret. Browsers connecting from another device must provide this key for engine start, stop, and full shutdown actions. An unset key denies remote lifecycle mutations.
 
-The GitHub experimental packaging workflow builds the locked Linux-native engines, validates the installer payload, starts both engines in Docker, verifies readiness and coordinated shutdown, and uploads the completed archive.
+The GitHub release packaging workflow builds the locked Linux-native engines, validates the installer payload, starts both engines in Docker, verifies the dashboard, calendar API, engine readiness, and coordinated shutdown, publishes the container, and uploads the completed archive.

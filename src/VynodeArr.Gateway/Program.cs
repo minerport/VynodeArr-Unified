@@ -7,6 +7,20 @@ using VynodeArr.Gateway.Runtime;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var uiEnvironmentOverrides = new Dictionary<string, string?>();
+AddBooleanEnvironmentOverride("VYNODEARR_UI_TOKENS_ENABLED", "VynodeArr:Ui:TokensEnabled");
+AddBooleanEnvironmentOverride("VYNODEARR_NEW_SHELL_STYLING_ENABLED", "VynodeArr:Ui:NewShellStylingEnabled");
+builder.Configuration.AddInMemoryCollection(uiEnvironmentOverrides);
+
+void AddBooleanEnvironmentOverride(string environmentName, string configurationKey)
+{
+    var value = Environment.GetEnvironmentVariable(environmentName);
+    if (bool.TryParse(value, out var enabled))
+    {
+        uiEnvironmentOverrides[configurationKey] = enabled.ToString();
+    }
+}
+
 builder.Services
     .AddOptions<UnifiedOptions>()
     .Bind(builder.Configuration.GetSection(UnifiedOptions.SectionName))
@@ -28,6 +42,7 @@ builder.Services.AddHttpClient<IEngineReadinessProbe, HttpEngineReadinessProbe>(
     });
 builder.Services.AddSingleton<EngineRegistry>();
 builder.Services.AddHttpClient<UnifiedSummaryService>();
+builder.Services.AddHttpClient<UnifiedCalendarService>();
 builder.Services.AddSingleton<EngineSupervisor>();
 builder.Services.AddHostedService(provider => provider.GetRequiredService<EngineSupervisor>());
 builder.Services.ConfigureHttpJsonOptions(options =>
@@ -72,10 +87,21 @@ app.MapGet("/assets/vynodearr.png", () =>
         ? Results.NotFound()
         : Results.Stream(stream, "image/png", enableRangeProcessing: true);
 });
-app.MapGet("/", () => Results.Content(UnifiedShell.Html, "text/html"));
+app.MapGet("/assets/vynodearr-tokens.v1.css", () =>
+{
+    var stream = typeof(UnifiedShell).Assembly.GetManifestResourceStream("VynodeArr.Assets.VynodeArrTokens.v1.css");
+    return stream is null
+        ? Results.NotFound()
+        : Results.Stream(stream, "text/css; charset=utf-8");
+});
+app.MapGet("/", () => Results.Content(
+    UnifiedShell.Render(options.Ui, typeof(Program).Assembly.GetName().Version?.ToString() ?? "development"),
+    "text/html"));
 app.MapGet("/api/unified/v1/engines", () => Results.Ok(registry.CreateHealthSnapshot().Engines));
 app.MapGet("/api/unified/v1/summary", (UnifiedSummaryService summary, CancellationToken cancellationToken) =>
     summary.GetAsync(cancellationToken));
+app.MapGet("/api/unified/v1/calendar", (UnifiedCalendarService calendar, CancellationToken cancellationToken) =>
+    calendar.GetAsync(cancellationToken));
 app.MapPost("/api/unified/v1/engines/{domain}/{action}", async (
     HttpContext context,
     string domain,

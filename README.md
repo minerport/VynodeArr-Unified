@@ -12,6 +12,7 @@ VynodeArr is one self-hosted application for managing movie and television libra
 - Persistent navigation between Dashboard, Movies, and Television
 - Independent movie and television databases, settings, queues, commands, logs, and data roots
 - Combined library, wanted, queue, download, and health summaries
+- Color-coded 30-day movie and television calendar summaries
 - Independent start and stop controls for each media engine
 - One action to shut down the gateway and both engines
 - One Windows service and one notification-area controller
@@ -67,14 +68,14 @@ Detailed instructions:
 
 ## Linux installation
 
-The validated experimental Linux x64 package is published in [VynodeArr 0.4.3](https://github.com/minerport/VynodeArr-Unified/releases/tag/v0.4.3). Download the archive and checksum, verify them, extract the package, and run `sudo ./install.sh`. Detailed commands, service management, permissions, and uninstall instructions are in [`distribution/linux/README.md`](distribution/linux/README.md).
+The supported Linux x64 package is published in [VynodeArr 0.4.4](https://github.com/minerport/VynodeArr-Unified/releases/tag/v0.4.4). Download the archive and checksum, verify them, extract the package, and run `sudo ./install.sh`. Detailed commands, service management, permissions, upgrades, and uninstall instructions are in [`distribution/linux/README.md`](distribution/linux/README.md).
 
 ## Docker and Unraid
 
 The validated x86-64 container is:
 
 ```text
-ghcr.io/minerport/vynodearr-unified:0.4.3
+ghcr.io/minerport/vynodearr-unified:0.4.4
 ```
 
 For Unraid, install VynodeArr from Community Applications after the listing is approved, or load [`templates/vynodearr.xml`](templates/vynodearr.xml) as a user template. The default mappings are:
@@ -129,7 +130,7 @@ Stage reviewed engine builds and compile the installer:
 
 .\distribution\windows\build-installer.ps1 `
   -IsccPath "$env:LOCALAPPDATA\Programs\Inno Setup 7\ISCC.exe" `
-  -Version 0.3.3
+  -Version 0.4.4
 ```
 
 Generated packages are written under `artifacts/` and excluded from Git. Publish installers as GitHub Release assets rather than committing generated binaries.

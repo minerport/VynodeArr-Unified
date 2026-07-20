@@ -1,9 +1,9 @@
 # Docker and Unraid package
 
-The published experimental x86-64 image is:
+The supported x86-64 image is:
 
 ```text
-ghcr.io/minerport/vynodearr-unified:0.4.3
+ghcr.io/minerport/vynodearr-unified:0.4.4
 ```
 
 Unraid users should use the canonical template at [`templates/vynodearr.xml`](../../templates/vynodearr.xml), or create a container manually with port `8686`, `/config`, `/movies`, `/tv`, and `/downloads` mappings. Keep `/config` mapped only to VynodeArr's own appdata directory. Existing Radarr and Sonarr appdata must never be mapped there.
@@ -34,7 +34,7 @@ The Docker image consumes an already staged `VynodeArr-linux-x64` package. Nativ
 
 docker build `
   --file .\distribution\docker\Dockerfile `
-  --tag ghcr.io/minerport/vynodearr-unified:experimental `
+  --tag ghcr.io/minerport/vynodearr-unified:0.4.4 `
   .\artifacts\linux\VynodeArr-linux-x64
 ```
 
@@ -42,6 +42,6 @@ The gateway is the container entry point and therefore receives Docker stop sign
 
 The image runs as UID/GID 1000 by default. Build with `--build-arg VYNODEARR_UID=<uid> --build-arg VYNODEARR_GID=<gid>` or use a runtime user override when host volume ownership differs. Do not run the media manager as root merely to bypass volume permissions.
 
-The Compose file is an experimental example. Replace every `/path/to/...` host path before use.
+The Compose file is a supported deployment example. Replace every `/path/to/...` host path before use and keep `/config` dedicated to VynodeArr.
 
 Set `VYNODEARR_CONTROL_KEY` to a long random value before starting Compose. Remote dashboard lifecycle actions prompt for this key once per browser session. Loopback access remains keyless, and an unset server key denies all remote start, stop, and shutdown requests.

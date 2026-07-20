@@ -1,11 +1,11 @@
-name: Experimental Linux package
+name: Release package
 
 on:
   push:
     branches:
-      - agent/cross-platform-installation
+      - main
     paths:
-      - '.github/workflows/experimental-linux-package.yml'
+      - '.github/workflows/release-package.yml'
       - 'distribution/docker/**'
       - 'distribution/linux/**'
       - 'distribution/source-lock.json'
@@ -28,7 +28,7 @@ on:
       image_tag:
         description: Version tag to publish when image publishing is enabled
         required: true
-        default: 0.4.3
+        default: 0.4.4
         type: string
 
 permissions:
@@ -121,7 +121,7 @@ jobs:
         run: |
           docker build \
             --file distribution/docker/Dockerfile \
-            --tag vynodearr:experimental \
+            --tag vynodearr:release-candidate \
             artifacts/linux/VynodeArr-linux-x64
           mkdir -p artifacts/container-config
           chmod 777 artifacts/container-config
@@ -130,7 +130,7 @@ jobs:
             --publish 8686:8686 \
             --volume "$PWD/artifacts/container-config:/config" \
             --env VynodeArr__LifecycleApiKey="$VYNODEARR_CONTROL_KEY" \
-            vynodearr:experimental
+            vynodearr:release-candidate
           for attempt in $(seq 1 60); do
             health=$(curl --silent --fail http://127.0.0.1:8686/health || true)
             if echo "$health" | jq -e '.engines.movie.state == "Running" and .engines.television.state == "Running"' >/dev/null; then
@@ -144,6 +144,9 @@ jobs:
           done
           curl --fail --silent http://127.0.0.1:8686/api/unified/v1/summary | jq -e \
             '.engines.movie.error == null and .engines.television.error == null' >/dev/null
+          curl --fail --silent http://127.0.0.1:8686/ | grep -F 'Last 30 days' >/dev/null
+          curl --fail --silent http://127.0.0.1:8686/api/unified/v1/calendar | jq -e \
+            '.domains.movie.items != null and .domains.television.items != null' >/dev/null
           curl --fail --silent http://127.0.0.1:8686/movies/api/v3/system/status | jq -e '.version != null' >/dev/null
           curl --fail --silent http://127.0.0.1:8686/television/api/v5/system/status | jq -e '.version != null' >/dev/null
           docker exec vynodearr-smoke sh -c \
@@ -161,7 +164,7 @@ jobs:
           (github.event_name == 'push' && contains(github.event.head_commit.message, '[publish-image]')))
         working-directory: unified
         env:
-          IMAGE_TAG: ${{ inputs.image_tag || '0.4.3' }}
+          IMAGE_TAG: ${{ inputs.image_tag || '0.4.4' }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if ! echo "$IMAGE_TAG" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+([._-][A-Za-z0-9._-]+)?$'; then
@@ -169,10 +172,10 @@ jobs:
             exit 1
           fi
           echo "$GHCR_TOKEN" | docker login ghcr.io --username "${{ github.actor }}" --password-stdin
-          docker tag vynodearr:experimental "ghcr.io/minerport/vynodearr-unified:$IMAGE_TAG"
-          docker tag vynodearr:experimental ghcr.io/minerport/vynodearr-unified:experimental
+          docker tag vynodearr:release-candidate "ghcr.io/minerport/vynodearr-unified:$IMAGE_TAG"
+          docker tag vynodearr:release-candidate ghcr.io/minerport/vynodearr-unified:latest
           docker push "ghcr.io/minerport/vynodearr-unified:$IMAGE_TAG"
-          docker push ghcr.io/minerport/vynodearr-unified:experimental
+          docker push ghcr.io/minerport/vynodearr-unified:latest
 
       - name: Upload Linux package
         uses: actions/upload-artifact@v4
