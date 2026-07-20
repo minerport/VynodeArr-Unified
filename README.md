@@ -4,6 +4,8 @@ VynodeArr is one self-hosted application for managing movie and television libra
 
 > VynodeArr is under active development. Back up existing media-manager configuration before testing upgrades.
 
+> The authenticated control center is experimental on `feature/authenticated-control-center`; stable `0.4.4` behavior is unchanged. See [`docs/AUTHENTICATED_CONTROL_CENTER.md`](docs/AUTHENTICATED_CONTROL_CENTER.md) and [`SECURITY.md`](SECURITY.md).
+
 ## What works today
 
 - Unified dashboard at `http://127.0.0.1:8686/`
