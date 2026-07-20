@@ -120,6 +120,44 @@ public sealed class AuthStore(string databasePath)
         return await reader.ReadAsync(cancellationToken) ? ReadUser(reader) : null;
     }
 
+    public async Task<IReadOnlyList<AuthUserView>> ListUsersAsync(CancellationToken cancellationToken)
+    {
+        await using var connection = await OpenAsync(cancellationToken); await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT id,username,email,role,enabled FROM users ORDER BY username;";
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken); var users = new List<AuthUserView>();
+        while (await reader.ReadAsync(cancellationToken)) users.Add(new(reader.GetInt64(0), reader.GetString(1), reader.IsDBNull(2) ? null : reader.GetString(2), reader.GetString(3), reader.GetBoolean(4)));
+        return users;
+    }
+
+    public async Task<AuthUserView?> CreateUserAsync(string username, string? email, string passwordHash, string role, CancellationToken cancellationToken)
+    {
+        if (role is not (VynodeArrRoles.Administrator or VynodeArrRoles.Viewer)) return null;
+        await using var connection = await OpenAsync(cancellationToken); await using var command = connection.CreateCommand(); var now = DateTimeOffset.UtcNow.ToString("O");
+        command.CommandText = "INSERT INTO users(username,email,password_hash,role,enabled,created_at,updated_at) VALUES($username,$email,$hash,$role,1,$now,$now); SELECT last_insert_rowid();";
+        command.Parameters.AddWithValue("$username", username); command.Parameters.AddWithValue("$email", string.IsNullOrWhiteSpace(email) ? DBNull.Value : email.Trim());
+        command.Parameters.AddWithValue("$hash", passwordHash); command.Parameters.AddWithValue("$role", role); command.Parameters.AddWithValue("$now", now);
+        try { var id = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken)); return new(id, username, email, role, true); }
+        catch (SqliteException exception) when (exception.SqliteErrorCode == 19) { return null; }
+    }
+
+    public async Task<bool> UpdateUserAsync(long id, string role, bool enabled, CancellationToken cancellationToken)
+    {
+        if (role is not (VynodeArrRoles.Administrator or VynodeArrRoles.Viewer)) return false;
+        await using var connection = await OpenAsync(cancellationToken); await using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync(cancellationToken);
+        await using var guard = connection.CreateCommand(); guard.Transaction = transaction;
+        guard.CommandText = "SELECT role,enabled,(SELECT COUNT(*) FROM users WHERE role=$admin AND enabled=1) FROM users WHERE id=$id;";
+        guard.Parameters.AddWithValue("$admin", VynodeArrRoles.Administrator); guard.Parameters.AddWithValue("$id", id);
+        await using var reader = await guard.ExecuteReaderAsync(cancellationToken); if (!await reader.ReadAsync(cancellationToken)) return false;
+        var removesLastAdmin = reader.GetString(0) == VynodeArrRoles.Administrator && reader.GetBoolean(1) && reader.GetInt32(2) <= 1 && (!enabled || role != VynodeArrRoles.Administrator);
+        await reader.DisposeAsync(); if (removesLastAdmin) return false;
+        await using var update = connection.CreateCommand(); update.Transaction = transaction;
+        update.CommandText = "UPDATE users SET role=$role,enabled=$enabled,updated_at=$now WHERE id=$id;";
+        update.Parameters.AddWithValue("$role", role); update.Parameters.AddWithValue("$enabled", enabled); update.Parameters.AddWithValue("$now", DateTimeOffset.UtcNow.ToString("O")); update.Parameters.AddWithValue("$id", id);
+        var changed = await update.ExecuteNonQueryAsync(cancellationToken) == 1;
+        if (!enabled) { await using var revoke = connection.CreateCommand(); revoke.Transaction = transaction; revoke.CommandText = "UPDATE sessions SET revoked_at=$now WHERE user_id=$id AND revoked_at IS NULL;"; revoke.Parameters.AddWithValue("$now", DateTimeOffset.UtcNow.ToString("O")); revoke.Parameters.AddWithValue("$id", id); await revoke.ExecuteNonQueryAsync(cancellationToken); }
+        await transaction.CommitAsync(cancellationToken); return changed;
+    }
+
     public async Task<SessionToken> CreateSessionAsync(AuthUser user, string? userAgent, string clientAddress, CancellationToken cancellationToken)
     {
         var secret = Base64Url(RandomNumberGenerator.GetBytes(32));

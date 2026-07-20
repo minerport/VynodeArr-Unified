@@ -35,8 +35,19 @@ public sealed class UnifiedCalendarService(
     {
         var end = timeProvider.GetLocalNow();
         var start = end.AddDays(-CalendarDays);
+        return await GetRangeAsync(start, end, false, cancellationToken);
+    }
+
+    public Task<UnifiedCalendar> GetUpcomingAsync(CancellationToken cancellationToken)
+    {
+        var start = timeProvider.GetLocalNow();
+        return GetRangeAsync(start, start.AddDays(CalendarDays), true, cancellationToken);
+    }
+
+    private async Task<UnifiedCalendar> GetRangeAsync(DateTimeOffset start, DateTimeOffset end, bool ascending, CancellationToken cancellationToken)
+    {
         var tasks = Enum.GetValues<EngineDomain>()
-            .Select(domain => GetDomainAsync(domain, start, end, cancellationToken));
+            .Select(domain => GetDomainAsync(domain, start, end, ascending, cancellationToken));
         var domains = await Task.WhenAll(tasks);
 
         return new UnifiedCalendar(
@@ -49,6 +60,7 @@ public sealed class UnifiedCalendarService(
         EngineDomain domain,
         DateTimeOffset start,
         DateTimeOffset end,
+        bool ascending,
         CancellationToken cancellationToken)
     {
         var engine = registry.Get(domain);
@@ -76,14 +88,13 @@ public sealed class UnifiedCalendarService(
             using var calendar = await calendarTask;
             using var queue = await queueTask;
             var queuedIds = ReadQueuedIds(queue.RootElement, domain);
-            var items = calendar.RootElement.EnumerateArray()
+            var mapped = calendar.RootElement.EnumerateArray()
                 .Select(item => domain == EngineDomain.Movie
                     ? MapMovie(item, queuedIds, start, end)
                     : MapEpisode(item, queuedIds, end))
                 .Where(item => item is not null)
-                .Cast<CalendarItem>()
-                .OrderByDescending(item => item.Date)
-                .ToArray();
+                .Cast<CalendarItem>();
+            var items = (ascending ? mapped.OrderBy(item => item.Date) : mapped.OrderByDescending(item => item.Date)).ToArray();
 
             return new CalendarDomain(domain.Key(), items, null);
         }

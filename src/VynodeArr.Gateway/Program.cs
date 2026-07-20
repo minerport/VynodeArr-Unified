@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using VynodeArr.Gateway;
 using VynodeArr.Gateway.Auth;
 using VynodeArr.Gateway.Configuration;
+using VynodeArr.Gateway.Dashboard;
 using VynodeArr.Gateway.Proxy;
 using VynodeArr.Gateway.Runtime;
 
@@ -66,6 +67,9 @@ builder.Services.AddHttpClient<IEngineReadinessProbe, HttpEngineReadinessProbe>(
 builder.Services.AddSingleton<EngineRegistry>();
 builder.Services.AddHttpClient<UnifiedSummaryService>();
 builder.Services.AddHttpClient<UnifiedCalendarService>();
+builder.Services.AddHttpClient<IMoviesDashboardClient, MoviesDashboardClient>();
+builder.Services.AddHttpClient<ITelevisionDashboardClient, TelevisionDashboardClient>();
+builder.Services.AddSingleton<DashboardQueueService>();
 builder.Services.AddSingleton<EngineSupervisor>();
 builder.Services.AddHostedService(provider => provider.GetRequiredService<EngineSupervisor>());
 builder.Services.ConfigureHttpJsonOptions(options =>
@@ -150,6 +154,22 @@ app.MapGet("/api/unified/v1/summary", (UnifiedSummaryService summary, Cancellati
     summary.GetAsync(cancellationToken)).RequireAuthorization(VynodeArrPolicies.Read);
 app.MapGet("/api/unified/v1/calendar", (UnifiedCalendarService calendar, CancellationToken cancellationToken) =>
     calendar.GetAsync(cancellationToken)).RequireAuthorization(VynodeArrPolicies.Read);
+app.MapGet("/api/dashboard/summary", (UnifiedSummaryService summary, CancellationToken cancellationToken) =>
+    summary.GetAsync(cancellationToken)).RequireAuthorization(VynodeArrPolicies.Read);
+app.MapGet("/api/dashboard/queue", (DashboardQueueService queue, int? limit, CancellationToken cancellationToken) =>
+    queue.GetAsync(Math.Clamp(limit ?? 10, 1, 25), cancellationToken)).RequireAuthorization(VynodeArrPolicies.Read);
+app.MapGet("/api/dashboard/agenda", (UnifiedCalendarService calendar, CancellationToken cancellationToken) =>
+    calendar.GetUpcomingAsync(cancellationToken)).RequireAuthorization(VynodeArrPolicies.Read);
+app.MapGet("/api/dashboard/attention", async (UnifiedSummaryService summary, CancellationToken cancellationToken) =>
+{
+    var current = await summary.GetAsync(cancellationToken);
+    var domains = current.Domains.Values.Select(domain => new
+    {
+        engine = domain.Domain,
+        items = BuildAttention(domain)
+    }).ToDictionary(item => item.engine, item => item.items);
+    return Results.Ok(new { generatedAt = current.Timestamp, domains });
+}).RequireAuthorization(VynodeArrPolicies.Read);
 app.MapPost("/api/unified/v1/engines/{domain}/{action}", async (
     HttpContext context,
     string domain,
@@ -200,6 +220,16 @@ async Task<bool> ValidateAntiforgery(HttpContext context)
 {
     try { await context.RequestServices.GetRequiredService<IAntiforgery>().ValidateRequestAsync(context); return true; }
     catch (AntiforgeryValidationException) { return false; }
+}
+
+IReadOnlyList<DashboardAttentionItem> BuildAttention(DomainSummary domain)
+{
+    var engine = domain.Domain == "movie" ? MediaEngine.Movies : MediaEngine.Television;
+    var link = domain.Domain == "movie" ? "/movies/system/status" : "/television/system/status";
+    var items = new List<DashboardAttentionItem>();
+    if (domain.Error is not null) items.Add(new($"{domain.Domain}:availability", engine, "Error", "Engine", $"{engine} Engine unavailable", "The engine could not be reached.", null, link));
+    if (domain.HealthIssues > 0) items.Add(new($"{domain.Domain}:health", engine, "Warning", "Health", $"{domain.HealthIssues} health issue(s)", "Open the native system page for details.", null, link));
+    return items;
 }
 
 public partial class Program;

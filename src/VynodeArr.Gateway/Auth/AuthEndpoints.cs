@@ -84,6 +84,27 @@ public static class AuthEndpoints
             var tokens = antiforgery.GetAndStoreTokens(context);
             return Results.Ok(new { authenticated = true, username = context.User.Identity.Name, role = context.User.FindFirst(ClaimTypes.Role)?.Value, csrfToken = tokens.RequestToken });
         }).AllowAnonymous();
+
+        app.MapGet("/api/auth/users", (AuthStore store, CancellationToken cancellationToken) => store.ListUsersAsync(cancellationToken))
+            .RequireAuthorization(VynodeArrPolicies.Administer);
+        app.MapPost("/api/auth/users", async (HttpContext context, AuthStore store, IAntiforgery antiforgery) =>
+        {
+            if (!await ValidateCsrfAsync(context, antiforgery)) return Results.BadRequest(new { error = "invalid_csrf" });
+            var request = await context.Request.ReadFromJsonAsync<CreateUserRequest>(context.RequestAborted);
+            if (request is null || request.Username.Trim().Length is < 3 or > 64 || PasswordSecurity.Validate(request.Password) is not null) return Results.BadRequest(new { error = "invalid_user" });
+            var user = await store.CreateUserAsync(request.Username.Trim(), request.Email, PasswordSecurity.Hash(request.Password), request.Role, context.RequestAborted);
+            if (user is null) return Results.Conflict(new { error = "user_not_created" });
+            await store.AuditAsync(context, "user.created", "success", "user", user.Id.ToString(), new { user.Role });
+            return Results.Created($"/api/auth/users/{user.Id}", user);
+        }).RequireAuthorization(VynodeArrPolicies.Administer);
+        app.MapPut("/api/auth/users/{id:long}", async (HttpContext context, long id, AuthStore store, IAntiforgery antiforgery) =>
+        {
+            if (!await ValidateCsrfAsync(context, antiforgery)) return Results.BadRequest(new { error = "invalid_csrf" });
+            var request = await context.Request.ReadFromJsonAsync<UpdateUserRequest>(context.RequestAborted);
+            if (request is null || !await store.UpdateUserAsync(id, request.Role, request.Enabled, context.RequestAborted)) return Results.BadRequest(new { error = "user_not_updated" });
+            await store.AuditAsync(context, "user.updated", "success", "user", id.ToString(), new { request.Role, request.Enabled });
+            return Results.NoContent();
+        }).RequireAuthorization(VynodeArrPolicies.Administer);
     }
 
     public static bool IsApiRequest(HttpRequest request) => request.Path.StartsWithSegments("/api") || request.Headers.Accept.Any(v => v?.Contains("application/json", StringComparison.OrdinalIgnoreCase) == true);
@@ -99,3 +120,6 @@ public static class AuthEndpoints
     private static CookieOptions CookieOptions(HttpContext context, DateTimeOffset expires) => new() { HttpOnly = true, SameSite = SameSiteMode.Lax, Path = "/", Secure = context.Request.IsHttps, Expires = expires, IsEssential = true };
     private static async Task<bool> ValidateCsrfAsync(HttpContext context, IAntiforgery antiforgery) { try { await antiforgery.ValidateRequestAsync(context); return true; } catch (AntiforgeryValidationException) { return false; } }
 }
+
+public sealed record CreateUserRequest(string Username, string? Email, string Password, string Role);
+public sealed record UpdateUserRequest(string Role, bool Enabled);

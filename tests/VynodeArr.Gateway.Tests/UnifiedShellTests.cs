@@ -20,8 +20,11 @@ public sealed class UnifiedShellTests
         Assert.Contains("Shut down VynodeArr", html, StringComparison.Ordinal);
         Assert.Contains("aria-live=\"polite\"", html, StringComparison.Ordinal);
         Assert.Contains("label: 'Running'", html, StringComparison.Ordinal);
-        Assert.Contains("Last 30 days", html, StringComparison.Ordinal);
-        Assert.Contains("/api/unified/v1/calendar", html, StringComparison.Ordinal);
+        Assert.Contains("Upcoming 30 days", html, StringComparison.Ordinal);
+        Assert.Contains("Attention center", html, StringComparison.Ordinal);
+        Assert.Contains("Active queue", html, StringComparison.Ordinal);
+        Assert.Contains("/api/dashboard/agenda", html, StringComparison.Ordinal);
+        Assert.Contains("/api/dashboard/queue", html, StringComparison.Ordinal);
         Assert.Contains("data-status=", html, StringComparison.Ordinal);
         Assert.Contains("setTimeout(loadCalendar, 300000)", html, StringComparison.Ordinal);
         Assert.DoesNotContain("X-Api-Key", html, StringComparison.Ordinal);

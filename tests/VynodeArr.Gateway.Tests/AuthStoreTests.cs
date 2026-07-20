@@ -23,6 +23,11 @@ public sealed class AuthStoreTests
             Assert.Equal("admin", session?.User.Username);
             await store.RevokeSessionAsync(session!.SessionId, default);
             Assert.Null(await store.ValidateSessionAsync(token.Value, default));
+            var viewer = await store.CreateUserAsync("viewer", null, PasswordSecurity.Hash("ViewerPassword123"), VynodeArrRoles.Viewer, default);
+            Assert.NotNull(viewer);
+            Assert.False(await store.UpdateUserAsync(first.Id, VynodeArrRoles.Viewer, true, default));
+            Assert.True(await store.UpdateUserAsync(viewer!.Id, VynodeArrRoles.Viewer, false, default));
+            Assert.Equal(2, (await store.ListUsersAsync(default)).Count);
         }
         finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
     }

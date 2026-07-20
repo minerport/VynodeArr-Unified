@@ -17,6 +17,7 @@ public static class VynodeArrPolicies
 public sealed record AuthUser(long Id, string Username, string? Email, string PasswordHash, string Role, bool Enabled);
 
 public sealed record AuthenticatedSession(long SessionId, AuthUser User);
+public sealed record AuthUserView(long Id, string Username, string? Email, string Role, bool Enabled);
 
 public sealed record SessionToken(long SessionId, string Secret, DateTimeOffset ExpiresAt)
 {

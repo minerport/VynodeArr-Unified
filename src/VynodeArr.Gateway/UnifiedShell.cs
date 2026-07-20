@@ -89,6 +89,12 @@ public static class UnifiedShell
                 .vy-status-badge[data-status="on-air"] { color: var(--vy-engine-television, #a78bfa); }
                 .vy-status-badge[data-status="premiere"] { color: var(--vy-status-info, #60a5fa); }
                 .vy-calendar-empty { margin: 0; padding: var(--vy-space-4, 16px); color: var(--vy-text-muted, #96a1af); }
+                .vy-module { overflow: hidden; border: 1px solid var(--vy-border-subtle, #343941); border-radius: var(--vy-radius-md, 7px); background: var(--vy-surface-panel, #1d2024); }
+                .vy-module-list { margin: 0; padding: 0; list-style: none; }
+                .vy-module-item { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 11px 14px; border-bottom: 1px solid var(--vy-border-subtle, #343941); }
+                .vy-module-item:last-child { border-bottom: 0; }.vy-module-item strong,.vy-module-item small { display: block; }.vy-module-item small { margin-top: 3px; color: var(--vy-text-muted, #96a1af); }
+                .vy-engine-chip { padding: 3px 7px; border: 1px solid currentColor; border-radius: 999px; color: var(--vy-engine-shared,#8aa0b8); font-size: .7rem; font-weight: 700; }.vy-engine-chip[data-engine="Movies"] { color: var(--vy-engine-movies,#38bdf8); }.vy-engine-chip[data-engine="Television"] { color: var(--vy-engine-television,#a78bfa); }
+                .vy-attention { border-left: 3px solid var(--vy-status-warning,#fbbf24); }.vy-quick-add { display:flex;flex-wrap:wrap;gap:8px; }
                 footer { margin-top: var(--vy-space-5, 20px); display: flex; align-items: center; justify-content: space-between; gap: var(--vy-space-4, 16px); padding-top: var(--vy-space-4, 16px); border-top: 1px solid var(--vy-border-subtle, #343941); color: var(--vy-text-muted, #7f8792); font-size: var(--vy-font-size-meta, .8rem); }
                 .vy-shutdown { border-color: var(--vy-status-error, #875151); }
                 .vy-foundation-disabled main { width: min(880px, calc(100% - 32px)); }
@@ -110,6 +116,8 @@ public static class UnifiedShell
                   <div><h1>VynodeArr</h1><p class="vy-subtitle">One application supervising two isolated media engines.</p></div>
                   <div class="vy-app-state"><strong>Gateway online</strong><span>Version {{safeVersion}}</span><span>Shared application context</span></div>
                 </header>
+                <section aria-labelledby="attention-heading"><div class="vy-section-heading"><h2 id="attention-heading">Attention center</h2></div><div class="vy-module" id="attention-center"><p class="vy-calendar-empty">Checking for issues.</p></div></section>
+                <section id="quick-add-section" aria-labelledby="quick-add-heading"><div class="vy-section-heading"><h2 id="quick-add-heading">Quick add</h2></div><div class="vy-quick-add"><a class="vy-button" href="/movies/add/new">Add movie</a><a class="vy-button" href="/television/add/new">Add television series</a><a class="vy-button" href="/movies/add/import">Import movies</a><a class="vy-button" href="/television/add/import">Import television</a><a class="vy-button" href="/movies/wanted/manualimport">Manual import movies</a><a class="vy-button" href="/television/wanted/manualimport">Manual import television</a></div></section>
                 <section aria-labelledby="engine-status-heading">
                   <div class="vy-section-heading"><h2 id="engine-status-heading">Engine status</h2><button class="vy-refresh" id="refresh-status" type="button">Refresh status</button></div>
                   <div class="vy-engine-grid">
@@ -118,8 +126,9 @@ public static class UnifiedShell
                   </div>
                   <div id="engine-status-announcer" class="vy-visually-hidden" aria-live="polite" aria-atomic="true"></div>
                 </section>
+                <section aria-labelledby="queue-heading"><div class="vy-section-heading"><h2 id="queue-heading">Active queue</h2><span><a class="vy-button" href="/movies/activity/queue">Movies queue</a> <a class="vy-button" href="/television/activity/queue">Television queue</a></span></div><div class="vy-module" id="unified-queue"><p class="vy-calendar-empty">Loading active downloads.</p></div></section>
                 <section aria-labelledby="calendar-heading">
-                  <div class="vy-section-heading"><h2 id="calendar-heading">Last 30 days</h2><button class="vy-refresh" id="refresh-calendar" type="button">Refresh calendar</button></div>
+                  <div class="vy-section-heading"><h2 id="calendar-heading">Upcoming 30 days</h2><button class="vy-refresh" id="refresh-calendar" type="button">Refresh agenda</button></div>
                   <div class="vy-calendar-grid">
                     <article class="vy-calendar-panel"><div class="vy-calendar-header"><h3>Movies calendar</h3><span id="movie-calendar-count">Loading</span></div><div id="movie-calendar"><p class="vy-calendar-empty">Retrieving Movies calendar.</p></div></article>
                     <article class="vy-calendar-panel"><div class="vy-calendar-header"><h3>Television calendar</h3><span id="television-calendar-count">Loading</span></div><div id="television-calendar"><p class="vy-calendar-empty">Retrieving Television calendar.</p></div></article>
@@ -132,7 +141,7 @@ public static class UnifiedShell
                 let authSession = { role: 'Viewer', csrfToken: '' };
                 const authReady = fetch('/api/auth/session', { cache: 'no-store', headers: { Accept: 'application/json' } })
                   .then((response) => response.ok ? response.json() : Promise.reject(new Error(`HTTP ${response.status}`)))
-                  .then((session) => { authSession = session; document.getElementById('account-name').textContent = `${session.username} · ${session.role}`; });
+                  .then((session) => { authSession = session; document.getElementById('account-name').textContent = `${session.username} · ${session.role}`; if (session.role !== 'Administrator') document.getElementById('quick-add-section').hidden = true; });
                 const previousStates = new Map();
                 const statePresentation = (summary) => {
                   const state = String(summary.state || 'Unavailable');
@@ -165,6 +174,18 @@ public static class UnifiedShell
                   .catch((error) => document.querySelectorAll('.vy-engine-panel').forEach((panel) => { const label = panel.dataset.engine === 'movie' ? 'Movies' : 'Television'; panel.querySelector('.vy-status').dataset.tone = 'error'; panel.querySelector('.vy-status span:last-child').textContent = 'Unavailable'; panel.querySelector('.vy-engine-message').textContent = `${label} summary unavailable: ${error.message}`; }))
                   .finally(() => scheduleRefresh());
                 authReady.then(loadSummary);
+                const renderAttention = (data) => {
+                  const target = document.getElementById('attention-center'); const items = Object.values(data.domains || {}).flatMap(domain => domain.items || []);
+                  target.innerHTML = items.length ? `<ul class="vy-module-list">${items.map(item => `<li class="vy-module-item vy-attention"><span class="vy-engine-chip" data-engine="${escapeHtml(item.engine)}">${escapeHtml(item.engine)}</span><span><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.message)}</small></span>${item.nativeUrl ? `<a class="vy-button" href="${escapeHtml(item.nativeUrl)}">Review</a>` : ''}</li>`).join('')}</ul>` : '<p class="vy-calendar-empty">No issues currently require attention.</p>';
+                };
+                const loadAttention = () => fetch('/api/dashboard/attention', { cache:'no-store', headers:{Accept:'application/json'} }).then(r=>r.ok?r.json():Promise.reject(new Error(`HTTP ${r.status}`))).then(renderAttention).catch(()=>document.getElementById('attention-center').innerHTML='<p class="vy-calendar-empty">Attention information is temporarily unavailable.</p>');
+                const renderQueue = (data) => {
+                  const target=document.getElementById('unified-queue'); const modules=[data.movies,data.television]; const items=modules.flatMap(module=>module.data||[]).sort((a,b)=>Number(b.hasWarning)-Number(a.hasWarning)||a.key.localeCompare(b.key)).slice(0,10);
+                  const unavailable=modules.filter(module=>!module.available).length; if(!items.length){target.innerHTML=`<p class="vy-calendar-empty">${unavailable===2?'Queue information is unavailable.':'No active downloads.'}</p>`;return;}
+                  target.innerHTML=`<ul class="vy-module-list">${items.map(item=>`<li class="vy-module-item"><span class="vy-engine-chip" data-engine="${escapeHtml(item.engine)}">${escapeHtml(item.engine)}</span><span><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.subtitle||item.status)}${item.progressPercent==null?'':` · ${item.progressPercent}%`}${item.warningMessage?` · ${escapeHtml(item.warningMessage)}`:''}</small></span><a class="vy-button" href="${escapeHtml(item.nativeUrl)}">Open queue</a></li>`).join('')}</ul>`;
+                };
+                const loadQueue=()=>fetch('/api/dashboard/queue?limit=10',{cache:'no-store',headers:{Accept:'application/json'} }).then(r=>r.ok?r.json():Promise.reject(new Error(`HTTP ${r.status}`))).then(renderQueue).catch(()=>document.getElementById('unified-queue').innerHTML='<p class="vy-calendar-empty">Queue information is temporarily unavailable.</p>');
+                authReady.then(()=>Promise.allSettled([loadAttention(),loadQueue()]));
                 let calendarTimer;
                 const renderCalendar = (domain, targetId) => {
                   const target = document.getElementById(targetId);
@@ -172,10 +193,10 @@ public static class UnifiedShell
                   const items = domain?.items || [];
                   count.textContent = `${items.length} ${items.length === 1 ? 'item' : 'items'}`;
                   if (domain?.error) { target.innerHTML = `<p class="vy-calendar-empty">Calendar unavailable: ${escapeHtml(domain.error)}</p>`; return; }
-                  if (!items.length) { target.innerHTML = '<p class="vy-calendar-empty">No calendar items in the last 30 days.</p>'; return; }
+                  if (!items.length) { target.innerHTML = '<p class="vy-calendar-empty">No releases in the next 30 days.</p>'; return; }
                   target.innerHTML = `<ul class="vy-calendar-list">${items.map((item) => `<li class="vy-calendar-item"><a class="vy-calendar-title" href="${escapeHtml(item.link)}">${escapeHtml(item.title)}</a><span class="vy-calendar-subtitle">${escapeHtml(item.subtitle || '')}</span><time class="vy-calendar-date" datetime="${escapeHtml(item.date)}">${new Date(item.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</time><span class="vy-status-badge" data-status="${escapeHtml(item.statusKey)}">${escapeHtml(item.status)}</span></li>`).join('')}</ul>`;
                 };
-                const loadCalendar = () => fetch('/api/unified/v1/calendar', { cache: 'no-store', headers: { Accept: 'application/json' } })
+                const loadCalendar = () => fetch('/api/dashboard/agenda', { cache: 'no-store', headers: { Accept: 'application/json' } })
                   .then((response) => response.ok ? response.json() : Promise.reject(new Error(`HTTP ${response.status}`)))
                   .then((calendar) => { renderCalendar(calendar.domains.movie, 'movie-calendar'); renderCalendar(calendar.domains.television, 'television-calendar'); })
                   .catch((error) => ['movie', 'television'].forEach((domain) => { document.getElementById(`${domain}-calendar`).innerHTML = `<p class="vy-calendar-empty">Calendar unavailable: ${escapeHtml(error.message)}</p>`; }))
