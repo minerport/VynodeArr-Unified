@@ -42,6 +42,7 @@ builder.Services.AddHttpClient<IEngineReadinessProbe, HttpEngineReadinessProbe>(
     });
 builder.Services.AddSingleton<EngineRegistry>();
 builder.Services.AddHttpClient<UnifiedSummaryService>();
+builder.Services.AddHttpClient<UnifiedCalendarService>();
 builder.Services.AddSingleton<EngineSupervisor>();
 builder.Services.AddHostedService(provider => provider.GetRequiredService<EngineSupervisor>());
 builder.Services.ConfigureHttpJsonOptions(options =>
@@ -99,6 +100,8 @@ app.MapGet("/", () => Results.Content(
 app.MapGet("/api/unified/v1/engines", () => Results.Ok(registry.CreateHealthSnapshot().Engines));
 app.MapGet("/api/unified/v1/summary", (UnifiedSummaryService summary, CancellationToken cancellationToken) =>
     summary.GetAsync(cancellationToken));
+app.MapGet("/api/unified/v1/calendar", (UnifiedCalendarService calendar, CancellationToken cancellationToken) =>
+    calendar.GetAsync(cancellationToken));
 app.MapPost("/api/unified/v1/engines/{domain}/{action}", async (
     HttpContext context,
     string domain,

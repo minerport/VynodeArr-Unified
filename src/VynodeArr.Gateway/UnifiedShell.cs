@@ -67,10 +67,30 @@ public static class UnifiedShell
                 .vy-button { min-height: var(--vy-target-desktop, 40px); display: inline-flex; align-items: center; justify-content: center; padding: 0 var(--vy-space-3, 12px); color: var(--vy-text-primary, #f3f4f6); border: 1px solid var(--vy-border-strong, #555c65); border-radius: var(--vy-radius-sm, 4px); background: var(--vy-surface-elevated, #30353b); font: inherit; text-decoration: none; cursor: pointer; }
                 .vy-button:hover { background: var(--vy-surface-hover, #3a4047); }
                 .vy-button:disabled { opacity: .6; cursor: progress; }
+                .vy-calendar-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--vy-space-4, 16px); }
+                .vy-calendar-panel { min-width: 0; overflow: hidden; border: 1px solid var(--vy-border-subtle, #343941); border-radius: var(--vy-radius-md, 7px); background: var(--vy-surface-panel, #1d2024); }
+                .vy-calendar-header { display: flex; align-items: baseline; justify-content: space-between; gap: var(--vy-space-3, 12px); padding: var(--vy-space-3, 12px) var(--vy-space-4, 16px); border-bottom: 1px solid var(--vy-border-subtle, #343941); }
+                .vy-calendar-header h3 { margin: 0; font-size: 1rem; }
+                .vy-calendar-header span { color: var(--vy-text-muted, #96a1af); font-size: var(--vy-font-size-meta, .75rem); }
+                .vy-calendar-list { max-height: 480px; margin: 0; padding: 0; overflow: auto; list-style: none; }
+                .vy-calendar-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px var(--vy-space-3, 12px); padding: var(--vy-space-3, 12px) var(--vy-space-4, 16px); border-bottom: 1px solid var(--vy-border-subtle, #343941); }
+                .vy-calendar-item:last-child { border-bottom: 0; }
+                .vy-calendar-title { min-width: 0; overflow: hidden; color: var(--vy-text-primary, #f3f4f6); font-weight: 600; text-decoration: none; text-overflow: ellipsis; white-space: nowrap; }
+                .vy-calendar-title:hover { text-decoration: underline; }
+                .vy-calendar-subtitle, .vy-calendar-date { overflow: hidden; color: var(--vy-text-muted, #96a1af); font-size: var(--vy-font-size-meta, .75rem); text-overflow: ellipsis; white-space: nowrap; }
+                .vy-status-badge { align-self: center; grid-column: 2; grid-row: 1 / span 2; display: inline-flex; align-items: center; min-height: 24px; padding: 2px 8px; border: 1px solid currentColor; border-radius: 999px; font-size: var(--vy-font-size-meta, .75rem); font-weight: 600; white-space: nowrap; }
+                .vy-status-badge[data-status="downloaded-monitored"], .vy-status-badge[data-status="downloaded"] { color: var(--vy-status-success, #4ade80); }
+                .vy-status-badge[data-status="downloaded-unmonitored"], .vy-status-badge[data-status="unmonitored"] { color: var(--vy-status-offline, #a8b2c1); }
+                .vy-status-badge[data-status="missing-monitored"], .vy-status-badge[data-status="missing"] { color: var(--vy-status-error, #fb7185); }
+                .vy-status-badge[data-status="missing-unmonitored"], .vy-status-badge[data-status="unreleased"], .vy-status-badge[data-status="unaired"] { color: var(--vy-text-muted, #96a1af); }
+                .vy-status-badge[data-status="queued"], .vy-status-badge[data-status="downloading"] { color: var(--vy-status-warning, #fbbf24); }
+                .vy-status-badge[data-status="on-air"] { color: var(--vy-engine-television, #a78bfa); }
+                .vy-status-badge[data-status="premiere"] { color: var(--vy-status-info, #60a5fa); }
+                .vy-calendar-empty { margin: 0; padding: var(--vy-space-4, 16px); color: var(--vy-text-muted, #96a1af); }
                 footer { margin-top: var(--vy-space-5, 20px); display: flex; align-items: center; justify-content: space-between; gap: var(--vy-space-4, 16px); padding-top: var(--vy-space-4, 16px); border-top: 1px solid var(--vy-border-subtle, #343941); color: var(--vy-text-muted, #7f8792); font-size: var(--vy-font-size-meta, .8rem); }
                 .vy-shutdown { border-color: var(--vy-status-error, #875151); }
                 .vy-foundation-disabled main { width: min(880px, calc(100% - 32px)); }
-                @media (max-width: 760px) { .vy-engine-grid { grid-template-columns: 1fr; } .vy-identity { grid-template-columns: auto minmax(0, 1fr); } .vy-app-state { grid-column: 1 / -1; justify-items: start; } }
+                @media (max-width: 760px) { .vy-engine-grid, .vy-calendar-grid { grid-template-columns: 1fr; } .vy-identity { grid-template-columns: auto minmax(0, 1fr); } .vy-app-state { grid-column: 1 / -1; justify-items: start; } }
                 @media (max-width: 540px) { main { width: min(100% - 20px, 1180px); padding-top: var(--vy-space-3, 12px); } .vy-brand span { display: none; } .vy-nav-link { padding-inline: var(--vy-space-2, 8px); font-size: .75rem; } .vy-identity img { width: 48px; height: 48px; } footer { align-items: stretch; flex-direction: column; } .vy-shutdown { width: 100%; } }
               </style>
             </head>
@@ -94,6 +114,13 @@ public static class UnifiedShell
                     <article class="vy-engine-panel" data-engine="television" id="television-summary"><div class="vy-engine-title"><h3>Television</h3><span class="vy-status" data-tone="offline"><span class="vy-status-icon" aria-hidden="true"></span><span>Loading</span></span></div><p class="vy-engine-message">Retrieving Television engine status.</p></article>
                   </div>
                   <div id="engine-status-announcer" class="vy-visually-hidden" aria-live="polite" aria-atomic="true"></div>
+                </section>
+                <section aria-labelledby="calendar-heading">
+                  <div class="vy-section-heading"><h2 id="calendar-heading">Last 30 days</h2><button class="vy-refresh" id="refresh-calendar" type="button">Refresh calendar</button></div>
+                  <div class="vy-calendar-grid">
+                    <article class="vy-calendar-panel"><div class="vy-calendar-header"><h3>Movies calendar</h3><span id="movie-calendar-count">Loading</span></div><div id="movie-calendar"><p class="vy-calendar-empty">Retrieving Movies calendar.</p></div></article>
+                    <article class="vy-calendar-panel"><div class="vy-calendar-header"><h3>Television calendar</h3><span id="television-calendar-count">Loading</span></div><div id="television-calendar"><p class="vy-calendar-empty">Retrieving Television calendar.</p></div></article>
+                  </div>
                 </section>
                 <footer><span>Movie and television data, commands, settings, and databases remain independent.</span><button class="vy-button vy-shutdown" id="shutdown-all" type="button">Shut down VynodeArr</button></footer>
               </main>
@@ -136,7 +163,24 @@ public static class UnifiedShell
                   .catch((error) => document.querySelectorAll('.vy-engine-panel').forEach((panel) => { const label = panel.dataset.engine === 'movie' ? 'Movies' : 'Television'; panel.querySelector('.vy-status').dataset.tone = 'error'; panel.querySelector('.vy-status span:last-child').textContent = 'Unavailable'; panel.querySelector('.vy-engine-message').textContent = `${label} summary unavailable: ${error.message}`; }))
                   .finally(() => scheduleRefresh());
                 loadSummary();
+                let calendarTimer;
+                const renderCalendar = (domain, targetId) => {
+                  const target = document.getElementById(targetId);
+                  const count = document.getElementById(`${targetId}-count`);
+                  const items = domain?.items || [];
+                  count.textContent = `${items.length} ${items.length === 1 ? 'item' : 'items'}`;
+                  if (domain?.error) { target.innerHTML = `<p class="vy-calendar-empty">Calendar unavailable: ${escapeHtml(domain.error)}</p>`; return; }
+                  if (!items.length) { target.innerHTML = '<p class="vy-calendar-empty">No calendar items in the last 30 days.</p>'; return; }
+                  target.innerHTML = `<ul class="vy-calendar-list">${items.map((item) => `<li class="vy-calendar-item"><a class="vy-calendar-title" href="${escapeHtml(item.link)}">${escapeHtml(item.title)}</a><span class="vy-calendar-subtitle">${escapeHtml(item.subtitle || '')}</span><time class="vy-calendar-date" datetime="${escapeHtml(item.date)}">${new Date(item.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</time><span class="vy-status-badge" data-status="${escapeHtml(item.statusKey)}">${escapeHtml(item.status)}</span></li>`).join('')}</ul>`;
+                };
+                const loadCalendar = () => fetch('/api/unified/v1/calendar', { cache: 'no-store', headers: { Accept: 'application/json' } })
+                  .then((response) => response.ok ? response.json() : Promise.reject(new Error(`HTTP ${response.status}`)))
+                  .then((calendar) => { renderCalendar(calendar.domains.movie, 'movie-calendar'); renderCalendar(calendar.domains.television, 'television-calendar'); })
+                  .catch((error) => ['movie', 'television'].forEach((domain) => { document.getElementById(`${domain}-calendar`).innerHTML = `<p class="vy-calendar-empty">Calendar unavailable: ${escapeHtml(error.message)}</p>`; }))
+                  .finally(() => { clearTimeout(calendarTimer); calendarTimer = setTimeout(loadCalendar, 300000); });
+                loadCalendar();
                 document.getElementById('refresh-status').addEventListener('click', () => { clearTimeout(refreshTimer); loadSummary(); });
+                document.getElementById('refresh-calendar').addEventListener('click', () => { clearTimeout(calendarTimer); loadCalendar(); });
                 document.querySelector('.vy-engine-grid').addEventListener('click', (event) => {
                   const button = event.target.closest('.engine-control'); if (!button) return;
                   const label = button.dataset.domain === 'movie' ? 'Movies' : 'Television';
