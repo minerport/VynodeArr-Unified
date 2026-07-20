@@ -50,11 +50,8 @@ function Assert-Revision([string] $Source, [string] $Expected, [string] $Label) 
 function Build-Frontend([string] $Source) {
     Push-Location $Source
     try {
-        $previousNodeOptions = $env:NODE_OPTIONS
-        $env:NODE_OPTIONS = '--use-system-ca'
         Invoke-Checked { & $NodePath $YarnJs install --frozen-lockfile --network-timeout 120000 } 'Yarn install'
         Invoke-Checked { & $NodePath $YarnJs run build --env production } 'Frontend build'
-        $env:NODE_OPTIONS = $previousNodeOptions
     }
     finally {
         Pop-Location
