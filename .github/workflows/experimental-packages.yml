@@ -1,0 +1,179 @@
+name: Experimental packages
+
+on:
+  push:
+    branches: [experiment/ui-redesign]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  PREVIEW_VERSION: 0.5.0-auth-preview
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: dotnet test VynodeArr.Unified.sln --configuration Release
+
+  windows-installer:
+    needs: test
+    runs-on: windows-2022
+    timeout-minutes: 90
+    steps:
+      - name: Check out VynodeArr
+        uses: actions/checkout@v4
+        with:
+          path: unified
+      - name: Check out locked movie source
+        uses: actions/checkout@v4
+        with:
+          repository: minerport/VydodeArr
+          ref: de4811318ef1eb6560a5e480cc4bba2afc008ca9
+          path: movie
+      - name: Check out locked television source
+        uses: actions/checkout@v4
+        with:
+          repository: minerport/VynodeArr2
+          ref: a29f15e92bd2c21e646d065d9d78066952cac05d
+          path: television
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.423
+            10.0.302
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.11.1
+      - name: Build locked Windows engines
+        shell: pwsh
+        run: >-
+          ./unified/distribution/windows/build-native-engines.ps1
+          -MovieSource ./movie
+          -TelevisionSource ./television
+          -YarnJs ./unified/runtime/tools/yarn-1.22.22/package/lib/cli.js
+          -OutputPath ./unified/artifacts/native-inputs/win-x64
+      - name: Compose Windows package
+        shell: pwsh
+        working-directory: unified
+        run: >-
+          ./distribution/windows/package.ps1
+          -MovieEnginePath ./artifacts/native-inputs/win-x64/movie
+          -TelevisionEnginePath ./artifacts/native-inputs/win-x64/television
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --yes --no-progress
+      - name: Build installer
+        shell: pwsh
+        working-directory: unified
+        run: |
+          $iscc = (Get-Command ISCC.exe).Source
+          ./distribution/windows/build-installer.ps1 -IsccPath $iscc -Version "${{ env.PREVIEW_VERSION }}.${{ github.run_number }}"
+      - name: Checksums
+        shell: pwsh
+        working-directory: unified
+        run: Get-FileHash artifacts/installer/*.exe -Algorithm SHA256 | Format-List
+      - name: Upload Windows installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: VynodeArr-${{ env.PREVIEW_VERSION }}-${{ github.run_number }}-windows
+          path: unified/artifacts/installer/*.exe
+          if-no-files-found: error
+          retention-days: 14
+
+  linux-and-unraid:
+    needs: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Check out VynodeArr
+        uses: actions/checkout@v4
+        with:
+          path: unified
+      - name: Check out locked movie source
+        uses: actions/checkout@v4
+        with:
+          repository: minerport/VydodeArr
+          ref: de4811318ef1eb6560a5e480cc4bba2afc008ca9
+          path: movie
+      - name: Check out locked television source
+        uses: actions/checkout@v4
+        with:
+          repository: minerport/VynodeArr2
+          ref: a29f15e92bd2c21e646d065d9d78066952cac05d
+          path: television
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.423
+            10.0.302
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.11.1
+      - run: npm install --global yarn@1.22.22
+      - name: Build locked Linux engines
+        shell: pwsh
+        run: >-
+          ./unified/distribution/linux/build-native-engines.ps1
+          -MovieSource ./movie
+          -TelevisionSource ./television
+          -YarnPath yarn
+          -RuntimeIdentifier linux-x64
+          -OutputPath ./unified/artifacts/native-inputs/linux-x64
+      - name: Compose Linux package
+        shell: pwsh
+        working-directory: unified
+        run: >-
+          ./distribution/linux/package.ps1
+          -MovieEnginePath ./artifacts/native-inputs/linux-x64/movie
+          -TelevisionEnginePath ./artifacts/native-inputs/linux-x64/television
+          -RuntimeIdentifier linux-x64
+      - name: Validate Linux scripts
+        working-directory: unified
+        run: |
+          bash -n artifacts/linux/VynodeArr-linux-x64/install.sh
+          bash -n artifacts/linux/VynodeArr-linux-x64/uninstall.sh
+          test -x artifacts/linux/VynodeArr-linux-x64/gateway/VynodeArr.Gateway
+      - name: Build Unraid image
+        working-directory: unified
+        run: >-
+          docker build
+          --file distribution/docker/Dockerfile
+          --tag ghcr.io/minerport/vynodearr-unified:auth-preview
+          artifacts/linux/VynodeArr-linux-x64
+      - name: Smoke-test first-run authentication
+        working-directory: unified
+        run: |
+          mkdir -p artifacts/container-config
+          chmod 777 artifacts/container-config
+          docker run -d --name vynodearr-auth-preview -p 8686:8686 -v "$PWD/artifacts/container-config:/config" ghcr.io/minerport/vynodearr-unified:auth-preview
+          for attempt in $(seq 1 90); do
+            if curl --fail --silent http://127.0.0.1:8686/health | grep -F '"status":"ok"' >/dev/null; then break; fi
+            if [ "$attempt" -eq 90 ]; then docker logs vynodearr-auth-preview; exit 1; fi
+            sleep 2
+          done
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:8686/api/dashboard/summary)" = "401"
+          curl --fail --silent http://127.0.0.1:8686/setup | grep -F 'Create administrator' >/dev/null
+          docker exec vynodearr-auth-preview sh -c 'for file in /proc/[0-9]*/cmdline; do tr "\0" "\n" <"$file" 2>/dev/null | head -n 1; done' | grep -Fx '/opt/vynodearr/engines/movie/Radarr'
+          docker exec vynodearr-auth-preview sh -c 'for file in /proc/[0-9]*/cmdline; do tr "\0" "\n" <"$file" 2>/dev/null | head -n 1; done' | grep -Fx '/opt/vynodearr/engines/television/Sonarr'
+          docker stop --time 60 vynodearr-auth-preview
+          docker rm vynodearr-auth-preview
+      - name: Publish experimental Unraid image
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$GHCR_TOKEN" | docker login ghcr.io --username "${{ github.actor }}" --password-stdin
+          docker push ghcr.io/minerport/vynodearr-unified:auth-preview
+      - name: Upload Linux package
+        uses: actions/upload-artifact@v4
+        with:
+          name: VynodeArr-${{ env.PREVIEW_VERSION }}-${{ github.run_number }}-linux-x64
+          path: unified/artifacts/linux/VynodeArr-linux-x64.tar.gz
+          if-no-files-found: error
+          retention-days: 14
