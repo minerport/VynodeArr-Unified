@@ -51,14 +51,18 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20.11.1
+      - name: Install Yarn
+        shell: pwsh
+        run: npm install --global yarn@1.22.22
       - name: Build locked Windows engines
         shell: pwsh
-        run: >-
-          ./unified/distribution/windows/build-native-engines.ps1
-          -MovieSource ./movie
-          -TelevisionSource ./television
-          -YarnJs ./unified/runtime/tools/yarn-1.22.22/package/lib/cli.js
-          -OutputPath ./unified/artifacts/native-inputs/win-x64
+        run: |
+          $yarnJs = Join-Path ((npm root --global).Trim()) 'yarn/lib/cli.js'
+          ./unified/distribution/windows/build-native-engines.ps1 `
+            -MovieSource ./movie `
+            -TelevisionSource ./television `
+            -YarnJs $yarnJs `
+            -OutputPath ./unified/artifacts/native-inputs/win-x64
       - name: Compose Windows package
         shell: pwsh
         working-directory: unified
