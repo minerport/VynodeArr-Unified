@@ -37,6 +37,8 @@ public static class UnifiedShell
                 .vy-nav-link { min-height: var(--vy-target-desktop, 40px); display: inline-flex; align-items: center; padding: 0 var(--vy-space-3, 12px); color: var(--vy-text-secondary, #cbd0d7); border: 1px solid transparent; border-radius: var(--vy-radius-sm, 4px); text-decoration: none; }
                 .vy-nav-link:hover { color: var(--vy-text-primary, #fff); background: var(--vy-surface-hover, #292d32); }
                 .vy-nav-link[aria-current="page"] { color: var(--vy-text-primary, #fff); background: var(--vy-surface-selected, #30353b); border-color: var(--vy-engine-shared, #8aa0b8); }
+                .vy-account { display: inline-flex; align-items: center; gap: var(--vy-space-2, 8px); margin-left: var(--vy-space-2, 8px); padding-left: var(--vy-space-3, 12px); border-left: 1px solid var(--vy-border-subtle, #41464d); color: var(--vy-text-secondary, #cbd0d7); font-size: .8rem; }
+                .vy-account button { min-height: 32px; padding: 0 9px; color: inherit; border: 1px solid var(--vy-border-strong, #555c65); border-radius: 4px; background: transparent; cursor: pointer; }
                 main { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding: var(--vy-space-5, 20px) 0 var(--vy-space-6, 24px); }
                 .vy-identity { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--vy-space-4, 16px); padding-bottom: var(--vy-space-4, 16px); border-bottom: 1px solid var(--vy-border-subtle, #343941); }
                 .vy-identity img { width: 58px; height: 58px; border-radius: var(--vy-radius-lg, 10px); object-fit: cover; }
@@ -100,6 +102,7 @@ public static class UnifiedShell
                 <a class="vy-nav-link" href="/" aria-current="page">Dashboard</a>
                 <a class="vy-nav-link" href="/movies/">Movies</a>
                 <a class="vy-nav-link" href="/television/">Television</a>
+                <span class="vy-account"><span id="account-name">Account</span><button id="logout" type="button">Log out</button></span>
               </nav>
               <main>
                 <header class="vy-identity">
@@ -126,6 +129,10 @@ public static class UnifiedShell
               </main>
               <script>
                 const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (character) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
+                let authSession = { role: 'Viewer', csrfToken: '' };
+                const authReady = fetch('/api/auth/session', { cache: 'no-store', headers: { Accept: 'application/json' } })
+                  .then((response) => response.ok ? response.json() : Promise.reject(new Error(`HTTP ${response.status}`)))
+                  .then((session) => { authSession = session; document.getElementById('account-name').textContent = `${session.username} · ${session.role}`; });
                 const previousStates = new Map();
                 const statePresentation = (summary) => {
                   const state = String(summary.state || 'Unavailable');
@@ -147,22 +154,17 @@ public static class UnifiedShell
                   target.innerHTML = `<div class="vy-engine-title"><h3>${label}</h3><span class="vy-status" data-tone="${presentation.tone}"><span class="vy-status-icon" aria-hidden="true"></span><span>${escapeHtml(presentation.label)}</span></span></div>
                     <p class="vy-engine-message">${escapeHtml(presentation.message)}</p>
                     <dl><dt>Library items</dt><dd>${summary.libraryItems}</dd><dt>Monitored</dt><dd>${summary.monitoredItems}</dd><dt>Downloaded files</dt><dd>${summary.downloadedFiles}</dd><dt>Missing monitored</dt><dd>${summary.missingMonitored}</dd><dt>Queue</dt><dd>${summary.queueItems}</dd><dt>Health issues</dt><dd>${summary.healthIssues}</dd></dl>
-                    <div class="vy-actions"><a class="vy-button" href="${summary.domain === 'movie' ? '/movies/' : '/television/'}">Open ${label}</a><a class="vy-button" href="${summary.domain === 'movie' ? '/movies/system/status' : '/television/system/status'}">${label} System</a><button class="vy-button engine-control" type="button" data-domain="${escapeHtml(summary.domain)}" data-action="${action}">${action === 'stop' ? 'Stop' : 'Start'} ${label}</button></div>`;
+                    <div class="vy-actions"><a class="vy-button" href="${summary.domain === 'movie' ? '/movies/' : '/television/'}">Open ${label}</a><a class="vy-button" href="${summary.domain === 'movie' ? '/movies/system/status' : '/television/system/status'}">${label} System</a>${authSession.role === 'Administrator' ? `<button class="vy-button engine-control" type="button" data-domain="${escapeHtml(summary.domain)}" data-action="${action}">${action === 'stop' ? 'Stop' : 'Start'} ${label}</button>` : ''}</div>`;
                 };
                 let refreshTimer;
-                const controlHeaders = () => {
-                  if (['127.0.0.1', 'localhost', '::1'].includes(location.hostname)) return {};
-                  let key = sessionStorage.getItem('vynodearr-control-key');
-                  if (!key) { key = prompt('Enter the VynodeArr lifecycle control key configured by the server administrator:') || ''; if (key) sessionStorage.setItem('vynodearr-control-key', key); }
-                  return key ? { 'X-VynodeArr-Control-Key': key } : {};
-                };
+                const controlHeaders = () => ({ 'X-VynodeArr-CSRF': authSession.csrfToken });
                 const scheduleRefresh = (delay = 2500) => { clearTimeout(refreshTimer); refreshTimer = setTimeout(loadSummary, delay); };
                 const loadSummary = () => fetch('/api/unified/v1/summary', { cache: 'no-store', headers: { Accept: 'application/json' } })
                   .then((response) => response.ok ? response.json() : Promise.reject(new Error(`HTTP ${response.status}`)))
                   .then((summary) => { render('movie-summary', summary.domains.movie); render('television-summary', summary.domains.television); })
                   .catch((error) => document.querySelectorAll('.vy-engine-panel').forEach((panel) => { const label = panel.dataset.engine === 'movie' ? 'Movies' : 'Television'; panel.querySelector('.vy-status').dataset.tone = 'error'; panel.querySelector('.vy-status span:last-child').textContent = 'Unavailable'; panel.querySelector('.vy-engine-message').textContent = `${label} summary unavailable: ${error.message}`; }))
                   .finally(() => scheduleRefresh());
-                loadSummary();
+                authReady.then(loadSummary);
                 let calendarTimer;
                 const renderCalendar = (domain, targetId) => {
                   const target = document.getElementById(targetId);
@@ -178,7 +180,7 @@ public static class UnifiedShell
                   .then((calendar) => { renderCalendar(calendar.domains.movie, 'movie-calendar'); renderCalendar(calendar.domains.television, 'television-calendar'); })
                   .catch((error) => ['movie', 'television'].forEach((domain) => { document.getElementById(`${domain}-calendar`).innerHTML = `<p class="vy-calendar-empty">Calendar unavailable: ${escapeHtml(error.message)}</p>`; }))
                   .finally(() => { clearTimeout(calendarTimer); calendarTimer = setTimeout(loadCalendar, 300000); });
-                loadCalendar();
+                authReady.then(loadCalendar);
                 document.getElementById('refresh-status').addEventListener('click', () => { clearTimeout(refreshTimer); loadSummary(); });
                 document.getElementById('refresh-calendar').addEventListener('click', () => { clearTimeout(calendarTimer); loadCalendar(); });
                 document.querySelector('.vy-engine-grid').addEventListener('click', (event) => {
@@ -189,7 +191,7 @@ public static class UnifiedShell
                   fetch(`/api/unified/v1/engines/${button.dataset.domain}/${button.dataset.action}`, { method: 'POST', headers: controlHeaders() })
                     .then((response) => response.ok ? response : Promise.reject(new Error(`HTTP ${response.status}`)))
                     .then(() => { clearTimeout(refreshTimer); return loadSummary(); })
-                    .catch((error) => { if (error.message === 'HTTP 403') sessionStorage.removeItem('vynodearr-control-key'); button.disabled = false; alert(`Unable to change ${label}: ${error.message}`); });
+                    .catch((error) => { button.disabled = false; alert(`Unable to change ${label}: ${error.message}`); });
                 });
                 document.getElementById('shutdown-all').addEventListener('click', (event) => {
                   if (!confirm('Shut down VynodeArr, including Movies and Television?')) return;
@@ -198,6 +200,8 @@ public static class UnifiedShell
                     .then(() => { document.querySelector('main').innerHTML = '<h1>VynodeArr is shutting down...</h1><p class="vy-subtitle">You can close this window. Use the VynodeArr tray icon or service controls to start it again.</p>'; })
                     .catch((error) => { event.currentTarget.disabled = false; alert(`Unable to shut down VynodeArr: ${error.message}`); });
                 });
+                authReady.then(() => { if (authSession.role !== 'Administrator') document.getElementById('shutdown-all').hidden = true; });
+                document.getElementById('logout').addEventListener('click', () => authReady.then(() => fetch('/api/auth/logout', { method: 'POST', headers: controlHeaders(), redirect: 'manual' })).then(() => location.assign('/login')));
               </script>
             </body>
             </html>

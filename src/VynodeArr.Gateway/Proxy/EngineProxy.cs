@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.WebSockets;
 using Microsoft.Extensions.Options;
+using VynodeArr.Gateway.Auth;
 using VynodeArr.Gateway.Configuration;
 using VynodeArr.Gateway.Runtime;
 
@@ -29,7 +30,8 @@ public static class EngineProxy
             $"/api/{routeDomain}/{{**path}}",
             ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"],
             (HttpContext context, string? path, EngineRegistry registry, IHttpClientFactory clients) =>
-                ForwardAsync(context, $"{domain.NativePathBase()}/api/{path ?? string.Empty}", domain, registry, clients));
+                ForwardAsync(context, $"{domain.NativePathBase()}/api/{path ?? string.Empty}", domain, registry, clients))
+            .RequireAuthorization(VynodeArrPolicies.Read);
 
         return endpoints;
     }
@@ -43,7 +45,8 @@ public static class EngineProxy
             $"/{routeDomain}/{{**path}}",
             ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"],
             (HttpContext context, string? path, EngineRegistry registry, IHttpClientFactory clients, IOptions<UnifiedOptions> options) =>
-                ForwardAsync(context, $"/{routeDomain}/{path ?? string.Empty}", domain, registry, clients, options.Value.Ui));
+                ForwardAsync(context, $"/{routeDomain}/{path ?? string.Empty}", domain, registry, clients, options.Value.Ui))
+            .RequireAuthorization(VynodeArrPolicies.Read);
 
         return endpoints;
     }
@@ -56,6 +59,21 @@ public static class EngineProxy
         IHttpClientFactory clients,
         UiOptions? ui = null)
     {
+        if (!HttpMethods.IsGet(context.Request.Method) && !HttpMethods.IsHead(context.Request.Method) && !HttpMethods.IsOptions(context.Request.Method))
+        {
+            if (!context.User.IsInRole(VynodeArrRoles.Administrator))
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                return;
+            }
+            if (!HasSameOrigin(context.Request))
+            {
+                context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                await context.Response.WriteAsJsonAsync(new { error = "invalid_request_origin" });
+                return;
+            }
+        }
+
         var engine = registry.Get(domain);
         if (engine.State != EngineState.Running || engine.Port is null)
         {
@@ -151,6 +169,19 @@ public static class EngineProxy
         }
 
         await response.Content.CopyToAsync(context.Response.Body, context.RequestAborted);
+    }
+
+    internal static bool HasSameOrigin(HttpRequest request)
+    {
+        var source = request.Headers.Origin.FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(source))
+        {
+            source = request.Headers.Referer.FirstOrDefault();
+        }
+        if (!Uri.TryCreate(source, UriKind.Absolute, out var origin)) return false;
+        return origin.Scheme.Equals(request.Scheme, StringComparison.OrdinalIgnoreCase) &&
+               origin.Host.Equals(request.Host.Host, StringComparison.OrdinalIgnoreCase) &&
+               origin.Port == (request.Host.Port ?? (request.IsHttps ? 443 : 80));
     }
 
     internal static string? RewriteLocation(string? location, Uri upstreamRequest)

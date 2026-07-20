@@ -1,6 +1,9 @@
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.Extensions.Options;
 using VynodeArr.Gateway;
+using VynodeArr.Gateway.Auth;
 using VynodeArr.Gateway.Configuration;
 using VynodeArr.Gateway.Proxy;
 using VynodeArr.Gateway.Runtime;
@@ -28,6 +31,26 @@ builder.Services
     .ValidateOnStart();
 builder.Services.AddWindowsService(options => options.ServiceName = "VynodeArr");
 builder.Services.AddSystemd();
+builder.Services.AddAntiforgery(options =>
+{
+    options.Cookie.Name = "vynodearr_csrf";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SameSite = SameSiteMode.Strict;
+    options.HeaderName = "X-VynodeArr-CSRF";
+});
+builder.Services.AddAuthentication(VynodeArrAuthenticationHandler.SchemeName)
+    .AddScheme<AuthenticationSchemeOptions, VynodeArrAuthenticationHandler>(VynodeArrAuthenticationHandler.SchemeName, _ => { });
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(VynodeArrPolicies.Read, policy => policy.RequireAuthenticatedUser());
+    options.AddPolicy(VynodeArrPolicies.Administer, policy => policy.RequireRole(VynodeArrRoles.Administrator));
+});
+builder.Services.AddSingleton(provider =>
+{
+    var configured = provider.GetRequiredService<IOptions<UnifiedOptions>>().Value;
+    var environment = provider.GetRequiredService<IHostEnvironment>();
+    return new AuthStore(Path.Combine(configured.ResolveDataRoot(environment.ContentRootPath), "unified", "auth.db"));
+});
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IPortAllocator, LoopbackPortAllocator>();
@@ -77,31 +100,56 @@ catch (IOException exception)
 }
 
 await using var heldInstanceLock = instanceLock;
+await app.Services.GetRequiredService<AuthStore>().InitializeAsync();
 
-app.MapGet("/health", () => Results.Ok(registry.CreateHealthSnapshot()));
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.XContentTypeOptions = "nosniff";
+    context.Response.Headers["Referrer-Policy"] = "same-origin";
+    context.Response.Headers.Append("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+    context.Response.Headers.Append("Content-Security-Policy", "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self' ws: wss:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
+    await next();
+});
 app.UseWebSockets();
+app.UseAuthentication();
+app.Use(async (context, next) =>
+{
+    var isPublic = context.Request.Path.StartsWithSegments("/assets") || context.Request.Path == "/health" ||
+        context.Request.Path == "/login" || context.Request.Path == "/setup" || context.Request.Path.StartsWithSegments("/api/auth");
+    if (!isPublic && context.User.Identity?.IsAuthenticated != true && !await context.RequestServices.GetRequiredService<AuthStore>().HasUsersAsync(context.RequestAborted))
+    {
+        if (AuthEndpoints.IsApiRequest(context.Request)) { context.Response.StatusCode = StatusCodes.Status401Unauthorized; return; }
+        context.Response.Redirect("/setup"); return;
+    }
+    if (!isPublic) context.Response.Headers.CacheControl = "no-store";
+    await next();
+});
+app.UseAuthorization();
+
+app.MapGet("/health", () => Results.Ok(new { status = "ok" })).AllowAnonymous();
+app.MapVynodeArrAuth();
 app.MapGet("/assets/vynodearr.png", () =>
 {
     var stream = typeof(UnifiedShell).Assembly.GetManifestResourceStream("VynodeArr.Branding.png");
     return stream is null
         ? Results.NotFound()
         : Results.Stream(stream, "image/png", enableRangeProcessing: true);
-});
+}).AllowAnonymous();
 app.MapGet("/assets/vynodearr-tokens.v1.css", () =>
 {
     var stream = typeof(UnifiedShell).Assembly.GetManifestResourceStream("VynodeArr.Assets.VynodeArrTokens.v1.css");
     return stream is null
         ? Results.NotFound()
         : Results.Stream(stream, "text/css; charset=utf-8");
-});
+}).AllowAnonymous();
 app.MapGet("/", () => Results.Content(
     UnifiedShell.Render(options.Ui, typeof(Program).Assembly.GetName().Version?.ToString() ?? "development"),
-    "text/html"));
-app.MapGet("/api/unified/v1/engines", () => Results.Ok(registry.CreateHealthSnapshot().Engines));
+    "text/html")).RequireAuthorization(VynodeArrPolicies.Read);
+app.MapGet("/api/unified/v1/engines", () => Results.Ok(registry.CreateHealthSnapshot().Engines)).RequireAuthorization(VynodeArrPolicies.Read);
 app.MapGet("/api/unified/v1/summary", (UnifiedSummaryService summary, CancellationToken cancellationToken) =>
-    summary.GetAsync(cancellationToken));
+    summary.GetAsync(cancellationToken)).RequireAuthorization(VynodeArrPolicies.Read);
 app.MapGet("/api/unified/v1/calendar", (UnifiedCalendarService calendar, CancellationToken cancellationToken) =>
-    calendar.GetAsync(cancellationToken));
+    calendar.GetAsync(cancellationToken)).RequireAuthorization(VynodeArrPolicies.Read);
 app.MapPost("/api/unified/v1/engines/{domain}/{action}", async (
     HttpContext context,
     string domain,
@@ -109,8 +157,7 @@ app.MapPost("/api/unified/v1/engines/{domain}/{action}", async (
     EngineSupervisor supervisor,
     CancellationToken cancellationToken) =>
 {
-    if (!LifecycleRequestAuthorizer.IsAuthorized(context, options) ||
-        !EngineDomainExtensions.TryParseKey(domain, out var engineDomain))
+    if (!EngineDomainExtensions.TryParseKey(domain, out var engineDomain))
     {
         return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
@@ -126,28 +173,33 @@ app.MapPost("/api/unified/v1/engines/{domain}/{action}", async (
         return Results.NotFound();
     }
 
+    if (!await ValidateAntiforgery(context)) return Results.BadRequest(new { error = "invalid_csrf" });
     await supervisor.SetDomainEnabledAsync(engineDomain, enabled.Value, cancellationToken);
+    await context.RequestServices.GetRequiredService<AuthStore>().AuditAsync(context, $"engine.{action}", "success", "engine", engineDomain.Key());
     return Results.Accepted(value: new { domain = engineDomain.Key(), requestedState = enabled.Value ? "running" : "stopped" });
-});
+}).RequireAuthorization(VynodeArrPolicies.Administer);
 app.MapPost("/api/unified/v1/shutdown", async (
     HttpContext context,
     EngineSupervisor supervisor,
     IHostApplicationLifetime lifetime) =>
 {
-    if (!LifecycleRequestAuthorizer.IsAuthorized(context, options))
-    {
-        return Results.StatusCode(StatusCodes.Status403Forbidden);
-    }
-
+    if (!await ValidateAntiforgery(context)) return Results.BadRequest(new { error = "invalid_csrf" });
+    await context.RequestServices.GetRequiredService<AuthStore>().AuditAsync(context, "application.shutdown", "success", "application", "vynodearr");
     await supervisor.StopAsync(CancellationToken.None);
     lifetime.StopApplication();
     return Results.Accepted();
-});
+}).RequireAuthorization(VynodeArrPolicies.Administer);
 app.MapEngineProxy("movies", EngineDomain.Movie);
 app.MapEngineProxy("television", EngineDomain.Television);
 app.MapNativeEngineProxy("movies", EngineDomain.Movie);
 app.MapNativeEngineProxy("television", EngineDomain.Television);
 
 app.Run();
+
+async Task<bool> ValidateAntiforgery(HttpContext context)
+{
+    try { await context.RequestServices.GetRequiredService<IAntiforgery>().ValidateRequestAsync(context); return true; }
+    catch (AntiforgeryValidationException) { return false; }
+}
 
 public partial class Program;
