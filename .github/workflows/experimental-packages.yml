@@ -20,7 +20,7 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
-      - run: dotnet test VynodeArr.Unified.sln --configuration Release
+      - run: dotnet test tests/VynodeArr.Gateway.Tests/VynodeArr.Gateway.Tests.csproj --configuration Release
 
   windows-installer:
     needs: test
