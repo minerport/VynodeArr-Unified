@@ -18,7 +18,12 @@ $ErrorActionPreference = 'Stop'
 $repositoryRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
 $movieRoot = [System.IO.Path]::GetFullPath($MovieSource)
 $televisionRoot = [System.IO.Path]::GetFullPath($TelevisionSource)
+$yarnScript = [System.IO.Path]::GetFullPath($YarnJs)
 $sourceLock = Get-Content (Join-Path $repositoryRoot 'distribution\source-lock.json') -Raw | ConvertFrom-Json
+
+if (-not [System.IO.File]::Exists($yarnScript)) {
+    throw "Yarn script does not exist: $yarnScript"
+}
 
 if ([string]::IsNullOrWhiteSpace($OutputPath)) {
     $OutputPath = Join-Path $repositoryRoot 'artifacts\native-inputs'
@@ -50,8 +55,8 @@ function Assert-Revision([string] $Source, [string] $Expected, [string] $Label) 
 function Build-Frontend([string] $Source) {
     Push-Location $Source
     try {
-        Invoke-Checked { & $NodePath $YarnJs install --frozen-lockfile --network-timeout 120000 } 'Yarn install'
-        Invoke-Checked { & $NodePath $YarnJs run build --env production } 'Frontend build'
+        Invoke-Checked { & $NodePath $yarnScript install --frozen-lockfile --network-timeout 120000 } 'Yarn install'
+        Invoke-Checked { & $NodePath $yarnScript run build --env production } 'Frontend build'
     }
     finally {
         Pop-Location
