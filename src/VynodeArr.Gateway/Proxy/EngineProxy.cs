@@ -131,6 +131,12 @@ public static class EngineProxy
                 continue;
             }
 
+            if (header.Key.Equals("Location", StringComparison.OrdinalIgnoreCase))
+            {
+                context.Response.Headers.Location = RewriteLocation(header.Value.FirstOrDefault(), target);
+                continue;
+            }
+
             context.Response.Headers[header.Key] = header.Value.ToArray();
         }
 
@@ -145,6 +151,20 @@ public static class EngineProxy
         }
 
         await response.Content.CopyToAsync(context.Response.Body, context.RequestAborted);
+    }
+
+    internal static string? RewriteLocation(string? location, Uri upstreamRequest)
+    {
+        if (string.IsNullOrWhiteSpace(location) ||
+            !Uri.TryCreate(location, UriKind.Absolute, out var absoluteLocation) ||
+            !absoluteLocation.Scheme.Equals(upstreamRequest.Scheme, StringComparison.OrdinalIgnoreCase) ||
+            !absoluteLocation.Host.Equals(upstreamRequest.Host, StringComparison.OrdinalIgnoreCase) ||
+            absoluteLocation.Port != upstreamRequest.Port)
+        {
+            return location;
+        }
+
+        return absoluteLocation.PathAndQuery + absoluteLocation.Fragment;
     }
 
     private static string BuildQueryString(IQueryCollection query, string apiKey)

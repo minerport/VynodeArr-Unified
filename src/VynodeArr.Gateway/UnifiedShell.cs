@@ -67,7 +67,6 @@ public static class UnifiedShell
                 .vy-button { min-height: var(--vy-target-desktop, 40px); display: inline-flex; align-items: center; justify-content: center; padding: 0 var(--vy-space-3, 12px); color: var(--vy-text-primary, #f3f4f6); border: 1px solid var(--vy-border-strong, #555c65); border-radius: var(--vy-radius-sm, 4px); background: var(--vy-surface-elevated, #30353b); font: inherit; text-decoration: none; cursor: pointer; }
                 .vy-button:hover { background: var(--vy-surface-hover, #3a4047); }
                 .vy-button:disabled { opacity: .6; cursor: progress; }
-                .vy-quick-links { display: flex; flex-wrap: wrap; gap: var(--vy-space-2, 8px); }
                 footer { margin-top: var(--vy-space-5, 20px); display: flex; align-items: center; justify-content: space-between; gap: var(--vy-space-4, 16px); padding-top: var(--vy-space-4, 16px); border-top: 1px solid var(--vy-border-subtle, #343941); color: var(--vy-text-muted, #7f8792); font-size: var(--vy-font-size-meta, .8rem); }
                 .vy-shutdown { border-color: var(--vy-status-error, #875151); }
                 .vy-foundation-disabled main { width: min(880px, calc(100% - 32px)); }
@@ -96,10 +95,6 @@ public static class UnifiedShell
                   </div>
                   <div id="engine-status-announcer" class="vy-visually-hidden" aria-live="polite" aria-atomic="true"></div>
                 </section>
-                <section aria-labelledby="quick-navigation-heading">
-                  <div class="vy-section-heading"><h2 id="quick-navigation-heading">Quick navigation</h2></div>
-                  <div class="vy-quick-links"><a class="vy-button" href="/movies/">Open Movies</a><a class="vy-button" href="/television/">Open Television</a><a class="vy-button" href="/movies/system/status">Movies System</a><a class="vy-button" href="/television/system/status">Television System</a></div>
-                </section>
                 <footer><span>Movie and television data, commands, settings, and databases remain independent.</span><button class="vy-button vy-shutdown" id="shutdown-all" type="button">Shut down VynodeArr</button></footer>
               </main>
               <script>
@@ -125,7 +120,7 @@ public static class UnifiedShell
                   target.innerHTML = `<div class="vy-engine-title"><h3>${label}</h3><span class="vy-status" data-tone="${presentation.tone}"><span class="vy-status-icon" aria-hidden="true"></span><span>${escapeHtml(presentation.label)}</span></span></div>
                     <p class="vy-engine-message">${escapeHtml(presentation.message)}</p>
                     <dl><dt>Library items</dt><dd>${summary.libraryItems}</dd><dt>Monitored</dt><dd>${summary.monitoredItems}</dd><dt>Downloaded files</dt><dd>${summary.downloadedFiles}</dd><dt>Missing monitored</dt><dd>${summary.missingMonitored}</dd><dt>Queue</dt><dd>${summary.queueItems}</dd><dt>Health issues</dt><dd>${summary.healthIssues}</dd></dl>
-                    <div class="vy-actions"><a class="vy-button" href="${summary.domain === 'movie' ? '/movies/' : '/television/'}">Open ${label}</a><button class="vy-button engine-control" type="button" data-domain="${escapeHtml(summary.domain)}" data-action="${action}">${action === 'stop' ? 'Stop' : 'Start'} ${label}</button></div>`;
+                    <div class="vy-actions"><a class="vy-button" href="${summary.domain === 'movie' ? '/movies/' : '/television/'}">Open ${label}</a><a class="vy-button" href="${summary.domain === 'movie' ? '/movies/system/status' : '/television/system/status'}">${label} System</a><button class="vy-button engine-control" type="button" data-domain="${escapeHtml(summary.domain)}" data-action="${action}">${action === 'stop' ? 'Stop' : 'Start'} ${label}</button></div>`;
                 };
                 let refreshTimer;
                 const controlHeaders = () => {

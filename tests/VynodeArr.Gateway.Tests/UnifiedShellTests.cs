@@ -32,6 +32,9 @@ public sealed class UnifiedShellTests
         Assert.Contains("href=\"/movies/\"", html, StringComparison.Ordinal);
         Assert.Contains("href=\"/television/\"", html, StringComparison.Ordinal);
         Assert.Contains("id=\"shutdown-all\"", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("Quick navigation", html, StringComparison.Ordinal);
+        Assert.Contains("'/movies/system/status'", html, StringComparison.Ordinal);
+        Assert.Contains("'/television/system/status'", html, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -42,7 +45,8 @@ public sealed class UnifiedShellTests
         Assert.Contains("vy-foundation-disabled", html, StringComparison.Ordinal);
         Assert.Contains("/api/unified/v1/engines/", html, StringComparison.Ordinal);
         Assert.Contains("/api/unified/v1/shutdown", html, StringComparison.Ordinal);
-        Assert.Contains("href=\"/movies/system/status\"", html, StringComparison.Ordinal);
-        Assert.Contains("href=\"/television/system/status\"", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("Quick navigation", html, StringComparison.Ordinal);
+        Assert.Contains("'/movies/system/status'", html, StringComparison.Ordinal);
+        Assert.Contains("'/television/system/status'", html, StringComparison.Ordinal);
     }
 }
