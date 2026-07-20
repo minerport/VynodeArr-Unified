@@ -4,7 +4,7 @@
 
 The VynodeArr gateway and engine-isolation model can support Linux and Unraid without merging or rewriting the native applications. The original movie and television projects already publish self-contained Posix payloads. VynodeArr must build those exact locked sources for the target runtime, compose them behind the portable gateway, and replace Windows host integration with systemd or a container boundary.
 
-The experimental branch now implements that foundation. The `linux-x64` end-to-end workflow has built both complete native payloads, composed the archive, started both engines in the container, and passed coordinated shutdown. It is not a stable release until application workflows, persistence, and a real Unraid host are validated.
+The cross-platform foundation is implemented and validated for Windows x64, Linux x64, Docker x86-64, and Unraid x86-64. The `linux-x64` end-to-end workflow builds both complete native payloads, composes the archive, starts both engines in the container, validates the unified APIs, and passes coordinated shutdown. Real Ubuntu and Unraid installations have also been validated.
 
 ## Findings from the current source
 
@@ -21,7 +21,7 @@ The experimental branch now implements that foundation. The `linux-x64` end-to-e
 | Native builds | Windows-only VynodeArr build script | Build locked sources with `Platform=Posix` and matching Linux RIDs |
 | Unraid | None | Use one OCI image plus an Unraid XML template and appdata/media mappings |
 
-## Implemented experimental components
+## Implemented cross-platform components
 
 - `distribution/linux/build-native-engines.ps1`
   - verifies both source-lock commits;
@@ -48,7 +48,7 @@ The experimental branch now implements that foundation. The `linux-x64` end-to-e
 - `templates/vynodearr.xml`
   - maps appdata, movies, television, downloads, timezone, port, and lifecycle key;
   - uses Unraid’s standard `nobody:users` runtime identity;
-  - points to the same experimental container image used by other Docker hosts.
+  - points to the same supported container image used by other Docker hosts.
 - Linux GitHub Actions validation
   - tests and publishes the gateway on Ubuntu for every PR;
   - provides a dispatchable full native-build, package, image, engine-readiness, and shutdown workflow;

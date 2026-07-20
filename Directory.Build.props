@@ -4,5 +4,6 @@
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <AnalysisLevel>latest</AnalysisLevel>
+    <VersionPrefix>0.4.4</VersionPrefix>
   </PropertyGroup>
 </Project>

@@ -16,7 +16,7 @@ The dashboard renders `<html data-vy-engine="shared" class="vy-engine-shared">`.
 
 ## Dashboard and shell
 
-The dashboard now exposes application identity/version, gateway state, both engine versions and visible status text, available summary counts, lifecycle actions, quick links, refresh, and unified shutdown. One or both unavailable engines remain visible and do not remove the other engine's links. The compact injected header preserves Dashboard, Movies, and Television destinations and uses explicit active state, focus styling, responsive wrapping, and a bounded shell z-index.
+The dashboard now exposes application identity/version, gateway state, both engine versions and visible status text, available summary counts, lifecycle actions, per-engine detail and system links, a color-coded 30-day calendar, refresh controls, and unified shutdown. One or both unavailable engines remain visible and do not remove the other engine's links. The compact injected header preserves Dashboard, Movies, and Television destinations and uses explicit active state, focus styling, responsive wrapping, and a bounded shell z-index.
 
 ## Feature flags and rollback
 

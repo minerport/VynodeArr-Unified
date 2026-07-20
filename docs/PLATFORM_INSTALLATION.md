@@ -1,123 +1,72 @@
 # Platform installation status
 
-This document separates currently working installation paths from experimental platform plans. Windows x64 has a completed installer pipeline, while Linux x64 and the x86-64 container are published experimental prereleases with successful end-to-end validation.
+VynodeArr 0.4.4 supports Windows x64, Linux x64, Docker x86-64, and Unraid x86-64 from one repository and one pair of locked movie and television engine revisions.
 
-| Platform | Current status | Intended package |
+| Platform | Status | Package |
 | --- | --- | --- |
-| Windows x64 | Supported development build | Inno Setup `.exe`, Windows service, tray controller |
-| Linux x64 | Experimental prerelease | Tar package, installer, uninstaller, and systemd unit |
-| Linux ARM64 | Packaging foundation implemented; native payload validation pending | ARM64 tar package plus systemd unit |
-| Docker | Published experimental x86-64 image; automated startup, API, data-path, and shutdown validation passed | `ghcr.io/minerport/vynodearr-unified:0.4.3` |
-| Unraid | Published x86-64 image and submission-ready Community Applications template; physical Unraid validation passed | Community Applications XML template using the Docker image |
-| TrueNAS SCALE and other container NAS platforms | Experimental | Docker/OCI image after validation |
-| macOS | Not planned for the first cross-platform phase | To be evaluated after Linux support |
+| Windows x64 | Supported | Inno Setup `.exe`, Windows service, and tray controller |
+| Linux x64 | Supported | Versioned tar package, installer, uninstaller, and systemd unit |
+| Docker x86-64 | Supported | `ghcr.io/minerport/vynodearr-unified:0.4.4` |
+| Unraid x86-64 | Supported | Community Applications XML template using the supported container |
+| Linux ARM64 | Not yet supported | Packaging option exists; native runtime validation is still required |
+| Other x86-64 container hosts | Supported where OCI containers and bind mounts are available | Same Docker image |
+| macOS | Not currently supported | No release package |
 
-## Windows
+## Windows x64
 
-End users install a published `VynodeArr-<version>-win-x64-setup.exe`, then open `http://127.0.0.1:8686/`. See [`WINDOWS_INSTALLER.md`](WINDOWS_INSTALLER.md) for maintainer build and validation instructions.
+Install `VynodeArr-0.4.4-win-x64-setup.exe` from the GitHub release, then open `http://127.0.0.1:8686/`. The installer creates one Windows service and one tray controller. Uninstall stops the gateway and both engines before removing application files, while preserving `C:\ProgramData\VynodeArr` unless the user removes it explicitly.
 
-## Linux x64 experimental installation
+See [`WINDOWS_INSTALLER.md`](WINDOWS_INSTALLER.md) for maintainer build and validation instructions.
 
-Linux x64 packages are built from the two locked native source revisions and distributed as a versioned archive with a SHA-256 checksum. Follow [`distribution/linux/README.md`](../distribution/linux/README.md) for the GitHub download and installation commands.
+## Linux x64
 
-The installer uses one systemd service and keeps application files, administrator configuration, and persistent data separate. A normal uninstall preserves configuration and databases; the explicit `--purge` option permanently deletes them.
+Download the versioned archive and checksum from the GitHub release and follow [`distribution/linux/README.md`](../distribution/linux/README.md). The installer creates a dedicated non-login `vynodearr` account, installs immutable application files under `/opt/vynodearr`, stores persistent state under `/var/lib/vynodearr`, and installs one systemd service.
 
-The service hardening keeps operating-system and application directories read-only without imposing a fixed `ReadWritePaths` allowlist or hiding home directories. Users may select media locations anywhere the non-root `vynodearr` account has ordinary Linux filesystem permission to access.
+The service keeps operating-system and application directories read-only without imposing a fixed media-path allowlist. Users may select media locations anywhere the `vynodearr` account has normal filesystem permission to access. A normal uninstall preserves configuration and databases; `--purge` removes them explicitly.
 
-## Why Linux is still experimental
+## Docker and Unraid
 
-The gateway targets .NET 8 and most of its supervision code is portable. Windows job-object handling already degrades to a platform-neutral path outside Windows. The complete installed product still has Windows-specific assumptions:
-
-- Linux gateway and composition packaging exists and the matching locked x64 payloads have passed the automated end-to-end container validation;
-- the tray controller targets Windows Forms;
-- lifecycle installation is implemented as a Windows service;
-- installed configuration uses `%ProgramData%`;
-- a systemd unit, archive layout, installer, and uninstaller exist, but clean-machine systemd and distribution-specific validation remain incomplete;
-- baseline Linux shutdown and container ownership pass automation, while database locking and upgrade recovery still require real-use validation.
-
-The prerelease is intended for clean-machine testing before Linux is marked stable.
-
-## Experimental Linux design
-
-The planned Linux package will use one headless gateway process and no tray application.
+The supported image is:
 
 ```text
-/opt/vynodearr/                 immutable application files
-  gateway/
-  engines/movie/
-  engines/television/
-/var/lib/vynodearr/            persistent state
-  movie/
-  television/
-  unified/
-/etc/vynodearr/                administrator configuration
-/etc/systemd/system/           VynodeArr service unit
+ghcr.io/minerport/vynodearr-unified:0.4.4
 ```
 
-The systemd service will run as a dedicated, non-login `vynodearr` user, bind the public dashboard to a configured address, start both engines as owned children, and stop both engines before the gateway exits. Media directories will be mounted or permissioned explicitly rather than making the service root.
-
-Planned installation flow:
-
-1. Download a versioned Linux archive and checksum from GitHub Releases.
-2. Verify the SHA-256 checksum.
-3. Create the service account and persistent directories.
-4. Extract immutable application files under `/opt/vynodearr`.
-5. Install the supplied systemd unit and environment file.
-6. Grant the service account access only to selected media and download paths.
-7. Enable and start the single VynodeArr service.
-8. Open the configured dashboard port.
-
-These are design steps, not commands for the current build.
-
-## Experimental Docker and Unraid implementation
-
-The published container runs the gateway as PID 1 and supervises both native engines. It exposes one port and uses separate persistent mounts:
+The gateway runs as PID 1, supervises both native engines, forwards shutdown, exposes one port, and keeps persistent data separated under:
 
 ```text
 /config/unified
 /config/movie
 /config/television
-/movies
-/tv
-/downloads
 ```
 
-The image forwards `SIGTERM` to the gateway, waits for both engines to stop, runs as a configurable non-root UID/GID, and never combines the movie and television databases. Health checks query the unified `/health` endpoint.
+Media and download paths are mounted independently, normally as `/movies`, `/tv`, and `/downloads`. Never map existing Radarr or Sonarr application data into `/config`. Sharing media paths is supported; sharing application databases or download-client categories is not.
 
-Unraid support uses an XML Community Applications template over the same tested image. The template exposes:
+Unraid uses [`templates/vynodearr.xml`](../templates/vynodearr.xml) and the same supported OCI image. The template runs as `nobody:users` (`99:100`), so mapped appdata, media, and download paths must be writable by that identity.
 
-- dashboard port;
-- unified, movie, and television configuration paths;
-- movie, television, and download media paths;
-- UID, GID, and timezone settings;
-- optional additional path mappings.
+## Isolation guarantees
 
-There will not be a separate Unraid-only application runtime. Keeping Unraid on the same OCI image avoids platform drift.
+All supported packages preserve the same boundaries:
 
-## Cross-platform acceptance criteria
+- one public gateway on port `8686`;
+- private loopback-only movie and television engines;
+- separate databases, configuration, logs, queues, commands, and API keys;
+- one coordinated shutdown path;
+- dedicated VynodeArr application data that does not reuse Radarr or Sonarr appdata;
+- locked, traceable engine source revisions in [`distribution/source-lock.json`](../distribution/source-lock.json).
 
-Before Linux or container installation is marked supported, the experimental branch must prove:
+## Release validation
 
-- repeatable `linux-x64` engine and gateway builds from locked source revisions;
-- repeatable `linux-arm64` builds before advertising ARM64;
-- one shutdown action stops both child engines without orphans;
-- movie and television databases remain distinct through install and upgrade;
-- media and configuration paths survive container replacement or package upgrade;
-- process ownership works without Windows job objects;
-- `SIGTERM`, systemd stop, Docker stop, and host restart all shut down cleanly;
-- upgrades preserve configuration and provide rollback instructions;
-- Docker runs without root after initial volume permission setup;
-- Unraid path mappings work with common download-client layouts;
-- clean-install, upgrade, backup/restore, and uninstall tests pass on each advertised architecture.
+The release pipeline must pass all of the following before a stable tag is published:
 
-## Experimental implementation order
+1. restore, Release build, and all gateway tests on Windows;
+2. gateway tests and self-contained publish on Linux;
+3. locked movie and television engine builds;
+4. Linux installer and uninstaller syntax validation;
+5. container startup with both engines healthy;
+6. dashboard, unified summary, calendar API, and native engine API smoke checks;
+7. coordinated container shutdown without orphaned engine processes;
+8. upgrade checks confirming configuration and databases persist;
+9. SHA-256 checksums for downloadable release assets.
 
-1. Add runtime identifiers and packaging layouts for `linux-x64`.
-2. Build locked Linux-native movie and television payloads.
-3. Add platform-neutral signal and process-tree integration tests.
-4. Add a systemd unit, environment file, installer, and uninstaller.
-5. Add a multi-stage Dockerfile and Compose validation fixture.
-6. Validate non-root permissions and persistent volumes.
-7. Add the Unraid Community Applications template.
-8. Add `linux-arm64` only after both engine source trees build and run on ARM64.
-9. Publish prerelease artifacts from the experimental branch for clean-machine testing.
+ARM64 must not be advertised until both locked engines and the complete container pass equivalent native ARM64 runtime testing.
