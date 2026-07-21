@@ -32,9 +32,8 @@ public sealed class NativeShellBrandingTests
         Assert.Contains(userContent, result, StringComparison.Ordinal);
         Assert.DoesNotContain("MutationObserver", result, StringComparison.Ordinal);
         Assert.DoesNotContain("replaceAll", result, StringComparison.Ordinal);
-        Assert.Equal(
-            domain == EngineDomain.Movie,
-            result.Contains("Library Import requires one folder per movie", StringComparison.Ordinal));
+        Assert.DoesNotContain("vynodearr-import-notice", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("Library Import requires one folder per movie", result, StringComparison.Ordinal);
     }
 
     [Theory]

@@ -16,7 +16,6 @@ public static class NativeShellBranding
           #vynodearr-shell .vynodearr-link:focus-visible { color: #fff; outline: 2px solid #78a9ff; outline-offset: 1px; }
           #vynodearr-shell .vynodearr-link[aria-current="page"] { color: #fff; background: #30353b; border-color: #555c65; }
           body > #root { position: relative; top: var(--vynodearr-content-offset, var(--vynodearr-shell-height)); height: calc(100% - var(--vynodearr-content-offset, var(--vynodearr-shell-height))) !important; }
-          #vynodearr-import-notice { position: fixed; inset: var(--vynodearr-shell-height) 0 auto 0; z-index: 2147483646; min-height: 44px; display: flex; align-items: center; justify-content: center; padding: 8px 16px; color: #f8e7b2; background: #3d3420; border-bottom: 1px solid #796a3f; font: 600 13px/1.35 Inter, "Segoe UI", sans-serif; text-align: center; }
           @media (max-width: 520px) { #vynodearr-shell { padding: 0 5px; } #vynodearr-shell .vynodearr-brand { width: 36px; } #vynodearr-shell .vynodearr-link { padding-inline: 8px; font-size: 12px; } }
         </style>
         """;
@@ -35,7 +34,6 @@ public static class NativeShellBranding
           .vy-shell-link:focus-visible, .vy-shell-brand:focus-visible { outline: var(--vy-focus-ring, 3px solid #93c5fd); outline-offset: var(--vy-focus-offset, 2px); }
           .vy-shell-link[aria-current="page"] { color: var(--vy-text-primary, #f2f5f8); background: var(--vy-surface-selected, #303b4b); border-color: var(--vy-engine-accent, #8aa0b8); }
           body > #root { position: relative; top: var(--vynodearr-content-offset); height: calc(100% - var(--vynodearr-content-offset)) !important; }
-          #vynodearr-import-notice { position: fixed; inset: var(--vy-shell-height, 48px) 0 auto 0; z-index: calc(var(--vy-z-shell, 1000) - 1); min-height: 44px; display: flex; align-items: center; justify-content: center; padding: var(--vy-space-2, 8px) var(--vy-space-4, 16px); color: var(--vy-text-primary, #f2f5f8); background: var(--vy-surface-elevated, #242b36); border-bottom: 2px solid var(--vy-status-warning, #fbbf24); font: 600 var(--vy-font-size-meta, 13px)/1.4 var(--vy-font-sans, sans-serif); text-align: center; }
           @media (max-width: 620px) { .vy-shell-header { padding-inline: var(--vy-space-1, 4px); } .vy-shell-brand { width: 36px; } .vy-engine-badge { max-width: 116px; padding-inline: var(--vy-space-2, 8px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .vy-shell-link { padding-inline: var(--vy-space-2, 8px); font-size: 12px; } }
           @media (max-width: 430px) { .vy-shell-link { padding-inline: 6px; } .vy-engine-badge { max-width: 92px; } }
           @media (forced-colors: active) { .vy-shell-header::after, .vy-engine-badge::before { forced-color-adjust: auto; } }
@@ -56,12 +54,10 @@ public static class NativeShellBranding
         var navigation = ui.NewShellStylingEnabled
             ? BuildFoundationNavigation(productName, activePath)
             : BuildLegacyNavigation(activePath);
-        var importNotice = domain == EngineDomain.Movie ? BuildMovieImportNotice() : string.Empty;
-
         var transformed = AddEngineContext(html, engineKey);
         transformed = ReplaceExactMetadata(transformed, compatibilityName, productName);
         transformed = transformed.Replace("</head>", $"{tokenLink}{style}</head>", StringComparison.OrdinalIgnoreCase);
-        return transformed.Replace("<body>", $"<body>{navigation}{importNotice}", StringComparison.OrdinalIgnoreCase);
+        return transformed.Replace("<body>", $"<body>{navigation}", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string AddEngineContext(string html, string engineKey)
@@ -100,17 +96,4 @@ public static class NativeShellBranding
         </nav>
         """;
 
-    private static string BuildMovieImportNotice() => """
-        <script id="vynodearr-import-guidance">
-        (() => {
-          if (!location.pathname.startsWith('/movies/add/import')) return;
-          document.documentElement.style.setProperty('--vynodearr-content-offset', '92px');
-          const notice = document.createElement('div');
-          notice.id = 'vynodearr-import-notice';
-          notice.setAttribute('role', 'note');
-          notice.textContent = 'Library Import requires one folder per movie. Loose video files directly inside the root folder are not listed; organize each movie into its own folder first.';
-          document.body.appendChild(notice);
-        })();
-        </script>
-        """;
 }
