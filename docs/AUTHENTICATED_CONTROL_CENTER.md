@@ -10,6 +10,8 @@ Open the gateway URL. With no account present, protected browser routes redirect
 
 Authentication data is gateway-owned SQLite storage at `<data-root>/unified/auth.db`. Movie and television databases, migrations, API contracts, API keys, and command systems are unchanged.
 
+The gateway is the only interactive login. Before starting each loopback-only engine, VynodeArr configures its native authentication method as `External` and disables authentication for local requests. Existing native username and password fields are preserved for rollback, but users are not prompted for them through the gateway. Restart VynodeArr once after upgrading an existing installation so both engine configurations are reconciled.
+
 ## Sessions and authorization
 
 - Passwords use versioned PBKDF2-HMAC-SHA-256 parameters with 600,000 iterations and unique random salts.

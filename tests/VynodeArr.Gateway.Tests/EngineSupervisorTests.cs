@@ -287,6 +287,8 @@ public sealed class EngineSupervisorTests
 
     private sealed class StaticApiKeyProvider : IEngineApiKeyProvider
     {
+        public Task PrepareAsync(string dataDirectory, CancellationToken cancellationToken) => Task.CompletedTask;
+
         public Task<string> ReadAsync(
             string dataDirectory,
             TimeSpan timeout,
@@ -295,15 +297,14 @@ public sealed class EngineSupervisorTests
 
     private sealed class FinalizingApiKeyProvider : IEngineApiKeyProvider
     {
-        private readonly System.Collections.Concurrent.ConcurrentDictionary<string, int> _reads = [];
+        public Task PrepareAsync(string dataDirectory, CancellationToken cancellationToken) => Task.CompletedTask;
 
         public Task<string> ReadAsync(
             string dataDirectory,
             TimeSpan timeout,
             CancellationToken cancellationToken)
         {
-            var read = _reads.AddOrUpdate(dataDirectory, 1, static (_, current) => current + 1);
-            return Task.FromResult(read == 1 ? "provisioned-api-key" : "finalized-api-key");
+            return Task.FromResult("finalized-api-key");
         }
     }
 
