@@ -14,7 +14,7 @@ public sealed class UnraidTemplateTests
         var repository = root.Element("Repository")?.Value;
         var configs = root.Elements("Config").ToArray();
 
-        Assert.Equal("ghcr.io/minerport/vynodearr-unified:0.4.7", repository);
+        Assert.Equal("ghcr.io/minerport/vynodearr-unified:main", repository);
         Assert.Equal(
             "https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/templates/vynodearr.xml",
             root.Element("TemplateURL")?.Value);
