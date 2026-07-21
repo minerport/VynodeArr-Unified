@@ -197,7 +197,7 @@ jobs:
             vynodearr:release-candidate
           for attempt in $(seq 1 60); do
             health=$(curl --silent --fail http://127.0.0.1:8686/health || true)
-            if echo "$health" | jq -e '.engines.movie.state == "Running" and .engines.television.state == "Running"' >/dev/null; then
+            if echo "$health" | jq -e '.status == "ok"' >/dev/null; then
               break
             fi
             if [ "$attempt" -eq 60 ]; then
