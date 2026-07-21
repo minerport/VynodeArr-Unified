@@ -2,16 +2,15 @@
 <Container version="2">
   <Name>VynodeArr</Name>
   <Repository>ghcr.io/minerport/vynodearr-unified:latest</Repository>
-  <Registry>https://github.com/minerport/VynodeArr-Unified/pkgs/container/vynodearr-unified</Registry>
+  <Registry>https://ghcr.io</Registry>
   <Network>bridge</Network>
+  <MyIP/>
   <Shell>sh</Shell>
   <Privileged>false</Privileged>
   <Support>https://github.com/minerport/VynodeArr-Unified/issues</Support>
   <Project>https://github.com/minerport/VynodeArr-Unified</Project>
-  <Overview>VyNodeArr unifies movie and television management into a single modern dashboard while keeping dedicated movie and TV engines fully isolated. It runs with its own appdata, databases, and port, allowing it to coexist alongside existing Radarr and Sonarr installations. Configure separate download-client categories such as <strong>vynode-movies</strong> and <strong>vynode-tv</strong> for seamless operation.</Overview>
-  <Description>VynodeArr delivers a centralized experience for managing both movie and television libraries without sacrificing the stability or flexibility of separate media engines. Behind the unified interface, independent movie and TV services maintain their own databases, settings, queues, root folders, and download workflows, ensuring complete separation between media types. Designed for coexistence, VyNodeArr installs using its own appdata directory, networking configuration, and container port, making it safe to deploy alongside existing Radarr and Sonarr containers without conflicts. By using dedicated download-client categories such as <strong>vynode-movies</strong> and <strong>vynode-tv</strong>, downloads remain properly organized while providing a single, streamlined management experience.</Description>
   <Overview>Unified movie and television media manager. One dashboard supervises isolated movie and television engines. Uses its own appdata and port, so existing Radarr and Sonarr containers remain separate. Use unique download-client categories such as vynode-movies and vynode-tv.</Overview>
-  <Description>VynodeArr provides one dashboard for movie and television library management while keeping both media engines, databases, settings, queues, and data directories isolated. The container uses its own appdata path and port so it can coexist with existing media-manager containers.</Description>
+  <Description>VynodeArr provides one dashboard for movie and television library management while keeping both media engines, databases, settings, queues, and data directories isolated. The container uses its own appdata path and port so it can coexist with existing media-manager containers. Dedicated download-client categories such as vynode-movies and vynode-tv keep downloads organized by media type.</Description>
   <Category>MediaApp:Video</Category>
   <WebUI>http://[IP]:[PORT:8686]/</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/templates/vynodearr.xml</TemplateURL>

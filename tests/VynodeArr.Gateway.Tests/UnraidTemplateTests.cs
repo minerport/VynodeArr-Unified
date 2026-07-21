@@ -20,6 +20,11 @@ public sealed class UnraidTemplateTests
             root.Element("TemplateURL")?.Value);
         Assert.Null(root.Element("Beta"));
         Assert.Equal("bridge", root.Element("Network")?.Value);
+        Assert.NotNull(root.Element("MyIP"));
+        Assert.Equal("https://ghcr.io", root.Element("Registry")?.Value);
+        Assert.Single(root.Elements("Overview"));
+        Assert.Single(root.Elements("Description"));
+        Assert.False(root.Element("Overview")?.HasElements);
         Assert.Contains("--user 99:100", root.Element("ExtraParams")?.Value, StringComparison.Ordinal);
         Assert.Contains(configs, config => Attribute(config, "Target") == "8686");
         Assert.Contains(configs, config =>
