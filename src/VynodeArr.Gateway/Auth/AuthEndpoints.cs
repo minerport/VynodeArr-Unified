@@ -107,7 +107,11 @@ public static class AuthEndpoints
         }).RequireAuthorization(VynodeArrPolicies.Administer);
     }
 
-    public static bool IsApiRequest(HttpRequest request) => request.Path.StartsWithSegments("/api") || request.Headers.Accept.Any(v => v?.Contains("application/json", StringComparison.OrdinalIgnoreCase) == true);
+    public static bool IsApiRequest(HttpRequest request) =>
+        request.Path.StartsWithSegments("/api") ||
+        request.Path.StartsWithSegments("/movies/api") ||
+        request.Path.StartsWithSegments("/television/api") ||
+        request.Headers.Accept.Any(v => v?.Contains("application/json", StringComparison.OrdinalIgnoreCase) == true);
     public static string LoginUrl(HttpRequest request) => "/login?returnUrl=" + Uri.EscapeDataString(SafeReturnUrl(request.PathBase + request.Path + request.QueryString) ?? "/");
     public static string? SafeReturnUrl(string? value)
     {
