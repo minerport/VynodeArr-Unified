@@ -1,6 +1,6 @@
 # VynodeArr security
 
-The authenticated control-center work is currently isolated on `feature/authenticated-control-center` and is not part of the stable `0.4.4` release.
+The authenticated control center is the supported browser security boundary beginning with VynodeArr 0.4.6.
 
 ## Reporting a vulnerability
 

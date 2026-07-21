@@ -2,7 +2,7 @@
 
 ## Status
 
-This document describes the experimental `feature/authenticated-control-center` branch. It is not included in stable `0.4.4` and must not be used as a production upgrade until its release gates are complete.
+This document describes the authenticated control center included in stable VynodeArr 0.4.6 and later.
 
 ## First run
 
@@ -38,17 +38,16 @@ The queue is read-only. Each engine has separate mapping code and errors remain 
 
 ## Reverse proxies
 
-Keep the gateway bound to a trusted interface and terminate HTTPS at a maintained proxy. This branch deliberately does not trust `X-Forwarded-For` or `X-Forwarded-Proto`; therefore cookie security follows the connection observed by the gateway. Explicit trusted-proxy configuration remains a release gate before internet-facing deployment.
+Keep the gateway bound to a trusted interface and terminate HTTPS at a maintained proxy. VynodeArr deliberately does not trust `X-Forwarded-For` or `X-Forwarded-Proto`; therefore cookie security follows the connection observed by the gateway. Explicit trusted-proxy configuration is required before internet-facing deployment.
 
 ## Backup and upgrade
 
 Stop VynodeArr or use a filesystem snapshot before copying `auth.db`, its WAL, and SHM files. Back up the entire `unified` directory atomically. Never reuse the Movies or Television appdata directory for gateway authentication.
 
-## Known limitations and remaining gates
+## Known limitations
 
 - A complete browser UI for user creation, role changes, disablement, password changes, and session revocation remains to be built over the protected admin APIs.
 - Trusted reverse-proxy allowlisting and HTTPS/HSTS detection remain to be implemented and tested.
-- Windows tray shutdown must be adapted to an authenticated privileged channel before this branch can replace stable packaging.
 - Queue quality extraction is omitted when the locked engine response does not expose a reliably normalized string.
 - Dashboard adapter coverage must be expanded with captured responses from both locked source revisions.
-- End-to-end browser tests for setup, login, logout, Viewer denial, CSRF rejection, and native workflows remain release gates.
+- Additional end-to-end browser coverage for setup, login, logout, Viewer denial, CSRF rejection, and native workflows is recommended.
