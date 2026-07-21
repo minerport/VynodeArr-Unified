@@ -15,11 +15,11 @@ The tracked [`manifest.json`](manifest.json) records each approved installer’s
 
 ## Current Windows installer
 
-- Version: `0.3.3`
-- Filename: `VynodeArr-0.3.3-win-x64-setup.exe`
+- Version: `0.4.6`
+- Filename: `VynodeArr-0.4.6-win-x64-setup.exe`
 - Platform: Windows x64
-- SHA-256: `3E3CD3A5197CFFD3490F45ED9038348B0F0EC7E29C44DB9F5C83B6099A154BF8`
-- Download: [VynodeArr v0.3.3 release](https://github.com/minerport/VynodeArr-Unified/releases/tag/v0.3.3)
+- SHA-256: `6DA79BC5C6477C261813C78196EE71C6D53AFA72E9E77B962BBFAD3B069E6CA4`
+- Download: [VynodeArr v0.4.6 release](https://github.com/minerport/VynodeArr-Unified/releases/tag/v0.4.6)
 
 ## Adding a future installer
 
