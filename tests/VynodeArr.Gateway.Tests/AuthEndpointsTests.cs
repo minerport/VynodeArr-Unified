@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using VynodeArr.Gateway.Auth;
 
 namespace VynodeArr.Gateway.Tests;
