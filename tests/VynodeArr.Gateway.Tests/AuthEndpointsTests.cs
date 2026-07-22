@@ -20,6 +20,19 @@ public sealed class AuthEndpointsTests
     }
 
     [Theory]
+    [InlineData("/movies/api/v3/system/status", true)]
+    [InlineData("/television/api/v5/system/status", true)]
+    [InlineData("/api/dashboard/summary", false)]
+    [InlineData("/movies/system/status", false)]
+    public void ClassifiesOnlyNativeEngineApiRoutes(string path, bool expected)
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Path = path;
+
+        Assert.Equal(expected, AuthEndpoints.IsNativeEngineApiRequest(context.Request));
+    }
+
+    [Theory]
     [InlineData("/movies/1", "/movies/1")]
     [InlineData("/", "/")]
     [InlineData("https://evil.example", null)]

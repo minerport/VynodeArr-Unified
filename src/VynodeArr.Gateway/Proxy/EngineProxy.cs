@@ -1,5 +1,7 @@
 using System.Net;
 using System.Net.WebSockets;
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.Extensions.Options;
 using VynodeArr.Gateway.Auth;
 using VynodeArr.Gateway.Configuration;
@@ -42,6 +44,29 @@ public static class EngineProxy
         EngineDomain domain)
     {
         endpoints.MapMethods(
+            $"/{routeDomain}/api/{{**path}}",
+            ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"],
+            async (HttpContext context, string? path, EngineRegistry registry, IHttpClientFactory clients) =>
+            {
+                var apiKey = registry.GetApiKey(domain);
+                if (string.IsNullOrWhiteSpace(apiKey) || !HasValidEngineApiKey(context.Request, apiKey))
+                {
+                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                    await context.Response.WriteAsJsonAsync(new { error = "invalid_api_key" });
+                    return;
+                }
+
+                await ForwardAsync(
+                    context,
+                    $"/{routeDomain}/api/{path ?? string.Empty}",
+                    domain,
+                    registry,
+                    clients,
+                    apiKeyAuthenticated: true);
+            })
+            .AllowAnonymous();
+
+        endpoints.MapMethods(
             $"/{routeDomain}/{{**path}}",
             ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"],
             (HttpContext context, string? path, EngineRegistry registry, IHttpClientFactory clients, IOptions<UnifiedOptions> options) =>
@@ -57,9 +82,13 @@ public static class EngineProxy
         EngineDomain domain,
         EngineRegistry registry,
         IHttpClientFactory clients,
-        UiOptions? ui = null)
+        UiOptions? ui = null,
+        bool apiKeyAuthenticated = false)
     {
-        if (!HttpMethods.IsGet(context.Request.Method) && !HttpMethods.IsHead(context.Request.Method) && !HttpMethods.IsOptions(context.Request.Method))
+        if (!apiKeyAuthenticated &&
+            !HttpMethods.IsGet(context.Request.Method) &&
+            !HttpMethods.IsHead(context.Request.Method) &&
+            !HttpMethods.IsOptions(context.Request.Method))
         {
             if (!context.User.IsInRole(VynodeArrRoles.Administrator))
             {
@@ -169,6 +198,29 @@ public static class EngineProxy
         }
 
         await response.Content.CopyToAsync(context.Response.Body, context.RequestAborted);
+    }
+
+    internal static bool HasValidEngineApiKey(HttpRequest request, string expectedApiKey)
+    {
+        var suppliedApiKey = request.Headers["X-Api-Key"].FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(suppliedApiKey))
+        {
+            suppliedApiKey = request.Query["apikey"].FirstOrDefault();
+        }
+        if (string.IsNullOrWhiteSpace(suppliedApiKey))
+        {
+            suppliedApiKey = request.Query["access_token"].FirstOrDefault();
+        }
+
+        if (string.IsNullOrWhiteSpace(suppliedApiKey))
+        {
+            return false;
+        }
+
+        var suppliedBytes = Encoding.UTF8.GetBytes(suppliedApiKey);
+        var expectedBytes = Encoding.UTF8.GetBytes(expectedApiKey);
+        return suppliedBytes.Length == expectedBytes.Length &&
+            CryptographicOperations.FixedTimeEquals(suppliedBytes, expectedBytes);
     }
 
     internal static bool HasSameOrigin(HttpRequest request)

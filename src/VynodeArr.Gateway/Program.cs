@@ -119,7 +119,8 @@ app.UseAuthentication();
 app.Use(async (context, next) =>
 {
     var isPublic = context.Request.Path.StartsWithSegments("/assets") || context.Request.Path == "/health" ||
-        context.Request.Path == "/login" || context.Request.Path == "/setup" || context.Request.Path.StartsWithSegments("/api/auth");
+        context.Request.Path == "/login" || context.Request.Path == "/setup" || context.Request.Path.StartsWithSegments("/api/auth") ||
+        AuthEndpoints.IsNativeEngineApiRequest(context.Request);
     if (!isPublic && context.User.Identity?.IsAuthenticated != true && !await context.RequestServices.GetRequiredService<AuthStore>().HasUsersAsync(context.RequestAborted))
     {
         if (AuthEndpoints.IsApiRequest(context.Request)) { context.Response.StatusCode = StatusCodes.Status401Unauthorized; return; }

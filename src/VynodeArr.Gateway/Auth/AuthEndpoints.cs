@@ -109,9 +109,11 @@ public static class AuthEndpoints
 
     public static bool IsApiRequest(HttpRequest request) =>
         request.Path.StartsWithSegments("/api") ||
-        request.Path.StartsWithSegments("/movies/api") ||
-        request.Path.StartsWithSegments("/television/api") ||
+        IsNativeEngineApiRequest(request) ||
         request.Headers.Accept.Any(v => v?.Contains("application/json", StringComparison.OrdinalIgnoreCase) == true);
+    public static bool IsNativeEngineApiRequest(HttpRequest request) =>
+        request.Path.StartsWithSegments("/movies/api") ||
+        request.Path.StartsWithSegments("/television/api");
     public static string LoginUrl(HttpRequest request) => "/login?returnUrl=" + Uri.EscapeDataString(SafeReturnUrl(request.PathBase + request.Path + request.QueryString) ?? "/");
     public static string? SafeReturnUrl(string? value)
     {

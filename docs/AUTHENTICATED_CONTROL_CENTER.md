@@ -25,7 +25,7 @@ The gateway is the only interactive login. Before starting each loopback-only en
 
 ## Routes
 
-Public routes are limited to `/login`, `/setup`, `/api/auth/*`, `/assets/*`, and the detail-free `/health` container probe. All dashboard APIs and both engine proxies require authentication. Anonymous HTML receives a local login/setup redirect; anonymous APIs receive 401; denied authenticated requests receive 403.
+Public routes are limited to `/login`, `/setup`, `/api/auth/*`, `/assets/*`, the detail-free `/health` container probe, and the native compatibility API paths `/movies/api/*` and `/television/api/*`. Compatibility API paths require the corresponding native engine API key through `X-Api-Key`, `apikey`, or `access_token`; an absent or incorrect key returns 401. All dashboard APIs and non-API engine proxy routes require the VynodeArr session. Anonymous HTML receives a local login/setup redirect; anonymous protected APIs receive 401; denied authenticated requests receive 403.
 
 Protected dashboard modules use:
 

@@ -99,6 +99,17 @@ openssl rand -hex 32
 
 Enter the result in the required **Lifecycle Control Key** template field. See [`distribution/docker/README.md`](distribution/docker/README.md) for Docker details and [`docs/PLATFORM_INSTALLATION.md`](docs/PLATFORM_INSTALLATION.md) for platform status.
 
+### Connecting other applications
+
+Applications that normally connect to Radarr or Sonarr can use VynodeArr's public gateway without exposing either native engine port. Configure the applications with these URL bases:
+
+- Movies: `http://VYNODEARR_HOST:8686/movies`
+- Television: `http://VYNODEARR_HOST:8686/television`
+
+Use the API key displayed by the corresponding engine under **Settings > General > Security**. The movie and television API keys are intentionally separate. On Unraid, use the Unraid server address or a resolvable container hostname instead of `127.0.0.1`; localhost inside another container refers to that other container.
+
+Only native API routes under `/movies/api/*` and `/television/api/*` accept engine API-key authentication. Dashboard pages and all non-API engine routes continue to require the VynodeArr login. The gateway validates each supplied key against the selected engine and forwards the request over its private loopback connection.
+
 ## Development
 
 Requirements:
