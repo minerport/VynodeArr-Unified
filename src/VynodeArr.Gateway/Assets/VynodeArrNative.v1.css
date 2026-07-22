@@ -1,0 +1,158 @@
+/*
+ * Presentation-only adapter for the native Movies and Television interfaces.
+ * Selectors intentionally target stable CSS-module name fragments shared by
+ * both engines. This layer must not hide, reorder, or disable native controls.
+ */
+html[data-vy-engine] body {
+  color: var(--vy-text-primary);
+  background: var(--vy-surface-app);
+  font-family: var(--vy-font-sans);
+  line-height: var(--vy-line-height);
+}
+
+html[data-vy-engine] body > #root {
+  background: var(--vy-surface-app);
+}
+
+html[data-vy-engine] [class*="PageContent/content/"],
+html[data-vy-engine] [class*="PageContentBody/contentBody/"],
+html[data-vy-engine] [class*="PageContentBody/innerContentBody/"] {
+  color: var(--vy-text-primary);
+  background-color: var(--vy-surface-app);
+}
+
+html[data-vy-engine] [class*="PageHeader/header/"],
+html[data-vy-engine] [class*="PageToolbar/toolbar/"] {
+  color: var(--vy-text-primary);
+  background-color: var(--vy-surface-panel);
+  border-color: var(--vy-border-subtle);
+}
+
+html[data-vy-engine] [class*="PageToolbar/toolbar/"] {
+  box-shadow: 0 1px 0 var(--vy-border-subtle);
+}
+
+html[data-vy-engine] [class*="PageSidebar/sidebarContainer/"],
+html[data-vy-engine] [class*="PageSidebar/sidebar/"] {
+  color: var(--vy-text-primary);
+  background-color: var(--vy-surface-sidebar);
+  border-color: var(--vy-border-subtle);
+}
+
+html[data-vy-engine] [class*="PageSidebarItem/link/"] {
+  color: var(--vy-text-secondary);
+  border-inline-start: 3px solid transparent;
+  transition: color var(--vy-motion-fast) var(--vy-ease-standard),
+    background-color var(--vy-motion-fast) var(--vy-ease-standard),
+    border-color var(--vy-motion-fast) var(--vy-ease-standard);
+}
+
+html[data-vy-engine] [class*="PageSidebarItem/link/"]:hover,
+html[data-vy-engine] [class*="PageSidebarItem/isActiveLink/"] {
+  color: var(--vy-text-primary);
+  background-color: var(--vy-surface-selected);
+  border-inline-start-color: var(--vy-engine-accent);
+}
+
+html[data-vy-engine] [class*="Card/card/"],
+html[data-vy-engine] [class*="Modal/modal/"],
+html[data-vy-engine] [class*="ModalContent/modalContent/"],
+html[data-vy-engine] [class*="MenuContent/menuContent/"] {
+  color: var(--vy-text-primary);
+  background-color: var(--vy-surface-panel);
+  border-color: var(--vy-border-subtle);
+  border-radius: var(--vy-radius-lg);
+  box-shadow: var(--vy-shadow-raised);
+}
+
+html[data-vy-engine] [class*="ModalHeader/modalHeader/"],
+html[data-vy-engine] [class*="ModalFooter/modalFooter/"] {
+  border-color: var(--vy-border-subtle);
+}
+
+html[data-vy-engine] [class*="MenuItem/menuItem/"] {
+  color: var(--vy-text-secondary);
+}
+
+html[data-vy-engine] [class*="MenuItem/menuItem/"]:hover,
+html[data-vy-engine] [class*="MenuItem/menuItem/"]:focus-visible {
+  color: var(--vy-text-primary);
+  background-color: var(--vy-surface-hover);
+}
+
+html[data-vy-engine] [class*="Table/tableContainer/"] {
+  border: 1px solid var(--vy-border-subtle);
+  border-radius: var(--vy-radius-md);
+  background-color: var(--vy-surface-panel);
+}
+
+html[data-vy-engine] [class*="Table/table/"] {
+  color: var(--vy-text-primary);
+  background-color: var(--vy-surface-panel);
+}
+
+html[data-vy-engine] [class*="Table/table/"] th,
+html[data-vy-engine] [class*="Table/table/"] td {
+  border-color: var(--vy-border-subtle);
+}
+
+html[data-vy-engine] [class*="Table/table/"] tbody tr:hover {
+  background-color: var(--vy-surface-hover);
+}
+
+html[data-vy-engine] input:not([type="checkbox"]):not([type="radio"]),
+html[data-vy-engine] select,
+html[data-vy-engine] textarea {
+  color: var(--vy-text-primary);
+  background-color: var(--vy-surface-elevated);
+  border-color: var(--vy-border-strong);
+  border-radius: var(--vy-radius-sm);
+}
+
+html[data-vy-engine] input::placeholder,
+html[data-vy-engine] textarea::placeholder {
+  color: var(--vy-text-muted);
+}
+
+html[data-vy-engine] [class*="Button/button/"] {
+  border-radius: var(--vy-radius-sm);
+  transition: filter var(--vy-motion-fast) var(--vy-ease-standard),
+    box-shadow var(--vy-motion-fast) var(--vy-ease-standard);
+}
+
+html[data-vy-engine] [class*="Button/default/"] {
+  color: var(--vy-text-primary);
+  background-color: var(--vy-surface-elevated);
+  border-color: var(--vy-border-strong);
+}
+
+html[data-vy-engine] [class*="Button/button/"]:hover {
+  filter: brightness(1.08);
+}
+
+html[data-vy-engine] a:focus-visible,
+html[data-vy-engine] button:focus-visible,
+html[data-vy-engine] input:focus-visible,
+html[data-vy-engine] select:focus-visible,
+html[data-vy-engine] textarea:focus-visible,
+html[data-vy-engine] [tabindex]:focus-visible {
+  outline: var(--vy-focus-ring);
+  outline-offset: var(--vy-focus-offset);
+}
+
+@media (max-width: 768px) {
+  html[data-vy-engine] [class*="PageContentBody/innerContentBody/"] {
+    padding-inline: var(--vy-space-3);
+  }
+
+  html[data-vy-engine] [class*="Card/card/"] {
+    border-radius: var(--vy-radius-md);
+  }
+}
+
+@media (forced-colors: active) {
+  html[data-vy-engine] [class*="PageSidebarItem/isActiveLink/"],
+  html[data-vy-engine] [class*="Table/tableContainer/"] {
+    border-color: Highlight;
+  }
+}

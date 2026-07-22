@@ -147,6 +147,13 @@ app.MapGet("/assets/vynodearr-tokens.v1.css", () =>
         ? Results.NotFound()
         : Results.Stream(stream, "text/css; charset=utf-8");
 }).AllowAnonymous();
+app.MapGet("/assets/vynodearr-native.v1.css", () =>
+{
+    var stream = typeof(UnifiedShell).Assembly.GetManifestResourceStream("VynodeArr.Assets.VynodeArrNative.v1.css");
+    return stream is null
+        ? Results.NotFound()
+        : Results.Stream(stream, "text/css; charset=utf-8");
+}).AllowAnonymous();
 app.MapGet("/", () => Results.Content(
     UnifiedShell.Render(options.Ui, typeof(Program).Assembly.GetName().Version?.ToString() ?? "development"),
     "text/html")).RequireAuthorization(VynodeArrPolicies.Read);

@@ -26,6 +26,7 @@ public sealed class NativeShellBrandingTests
         Assert.Contains($"aria-label=\"Current engine: {productName}\"", result, StringComparison.Ordinal);
         Assert.Contains("src=\"/assets/vynodearr.png\"", result, StringComparison.Ordinal);
         Assert.Contains("href=\"/assets/vynodearr-tokens.v1.css\"", result, StringComparison.Ordinal);
+        Assert.Contains("href=\"/assets/vynodearr-native.v1.css\"", result, StringComparison.Ordinal);
         Assert.Contains($"href=\"{activePath}\" aria-current=\"page\"", result, StringComparison.Ordinal);
         Assert.Contains("href=\"/\">Dashboard</a>", result, StringComparison.Ordinal);
         Assert.Contains($"window.{compatibilityName}", result, StringComparison.Ordinal);
@@ -57,9 +58,35 @@ public sealed class NativeShellBrandingTests
             new UiOptions { TokensEnabled = false, NewShellStylingEnabled = false });
 
         Assert.DoesNotContain("vynodearr-tokens.v1.css", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("vynodearr-native.v1.css", result, StringComparison.Ordinal);
         Assert.Contains("class=\"vynodearr-link\"", result, StringComparison.Ordinal);
         Assert.DoesNotContain("class=\"vy-engine-badge\"", result, StringComparison.Ordinal);
         Assert.Contains("href=\"/movies/\" aria-current=\"page\"", result, StringComparison.Ordinal);
         Assert.Contains("href=\"/television/\"", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PreservesNativeFormsLinksAndControlsByteForByte()
+    {
+        const string nativeMarkup = "<form action=\"/movies/settings\" method=\"post\"><label for=\"path\">Path</label><input id=\"path\" name=\"path\" value=\"D:\\\\Movies\"><a href=\"/movies/wanted\">Wanted</a><button type=\"submit\" data-command=\"save\">Save</button></form>";
+        var html = $"<html><head><title>Radarr</title></head><body><div id=\"root\">{nativeMarkup}</div></body></html>";
+
+        var result = NativeShellBranding.Transform(html, EngineDomain.Movie, new UiOptions());
+
+        Assert.Contains(nativeMarkup, result, StringComparison.Ordinal);
+        Assert.Equal(1, CountOccurrences(result, nativeMarkup));
+    }
+
+    private static int CountOccurrences(string value, string search)
+    {
+        var count = 0;
+        var index = 0;
+        while ((index = value.IndexOf(search, index, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            index += search.Length;
+        }
+
+        return count;
     }
 }

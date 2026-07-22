@@ -50,13 +50,16 @@ public static class NativeShellBranding
         var tokenLink = ui.TokensEnabled
             ? "<link id=\"vynodearr-token-styles\" rel=\"stylesheet\" href=\"/assets/vynodearr-tokens.v1.css\">"
             : string.Empty;
+        var nativeThemeLink = ui.TokensEnabled && ui.NewShellStylingEnabled
+            ? "<link id=\"vynodearr-native-styles\" rel=\"stylesheet\" href=\"/assets/vynodearr-native.v1.css\">"
+            : string.Empty;
         var style = ui.NewShellStylingEnabled ? FoundationStyle : LegacyStyle;
         var navigation = ui.NewShellStylingEnabled
             ? BuildFoundationNavigation(productName, activePath)
             : BuildLegacyNavigation(activePath);
         var transformed = AddEngineContext(html, engineKey);
         transformed = ReplaceExactMetadata(transformed, compatibilityName, productName);
-        transformed = transformed.Replace("</head>", $"{tokenLink}{style}</head>", StringComparison.OrdinalIgnoreCase);
+        transformed = transformed.Replace("</head>", $"{tokenLink}{nativeThemeLink}{style}</head>", StringComparison.OrdinalIgnoreCase);
         return transformed.Replace("<body>", $"<body>{navigation}", StringComparison.OrdinalIgnoreCase);
     }
 
