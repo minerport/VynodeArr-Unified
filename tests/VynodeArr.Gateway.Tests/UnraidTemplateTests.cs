@@ -21,7 +21,7 @@ public sealed class UnraidTemplateTests
         Assert.Null(root.Element("Beta"));
         Assert.Equal("bridge", root.Element("Network")?.Value);
         Assert.NotNull(root.Element("MyIP"));
-        Assert.Equal("https://ghcr.io", root.Element("Registry")?.Value);
+        Assert.Equal("https://github.com/minerport/VynodeArr-Unified/pkgs/container/vynodearr-unified", root.Element("Registry")?.Value);
         Assert.Single(root.Elements("Overview"));
         Assert.Single(root.Elements("Description"));
         Assert.False(root.Element("Overview")?.HasElements);
