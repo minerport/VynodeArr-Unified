@@ -4,7 +4,7 @@ VynodeArr is one self-hosted application for managing movie and television libra
 
 > VynodeArr is under active development. Back up existing media-manager configuration before testing upgrades.
 
-VynodeArr 0.4.7 uses one authenticated control center. Users sign in once at the dashboard; the private Movies and Television engines trust only the loopback gateway and do not present separate login prompts. See [`docs/AUTHENTICATED_CONTROL_CENTER.md`](docs/AUTHENTICATED_CONTROL_CENTER.md) and [`SECURITY.md`](SECURITY.md).
+VynodeArr 0.4.8 uses one authenticated control center. Users sign in once at the dashboard; the private Movies and Television engines trust only the loopback gateway and do not present separate login prompts. See [`docs/AUTHENTICATED_CONTROL_CENTER.md`](docs/AUTHENTICATED_CONTROL_CENTER.md) and [`SECURITY.md`](SECURITY.md).
 
 ## What works today
 
@@ -70,14 +70,14 @@ Detailed instructions:
 
 ## Linux installation
 
-The supported Linux x64 package is published in [VynodeArr 0.4.7](https://github.com/minerport/VynodeArr-Unified/releases/tag/v0.4.7). Download the archive and checksum, verify them, extract the package, and run `sudo ./install.sh`. Detailed commands, service management, permissions, upgrades, and uninstall instructions are in [`distribution/linux/README.md`](distribution/linux/README.md).
+The supported Linux x64 package is published in [VynodeArr 0.4.8](https://github.com/minerport/VynodeArr-Unified/releases/tag/v0.4.8). Download the archive and checksum, verify them, extract the package, and run `sudo ./install.sh`. Detailed commands, service management, permissions, upgrades, and uninstall instructions are in [`distribution/linux/README.md`](distribution/linux/README.md).
 
 ## Docker and Unraid
 
 The validated x86-64 container is:
 
 ```text
-ghcr.io/minerport/vynodearr-unified:0.4.7
+ghcr.io/minerport/vynodearr-unified:0.4.8
 ```
 
 For Unraid, install VynodeArr from Community Applications after the listing is approved, or load [`templates/vynodearr.xml`](templates/vynodearr.xml) as a user template. The default mappings are:
@@ -143,7 +143,7 @@ Stage reviewed engine builds and compile the installer:
 
 .\distribution\windows\build-installer.ps1 `
   -IsccPath "$env:LOCALAPPDATA\Programs\Inno Setup 7\ISCC.exe" `
-  -Version 0.4.7
+  -Version 0.4.8
 ```
 
 Generated packages are written under `artifacts/` and excluded from Git. Publish installers as GitHub Release assets rather than committing generated binaries.

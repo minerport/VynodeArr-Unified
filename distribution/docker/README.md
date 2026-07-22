@@ -3,7 +3,7 @@
 The supported x86-64 image is:
 
 ```text
-ghcr.io/minerport/vynodearr-unified:0.4.7
+ghcr.io/minerport/vynodearr-unified:0.4.8
 ```
 
 Unraid users should use the canonical template at [`templates/vynodearr.xml`](../../templates/vynodearr.xml), or create a container manually with port `8686`, `/config`, `/movies`, `/tv`, and `/downloads` mappings. Keep `/config` mapped only to VynodeArr's own appdata directory. Existing Radarr and Sonarr appdata must never be mapped there.
@@ -34,7 +34,7 @@ The Docker image consumes an already staged `VynodeArr-linux-x64` package. Nativ
 
 docker build `
   --file .\distribution\docker\Dockerfile `
-  --tag ghcr.io/minerport/vynodearr-unified:0.4.7 `
+  --tag ghcr.io/minerport/vynodearr-unified:0.4.8 `
   .\artifacts\linux\VynodeArr-linux-x64
 ```
 

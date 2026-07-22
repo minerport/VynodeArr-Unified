@@ -1,12 +1,12 @@
 # Platform installation status
 
-VynodeArr 0.4.7 supports Windows x64, Linux x64, Docker x86-64, and Unraid x86-64 from one repository and one pair of locked movie and television engine revisions.
+VynodeArr 0.4.8 supports Windows x64, Linux x64, Docker x86-64, and Unraid x86-64 from one repository and one pair of locked movie and television engine revisions.
 
 | Platform | Status | Package |
 | --- | --- | --- |
 | Windows x64 | Supported | Inno Setup `.exe`, Windows service, and tray controller |
 | Linux x64 | Supported | Versioned tar package, installer, uninstaller, and systemd unit |
-| Docker x86-64 | Supported | `ghcr.io/minerport/vynodearr-unified:0.4.7` |
+| Docker x86-64 | Supported | `ghcr.io/minerport/vynodearr-unified:0.4.8` |
 | Unraid x86-64 | Supported | Community Applications XML template using the supported container |
 | Linux ARM64 | Not yet supported | Packaging option exists; native runtime validation is still required |
 | Other x86-64 container hosts | Supported where OCI containers and bind mounts are available | Same Docker image |
@@ -14,7 +14,7 @@ VynodeArr 0.4.7 supports Windows x64, Linux x64, Docker x86-64, and Unraid x86-6
 
 ## Windows x64
 
-Install `VynodeArr-0.4.7-win-x64-setup.exe` from the GitHub release, then open `http://127.0.0.1:8686/`. The installer creates one Windows service and one tray controller. Uninstall stops the gateway and both engines before removing application files, while preserving `C:\ProgramData\VynodeArr` unless the user removes it explicitly.
+Install `VynodeArr-0.4.8-win-x64-setup.exe` from the GitHub release, then open `http://127.0.0.1:8686/`. The installer creates one Windows service and one tray controller. Uninstall stops the gateway and both engines before removing application files, while preserving `C:\ProgramData\VynodeArr` unless the user removes it explicitly.
 
 See [`WINDOWS_INSTALLER.md`](WINDOWS_INSTALLER.md) for maintainer build and validation instructions.
 
@@ -29,7 +29,7 @@ The service keeps operating-system and application directories read-only without
 The supported image is:
 
 ```text
-ghcr.io/minerport/vynodearr-unified:0.4.7
+ghcr.io/minerport/vynodearr-unified:0.4.8
 ```
 
 The gateway runs as PID 1, supervises both native engines, forwards shutdown, exposes one port, and keeps persistent data separated under:
