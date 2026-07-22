@@ -2,7 +2,7 @@
 <Container version="2">
   <Name>VynodeArr</Name>
   <Repository>ghcr.io/minerport/vynodearr-unified:0.4.7</Repository>
-  <Registry>https://ghcr.io</Registry>
+  <Registry>https://github.com/minerport/VynodeArr-Unified/pkgs/container/vynodearr-unified</Registry>
   <Network>bridge</Network>
   <MyIP/>
   <Shell>sh</Shell>
