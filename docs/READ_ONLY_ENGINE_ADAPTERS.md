@@ -12,4 +12,4 @@ requests other than the explicit synchronization and authentication operations
 return `405 Read-only review mode`.
 
 Fixtures implement the same contracts and are selected only when
-`VYNODENEW_DATA_MODE=fixture`. Fixture and engine records are never combined.
+`VYNODEARR_DATA_MODE=fixture`. Fixture and engine records are never combined.

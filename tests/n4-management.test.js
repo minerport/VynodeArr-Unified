@@ -54,19 +54,19 @@ test('native interaction workflows replace an upstream-shaped generic shell',asy
   for(const workflow of ["client.post('command',{name:'ResetApiKey'})","/engine-config/${domain}/config.xml",'The engine did not provide its newly generated API key'])assert.ok(apiSource.includes(workflow));
   assert.ok(apiSource.includes("xml.match(/<ApiKey>([^<]+)<\\/ApiKey>/i)"),'bundled engine configuration must remain the credential source of truth');
   assert.ok(apiSource.includes('did not reconnect with the new API key'));
-  for(const workflow of ['taskSections(items)','MOVIE ENGINE','TELEVISION ENGINE','/api/system/application-update','VynodeNew updates'])assert.ok(script.includes(workflow)||apiSource.includes(workflow));
+  for(const workflow of ['taskSections(items)','MOVIE ENGINE','TELEVISION ENGINE','/api/system/application-update','VynodeArr updates'])assert.ok(script.includes(workflow)||apiSource.includes(workflow));
   for(const workflow of ['backupSections(items)','configuration backup','Create Movies and Television backups','restore-backup','/api/system/backups/${button.dataset.domain}/${button.dataset.id}/restore','did not reconnect after restoring the backup'])assert.ok(script.includes(workflow)||apiSource.includes(workflow));
   for(const workflow of ["client.post('command',{name:'Restart'})",'historySections(items)','eventSections(items)','Movie and television activity separated by library'])assert.ok(script.includes(workflow)||apiSource.includes(workflow));
   for(const workflow of ['Download backups before uninstalling','Upload & restore','backup-upload-input','/download','/upload','completeEngineRestore','Backup must be a .zip, .db, or .xml file'])assert.ok(script.includes(workflow)||apiSource.includes(workflow));
-  for(const workflow of ['VynodeNew_${domain===','vynodenew.libraryView.${kind}','views:{movies:savedLibraryView'])assert.ok(script.includes(workflow)||apiSource.includes(workflow),workflow);
+  for(const workflow of ['VynodeArr_${domain===','vynodearr.libraryView.${kind}','views:{movies:savedLibraryView'])assert.ok(script.includes(workflow)||apiSource.includes(workflow),workflow);
   for(const workflow of ["serviceTabs('advanced')",'statusSections(values)','storage-summary','status-domain-section'])assert.ok(script.includes(workflow),workflow);
-  for(const workflow of ['privateProviderKeys','providerPresentation','mergeProviderPayload','Provider help is available through VynodeNew.'])assert.ok(script.includes(workflow),workflow);
+  for(const workflow of ['privateProviderKeys','providerPresentation','mergeProviderPayload','Provider help is available through VynodeArr.'])assert.ok(script.includes(workflow),workflow);
   for(const workflow of ['requestRemoteArtwork','image?.remoteUrl','tmdb.org','thetvdb.com'])assert.ok(clientSource.includes(workflow),workflow);
   for(const workflow of ['showAddMedia','discovery-art','remotePoster','showCalendar','calendar-grid','calendar-movies','showWanted','wanted-domain','wanted-show','wanted-season','wanted-interactive','showQueue','queue-table','data-queue-sort','showRootFolders','reviewMovieImport','reviewTvImport','const target=event.currentTarget','Scan for','Import selected movies','Import selected series','showProfiles','showProviders','loadPolicy','Failed download handling','autoRedownloadFailed','Indexers','Download Clients','All provider options','folder-browser','Browse…','Use this folder','attachDetailActions','episode-monitor','episode-auto-search','episode-interactive-search','Monitoring…','Unmonitoring…','Automatic search','Interactive search','release-table','data-sort','Source','Quality','Size','Seeders','grab-release','createRecord','Refresh & scan','Allowed qualities','Custom format scores','Create Movies and Television backups'])assert.match(script,new RegExp(workflow.replace(/[&]/g,'&')));
 });
 
 test('environment engine credentials auto-configure the private gateway once',async()=>{
-  const directory=await mkdtemp(join(tmpdir(),'vynodenew-n4-'));
+  const directory=await mkdtemp(join(tmpdir(),'vynodearr-n4-'));
   try{
     const defaults={dataMode:'engine',movie:{enabled:true,host:'movie.internal',port:7878,apiCredential:'movie-secret'},tv:{enabled:true,host:'tv.internal',port:8989,apiCredential:'tv-secret'}};
     const service=new EngineSettingsService({path:join(directory,'settings.json'),vaultPath:join(directory,'credentials.enc'),masterKey:'test-master-key-with-32-characters',defaults});

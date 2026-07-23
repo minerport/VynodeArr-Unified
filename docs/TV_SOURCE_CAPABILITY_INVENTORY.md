@@ -66,9 +66,9 @@ Missing, Cutoff, Calendar, History, Blocklist, Command, Task, Health,
 Notification, Indexer, DownloadClient, QualityProfile, CustomFormat,
 RootFolder, Backup, Update, Log, DiskSpace, and configuration. Library, series
 details/season expansion, episode monitoring, wanted, calendar, activity,
-settings, and system experiences must be rebuilt with original VynodeNew UI.
+settings, and system experiences must be rebuilt with original VynodeArr UI.
 
-## VynodeNew mapping
+## VynodeArr mapping
 
 Series/seasons/episodes/files/types/numbering/monitoring/search/import/naming stay
 in `tv-domain`. Shared operational concerns move to `platform` behind

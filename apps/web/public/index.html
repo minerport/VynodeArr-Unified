@@ -2,13 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#080c16"><title>VynodeNew — Your media, one horizon</title>
+  <meta name="theme-color" content="#080c16"><title>VynodeArr — Your media, one horizon</title>
+  <link rel="icon" type="image/png" href="/art/vynodearr-icon.png">
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
   <section id="setup-view" class="auth-view wizard-view" hidden>
     <div class="wizard-panel">
-      <div class="wizard-aside"><div class="brand"><span class="brand-mark">V</span><span>VynodeNew</span></div><span class="eyebrow">WELCOME TO VYNODENEW</span><h1>Your media starts here.</h1><p>Create the administrator who will own this VynodeNew installation.</p><ol><li class="complete">Welcome</li><li class="active">Create Administrator</li><li>Connect Engines</li></ol></div>
+      <div class="wizard-aside"><div class="brand"><img class="brand-mark" src="/art/vynodearr-icon.png" alt=""><span>VynodeArr</span></div><span class="eyebrow">WELCOME TO VYNODEARR</span><h1>Your media starts here.</h1><p>Create the administrator who will own this VynodeArr installation.</p><ol><li class="complete">Welcome</li><li class="active">Create Administrator</li><li>Connect Engines</li></ol></div>
       <div class="wizard-form"><span class="step-count">STEP 1 OF 2</span><h2>Create Administrator</h2><p>Use a strong password. Your account stays local to this installation.</p>
         <form id="setup-form">
           <div class="form-grid"><label>Display name<input name="name" autocomplete="name" required minlength="2"></label><label>Username<input name="username" autocomplete="username" required minlength="3"></label></div>
@@ -20,12 +21,12 @@
     </div>
   </section>
   <section id="auth-view" class="auth-view" hidden>
-    <div class="auth-panel"><div class="brand"><span class="brand-mark">V</span><span>VynodeNew</span></div><span class="eyebrow">WELCOME BACK</span><h1>Sign in</h1><p>Continue to your unified Movies and TV library.</p>
+    <div class="auth-panel"><div class="brand"><img class="brand-mark" src="/art/vynodearr-icon.png" alt=""><span>VynodeArr</span></div><span class="eyebrow">WELCOME BACK</span><h1>Sign in</h1><p>Continue to your unified Movies and TV library.</p>
       <form id="auth-form"><label>Username or email<input name="identifier" autocomplete="username" required></label><label>Password<input name="password" type="password" autocomplete="current-password" required></label><div class="login-options"><label class="check"><input name="remember" type="checkbox"> Remember me</label><button type="button" class="text-button" id="forgot">Forgot password?</button></div><p id="auth-error" class="form-error" role="alert"></p><button class="primary" type="submit">Sign in</button></form>
     </div>
   </section>
   <div id="app-shell" class="app-shell" hidden>
-    <aside><a class="brand" href="#dashboard" aria-label="VynodeNew home"><span class="brand-mark">V</span><span>VynodeNew</span></a>
+    <aside><a class="brand" href="#dashboard" aria-label="VynodeArr home"><img class="brand-mark" src="/art/vynodearr-icon.png" alt=""><span>VynodeArr</span></a>
       <nav aria-label="Primary"><a href="#dashboard">Dashboard</a><p>Media</p><a href="#movies">Movies</a><a href="#tv">TV</a><a href="#add">Add Media</a><a href="#calendar">Calendar</a><p>Activity</p><a href="#queue">Queue</a><a href="#history">History</a><a href="#wanted">Wanted</a><p>Manage</p><a href="#service/root-folders">Service Settings</a><a href="#settings">Account Settings</a><a href="#system">System</a></nav>
       <div class="account"><span class="avatar" id="avatar">A</span><span><strong id="account-name">Administrator</strong><small id="account-role">Administrator</small></span><button id="logout" title="Sign out">↗</button></div>
     </aside>

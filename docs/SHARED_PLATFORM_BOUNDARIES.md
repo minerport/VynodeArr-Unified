@@ -9,7 +9,7 @@ logging, backup orchestration, updates, audit, and application settings.
 
 Domain adapters receive scoped credentials and return neutral models. They do
 not decide UI navigation or expose internal DTOs. Queue/history/calendar items
-carry a `domain` discriminator and stable VynodeNew IDs.
+carry a `domain` discriminator and stable VynodeArr IDs.
 
 Shared does not mean identical: naming, parsing, monitoring, search decisions,
 import decisions, and wanted/cutoff calculation remain domain policies behind

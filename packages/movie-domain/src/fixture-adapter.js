@@ -6,7 +6,7 @@ const base = [
 ];
 const movies = Object.freeze(base.map((movie, index) => Object.freeze({
   ...movie, artwork: art(`poster-movie-${index + 1}`),
-  overview: `${movie.title} is deterministic review media used to validate the secure read-only VynodeNew experience.`,
+  overview: `${movie.title} is deterministic review media used to validate the secure read-only VynodeArr experience.`,
   runtimeMinutes: 108 + index * 7, genres: ['Drama', index === 0 ? 'Science Fiction' : 'Mystery'],
   availability: movie.status, backdrop: art(`poster-movie-${index + 1}`, 'backdrop')
 })));

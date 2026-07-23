@@ -8,7 +8,7 @@ and error responses to verify neutrality.
 Allowed locations are limited to internal adapter implementation where
 unavoidable, development-only source inventories, licensing strategy, and
 legal/open-source notices. Container names, health text, engine status, and
-user documentation use Movies, TV, or VynodeNew.
+user documentation use Movies, TV, or VynodeArr.
 
 Run `npm run check:branding`; CI runs it after tests and before accepting a
 build. Do not globally rename or modify separately licensed source.

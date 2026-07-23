@@ -12,7 +12,7 @@ import { TvFixtureAdapter } from '../packages/tv-domain/src/fixture-adapter.js';
 import { createApplication } from '../apps/api/src/app.js';
 
 async function tempAuth(run){
-  const directory=await mkdtemp(join(tmpdir(),'vynodenew-n3-auth-'));
+  const directory=await mkdtemp(join(tmpdir(),'vynodearr-n3-auth-'));
   const auth=new AuthService({userFile:join(directory,'users.json'),sessionFile:join(directory,'sessions.json'),secureCookies:false});
   await auth.initialize();try{await run(auth,directory);}finally{await rm(directory,{recursive:true,force:true});}
 }
@@ -46,7 +46,7 @@ test('administrator creates, disables, roles, resets, forces logout, and safely 
   await assert.rejects(()=>auth.administerUser(admin.id,{action:'delete'},admin.id),/own account/);
 }));
 test('durable projections hydrate and report incremental updates',async()=>{
-  const directory=await mkdtemp(join(tmpdir(),'vynodenew-projection-')),store=new ProjectionStore(join(directory,'projections.json'));
+  const directory=await mkdtemp(join(tmpdir(),'vynodearr-projection-')),store=new ProjectionStore(join(directory,'projections.json'));
   const sync=new SynchronizationService({movie:new MovieFixtureAdapter(),tv:new TvFixtureAdapter(),projectionStore:store,maxItems:100,pollIntervalMs:999999});
   await sync.startup();assert.equal(sync.snapshot().movie.itemsUpdated,3);await sync.startup();assert.equal(sync.snapshot().movie.itemsUpdated,0);
   const hydrated=new SynchronizationService({movie:new MovieFixtureAdapter(),tv:new TvFixtureAdapter(),projectionStore:store,maxItems:100,pollIntervalMs:999999});await hydrated.hydrate();assert.equal((await hydrated.list('movie')).length,3);
@@ -54,7 +54,7 @@ test('durable projections hydrate and report incremental updates',async()=>{
 });
 
 async function appSession(options,run){
-  const directory=await mkdtemp(join(tmpdir(),'vynodenew-n3-api-')),app=createApplication({...options,env:{VYNODENEW_DATA_MODE:'fixture',VYNODENEW_DATA_DIR:directory,VYNODENEW_MASTER_KEY:'test-master-key-with-32-characters'}});
+  const directory=await mkdtemp(join(tmpdir(),'vynodearr-n3-api-')),app=createApplication({...options,env:{VYNODEARR_DATA_MODE:'fixture',VYNODEARR_DATA_DIR:directory,VYNODEARR_MASTER_KEY:'test-master-key-with-32-characters'}});
   const server=createServer(app.handleRequest);await new Promise((resolve)=>server.listen(0,'127.0.0.1',resolve));const base=`http://127.0.0.1:${server.address().port}`;
   try{
     const setup=await fetch(`${base}/api/auth/setup`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(adminInput)}),result=await setup.json(),cookie=setup.headers.get('set-cookie').split(';')[0];
@@ -81,8 +81,8 @@ test('engine wizard validates actual read-only HTTP capabilities and saves only 
   try{await appSession({movie:new MovieFixtureAdapter(),tv:new TvFixtureAdapter()},async({base,cookie,csrf})=>{
     const input={host:'127.0.0.1',port,https:false,urlBase:'',apiCredential:'review-key',timeoutMs:1000,retries:0,tlsVerify:true};
     for(const domain of ['movie','tv']){
-      const tested=await fetch(`${base}/api/settings/engines/${domain}/test`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodenew-csrf':csrf},body:JSON.stringify(input)}),testValue=await tested.json();assert.equal(testValue.validated,true);assert.ok(testValue.counts);
-      const saved=await fetch(`${base}/api/settings/engines/${domain}`,{method:'PUT',headers:{cookie,'content-type':'application/json','x-vynodenew-csrf':csrf},body:JSON.stringify(input)});assert.equal(saved.status,200);
+      const tested=await fetch(`${base}/api/settings/engines/${domain}/test`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify(input)}),testValue=await tested.json();assert.equal(testValue.validated,true);assert.ok(testValue.counts);
+      const saved=await fetch(`${base}/api/settings/engines/${domain}`,{method:'PUT',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify(input)});assert.equal(saved.status,200);
     }
     const settings=await (await fetch(`${base}/api/settings/engines`,{headers:{cookie}})).json();assert.equal(settings.configured,true);assert.doesNotMatch(JSON.stringify(settings),/review-key/);
   });}finally{await new Promise((resolve)=>engine.close(resolve));}

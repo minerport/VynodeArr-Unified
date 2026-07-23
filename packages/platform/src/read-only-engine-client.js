@@ -52,7 +52,7 @@ export class ReadOnlyEngineClient {
     const hostname=url.hostname.toLowerCase(),allowed=['tmdb.org','thetvdb.com','tvmaze.com'].some((domain)=>hostname===domain||hostname.endsWith(`.${domain}`));
     if(url.protocol!=='https:'||!allowed)return Promise.resolve(null);
     return new Promise((resolve,reject)=>{
-      const req=httpsRequest(url,{method:'GET',headers:{accept:'image/*','user-agent':'VynodeNew-Artwork/1.0'}},(res)=>{
+      const req=httpsRequest(url,{method:'GET',headers:{accept:'image/*','user-agent':'VynodeArr-Artwork/1.0'}},(res)=>{
         const chunks=[];let size=0;
         if(res.statusCode<200||res.statusCode>=300){res.resume();return resolve(null);}
         res.on('data',(chunk)=>{size+=chunk.length;if(size>16*1024*1024){req.destroy(engineError.invalid());return;}chunks.push(chunk);});

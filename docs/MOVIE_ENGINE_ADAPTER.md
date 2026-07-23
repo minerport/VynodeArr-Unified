@@ -11,4 +11,4 @@ payloads become neutral gateway errors.
 
 Known N2 boundary: engine artwork references are normalized but a dedicated
 authenticated artwork proxy is deferred; inaccessible internal artwork falls
-back to the VynodeNew media placeholder.
+back to the VynodeArr media placeholder.

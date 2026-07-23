@@ -42,6 +42,6 @@ test('bounded cache reuses data, invalidates, and recovers stale values',async()
   assert.equal((await sync.list('movie')).length,2);await sync.list('movie');assert.equal(calls,1);sync.invalidate('movie');await sync.list('movie');assert.equal(calls,2);movie.listMovies=async()=>{throw new Error('private failure');};assert.equal((await sync.synchronize('movie')).length,2);assert.equal(sync.snapshot().movie.status,'stale');
 });
 test('credential vault encrypts, replaces, redacts status, and removes',async()=>{
-  const dir=await mkdtemp(join(tmpdir(),'vynodenew-vault-'));const path=join(dir,'credentials.enc');const vault=new EncryptedCredentialVault(path,'a-long-review-master-key-value');
+  const dir=await mkdtemp(join(tmpdir(),'vynodearr-vault-'));const path=join(dir,'credentials.enc');const vault=new EncryptedCredentialVault(path,'a-long-review-master-key-value');
   await vault.replace('movie','top-secret-value');assert.equal(await vault.get('movie'),'top-secret-value');const raw=await readFile(path,'utf8');assert.doesNotMatch(raw,/top-secret-value/);assert.deepEqual(await vault.status(),[{name:'movie',configured:true}]);await vault.replace('movie','replacement');assert.equal(await vault.get('movie'),'replacement');await vault.remove('movie');assert.equal(await vault.get('movie'),null);await rm(dir,{recursive:true,force:true});
 });

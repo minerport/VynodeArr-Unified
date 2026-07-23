@@ -1,8 +1,8 @@
 # Unraid template
 
-The N2 XML defines the VynodeNew image, web UI, original icon, appdata,
+The N2 XML defines the VynodeArr image, web UI, original icon, appdata,
 read-only secret mount, neutral engine hosts/ports, and credential-file
-variables. Its overview contains only VynodeNew product terminology.
+variables. Its overview contains only VynodeArr product terminology.
 
 The referenced registry image is a readiness target. This milestone does not
 publish a container image or submit the template. Build locally or configure a

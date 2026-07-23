@@ -73,7 +73,7 @@ export class AuthService {
     session.lastActivity=Date.now();return{...session,user:this.publicUser(user)};
   }
   async logout(id){const removed=this.sessions.delete(id);await this.#persistSessions();return removed;}
-  cookie(id,clear=false,remember=false){const ttl=remember?this.rememberTtlMs:this.sessionTtlMs;return`vynodenew_session=${clear?'':id}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${clear?0:Math.floor(ttl/1000)}${this.secureCookies?'; Secure':''}`;}
+  cookie(id,clear=false,remember=false){const ttl=remember?this.rememberTtlMs:this.sessionTtlMs;return`vynodearr_session=${clear?'':id}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${clear?0:Math.floor(ttl/1000)}${this.secureCookies?'; Secure':''}`;}
   async listSessions(userId,currentId){return[...this.sessions.values()].filter((item)=>item.userId===userId).map(({csrf,...item})=>({...item,current:item.id===currentId,id:item.id===currentId?item.id:`session_${item.id.slice(-10)}`}));}
   async revokeSession(userId,sessionId,currentId){
     const actual=sessionId.startsWith('session_')?[...this.sessions.keys()].find((key)=>key.endsWith(sessionId.slice(8))):sessionId;

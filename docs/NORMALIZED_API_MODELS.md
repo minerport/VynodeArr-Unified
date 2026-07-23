@@ -12,4 +12,4 @@ Executable schemas live in `packages/contracts/src/models.js`.
 Public IDs are opaque strings. Dates are UTC ISO-8601. Optional domain fields
 remain explicit rather than being collapsed into a misleading generic media
 record. Public API errors use `{ error: { code, message } }` and neutral
-VynodeNew messages.
+VynodeArr messages.

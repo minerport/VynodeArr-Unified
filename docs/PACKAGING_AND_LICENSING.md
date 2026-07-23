@@ -1,6 +1,6 @@
 # Packaging and licensing
 
-N2 packages only original VynodeNew code and connects over HTTP to separately
+N2 packages only original VynodeArr code and connects over HTTP to separately
 installed engines. No reviewed engine source, binary, container layer, artwork,
 database, or frontend asset is copied or redistributed. This is the preferred
 review mode and minimizes—but does not automatically eliminate—license risk.

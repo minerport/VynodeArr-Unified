@@ -4,9 +4,9 @@ import { dirname } from 'node:path';
 
 export class EncryptedCredentialVault {
   constructor(path, masterKey) {
-    if (!masterKey || masterKey.length < 24) throw new Error('VYNODENEW_MASTER_KEY must contain at least 24 characters');
+    if (!masterKey || masterKey.length < 24) throw new Error('VYNODEARR_MASTER_KEY must contain at least 24 characters');
     this.path = path;
-    this.key = scryptSync(masterKey, 'vynodenew-credential-v1', 32);
+    this.key = scryptSync(masterKey, 'vynodearr-credential-v1', 32);
   }
   async #read() {
     try {

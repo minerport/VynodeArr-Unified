@@ -67,7 +67,7 @@ usability evidence for library, add/search, details, editor, wanted, activity,
 calendar, collections, settings, and system workflows; no page, theme, asset,
 navigation, or source DTO is reused.
 
-## VynodeNew mapping
+## VynodeArr mapping
 
 Movie records/files/collections/availability/search/import/naming stay in
 `movie-domain`. Providers, normalized queue/history/calendar, commands,

@@ -1,6 +1,6 @@
-# VynodeNew
+# VynodeArr
 
-VynodeNew is one secure Movies and TV application. It provides guided first-run
+VynodeArr is one secure Movies and TV application. It provides guided first-run
 setup, local accounts and roles, durable media projections, unified activity,
 authenticated artwork, and encrypted connections to private bundled media
 services. Its administrator control center provides an allowlisted management
@@ -15,8 +15,8 @@ docker compose up --build -d
 ```
 
 Open `http://localhost:4310`. A new installation opens **Welcome to
-VynodeNew**, creates the first administrator, and signs them in. Both private
-media services are started and connected automatically. No default VynodeNew
+VynodeArr**, creates the first administrator, and signs them in. Both private
+media services are started and connected automatically. No default VynodeArr
 username or password exists.
 
 The engine settings screen validates authentication, version, capabilities,

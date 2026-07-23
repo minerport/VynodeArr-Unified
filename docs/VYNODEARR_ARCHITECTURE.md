@@ -1,7 +1,7 @@
-# VynodeNew architecture
+# VynodeArr architecture
 
 ```text
-Browser → Authenticated VynodeNew gateway → durable projections
+Browser → Authenticated VynodeArr gateway → durable projections
                                         ├─ MovieEngineAdapter → Movies engine
                                         └─ TvEngineAdapter    → TV engine
 ```

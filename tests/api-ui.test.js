@@ -10,9 +10,9 @@ import { MovieFixtureAdapter } from '../packages/movie-domain/src/fixture-adapte
 import { TvFixtureAdapter } from '../packages/tv-domain/src/fixture-adapter.js';
 
 async function fixtureServer(run){
-  const directory=await mkdtemp(join(tmpdir(),'vynodenew-api-'));
+  const directory=await mkdtemp(join(tmpdir(),'vynodearr-api-'));
   const auth=new AuthService({userFile:join(directory,'users.json'),secureCookies:false});
-  const app=createApplication({env:{VYNODENEW_DATA_MODE:'fixture',VYNODENEW_DATA_DIR:directory},auth,movie:new MovieFixtureAdapter(),tv:new TvFixtureAdapter()});
+  const app=createApplication({env:{VYNODEARR_DATA_MODE:'fixture',VYNODEARR_DATA_DIR:directory},auth,movie:new MovieFixtureAdapter(),tv:new TvFixtureAdapter()});
   const server=createServer(app.handleRequest);await new Promise((resolve)=>server.listen(0,'127.0.0.1',resolve));
   const base=`http://127.0.0.1:${server.address().port}`;
   try{
@@ -26,7 +26,7 @@ const get=(base,path,cookie)=>fetch(`${base}${path}`,{headers:{cookie}});
 test('setup auto-login, session validation, CSRF, and logout',()=>fixtureServer(async({base,cookie,csrf})=>{
   const status=await (await get(base,'/api/auth/status',cookie)).json();assert.equal(status.authenticated,true);assert.equal(status.user.role,'administrator');
   const rejected=await fetch(`${base}/api/auth/logout`,{method:'POST',headers:{cookie}});assert.equal(rejected.status,403);
-  const logout=await fetch(`${base}/api/auth/logout`,{method:'POST',headers:{cookie,'x-vynodenew-csrf':csrf}});assert.equal(logout.status,200);
+  const logout=await fetch(`${base}/api/auth/logout`,{method:'POST',headers:{cookie,'x-vynodearr-csrf':csrf}});assert.equal(logout.status,200);
 }));
 test('neutral movie/TV list and detail APIs',()=>fixtureServer(async({base,cookie})=>{
   const movies=await (await get(base,'/api/media/movies',cookie)).json();const tv=await (await get(base,'/api/media/tv',cookie)).json();
@@ -42,7 +42,7 @@ test('unified queue, history, calendar, health, and engine status',()=>fixtureSe
   const engines=await (await get(base,'/api/system/engines',cookie)).json();assert.equal(engines.engines.length,2);assert.equal(JSON.stringify(engines).includes('apiCredential'),false);
 }));
 test('public errors and health are neutral',async()=>{
-  const directory=await mkdtemp(join(tmpdir(),'vynodenew-error-'));const app=createApplication({env:{VYNODENEW_DATA_MODE:'fixture',VYNODENEW_DATA_DIR:directory}});
+  const directory=await mkdtemp(join(tmpdir(),'vynodearr-error-'));const app=createApplication({env:{VYNODEARR_DATA_MODE:'fixture',VYNODEARR_DATA_DIR:directory}});
   const server=createServer(app.handleRequest);await new Promise((resolve)=>server.listen(0,'127.0.0.1',resolve));const base=`http://127.0.0.1:${server.address().port}`;
   try{assert.equal((await fetch(`${base}/healthz`)).status,200);const value=await (await fetch(`${base}/api/media/movies`)).json();assert.match(value.error.message,/Sign in/);assert.doesNotMatch(JSON.stringify(value),/\b(radarr|sonarr)\b/i);}
   finally{await new Promise((resolve)=>server.close(resolve));await rm(directory,{recursive:true,force:true});}

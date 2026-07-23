@@ -6,7 +6,7 @@ const base = [
 ];
 const series = Object.freeze(base.map((item,index)=>Object.freeze({
   ...item, artwork:art(`poster-tv-${index+1}`), backdrop:art(`poster-tv-${index+1}`,'backdrop'),
-  overview:`${item.title} is deterministic episodic review media for VynodeNew.`, genres:['Drama'], seriesType:index===2?'anime':'standard',
+  overview:`${item.title} is deterministic episodic review media for VynodeArr.`, genres:['Drama'], seriesType:index===2?'anime':'standard',
   seasons:[{seasonNumber:1,monitored:true,episodeCount:12,episodeFileCount:index===1?12:7,percentComplete:index===1?100:58,episodes:[
     {id:`episode_${index}_1`,title:'Opening Signal',episodeNumber:1,absoluteNumber:index===2?1:null,airDateUtc:'2026-07-01T00:00:00Z',monitored:true,hasFile:true,quality:'1080p'},
     {id:`episode_${index}_2`,title:'Second Light',episodeNumber:2,absoluteNumber:index===2?2:null,airDateUtc:'2026-07-08T00:00:00Z',monitored:true,hasFile:index===1,quality:index===1?'1080p':null}

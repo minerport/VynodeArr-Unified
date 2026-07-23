@@ -1,8 +1,8 @@
 # N5 interaction parity
 
-VynodeNew does not expose, embed, proxy, or restyle either upstream web
+VynodeArr does not expose, embed, proxy, or restyle either upstream web
 application. Feature parity means recreating each user outcome in the native
-VynodeNew design while the private services remain the system of record.
+VynodeArr design while the private services remain the system of record.
 
 ## Workflow inventory
 
@@ -56,5 +56,5 @@ options, custom-format scoring designers, provider test/test-all actions,
 backup restore/download/delete, log-file download, and safe service restart.
 
 These items must remain visible in the milestone acceptance checklist until a
-live create/update/delete or command test passes through VynodeNew for both
+live create/update/delete or command test passes through VynodeArr for both
 domains.

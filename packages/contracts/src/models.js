@@ -26,7 +26,7 @@ export const modelSchemas = Object.freeze({
 
 export function assertModel(name, value) {
   const fields = modelSchemas[name];
-  if (!fields) throw new TypeError(`Unknown VynodeNew model: ${name}`);
+  if (!fields) throw new TypeError(`Unknown VynodeArr model: ${name}`);
   if (!value || typeof value !== 'object') throw new TypeError(`${name} must be an object`);
   for (const field of fields) {
     if (!(field in value)) throw new TypeError(`${name}.${field} is required`);

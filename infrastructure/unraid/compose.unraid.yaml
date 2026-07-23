@@ -1,18 +1,18 @@
 services:
-  vynodenew:
-    image: ghcr.io/minerport/vynodenew:develop
-    container_name: vynodenew
+  vynodearr:
+    image: ghcr.io/minerport/vynodearr:develop
+    container_name: vynodearr
     restart: unless-stopped
     ports:
       - "4310:4310"
     volumes:
-      - /mnt/user/appdata/vynodenew:/data
-      - /mnt/user/appdata/vynodenew/secrets:/run/secrets:ro
+      - /mnt/user/appdata/vynodearr:/data
+      - /mnt/user/appdata/vynodearr/secrets:/run/secrets:ro
     environment:
-      VYNODENEW_DATA_MODE: engine
-      VYNODENEW_DATA_DIR: /data
-      VYNODENEW_SECURE_COOKIES: "false"
-      VYNODENEW_MASTER_KEY_FILE: /run/secrets/master-key
+      VYNODEARR_DATA_MODE: engine
+      VYNODEARR_DATA_DIR: /data
+      VYNODEARR_SECURE_COOKIES: "false"
+      VYNODEARR_MASTER_KEY_FILE: /run/secrets/master-key
       MOVIE_ENGINE_ENABLED: "true"
       MOVIE_ENGINE_HOST: movie-engine
       MOVIE_ENGINE_PORT: "7878"

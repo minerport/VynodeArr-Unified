@@ -1,6 +1,6 @@
 # Engine onboarding
 
-If both real engines are not configured after first login, VynodeNew opens the
+If both real engines are not configured after first login, VynodeArr opens the
 engine wizard. Each Movies or TV card accepts internal host, port, HTTPS, URL
 base, API key, and TLS verification.
 
@@ -10,5 +10,5 @@ disabled until validation succeeds. Credentials are encrypted with AES-256-GCM
 and never returned. Replacing a credential requires another successful test.
 
 Skipping keeps fixture mode available. Settings → Engines can resume onboarding
-at any time. Both engine cards must be saved before VynodeNew switches its live
+at any time. Both engine cards must be saved before VynodeArr switches its live
 registry and durable projections to engine mode.

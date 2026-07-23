@@ -22,16 +22,16 @@ const redact=(value)=>String(value||'').replace(/https?:\/\/\S+/gi,'[internal se
 async function body(req){const chunks=[];let size=0;for await(const chunk of req){size+=chunk.length;if(size>1_500_000)throw new Error('Request is too large');chunks.push(chunk);}return chunks.length?JSON.parse(Buffer.concat(chunks).toString('utf8')):{};}
 function json(res,status,value,headers={}){res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer',...headers});res.end(JSON.stringify(value));}
 function safeError(res,error,domain,url=''){const engine=Boolean(error?.safeMessage||error?.code?.startsWith('engine_'));const message=redact(engine?(error.safeMessage||(domain?`${domain} service unavailable`:'Media data could not be refreshed')):error?.message||'The request could not be completed.');const status=error?.code==='engine_validation_failed'?400:error?.code==='engine_authentication_failed'?502:engine?503:400;json(res,status,{error:{code:engine?(error.code||'service_unavailable'):'validation_failed',message}});}
-function sessionFor(req,auth){return auth.session(cookies(req.headers.cookie).vynodenew_session);}
-function requireSession(req,res,auth){const session=sessionFor(req,auth);if(!session){json(res,401,{error:{code:'authentication_required',message:'Sign in to VynodeNew to continue.'}});return null;}return session;}
-function requireCsrf(req,res,session){if(req.headers['x-vynodenew-csrf']!==session.csrf){json(res,403,{error:{code:'csrf_invalid',message:'The security token was invalid.'}});return false;}return true;}
+function sessionFor(req,auth){return auth.session(cookies(req.headers.cookie).vynodearr_session);}
+function requireSession(req,res,auth){const session=sessionFor(req,auth);if(!session){json(res,401,{error:{code:'authentication_required',message:'Sign in to VynodeArr to continue.'}});return null;}return session;}
+function requireCsrf(req,res,session){if(req.headers['x-vynodearr-csrf']!==session.csrf){json(res,403,{error:{code:'csrf_invalid',message:'The security token was invalid.'}});return false;}return true;}
 function administrator(res,session){if(session.user.role!=='administrator'){json(res,403,{error:{code:'administrator_required',message:'Administrator access is required.'}});return false;}return true;}
 
 export function createApplication(options={}){
   const env=options.env||process.env,baseConfig=options.config||loadEngineConfiguration(env);
-  const dataDir=resolve(env.VYNODENEW_DATA_DIR||fileURLToPath(new URL('../../../data/',import.meta.url)));
-  const auth=options.auth||new AuthService({userFile:join(dataDir,'users.json'),sessionFile:join(dataDir,'sessions.json'),secureCookies:String(env.VYNODENEW_SECURE_COOKIES||env.NODE_ENV==='production')==='true'});
-  const engineSettings=options.engineSettings||new EngineSettingsService({path:join(dataDir,'engine-settings.json'),vaultPath:join(dataDir,'credentials.enc'),masterKey:options.masterKey||loadSecret(env,'VYNODENEW_MASTER_KEY')||'local-development-key-change-me-2026',defaults:baseConfig});
+  const dataDir=resolve(env.VYNODEARR_DATA_DIR||fileURLToPath(new URL('../../../data/',import.meta.url)));
+  const auth=options.auth||new AuthService({userFile:join(dataDir,'users.json'),sessionFile:join(dataDir,'sessions.json'),secureCookies:String(env.VYNODEARR_SECURE_COOKIES||env.NODE_ENV==='production')==='true'});
+  const engineSettings=options.engineSettings||new EngineSettingsService({path:join(dataDir,'engine-settings.json'),vaultPath:join(dataDir,'credentials.enc'),masterKey:options.masterKey||loadSecret(env,'VYNODEARR_MASTER_KEY')||'local-development-key-change-me-2026',defaults:baseConfig});
   const projectionStore=options.projectionStore||new ProjectionStore(join(dataDir,'projections.json'));
   const auditStore=options.auditStore||new JsonStore(join(dataDir,'management-audit.json'),{version:1,entries:[]});
   const artworkCache=new Map(),tvMetadataCache=new Map();let mode=baseConfig.dataMode;
@@ -46,14 +46,14 @@ export function createApplication(options={}){
     movie=new MovieEngineAdapter(runtime.movie);tv=new TvEngineAdapter(runtime.tv);registry.register('movie',movie).register('tv',tv);sync.setEngines(movie,tv);mode='engine';
   }
   async function ensureBundledRootFolders(){
-    if(String(env.VYNODENEW_BOOTSTRAP_ROOT_FOLDERS||'false')!=='true'||mode!=='engine')return;
+    if(String(env.VYNODEARR_BOOTSTRAP_ROOT_FOLDERS||'false')!=='true'||mode!=='engine')return;
     for(const [domain,path] of [['movie','/movies'],['tv','/tv']]){
       const client=registry.get(domain).client,roots=await client.get('rootfolder');
       if(Array.isArray(roots)&&roots.length===0)await client.post('rootfolder',{path});
     }
   }
   async function restoreBundledCredentials(){
-    if(String(env.VYNODENEW_BUNDLED_ENGINES||'false')!=='true')return false;
+    if(String(env.VYNODEARR_BUNDLED_ENGINES||'false')!=='true')return false;
     const configured=await engineSettings.runtime(),readKey=async domain=>{
       const path=env[domain==='movie'?'MOVIE_ENGINE_CONFIG_PATH':'TV_ENGINE_CONFIG_PATH']||`/engine-config/${domain}/config.xml`,xml=await readFile(path,'utf8').catch(()=>'');
       return xml.match(/<ApiKey>([^<]+)<\/ApiKey>/i)?.[1]||baseConfig[domain].apiCredential||'';
@@ -88,7 +88,7 @@ export function createApplication(options={}){
     return{connection,counts,validated:Boolean(connection.reachable&&connection.authenticated&&connection.compatible)};
   }
   async function repairBundledConnections(){
-    if(String(env.VYNODENEW_BUNDLED_ENGINES||'false')!=='true')throw new Error('Automatic connection repair is only available for bundled engines');
+    if(String(env.VYNODEARR_BUNDLED_ENGINES||'false')!=='true')throw new Error('Automatic connection repair is only available for bundled engines');
     await rebuildFromSettings();
     let checks=await Promise.all([registry.movie().testConnection(),registry.tv().testConnection()]);
     if(checks.some(check=>!check.reachable||!check.authenticated||!check.compatible)){
@@ -116,7 +116,7 @@ export function createApplication(options={}){
     if(tvMetadataCache.has(key))return tvMetadataCache.get(key);
     try{
       const request=async url=>{
-        const response=await fetch(url,{headers:{accept:'application/json','user-agent':'VynodeNew/1.0'},signal:AbortSignal.timeout(8000)});
+        const response=await fetch(url,{headers:{accept:'application/json','user-agent':'VynodeArr/1.0'},signal:AbortSignal.timeout(8000)});
         if(!response.ok)throw new Error('Metadata artwork unavailable');
         return response.json();
       };
@@ -154,9 +154,9 @@ export function createApplication(options={}){
   }
 
   async function handleRequest(req,res){
-    const url=new URL(req.url,'http://vynodenew.local');if(!initialized)await initialize();
+    const url=new URL(req.url,'http://vynodearr.local');if(!initialized)await initialize();
     try{
-      if(req.method==='GET'&&url.pathname==='/healthz')return json(res,200,{status:'ready',service:'VynodeNew'});
+      if(req.method==='GET'&&url.pathname==='/healthz')return json(res,200,{status:'ready',service:'VynodeArr'});
       if(url.pathname==='/api/auth/status'&&req.method==='GET'){const session=sessionFor(req,auth);return json(res,200,{setupRequired:await auth.setupRequired(),authenticated:Boolean(session),user:session?.user||null,csrf:session?.csrf||null,enginesConfigured:engineSettings.configured()});}
       if(url.pathname==='/api/auth/setup'&&req.method==='POST'){
         const input=await body(req),user=await auth.createInitialAdministrator(input),result=await auth.createSession(user,{ip:req.socket.remoteAddress,userAgent:req.headers['user-agent'],remember:true});
@@ -168,7 +168,7 @@ export function createApplication(options={}){
         return json(res,200,{authenticated:true,user:result.user,csrf:result.csrf,enginesConfigured:engineSettings.configured()},{'set-cookie':auth.cookie(result.id,false,Boolean(input.remember))});
       }
       if(url.pathname.startsWith('/api/')){
-        const session=requireSession(req,res,auth);if(!session)return;const sessionId=cookies(req.headers.cookie).vynodenew_session;
+        const session=requireSession(req,res,auth);if(!session)return;const sessionId=cookies(req.headers.cookie).vynodearr_session;
         if(url.pathname==='/api/auth/logout'&&req.method==='POST'){if(!requireCsrf(req,res,session))return;await auth.logout(sessionId);return json(res,200,{authenticated:false},{'set-cookie':auth.cookie('',true)});}
         if(url.pathname==='/api/account'&&req.method==='GET')return json(res,200,{user:session.user});
         if(url.pathname==='/api/account'&&req.method==='PATCH'){if(!requireCsrf(req,res,session))return;return json(res,200,{user:await auth.updateAccount(session.user.id,await body(req),sessionId)});}
@@ -193,7 +193,7 @@ export function createApplication(options={}){
         }
         if(engineKey&&req.method==='POST'){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;
-          if(String(env.VYNODENEW_BUNDLED_ENGINES||'false')!=='true')throw new Error('API key generation is available only for installation-managed engines');
+          if(String(env.VYNODEARR_BUNDLED_ENGINES||'false')!=='true')throw new Error('API key generation is available only for installation-managed engines');
           const domain=engineKey[1],client=registry.get(domain).client,host=await client.get('config/host'),previousKey=String(host.apiKey||''),configPath=env[domain==='movie'?'MOVIE_ENGINE_CONFIG_PATH':'TV_ENGINE_CONFIG_PATH']||`/engine-config/${domain}/config.xml`;
           await client.post('command',{name:'ResetApiKey'});
           let apiKey='';
@@ -220,7 +220,7 @@ export function createApplication(options={}){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;const input=await body(req),result=await testEngine(engineSave[1],input);if(!result.validated)return json(res,422,{error:{code:'engine_validation_failed',message:result.connection.safeError||'Engine validation did not succeed.'}});
           await engineSettings.save(engineSave[1],input,input.apiCredential);await rebuildFromSettings();await sync.startup();return json(res,200,{saved:true,settings:engineSettings.public(),validation:result});
         }
-        if(url.pathname==='/api/system/application-update'&&req.method==='GET')return json(res,200,{application:'VynodeNew',installedVersion:String(env.VYNODENEW_VERSION||'0.1.0'),channel:String(env.VYNODENEW_UPDATE_CHANNEL||'develop'),mechanism:'Container image',repository:'https://github.com/minerport/VynodeArr-Unified',message:'Pull the newest VynodeNew container image, then recreate the application container. Engine updates are managed separately.'});
+        if(url.pathname==='/api/system/application-update'&&req.method==='GET')return json(res,200,{application:'VynodeArr',installedVersion:String(env.VYNODEARR_VERSION||'0.1.0'),channel:String(env.VYNODEARR_UPDATE_CHANNEL||'develop'),mechanism:'Container image',repository:'https://github.com/minerport/VynodeArr-Unified',message:'Pull the newest VynodeArr container image, then recreate the application container. Engine updates are managed separately.'});
         const backupRestore=url.pathname.match(/^\/api\/system\/backups\/(movie|tv)\/(\d+)\/restore$/);
         if(backupRestore&&req.method==='POST'){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;
@@ -237,13 +237,13 @@ export function createApplication(options={}){
           const config=client.config,prefix=config.urlBase?`/${String(config.urlBase).replace(/^\/+|\/+$/g,'')}`:'',downloadUrl=new URL(`${config.https?'https':'http'}://${config.host}:${config.port}${prefix}${backup.path}`);
           const response=await fetch(downloadUrl,{headers:{'x-api-key':config.apiCredential},signal:AbortSignal.timeout(30000)});
           if(!response.ok)throw new Error('The backup could not be downloaded');
-          const extension=(String(backup.name||backup.path||'').match(/\.(zip|db|xml)$/i)||[])[0]||'.zip',stamp=new Date(backup.time||Date.now()).toISOString().replace(/\.\d{3}Z$/,'Z').replace(/:/g,'-'),filename=`VynodeNew_${domain==='movie'?'Movies':'Television'}_Backup_${stamp}${extension.toLowerCase()}`;
+          const extension=(String(backup.name||backup.path||'').match(/\.(zip|db|xml)$/i)||[])[0]||'.zip',stamp=new Date(backup.time||Date.now()).toISOString().replace(/\.\d{3}Z$/,'Z').replace(/:/g,'-'),filename=`VynodeArr_${domain==='movie'?'Movies':'Television'}_Backup_${stamp}${extension.toLowerCase()}`;
           res.writeHead(200,{'content-type':'application/zip','content-disposition':`attachment; filename="${filename}"`,'cache-control':'no-store','x-content-type-options':'nosniff'});return res.end(Buffer.from(await response.arrayBuffer()));
         }
         const backupUpload=url.pathname.match(/^\/api\/system\/backups\/(movie|tv)\/upload$/);
         if(backupUpload&&req.method==='POST'){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;
-          const domain=backupUpload[1],client=registry.get(domain).client,before=await client.get('system/status'),incoming=new Request('http://vynodenew.local/upload',{method:'POST',headers:req.headers,body:req,duplex:'half'}),form=await incoming.formData(),file=form.get('file');
+          const domain=backupUpload[1],client=registry.get(domain).client,before=await client.get('system/status'),incoming=new Request('http://vynodearr.local/upload',{method:'POST',headers:req.headers,body:req,duplex:'half'}),form=await incoming.formData(),file=form.get('file');
           if(!(file instanceof File)||file.size===0||file.size>500000000)throw new Error('Choose a backup file smaller than 500 MB');
           if(!/\.(zip|db|xml)$/i.test(file.name))throw new Error('Backup must be a .zip, .db, or .xml file');
           const config=client.config,prefix=config.urlBase?`/${String(config.urlBase).replace(/^\/+|\/+$/g,'')}`:'',uploadUrl=new URL(`${config.https?'https':'http'}://${config.host}:${config.port}${prefix}/api/v3/system/backup/restore/upload`),upload=new FormData();
@@ -297,8 +297,8 @@ export function createApplication(options={}){
           const [movies,tvItems,queue,history,calendar,health]=await Promise.all([sync.list('movie'),sync.list('tv'),sync.operations('queue'),sync.operations('history'),sync.operations('calendar'),sync.operations('health')]);
           return json(res,200,{metrics:{movies:movies.length,tv:tvItems.length,queue:queue.length,upcomingMovies:calendar.filter((item)=>item.domain==='movie').length,upcomingEpisodes:calendar.filter((item)=>item.domain==='tv').length,missing:movies.filter((item)=>item.state==='missing').length+tvItems.reduce((sum,item)=>sum+item.missingEpisodes,0),downloading:queue.filter((item)=>String(item.status).toLowerCase().includes('down')).length,health:health.length,storage:movies.filter((item)=>item.hasFile).length+tvItems.length},recentlyAdded:[...movies.slice(-3),...tvItems.slice(-3)].slice(0,6),recentActivity:history.slice(0,6),engines:{configured:engineSettings.configured(),mode,status:sync.snapshot()}});
         }
-        if(url.pathname==='/api/system/engines'){const [movieTest,tvTest,movieStatus,tvStatus]=await Promise.all([registry.movie().testConnection(),registry.tv().testConnection(),registry.movie().getSystemStatus().catch(()=>null),registry.tv().getSystemStatus().catch(()=>null)]);const publicSettings=engineSettings.public();return json(res,200,{mode,managed:String(env.VYNODENEW_BUNDLED_ENGINES||'false')==='true',configured:engineSettings.configured(),engines:[{domain:'movie',displayName:'Movies',configuration:publicSettings.movie||publicEngineConfiguration(baseConfig.movie),connection:movieTest,status:movieStatus,synchronization:sync.snapshot().movie},{domain:'tv',displayName:'TV',configuration:publicSettings.tv||publicEngineConfiguration(baseConfig.tv),connection:tvTest,status:tvStatus,synchronization:sync.snapshot().tv}]});}
-        return json(res,404,{error:{code:'not_found',message:'The requested VynodeNew resource was not found.'}});
+        if(url.pathname==='/api/system/engines'){const [movieTest,tvTest,movieStatus,tvStatus]=await Promise.all([registry.movie().testConnection(),registry.tv().testConnection(),registry.movie().getSystemStatus().catch(()=>null),registry.tv().getSystemStatus().catch(()=>null)]);const publicSettings=engineSettings.public();return json(res,200,{mode,managed:String(env.VYNODEARR_BUNDLED_ENGINES||'false')==='true',configured:engineSettings.configured(),engines:[{domain:'movie',displayName:'Movies',configuration:publicSettings.movie||publicEngineConfiguration(baseConfig.movie),connection:movieTest,status:movieStatus,synchronization:sync.snapshot().movie},{domain:'tv',displayName:'TV',configuration:publicSettings.tv||publicEngineConfiguration(baseConfig.tv),connection:tvTest,status:tvStatus,synchronization:sync.snapshot().tv}]});}
+        return json(res,404,{error:{code:'not_found',message:'The requested VynodeArr resource was not found.'}});
       }
       const requested=url.pathname==='/'?'index.html':url.pathname.slice(1),safe=normalize(requested).replace(/^(\.\.[/\\])+/, '');
       try{const path=join(webRoot,safe),value=await readFile(path);res.writeHead(200,{'content-type':mime[extname(path)]||'application/octet-stream'});return res.end(value);}catch{const value=await readFile(join(webRoot,'index.html'));res.writeHead(200,{'content-type':mime['.html']});return res.end(value);}

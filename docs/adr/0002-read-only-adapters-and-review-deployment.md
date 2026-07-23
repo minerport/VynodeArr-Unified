@@ -2,7 +2,7 @@
 
 Status: accepted for N2.
 
-Use one VynodeNew gateway container connected to separately running internal
+Use one VynodeArr gateway container connected to separately running internal
 engines. Adapters issue GET requests only and translate into owned models. The
 gateway owns authentication and caching; engines remain sources of truth.
 

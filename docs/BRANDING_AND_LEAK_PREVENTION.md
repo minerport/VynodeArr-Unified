@@ -1,6 +1,6 @@
 # Branding and leak prevention
 
-The normal product surface uses only VynodeNew naming, routes, assets, and
+The normal product surface uses only VynodeArr naming, routes, assets, and
 messages. Source product names are permitted only in development inventories,
 internal future adapter locations, and legal/notices files.
 

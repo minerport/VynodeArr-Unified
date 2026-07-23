@@ -17,7 +17,7 @@ Local N4 deployment
 
 The N4 Compose deployment pulls LinuxServer.io container images for Radarr and
 Sonarr at installation time. These images and applications are separate works;
-they are not copied into the VynodeNew source tree or presented as VynodeNew UI.
+they are not copied into the VynodeArr source tree or presented as VynodeArr UI.
 
 Image documentation and source:
 https://docs.linuxserver.io/images/docker-radarr/
@@ -30,5 +30,5 @@ https://github.com/Radarr/Radarr
 https://github.com/Sonarr/Sonarr
 
 Review the notices and licenses shipped inside each pulled image before
-redistribution. VynodeNew retains this attribution while keeping upstream names,
+redistribution. VynodeArr retains this attribution while keeping upstream names,
 logos, and interface assets out of the product interface.
