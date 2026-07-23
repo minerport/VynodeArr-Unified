@@ -7,7 +7,10 @@
   user administration, engine wizard and validation, encrypted settings,
   authenticated artwork, incremental synchronization, useful dashboard, and
   upgrade-safe install experience.
-- **N4 recommended:** transactional database, email recovery and MFA, audit
-  journal, signed release images, full accessibility automation, connection
-  compatibility matrix, storage metrics, projection pagination, and narrowly
-  authorized/idempotent media commands.
+- **N4 complete:** native management control center, automatic private engine
+  configuration, allowlisted library and settings writes, acquisition commands,
+  destructive-action confirmation, administrator authorization, and durable
+  change auditing.
+- **N5 recommended:** transactional database, email recovery and MFA, signed
+  release images, full accessibility automation, connection compatibility
+  matrix, storage metrics, projection pagination, and idempotent job tracking.

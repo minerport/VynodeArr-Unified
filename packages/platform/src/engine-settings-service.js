@@ -15,7 +15,13 @@ export class EngineSettingsService {
     this.store=new JsonStore(path,{version:1,configured:false,movie:null,tv:null,updatedAt:null});
     this.vault=new EncryptedCredentialVault(vaultPath,masterKey);this.defaults=defaults;this.value=null;
   }
-  async initialize(){this.value=await this.store.read();}
+  async initialize(){
+    this.value=await this.store.read();
+    if(!this.configured()&&this.defaults?.dataMode==='engine'&&this.defaults.movie?.apiCredential&&this.defaults.tv?.apiCredential){
+      await this.save('movie',this.defaults.movie,this.defaults.movie.apiCredential);
+      await this.save('tv',this.defaults.tv,this.defaults.tv.apiCredential);
+    }
+  }
   configured(){return Boolean(this.value?.configured&&this.value.movie&&this.value.tv);}
   async runtime(){
     if(!this.configured())return null;

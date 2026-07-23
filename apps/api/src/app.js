@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
 import { extname,join,normalize,resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MediaEngineRegistry } from '../../../packages/platform/src/engine-registry.js';
@@ -7,6 +8,8 @@ import { SynchronizationService } from '../../../packages/platform/src/synchroni
 import { ProjectionStore } from '../../../packages/platform/src/projection-store.js';
 import { AuthService } from '../../../packages/platform/src/auth-service.js';
 import { EngineSettingsService } from '../../../packages/platform/src/engine-settings-service.js';
+import { EngineManagementService } from '../../../packages/platform/src/engine-management-service.js';
+import { JsonStore } from '../../../packages/platform/src/json-store.js';
 import { MovieEngineAdapter } from '../../../packages/movie-domain/src/engine-adapter.js';
 import { TvEngineAdapter } from '../../../packages/tv-domain/src/engine-adapter.js';
 import { MovieFixtureAdapter } from '../../../packages/movie-domain/src/fixture-adapter.js';
@@ -30,11 +33,13 @@ export function createApplication(options={}){
   const auth=options.auth||new AuthService({userFile:join(dataDir,'users.json'),sessionFile:join(dataDir,'sessions.json'),secureCookies:String(env.VYNODENEW_SECURE_COOKIES||env.NODE_ENV==='production')==='true'});
   const engineSettings=options.engineSettings||new EngineSettingsService({path:join(dataDir,'engine-settings.json'),vaultPath:join(dataDir,'credentials.enc'),masterKey:options.masterKey||loadSecret(env,'VYNODENEW_MASTER_KEY')||'local-development-key-change-me-2026',defaults:baseConfig});
   const projectionStore=options.projectionStore||new ProjectionStore(join(dataDir,'projections.json'));
+  const auditStore=options.auditStore||new JsonStore(join(dataDir,'management-audit.json'),{version:1,entries:[]});
   const artworkCache=new Map();let mode=baseConfig.dataMode;
   let movie=options.movie||(mode==='fixture'?new MovieFixtureAdapter(baseConfig.movie):new MovieEngineAdapter(baseConfig.movie));
   let tv=options.tv||(mode==='fixture'?new TvFixtureAdapter(baseConfig.tv):new TvEngineAdapter(baseConfig.tv));
   const registry=options.registry||new MediaEngineRegistry().register('movie',movie).register('tv',tv);
   const sync=options.sync||new SynchronizationService({movie,tv,maxItems:baseConfig.cacheMaxItems,pollIntervalMs:baseConfig.pollIntervalMs,projectionStore});
+  const management=new EngineManagementService(registry);
   let initialized=false;
   async function rebuildFromSettings(){
     const runtime=await engineSettings.runtime();if(!runtime)return;
@@ -90,6 +95,24 @@ export function createApplication(options={}){
           await engineSettings.save(engineSave[1],input,input.apiCredential);await rebuildFromSettings();await sync.startup();return json(res,200,{saved:true,settings:engineSettings.public(),validation:result});
         }
         if(url.pathname==='/api/system/sync'&&req.method==='POST'){if(!requireCsrf(req,res,session))return;const results=await sync.startup();return json(res,200,{synchronized:true,results:results.map((item)=>item.status),state:sync.snapshot()});}
+        const catalogMatch=url.pathname.match(/^\/api\/manage\/(movie|tv)$/);
+        if(catalogMatch&&req.method==='GET'){if(!administrator(res,session))return;return json(res,200,{domain:catalogMatch[1],available:management.available(catalogMatch[1]),resources:management.catalog(catalogMatch[1])});}
+        const managementMatch=url.pathname.match(/^\/api\/manage\/(movie|tv)\/([A-Za-z][A-Za-z0-9]*)(?:\/([A-Za-z0-9_-]+))?$/);
+        if(managementMatch){
+          if(!administrator(res,session))return;
+          const method=req.method||'GET';
+          if(method!=='GET'&&!requireCsrf(req,res,session))return;
+          const input=method==='GET'?{}:await body(req);
+          const result=await management.execute(managementMatch[1],managementMatch[2],method,{id:managementMatch[3],query:Object.fromEntries(url.searchParams),payload:input});
+          if(method!=='GET'){
+            const audit=await auditStore.read(),entries=Array.isArray(audit.entries)?audit.entries:[];
+            entries.unshift({id:`change_${randomUUID()}`,timestamp:new Date().toISOString(),userId:session.user.id,username:session.user.username,domain:managementMatch[1],resource:managementMatch[2],method,resourceId:managementMatch[3]||null});
+            await auditStore.write({version:1,entries:entries.slice(0,1000)});
+            if(['library','episodes','episodeFiles','queue'].includes(managementMatch[2]))await sync.startup();
+          }
+          return json(res,method==='POST'?201:200,{result});
+        }
+        if(url.pathname==='/api/manage/audit'&&req.method==='GET'){if(!administrator(res,session))return;const audit=await auditStore.read();return json(res,200,{items:audit.entries||[]});}
         if(req.method!=='GET')return json(res,405,{error:{code:'read_only',message:'Read-only review mode'}});
         const artworkMatch=url.pathname.match(/^\/api\/artwork\/(movie|tv)\/((?:movie|series)_[A-Za-z0-9_-]+)\/(poster|fanart|logo|banner|episode|season)$/);
         if(artworkMatch){

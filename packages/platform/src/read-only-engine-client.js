@@ -10,20 +10,23 @@ export class ReadOnlyEngineClient {
     for(const [key,value] of Object.entries(query))if(value!=null)url.searchParams.set(key,value);
     return url;
   }
-  #request(url){
+  #request(url,{method='GET',payload}={}){
     return new Promise((resolve,reject)=>{
       const transport=url.protocol==='https:'?httpsRequest:httpRequest;
-      const req=transport(url,{method:'GET',headers:{accept:'application/json','x-api-key':this.config.apiCredential},rejectUnauthorized:this.config.tlsVerify},(res)=>{
+      const encoded=payload===undefined?null:Buffer.from(JSON.stringify(payload));
+      const req=transport(url,{method,headers:{accept:'application/json','content-type':'application/json','x-api-key':this.config.apiCredential,...(encoded?{'content-length':encoded.length}:{})},rejectUnauthorized:this.config.tlsVerify},(res)=>{
         const chunks=[];let size=0;
         res.on('data',(chunk)=>{size+=chunk.length;if(size>32*1024*1024){req.destroy(engineError.invalid());return;}chunks.push(chunk);});
         res.on('end',()=>{
           if(res.statusCode===401||res.statusCode===403)return reject(engineError.authentication());
           if(res.statusCode<200||res.statusCode>=300)return reject(engineError.unavailable(this.domain));
-          try{resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')));}catch{reject(engineError.invalid());}
+          const text=Buffer.concat(chunks).toString('utf8');
+          if(!text)return resolve(null);
+          try{resolve(JSON.parse(text));}catch{reject(engineError.invalid());}
         });
       });
       req.setTimeout(this.config.timeoutMs,()=>req.destroy(engineError.timeout(this.domain)));
-      req.on('error',reject);req.end();
+      req.on('error',reject);if(encoded)req.write(encoded);req.end();
     });
   }
   #requestBuffer(url){
@@ -46,6 +49,14 @@ export class ReadOnlyEngineClient {
     if(lastError?.safeMessage)throw lastError;
     throw engineError.unavailable(this.domain);
   }
+  async mutate(method,path,payload,query){
+    if(!this.config.enabled)throw engineError.unavailable(this.domain);
+    try{return await this.#request(this.buildUrl(path,query),{method,payload});}
+    catch(error){if(error?.safeMessage)throw error;throw engineError.unavailable(this.domain);}
+  }
+  post(path,payload,query){return this.mutate('POST',path,payload,query);}
+  put(path,payload,query){return this.mutate('PUT',path,payload,query);}
+  delete(path,query){return this.mutate('DELETE',path,undefined,query);}
   async getArtwork(mediaId,type){
     if(!this.config.enabled)throw engineError.unavailable(this.domain);
     const prefix=this.config.urlBase?`/${this.config.urlBase}`:'';

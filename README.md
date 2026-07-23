@@ -1,9 +1,11 @@
 # VynodeNew
 
 VynodeNew is one secure Movies and TV application. It provides guided first-run
-setup, local accounts and roles, durable read-only media projections, unified
-activity, authenticated artwork, and encrypted connections to separately
-running media engines.
+setup, local accounts and roles, durable media projections, unified activity,
+authenticated artwork, and encrypted connections to separately running media
+engines. Its administrator control center provides an allowlisted management
+gateway without exposing either backend interface. See
+`docs/N4_MANAGEMENT_GATEWAY.md`.
 
 ## Install and start
 
