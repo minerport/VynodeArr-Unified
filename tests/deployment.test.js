@@ -31,6 +31,9 @@ test('1.0 release includes self-contained Unraid and Windows distributions',asyn
   for(const value of ['ghcr.io/minerport/vynodearr-unified:latest','Target="8686"','Target="/config"','Target="/movies"','Target="/tv"','Target="/downloads"'])assert.match(template,new RegExp(value));
   assert.match(profile,/<CommunityApplications>/);
   assert.match(windows,/ghcr\.io\/minerport\/vynodearr-unified/);
+  assert.match(image,/VYNODEARR_SECURE_COOKIES=false/);
+  assert.match(template,/Target="VYNODEARR_SECURE_COOKIES".*Default="false"/);
+  assert.match(windows,/VYNODEARR_SECURE_COOKIES:\s*"false"/);
 });
 test('Unraid installation includes first-run and dashboard screenshots',async()=>{
   await access(new URL('../docs/unraid/first-run.png',import.meta.url));

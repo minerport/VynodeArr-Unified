@@ -12,7 +12,7 @@ FROM node:24-alpine
 LABEL org.opencontainers.image.title="VynodeArr" \
       org.opencontainers.image.description="Unified movie and television management for Unraid" \
       org.opencontainers.image.source="https://github.com/minerport/VynodeArr-Unified" \
-      org.opencontainers.image.version="1.0.0" \
+      org.opencontainers.image.version="1.0.1" \
       org.opencontainers.image.licenses="Apache-2.0"
 RUN apk add --no-cache icu-libs sqlite-libs libgcc libstdc++ tzdata tini
 WORKDIR /app
@@ -29,7 +29,8 @@ RUN chmod 755 /usr/local/bin/vynodearr-entrypoint \
     && chown -R vynodearr:vynodearr /config /movies /tv /downloads
 ENV NODE_ENV=production PORT=8686 VYNODEARR_DATA_DIR=/config/vynodearr \
     VYNODEARR_DATA_MODE=engine VYNODEARR_BUNDLED_ENGINES=true \
-    VYNODEARR_BOOTSTRAP_ROOT_FOLDERS=true MOVIE_ENGINE_HOST=127.0.0.1 \
+    VYNODEARR_BOOTSTRAP_ROOT_FOLDERS=true VYNODEARR_SECURE_COOKIES=false \
+    MOVIE_ENGINE_HOST=127.0.0.1 \
     MOVIE_ENGINE_PORT=7878 TV_ENGINE_HOST=127.0.0.1 TV_ENGINE_PORT=8989 \
     MOVIE_ENGINE_CONFIG_PATH=/config/movies/config.xml \
     TV_ENGINE_CONFIG_PATH=/config/television/config.xml

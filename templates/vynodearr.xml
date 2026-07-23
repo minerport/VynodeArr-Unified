@@ -29,4 +29,5 @@
   <Config Name="Television" Target="/tv" Default="/mnt/user/media/tv" Mode="rw" Description="Television library" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/media/tv</Config>
   <Config Name="Downloads" Target="/downloads" Default="/mnt/user/downloads" Mode="rw" Description="Shared download-client path" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/downloads</Config>
   <Config Name="Timezone" Target="TZ" Default="America/New_York" Mode="" Description="IANA timezone" Type="Variable" Display="always" Required="true" Mask="false">America/New_York</Config>
+  <Config Name="HTTPS-only cookies" Target="VYNODEARR_SECURE_COOKIES" Default="false" Mode="" Description="Set true only when VynodeArr is always accessed through HTTPS" Type="Variable" Display="advanced" Required="true" Mask="false">false</Config>
 </Container>
