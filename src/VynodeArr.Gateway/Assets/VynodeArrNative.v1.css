@@ -254,6 +254,213 @@ html[data-vy-engine] [class*=" PageToolbarSeparator-separator-"] {
   background-color: var(--vy-border-subtle);
 }
 
+/* Library presentation: retain native views and controls, but give poster,
+ * overview, and table modes one consistent VynodeArr visual language.
+ */
+html[data-vy-engine] [class^="MovieIndexPoster-content-"],
+html[data-vy-engine] [class*=" MovieIndexPoster-content-"],
+html[data-vy-engine] [class^="SeriesIndexPoster-content-"],
+html[data-vy-engine] [class*=" SeriesIndexPoster-content-"] {
+  position: relative;
+  overflow: hidden;
+  color: var(--vy-text-primary);
+  background: var(--vy-native-panel);
+  border: 1px solid var(--vy-border-subtle);
+  border-radius: var(--vy-radius-lg);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+  transition:
+    transform var(--vy-motion-normal) var(--vy-ease-standard),
+    border-color var(--vy-motion-normal) var(--vy-ease-standard),
+    box-shadow var(--vy-motion-normal) var(--vy-ease-standard);
+}
+
+html[data-vy-engine] [class^="MovieIndexPoster-content-"]:hover,
+html[data-vy-engine] [class*=" MovieIndexPoster-content-"]:hover,
+html[data-vy-engine] [class^="MovieIndexPoster-content-"]:focus-within,
+html[data-vy-engine] [class*=" MovieIndexPoster-content-"]:focus-within,
+html[data-vy-engine] [class^="SeriesIndexPoster-content-"]:hover,
+html[data-vy-engine] [class*=" SeriesIndexPoster-content-"]:hover,
+html[data-vy-engine] [class^="SeriesIndexPoster-content-"]:focus-within,
+html[data-vy-engine] [class*=" SeriesIndexPoster-content-"]:focus-within {
+  z-index: 2;
+  border-color: color-mix(in srgb, var(--vy-engine-accent) 62%, var(--vy-border-subtle));
+  box-shadow: 0 14px 38px rgb(0 0 0 / 28%), 0 0 0 1px var(--vy-native-accent-soft);
+  transform: translateY(-3px);
+}
+
+html[data-vy-engine] [class^="MovieIndexPoster-posterContainer-"],
+html[data-vy-engine] [class*=" MovieIndexPoster-posterContainer-"],
+html[data-vy-engine] [class^="SeriesIndexPoster-posterContainer-"],
+html[data-vy-engine] [class*=" SeriesIndexPoster-posterContainer-"] {
+  overflow: hidden;
+  background: var(--vy-surface-elevated);
+  border-bottom: 1px solid var(--vy-border-subtle);
+}
+
+html[data-vy-engine] [class^="MovieIndexPoster-posterContainer-"] img,
+html[data-vy-engine] [class*=" MovieIndexPoster-posterContainer-"] img,
+html[data-vy-engine] [class^="SeriesIndexPoster-posterContainer-"] img,
+html[data-vy-engine] [class*=" SeriesIndexPoster-posterContainer-"] img {
+  transition: transform var(--vy-motion-normal) var(--vy-ease-standard);
+}
+
+html[data-vy-engine] [class^="MovieIndexPoster-content-"]:hover [class^="MovieIndexPoster-posterContainer-"] img,
+html[data-vy-engine] [class*=" MovieIndexPoster-content-"]:hover [class*=" MovieIndexPoster-posterContainer-"] img,
+html[data-vy-engine] [class^="SeriesIndexPoster-content-"]:hover [class^="SeriesIndexPoster-posterContainer-"] img,
+html[data-vy-engine] [class*=" SeriesIndexPoster-content-"]:hover [class*=" SeriesIndexPoster-posterContainer-"] img {
+  transform: scale(1.025);
+}
+
+html[data-vy-engine] [class^="MovieIndexPoster-title-"],
+html[data-vy-engine] [class*=" MovieIndexPoster-title-"],
+html[data-vy-engine] [class^="MovieIndexPosterInfo-info-"],
+html[data-vy-engine] [class*=" MovieIndexPosterInfo-info-"],
+html[data-vy-engine] [class^="SeriesIndexPoster-title-"],
+html[data-vy-engine] [class*=" SeriesIndexPoster-title-"],
+html[data-vy-engine] [class^="SeriesIndexPosterInfo-info-"],
+html[data-vy-engine] [class*=" SeriesIndexPosterInfo-info-"],
+html[data-vy-engine] [class^="MovieIndexPoster-tags-"],
+html[data-vy-engine] [class*=" MovieIndexPoster-tags-"],
+html[data-vy-engine] [class^="SeriesIndexPoster-tags-"],
+html[data-vy-engine] [class*=" SeriesIndexPoster-tags-"],
+html[data-vy-engine] [class^="MovieIndexPoster-nextAiring-"],
+html[data-vy-engine] [class*=" MovieIndexPoster-nextAiring-"],
+html[data-vy-engine] [class^="SeriesIndexPoster-nextAiring-"],
+html[data-vy-engine] [class*=" SeriesIndexPoster-nextAiring-"] {
+  color: var(--vy-text-secondary);
+  background: var(--vy-native-panel);
+  border-color: var(--vy-border-subtle);
+}
+
+html[data-vy-engine] [class^="MovieIndexPoster-title-"],
+html[data-vy-engine] [class*=" MovieIndexPoster-title-"],
+html[data-vy-engine] [class^="SeriesIndexPoster-title-"],
+html[data-vy-engine] [class*=" SeriesIndexPoster-title-"] {
+  min-height: 34px;
+  padding: 8px 10px;
+  color: var(--vy-text-primary);
+  font-weight: 700;
+  letter-spacing: .01em;
+}
+
+html[data-vy-engine] [class^="MovieIndexPoster-controls-"],
+html[data-vy-engine] [class*=" MovieIndexPoster-controls-"],
+html[data-vy-engine] [class^="SeriesIndexPoster-controls-"],
+html[data-vy-engine] [class*=" SeriesIndexPoster-controls-"] {
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  color: var(--vy-text-primary);
+  background: color-mix(in srgb, var(--vy-surface-sidebar) 92%, transparent);
+  border: 1px solid var(--vy-border-strong);
+  border-radius: var(--vy-radius-md);
+  box-shadow: var(--vy-shadow-raised);
+  backdrop-filter: blur(12px);
+}
+
+html[data-vy-engine] [class^="MovieIndexPoster-content-"]:focus-within [class^="MovieIndexPoster-controls-"],
+html[data-vy-engine] [class*=" MovieIndexPoster-content-"]:focus-within [class*=" MovieIndexPoster-controls-"],
+html[data-vy-engine] [class^="SeriesIndexPoster-content-"]:focus-within [class^="SeriesIndexPoster-controls-"],
+html[data-vy-engine] [class*=" SeriesIndexPoster-content-"]:focus-within [class*=" SeriesIndexPoster-controls-"] {
+  opacity: .96;
+}
+
+html[data-vy-engine] [class^="MovieIndexPoster-action-"],
+html[data-vy-engine] [class*=" MovieIndexPoster-action-"],
+html[data-vy-engine] [class^="SeriesIndexPoster-action-"],
+html[data-vy-engine] [class*=" SeriesIndexPoster-action-"] {
+  min-width: var(--vy-target-desktop);
+  min-height: var(--vy-target-desktop);
+  color: var(--vy-text-primary);
+  border-radius: var(--vy-radius-sm);
+}
+
+html[data-vy-engine] [class^="MovieIndexPoster-action-"]:hover,
+html[data-vy-engine] [class*=" MovieIndexPoster-action-"]:hover,
+html[data-vy-engine] [class^="SeriesIndexPoster-action-"]:hover,
+html[data-vy-engine] [class*=" SeriesIndexPoster-action-"]:hover {
+  color: #081018;
+  background: var(--vy-engine-accent);
+}
+
+/* Overview mode reads as a media workspace rather than a loose native row. */
+html[data-vy-engine] [class^="MovieIndexOverview-content-"],
+html[data-vy-engine] [class*=" MovieIndexOverview-content-"],
+html[data-vy-engine] [class^="SeriesIndexOverview-content-"],
+html[data-vy-engine] [class*=" SeriesIndexOverview-content-"] {
+  gap: var(--vy-space-4);
+  margin-bottom: var(--vy-space-4);
+  padding: var(--vy-space-4);
+  color: var(--vy-text-primary);
+  background: linear-gradient(135deg, var(--vy-native-panel), var(--vy-surface-panel));
+  border: 1px solid var(--vy-border-subtle);
+  border-radius: var(--vy-radius-lg);
+  box-shadow: 0 10px 28px rgb(0 0 0 / 14%);
+}
+
+html[data-vy-engine] [class^="MovieIndexOverview-posterContainer-"],
+html[data-vy-engine] [class*=" MovieIndexOverview-posterContainer-"],
+html[data-vy-engine] [class^="SeriesIndexOverview-posterContainer-"],
+html[data-vy-engine] [class*=" SeriesIndexOverview-posterContainer-"] {
+  overflow: hidden;
+  border: 1px solid var(--vy-border-subtle);
+  border-radius: var(--vy-radius-md);
+  box-shadow: 0 8px 22px rgb(0 0 0 / 24%);
+}
+
+html[data-vy-engine] [class^="MovieIndexOverview-title-"],
+html[data-vy-engine] [class*=" MovieIndexOverview-title-"],
+html[data-vy-engine] [class^="SeriesIndexOverview-title-"],
+html[data-vy-engine] [class*=" SeriesIndexOverview-title-"] {
+  color: var(--vy-text-primary);
+  font-size: clamp(20px, 2vw, 28px);
+  font-weight: 760;
+  letter-spacing: -.018em;
+}
+
+html[data-vy-engine] [class^="MovieIndexOverview-overview-"],
+html[data-vy-engine] [class*=" MovieIndexOverview-overview-"],
+html[data-vy-engine] [class^="SeriesIndexOverview-overview-"],
+html[data-vy-engine] [class*=" SeriesIndexOverview-overview-"] {
+  color: var(--vy-text-secondary);
+  line-height: 1.55;
+}
+
+/* Table and virtual-table modes keep every native column and action. */
+html[data-vy-engine] [class^="MovieIndexRow-cell-"],
+html[data-vy-engine] [class*=" MovieIndexRow-cell-"],
+html[data-vy-engine] [class^="SeriesIndexRow-cell-"],
+html[data-vy-engine] [class*=" SeriesIndexRow-cell-"] {
+  min-height: var(--vy-table-row-comfortable);
+  color: var(--vy-text-secondary);
+  border-color: var(--vy-border-subtle);
+}
+
+html[data-vy-engine] [class^="MovieIndexRow-actions-"],
+html[data-vy-engine] [class*=" MovieIndexRow-actions-"],
+html[data-vy-engine] [class^="SeriesIndexRow-actions-"],
+html[data-vy-engine] [class*=" SeriesIndexRow-actions-"] {
+  justify-content: flex-end;
+  gap: var(--vy-space-1);
+}
+
+@media (hover: none), (pointer: coarse) {
+  html[data-vy-engine] [class^="MovieIndexPoster-controls-"],
+  html[data-vy-engine] [class*=" MovieIndexPoster-controls-"],
+  html[data-vy-engine] [class^="SeriesIndexPoster-controls-"],
+  html[data-vy-engine] [class*=" SeriesIndexPoster-controls-"] {
+    opacity: .96;
+  }
+
+  html[data-vy-engine] [class^="MovieIndexPoster-action-"],
+  html[data-vy-engine] [class*=" MovieIndexPoster-action-"],
+  html[data-vy-engine] [class^="SeriesIndexPoster-action-"],
+  html[data-vy-engine] [class*=" SeriesIndexPoster-action-"] {
+    min-width: var(--vy-target-touch);
+    min-height: var(--vy-target-touch);
+  }
+}
+
 /* Cards, settings panels, and reusable content surfaces. */
 html[data-vy-engine] [class^="Card-card-"],
 html[data-vy-engine] [class*=" Card-card-"] {

@@ -28,6 +28,14 @@ public sealed class NativeUiThemeTests
         Assert.Contains("PageSidebarItem-isActiveItem-", css, StringComparison.Ordinal);
         Assert.Contains("border-left-color: transparent", css, StringComparison.Ordinal);
         Assert.Contains("FieldSet-legend-", css, StringComparison.Ordinal);
+        Assert.Contains("MovieIndexPoster-content-", css, StringComparison.Ordinal);
+        Assert.Contains("SeriesIndexPoster-content-", css, StringComparison.Ordinal);
+        Assert.Contains("MovieIndexOverview-content-", css, StringComparison.Ordinal);
+        Assert.Contains("SeriesIndexOverview-content-", css, StringComparison.Ordinal);
+        Assert.Contains("MovieIndexRow-cell-", css, StringComparison.Ordinal);
+        Assert.Contains("SeriesIndexRow-cell-", css, StringComparison.Ordinal);
+        Assert.Contains("@media (hover: none), (pointer: coarse)", css, StringComparison.Ordinal);
+        Assert.Contains(":focus-within", css, StringComparison.Ordinal);
         Assert.Contains(":focus-visible", css, StringComparison.Ordinal);
         Assert.Contains("forced-colors: active", css, StringComparison.Ordinal);
         Assert.DoesNotContain("display: none", css, StringComparison.OrdinalIgnoreCase);
