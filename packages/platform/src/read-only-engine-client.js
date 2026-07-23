@@ -25,7 +25,7 @@ export class ReadOnlyEngineClient {
               try{
                 const value=JSON.parse(text),items=Array.isArray(value)?value:[value];
                 const message=items.map((item)=>item?.errorMessage||item?.message).filter(Boolean).join('; ');
-                if(message)return reject(new Error(message.slice(0,500)));
+                if(message)return reject(engineError.validation(message.slice(0,500)));
               }catch{}
             }
             return reject(engineError.unavailable(this.domain));

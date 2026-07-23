@@ -31,6 +31,12 @@ test('authentication failure, timeout, and invalid response are neutral',async()
   await assert.rejects(()=>timeoutClient.get('series'),(error)=>error.code==='engine_timeout');await new Promise((resolve)=>slow.close(resolve));
   const invalid=new MovieEngineAdapter({enabled:true},new FakeClient({movie:{wrong:true},queue:{records:[]},'wanted/cutoff':{records:[]}}));await assert.rejects(()=>invalid.listMovies(),(error)=>error.code==='engine_response_invalid');
 });
+test('engine mutation validation remains actionable',async()=>{
+  const server=createServer((req,res)=>{res.writeHead(400,{'content-type':'application/json'});res.end(JSON.stringify([{errorMessage:"Invalid Path: 'E:/movies'"}]));});await new Promise((resolve)=>server.listen(0,'127.0.0.1',resolve));
+  const client=new ReadOnlyEngineClient({enabled:true,host:'127.0.0.1',port:server.address().port,https:false,urlBase:'',apiCredential:'secret',timeoutMs:100,retries:0,tlsVerify:true},'Movie');
+  await assert.rejects(()=>client.post('rootfolder',{path:'E:/movies'}),(error)=>error.code==='engine_validation_failed'&&error.safeMessage==="Invalid Path: 'E:/movies'");
+  await new Promise((resolve)=>server.close(resolve));
+});
 test('bounded cache reuses data, invalidates, and recovers stale values',async()=>{
   let calls=0;const movie=new MovieFixtureAdapter();const original=movie.listMovies.bind(movie);movie.listMovies=async(...args)=>{calls++;return original(...args);};const sync=new SynchronizationService({movie,tv:new TvFixtureAdapter(),maxItems:2,pollIntervalMs:999999});
   assert.equal((await sync.list('movie')).length,2);await sync.list('movie');assert.equal(calls,1);sync.invalidate('movie');await sync.list('movie');assert.equal(calls,2);movie.listMovies=async()=>{throw new Error('private failure');};assert.equal((await sync.synchronize('movie')).length,2);assert.equal(sync.snapshot().movie.status,'stale');
