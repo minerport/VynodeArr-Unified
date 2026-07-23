@@ -42,10 +42,23 @@ export class ReadOnlyEngineClient {
     return new Promise((resolve,reject)=>{
       const transport=url.protocol==='https:'?httpsRequest:httpRequest;
       const req=transport(url,{method:'GET',headers:{accept:'image/*','x-api-key':this.config.apiCredential},rejectUnauthorized:this.config.tlsVerify},(res)=>{
-        const chunks=[];let size=0;if(res.statusCode===404){res.resume();return resolve(null);}if(res.statusCode<200||res.statusCode>=300){res.resume();return reject(engineError.unavailable(this.domain));}
+        const chunks=[];let size=0;if([404,406].includes(res.statusCode)){res.resume();return resolve(null);}if(res.statusCode<200||res.statusCode>=300){res.resume();return reject(engineError.unavailable(this.domain));}
         res.on('data',(chunk)=>{size+=chunk.length;if(size>16*1024*1024){req.destroy(engineError.invalid());return;}chunks.push(chunk);});
         res.on('end',()=>resolve({body:Buffer.concat(chunks),contentType:String(res.headers['content-type']||'image/jpeg')}));
       });req.setTimeout(this.config.timeoutMs,()=>req.destroy(engineError.timeout(this.domain)));req.on('error',reject);req.end();
+    });
+  }
+  #requestRemoteArtwork(url){
+    const hostname=url.hostname.toLowerCase(),allowed=['tmdb.org','thetvdb.com','tvmaze.com'].some((domain)=>hostname===domain||hostname.endsWith(`.${domain}`));
+    if(url.protocol!=='https:'||!allowed)return Promise.resolve(null);
+    return new Promise((resolve,reject)=>{
+      const req=httpsRequest(url,{method:'GET',headers:{accept:'image/*','user-agent':'VynodeNew-Artwork/1.0'}},(res)=>{
+        const chunks=[];let size=0;
+        if(res.statusCode<200||res.statusCode>=300){res.resume();return resolve(null);}
+        res.on('data',(chunk)=>{size+=chunk.length;if(size>16*1024*1024){req.destroy(engineError.invalid());return;}chunks.push(chunk);});
+        res.on('end',()=>resolve({body:Buffer.concat(chunks),contentType:String(res.headers['content-type']||'image/jpeg')}));
+      });
+      req.setTimeout(this.config.timeoutMs,()=>req.destroy(engineError.timeout(this.domain)));req.on('error',reject);req.end();
     });
   }
   async get(path,query){
@@ -70,7 +83,11 @@ export class ReadOnlyEngineClient {
     if(!this.config.enabled)throw engineError.unavailable(this.domain);
     const prefix=this.config.urlBase?`/${this.config.urlBase}`:'';
     const safeType=['poster','fanart','banner','logo','headshot','season','episode'].includes(type)?type:'poster';
-    const url=new URL(`${this.config.https?'https':'http'}://${this.config.host}:${this.config.port}${prefix}/MediaCover/${Number(mediaId)}/${safeType}.jpg`);
-    return this.#requestBuffer(url);
+    const engineId=Number(mediaId),url=new URL(`${this.config.https?'https':'http'}://${this.config.host}:${this.config.port}${prefix}/MediaCover/${engineId}/${safeType}.jpg`),local=await this.#requestBuffer(url);
+    if(local)return local;
+    try{
+      const record=await this.get(`${this.domain==='Movie'?'movie':'series'}/${engineId}`),image=(record?.images||[]).find((item)=>String(item.coverType||'').toLowerCase()===safeType);
+      return image?.remoteUrl?await this.#requestRemoteArtwork(new URL(image.remoteUrl)):null;
+    }catch{return null;}
   }
 }

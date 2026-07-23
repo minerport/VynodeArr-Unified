@@ -32,10 +32,11 @@ test('management gateway exposes native capabilities and forwards only allowlist
 });
 
 test('native interaction workflows replace an upstream-shaped generic shell',async()=>{
-  const [html,script,apiSource]=await Promise.all([
+  const [html,script,apiSource,clientSource]=await Promise.all([
     readFile(new URL('../apps/web/public/index.html',import.meta.url),'utf8'),
     readFile(new URL('../apps/web/public/app.js',import.meta.url),'utf8'),
-    readFile(new URL('../apps/api/src/app.js',import.meta.url),'utf8')
+    readFile(new URL('../apps/api/src/app.js',import.meta.url),'utf8'),
+    readFile(new URL('../packages/platform/src/read-only-engine-client.js',import.meta.url),'utf8')
   ]);
   for(const route of ['#add','#wanted','#queue','#service/root-folders','#system'])assert.match(html,new RegExp(route));
   for(const workflow of ['wanted-series-search','wanted-season-search','SeriesSearch','SeasonSearch','Search entire show','Search entire season'])assert.match(script,new RegExp(workflow));
@@ -59,6 +60,7 @@ test('native interaction workflows replace an upstream-shaped generic shell',asy
   for(const workflow of ['Download backups before uninstalling','Upload & restore','backup-upload-input','/download','/upload','completeEngineRestore','Backup must be a .zip, .db, or .xml file'])assert.ok(script.includes(workflow)||apiSource.includes(workflow));
   for(const workflow of ['VynodeNew_${domain===','vynodenew.libraryView.${kind}','views:{movies:savedLibraryView'])assert.ok(script.includes(workflow)||apiSource.includes(workflow),workflow);
   for(const workflow of ["serviceTabs('advanced')",'statusSections(values)','storage-summary','status-domain-section'])assert.ok(script.includes(workflow),workflow);
+  for(const workflow of ['requestRemoteArtwork','image?.remoteUrl','tmdb.org','thetvdb.com'])assert.ok(clientSource.includes(workflow),workflow);
   for(const workflow of ['showAddMedia','discovery-art','remotePoster','showCalendar','calendar-grid','calendar-movies','showWanted','wanted-domain','wanted-show','wanted-season','wanted-interactive','showQueue','queue-table','data-queue-sort','showRootFolders','reviewMovieImport','reviewTvImport','const target=event.currentTarget','Scan for','Import selected movies','Import selected series','showProfiles','showProviders','loadPolicy','Failed download handling','autoRedownloadFailed','Indexers','Download Clients','All provider options','folder-browser','Browse…','Use this folder','attachDetailActions','episode-monitor','episode-auto-search','episode-interactive-search','Monitoring…','Unmonitoring…','Automatic search','Interactive search','release-table','data-sort','Source','Quality','Size','Seeders','grab-release','createRecord','Refresh & scan','Allowed qualities','Custom format scores','Create Movies and Television backups'])assert.match(script,new RegExp(workflow.replace(/[&]/g,'&')));
 });
 
