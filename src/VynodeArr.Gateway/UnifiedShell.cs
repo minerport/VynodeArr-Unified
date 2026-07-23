@@ -9,7 +9,7 @@ public static class UnifiedShell
     {
         ui ??= new UiOptions();
         var tokenLink = ui.TokensEnabled
-            ? "<link id=\"vynodearr-token-styles\" rel=\"stylesheet\" href=\"/assets/vynodearr-tokens.v1.css\">"
+            ? "<link id=\"vynodearr-token-styles\" rel=\"stylesheet\" href=\"/assets/vynodearr-tokens.v1.css?rev=2\">"
             : string.Empty;
         var stylingClass = ui.NewShellStylingEnabled ? "vy-foundation-enabled" : "vy-foundation-disabled";
         var safeVersion = WebUtility.HtmlEncode(version);
@@ -22,6 +22,8 @@ public static class UnifiedShell
               <meta name="viewport" content="width=device-width, initial-scale=1">
               <meta name="color-scheme" content="dark light">
               <title>VynodeArr</title>
+              <link rel="icon" type="image/png" href="/assets/vynodearr.png">
+              <meta name="application-name" content="VynodeArr">
               {{tokenLink}}
               <style>
                 * { box-sizing: border-box; }
@@ -53,7 +55,7 @@ public static class UnifiedShell
                 .vy-engine-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--vy-space-4, 16px); }
                 .vy-engine-panel { min-width: 0; padding: var(--vy-space-4, 16px); border: 1px solid var(--vy-border-subtle, #343941); border-top: 3px solid var(--vy-engine-accent, #8aa0b8); border-radius: var(--vy-radius-md, 7px); background: var(--vy-surface-panel, #1d2024); box-shadow: var(--vy-shadow-raised, 0 6px 18px rgb(0 0 0 / 18%)); }
                 .vy-engine-panel[data-engine="movie"] { --vy-engine-accent: var(--vy-engine-movies, #38bdf8); }
-                .vy-engine-panel[data-engine="television"] { --vy-engine-accent: var(--vy-engine-television, #a78bfa); }
+                .vy-engine-panel[data-engine="television"] { --vy-engine-accent: var(--vy-engine-television, #34d399); }
                 .vy-engine-title { display: flex; align-items: center; justify-content: space-between; gap: var(--vy-space-3, 12px); }
                 .vy-engine-title h3 { margin: 0; font-size: 1rem; }
                 .vy-status { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; color: var(--vy-text-secondary, #aeb4bd); font-size: var(--vy-font-size-meta, .75rem); }
@@ -86,14 +88,14 @@ public static class UnifiedShell
                 .vy-status-badge[data-status="missing-monitored"], .vy-status-badge[data-status="missing"] { color: var(--vy-status-error, #fb7185); }
                 .vy-status-badge[data-status="missing-unmonitored"], .vy-status-badge[data-status="unreleased"], .vy-status-badge[data-status="unaired"] { color: var(--vy-text-muted, #96a1af); }
                 .vy-status-badge[data-status="queued"], .vy-status-badge[data-status="downloading"] { color: var(--vy-status-warning, #fbbf24); }
-                .vy-status-badge[data-status="on-air"] { color: var(--vy-engine-television, #a78bfa); }
+                .vy-status-badge[data-status="on-air"] { color: var(--vy-engine-television, #34d399); }
                 .vy-status-badge[data-status="premiere"] { color: var(--vy-status-info, #60a5fa); }
                 .vy-calendar-empty { margin: 0; padding: var(--vy-space-4, 16px); color: var(--vy-text-muted, #96a1af); }
                 .vy-module { overflow: hidden; border: 1px solid var(--vy-border-subtle, #343941); border-radius: var(--vy-radius-md, 7px); background: var(--vy-surface-panel, #1d2024); }
                 .vy-module-list { margin: 0; padding: 0; list-style: none; }
                 .vy-module-item { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 11px 14px; border-bottom: 1px solid var(--vy-border-subtle, #343941); }
                 .vy-module-item:last-child { border-bottom: 0; }.vy-module-item strong,.vy-module-item small { display: block; }.vy-module-item small { margin-top: 3px; color: var(--vy-text-muted, #96a1af); }
-                .vy-engine-chip { padding: 3px 7px; border: 1px solid currentColor; border-radius: 999px; color: var(--vy-engine-shared,#8aa0b8); font-size: .7rem; font-weight: 700; }.vy-engine-chip[data-engine="Movies"] { color: var(--vy-engine-movies,#38bdf8); }.vy-engine-chip[data-engine="Television"] { color: var(--vy-engine-television,#a78bfa); }
+                .vy-engine-chip { padding: 3px 7px; border: 1px solid currentColor; border-radius: 999px; color: var(--vy-engine-shared,#8aa0b8); font-size: .7rem; font-weight: 700; }.vy-engine-chip[data-engine="Movies"] { color: var(--vy-engine-movies,#38bdf8); }.vy-engine-chip[data-engine="Television"] { color: var(--vy-engine-television,#34d399); }
                 .vy-attention { border-left: 3px solid var(--vy-status-warning,#fbbf24); }.vy-quick-add { display:flex;flex-wrap:wrap;gap:8px; }
                 footer { margin-top: var(--vy-space-5, 20px); display: flex; align-items: center; justify-content: space-between; gap: var(--vy-space-4, 16px); padding-top: var(--vy-space-4, 16px); border-top: 1px solid var(--vy-border-subtle, #343941); color: var(--vy-text-muted, #7f8792); font-size: var(--vy-font-size-meta, .8rem); }
                 .vy-shutdown { border-color: var(--vy-status-error, #875151); }
@@ -175,10 +177,11 @@ public static class UnifiedShell
                   .finally(() => scheduleRefresh());
                 authReady.then(loadSummary);
                 const renderAttention = (data) => {
-                  const target = document.getElementById('attention-center'); const items = Object.values(data.domains || {}).flatMap(domain => domain.items || []);
+                  const target = document.getElementById('attention-center'); const items = Object.values(data.domains || {}).flatMap(domain => Array.isArray(domain) ? domain : (domain.items || []));
                   target.innerHTML = items.length ? `<ul class="vy-module-list">${items.map(item => `<li class="vy-module-item vy-attention"><span class="vy-engine-chip" data-engine="${escapeHtml(item.engine)}">${escapeHtml(item.engine)}</span><span><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.message)}</small></span>${item.nativeUrl ? `<a class="vy-button" href="${escapeHtml(item.nativeUrl)}">Review</a>` : ''}</li>`).join('')}</ul>` : '<p class="vy-calendar-empty">No issues currently require attention.</p>';
                 };
-                const loadAttention = () => fetch('/api/dashboard/attention', { cache:'no-store', headers:{Accept:'application/json'} }).then(r=>r.ok?r.json():Promise.reject(new Error(`HTTP ${r.status}`))).then(renderAttention).catch(()=>document.getElementById('attention-center').innerHTML='<p class="vy-calendar-empty">Attention information is temporarily unavailable.</p>');
+                let attentionTimer;
+                const loadAttention = () => fetch('/api/dashboard/attention', { cache:'no-store', headers:{Accept:'application/json'} }).then(r=>r.ok?r.json():Promise.reject(new Error(`HTTP ${r.status}`))).then(renderAttention).catch(()=>document.getElementById('attention-center').innerHTML='<p class="vy-calendar-empty">Attention information is temporarily unavailable.</p>').finally(()=>{ clearTimeout(attentionTimer); attentionTimer=setTimeout(loadAttention,60000); });
                 const renderQueue = (data) => {
                   const target=document.getElementById('unified-queue'); const modules=[data.movies,data.television]; const items=modules.flatMap(module=>module.data||[]).sort((a,b)=>Number(b.hasWarning)-Number(a.hasWarning)||a.key.localeCompare(b.key)).slice(0,10);
                   const unavailable=modules.filter(module=>!module.available).length; if(!items.length){target.innerHTML=`<p class="vy-calendar-empty">${unavailable===2?'Queue information is unavailable.':'No active downloads.'}</p>`;return;}

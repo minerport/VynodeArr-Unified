@@ -1,6 +1,6 @@
 services:
   vynodearr:
-    image: ghcr.io/minerport/vynodearr-unified:0.4.8
+    image: ghcr.io/minerport/vynodearr-unified:0.4.9
     container_name: vynodearr
     restart: unless-stopped
     stop_grace_period: 60s

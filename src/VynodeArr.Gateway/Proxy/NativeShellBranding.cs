@@ -48,15 +48,19 @@ public static class NativeShellBranding
         var engineKey = domain == EngineDomain.Movie ? "movies" : "television";
         var activePath = domain == EngineDomain.Movie ? "/movies/" : "/television/";
         var tokenLink = ui.TokensEnabled
-            ? "<link id=\"vynodearr-token-styles\" rel=\"stylesheet\" href=\"/assets/vynodearr-tokens.v1.css\">"
+            ? "<link id=\"vynodearr-token-styles\" rel=\"stylesheet\" href=\"/assets/vynodearr-tokens.v1.css?rev=2\">"
+            : string.Empty;
+        var nativeThemeLink = ui.TokensEnabled && ui.NewShellStylingEnabled
+            ? "<link id=\"vynodearr-native-styles\" rel=\"stylesheet\" href=\"/assets/vynodearr-native.v2.css?rev=4\">"
             : string.Empty;
         var style = ui.NewShellStylingEnabled ? FoundationStyle : LegacyStyle;
+        var metadata = ui.NewShellStylingEnabled ? BuildMetadata(productName, compatibilityName) : string.Empty;
         var navigation = ui.NewShellStylingEnabled
             ? BuildFoundationNavigation(productName, activePath)
             : BuildLegacyNavigation(activePath);
         var transformed = AddEngineContext(html, engineKey);
         transformed = ReplaceExactMetadata(transformed, compatibilityName, productName);
-        transformed = transformed.Replace("</head>", $"{tokenLink}{style}</head>", StringComparison.OrdinalIgnoreCase);
+        transformed = transformed.Replace("</head>", $"{tokenLink}{nativeThemeLink}{metadata}{style}</head>", StringComparison.OrdinalIgnoreCase);
         return transformed.Replace("<body>", $"<body>{navigation}", StringComparison.OrdinalIgnoreCase);
     }
 
@@ -76,6 +80,28 @@ public static class NativeShellBranding
     private static string ReplaceExactMetadata(string html, string compatibilityName, string productName) => html
         .Replace($"<title>{compatibilityName}</title>", $"<title>{productName}</title>", StringComparison.Ordinal)
         .Replace($"content=\"{compatibilityName}\"", $"content=\"{productName}\"", StringComparison.Ordinal);
+
+    private static string BuildMetadata(string productName, string compatibilityName) => $$"""
+        <link id="vynodearr-favicon" rel="icon" type="image/png" href="/assets/vynodearr.png">
+        <meta name="application-name" content="{{productName}}">
+        <script id="vynodearr-title-branding">
+          (() => {
+            const title = document.querySelector('title');
+            if (!title) return;
+            const apply = () => {
+              const suffix = ' · {{productName}}';
+              const raw = document.title
+                .replace(/\s*[-·]\s*{{compatibilityName}}\s*$/i, '')
+                .replace(/^{{compatibilityName}}$/i, '');
+              const page = raw === '{{productName}}' ? '' : raw;
+              const next = !page ? '{{productName}}' : page.endsWith(suffix) ? page : `${page}${suffix}`;
+              if (document.title !== next) document.title = next;
+            };
+            apply();
+            new MutationObserver(apply).observe(title, { childList: true });
+          })();
+        </script>
+        """;
 
     private static string BuildFoundationNavigation(string productName, string activePath) => $$"""
         <nav id="vynodearr-shell" class="vy-shell vy-shell-header" aria-label="VynodeArr sections">

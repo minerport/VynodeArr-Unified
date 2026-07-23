@@ -8,6 +8,11 @@ public sealed record UnifiedSummary(
     DateTimeOffset Timestamp,
     IReadOnlyDictionary<string, DomainSummary> Domains);
 
+public sealed record HealthIssueSummary(
+    string Source,
+    string Type,
+    string Message);
+
 public sealed record DomainSummary(
     string Domain,
     string State,
@@ -19,6 +24,7 @@ public sealed record DomainSummary(
     int MissingMonitored,
     int QueueItems,
     int HealthIssues,
+    IReadOnlyList<HealthIssueSummary> Health,
     string? Error);
 
 public sealed class UnifiedSummaryService(
@@ -67,6 +73,14 @@ public sealed class UnifiedSummaryService(
             using var queue = await queueTask;
             using var health = await healthTask;
             var items = library.RootElement.EnumerateArray().ToArray();
+            var healthItems = health.RootElement.ValueKind == JsonValueKind.Array
+                ? health.RootElement.EnumerateArray()
+                    .Select(item => new HealthIssueSummary(
+                        ReadString(item, "source") ?? "System health",
+                        ReadString(item, "type") ?? "warning",
+                        ReadString(item, "message") ?? "The engine reported a health issue."))
+                    .ToArray()
+                : [];
 
             return new DomainSummary(
                 domain.Key(),
@@ -80,9 +94,8 @@ public sealed class UnifiedSummaryService(
                     : items.Sum(item => ReadNestedInt(item, "statistics", "episodeFileCount")),
                 ReadInt(missing.RootElement, "totalRecords"),
                 ReadInt(queue.RootElement, "totalRecords"),
-                health.RootElement.ValueKind == JsonValueKind.Array
-                    ? health.RootElement.GetArrayLength()
-                    : 0,
+                healthItems.Length,
+                healthItems,
                 null);
         }
         catch (Exception exception) when (exception is HttpRequestException or JsonException or TaskCanceledException)
@@ -107,7 +120,7 @@ public sealed class UnifiedSummaryService(
     }
 
     private static DomainSummary Empty(EngineDomain domain, string state, string error) =>
-        new(domain.Key(), state, null, null, 0, 0, 0, 0, 0, 0, error);
+        new(domain.Key(), state, null, null, 0, 0, 0, 0, 0, 0, [], error);
 
     private static string? ReadString(JsonElement element, string name) =>
         element.TryGetProperty(name, out var value) ? value.GetString() : null;

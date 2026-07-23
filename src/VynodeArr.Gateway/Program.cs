@@ -111,7 +111,7 @@ app.Use(async (context, next) =>
     context.Response.Headers.XContentTypeOptions = "nosniff";
     context.Response.Headers["Referrer-Policy"] = "same-origin";
     context.Response.Headers.Append("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
-    context.Response.Headers.Append("Content-Security-Policy", "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self' ws: wss:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
+    context.Response.Headers.Append("Content-Security-Policy", "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self' ws: wss:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
     await next();
 });
 app.UseWebSockets();
@@ -147,6 +147,20 @@ app.MapGet("/assets/vynodearr-tokens.v1.css", () =>
         ? Results.NotFound()
         : Results.Stream(stream, "text/css; charset=utf-8");
 }).AllowAnonymous();
+app.MapGet("/assets/vynodearr-native.v1.css", () =>
+{
+    var stream = typeof(UnifiedShell).Assembly.GetManifestResourceStream("VynodeArr.Assets.VynodeArrNative.v1.css");
+    return stream is null
+        ? Results.NotFound()
+        : Results.Stream(stream, "text/css; charset=utf-8");
+}).AllowAnonymous();
+app.MapGet("/assets/vynodearr-native.v2.css", () =>
+{
+    var stream = typeof(UnifiedShell).Assembly.GetManifestResourceStream("VynodeArr.Assets.VynodeArrNative.v1.css");
+    return stream is null
+        ? Results.NotFound()
+        : Results.Stream(stream, "text/css; charset=utf-8");
+}).AllowAnonymous();
 app.MapGet("/", () => Results.Content(
     UnifiedShell.Render(options.Ui, typeof(Program).Assembly.GetName().Version?.ToString() ?? "development"),
     "text/html")).RequireAuthorization(VynodeArrPolicies.Read);
@@ -168,7 +182,7 @@ app.MapGet("/api/dashboard/attention", async (UnifiedSummaryService summary, Can
     {
         engine = domain.Domain,
         items = BuildAttention(domain)
-    }).ToDictionary(item => item.engine, item => item.items);
+    }).ToDictionary(item => item.engine, item => item);
     return Results.Ok(new { generatedAt = current.Timestamp, domains });
 }).RequireAuthorization(VynodeArrPolicies.Read);
 app.MapPost("/api/unified/v1/engines/{domain}/{action}", async (
@@ -229,7 +243,21 @@ IReadOnlyList<DashboardAttentionItem> BuildAttention(DomainSummary domain)
     var link = domain.Domain == "movie" ? "/movies/system/status" : "/television/system/status";
     var items = new List<DashboardAttentionItem>();
     if (domain.Error is not null) items.Add(new($"{domain.Domain}:availability", engine, "Error", "Engine", $"{engine} Engine unavailable", "The engine could not be reached.", null, link));
-    if (domain.HealthIssues > 0) items.Add(new($"{domain.Domain}:health", engine, "Warning", "Health", $"{domain.HealthIssues} health issue(s)", "Open the native system page for details.", null, link));
+    for (var index = 0; index < domain.Health.Count; index++)
+    {
+        var issue = domain.Health[index];
+        var severity = issue.Type.Equals("error", StringComparison.OrdinalIgnoreCase) ? "Error" : "Warning";
+        items.Add(new(
+            $"{domain.Domain}:health:{index}",
+            engine,
+            severity,
+            "Health",
+            issue.Source,
+            issue.Message,
+            null,
+            link));
+    }
+    if (domain.HealthIssues > 0 && domain.Health.Count == 0) items.Add(new($"{domain.Domain}:health", engine, "Warning", "Health", $"{domain.HealthIssues} health issue(s)", "Open the native system page for details.", null, link));
     return items;
 }
 

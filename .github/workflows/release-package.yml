@@ -19,7 +19,7 @@ on:
       image_tag:
         description: Version tag to publish when image publishing is enabled
         required: true
-        default: 0.4.8
+        default: 0.4.9
         type: string
 
 permissions:

@@ -1,0 +1,548 @@
+/* VynodeArr native-engine presentation adapter.
+ * This layer changes presentation only. Native markup, routes, controls,
+ * commands, forms, focus order, and engine behavior remain authoritative.
+ */
+
+html[data-vy-engine] {
+  --vy-native-sidebar-width: 264px;
+  --vy-native-header-height: 70px;
+  --vy-native-gutter: 16px;
+  --vy-native-panel: color-mix(in srgb, var(--vy-surface-panel) 94%, var(--vy-engine-accent) 6%);
+  --vy-native-accent-soft: color-mix(in srgb, var(--vy-engine-accent) 16%, transparent);
+  --vy-native-accent-medium: color-mix(in srgb, var(--vy-engine-accent) 34%, transparent);
+}
+
+html[data-vy-engine] body,
+html[data-vy-engine] body > #root,
+html[data-vy-engine] [class^="Page-page-"],
+html[data-vy-engine] [class*=" Page-page-"] {
+  color: var(--vy-text-primary);
+  background-color: var(--vy-surface-app);
+  background-image:
+    radial-gradient(circle at 82% 0%, var(--vy-native-accent-soft), transparent 34rem),
+    linear-gradient(145deg, color-mix(in srgb, var(--vy-surface-app) 96%, #000 4%), var(--vy-surface-app));
+  font-family: var(--vy-font-sans);
+  line-height: var(--vy-line-height);
+}
+
+/* Product header: replace legacy engine identity with VynodeArr. */
+html[data-vy-engine] [class^="PageHeader-header-"],
+html[data-vy-engine] [class*=" PageHeader-header-"] {
+  min-height: var(--vy-native-header-height);
+  padding: 0 var(--vy-space-5);
+  color: var(--vy-text-primary);
+  background: color-mix(in srgb, var(--vy-surface-sidebar) 92%, transparent);
+  border-bottom: 1px solid var(--vy-border-subtle);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 12%);
+  backdrop-filter: blur(18px);
+}
+
+html[data-vy-engine] [class^="PageHeader-logoContainer-"],
+html[data-vy-engine] [class*=" PageHeader-logoContainer-"] {
+  flex: 0 0 210px;
+  width: 210px;
+  min-width: 210px;
+  height: 52px;
+  padding-left: 12px;
+  background: url("/assets/vynodearr.png") left center / 44px 44px no-repeat;
+}
+
+html[data-vy-engine] [class^="PageHeader-logoContainer-"]::after,
+html[data-vy-engine] [class*=" PageHeader-logoContainer-"]::after {
+  content: "VYNODEARR";
+  margin-left: 8px;
+  color: var(--vy-text-primary);
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: .14em;
+}
+
+html[data-vy-engine] [class^="PageHeader-logoLink-"],
+html[data-vy-engine] [class*=" PageHeader-logoLink-"] {
+  flex: 0 0 44px;
+  overflow: hidden;
+  width: 44px;
+  height: 44px;
+}
+
+html[data-vy-engine] [class^="PageHeader-logo-"],
+html[data-vy-engine] [class*=" PageHeader-logo-"],
+html[data-vy-engine] [class^="PageHeader-logoFull-"],
+html[data-vy-engine] [class*=" PageHeader-logoFull-"] {
+  opacity: 0;
+}
+
+html[data-vy-engine] [class^="PageHeader-right-"],
+html[data-vy-engine] [class*=" PageHeader-right-"] {
+  gap: var(--vy-space-2);
+}
+
+html[data-vy-engine] [class^="MovieSearchInput-wrapper-"],
+html[data-vy-engine] [class*=" MovieSearchInput-wrapper-"],
+html[data-vy-engine] [class^="SeriesSearchInput-wrapper-"],
+html[data-vy-engine] [class*=" SeriesSearchInput-wrapper-"] {
+  flex: 0 1 420px;
+  min-width: 220px;
+  max-width: 420px;
+  height: 42px;
+  padding: 0 var(--vy-space-3);
+  color: var(--vy-engine-accent);
+  background: var(--vy-surface-elevated);
+  border: 1px solid var(--vy-border-subtle);
+  border-radius: var(--vy-radius-md);
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / 14%);
+}
+
+html[data-vy-engine] [class^="MovieSearchInput-container-"],
+html[data-vy-engine] [class*=" MovieSearchInput-container-"],
+html[data-vy-engine] [class^="SeriesSearchInput-container-"],
+html[data-vy-engine] [class*=" SeriesSearchInput-container-"] {
+  min-width: 0;
+  width: 100%;
+}
+
+html[data-vy-engine] [class^="MovieSearchInput-input-"],
+html[data-vy-engine] [class*=" MovieSearchInput-input-"],
+html[data-vy-engine] [class^="SeriesSearchInput-input-"],
+html[data-vy-engine] [class*=" SeriesSearchInput-input-"] {
+  width: 100%;
+  min-height: 38px;
+  margin-left: var(--vy-space-2);
+  padding: 0;
+  color: var(--vy-text-primary);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* Floating navigation rail. All native links and child navigation remain. */
+html[data-vy-engine] [class^="PageSidebar-sidebarContainer-"],
+html[data-vy-engine] [class*=" PageSidebar-sidebarContainer-"] {
+  flex: 0 0 var(--vy-native-sidebar-width);
+  width: var(--vy-native-sidebar-width);
+  padding: var(--vy-native-gutter) 0 var(--vy-native-gutter) var(--vy-native-gutter);
+  background: transparent;
+}
+
+html[data-vy-engine] [class^="PageSidebar-sidebar-"],
+html[data-vy-engine] [class*=" PageSidebar-sidebar-"] {
+  width: calc(var(--vy-native-sidebar-width) - var(--vy-native-gutter));
+  padding: var(--vy-space-3);
+  color: var(--vy-text-primary);
+  background: var(--vy-native-panel);
+  border: 1px solid var(--vy-border-subtle);
+  border-radius: var(--vy-radius-lg);
+  box-shadow: var(--vy-shadow-raised);
+}
+
+html[data-vy-engine] [class^="PageSidebarItem-item-"],
+html[data-vy-engine] [class*=" PageSidebarItem-item-"] {
+  margin-bottom: 3px;
+  border-left-color: transparent;
+}
+
+html[data-vy-engine] [class^="PageSidebarItem-isActiveItem-"],
+html[data-vy-engine] [class*=" PageSidebarItem-isActiveItem-"] {
+  border-left-color: transparent;
+}
+
+html[data-vy-engine] [class^="PageSidebarItem-link-"],
+html[data-vy-engine] [class*=" PageSidebarItem-link-"],
+html[data-vy-engine] [class^="PageSidebarItem-childLink-"],
+html[data-vy-engine] [class*=" PageSidebarItem-childLink-"] {
+  min-height: 44px;
+  padding-inline: var(--vy-space-3);
+  color: var(--vy-text-secondary);
+  border: 1px solid transparent;
+  border-radius: var(--vy-radius-md);
+  transition: color var(--vy-motion-fast) var(--vy-ease-standard),
+    background-color var(--vy-motion-fast) var(--vy-ease-standard),
+    border-color var(--vy-motion-fast) var(--vy-ease-standard),
+    transform var(--vy-motion-fast) var(--vy-ease-standard);
+}
+
+html[data-vy-engine] [class^="PageSidebarItem-link-"]:hover,
+html[data-vy-engine] [class*=" PageSidebarItem-link-"]:hover,
+html[data-vy-engine] [class^="PageSidebarItem-childLink-"]:hover,
+html[data-vy-engine] [class*=" PageSidebarItem-childLink-"]:hover {
+  color: var(--vy-text-primary);
+  background: var(--vy-surface-hover);
+  border-color: var(--vy-border-subtle);
+  transform: translateX(2px);
+}
+
+html[data-vy-engine] [class^="PageSidebarItem-isActiveLink-"],
+html[data-vy-engine] [class*=" PageSidebarItem-isActiveLink-"],
+html[data-vy-engine] [class^="PageSidebarItem-isActiveParentLink-"],
+html[data-vy-engine] [class*=" PageSidebarItem-isActiveParentLink-"] {
+  color: var(--vy-text-primary);
+  background: linear-gradient(90deg, var(--vy-native-accent-medium), var(--vy-native-accent-soft));
+  border-color: color-mix(in srgb, var(--vy-engine-accent) 55%, var(--vy-border-subtle));
+  box-shadow: 0 4px 14px var(--vy-native-accent-soft);
+}
+
+html[data-vy-engine] [class^="PageSidebarItem-iconContainer-"],
+html[data-vy-engine] [class*=" PageSidebarItem-iconContainer-"] {
+  color: var(--vy-engine-accent);
+}
+
+/* Main canvas and page-level command bar. */
+html[data-vy-engine] [class^="PageContent-content-"],
+html[data-vy-engine] [class*=" PageContent-content-"] {
+  min-width: 0;
+  color: var(--vy-text-primary);
+  background: transparent;
+}
+
+html[data-vy-engine] [class^="PageContentBody-contentBody-"],
+html[data-vy-engine] [class*=" PageContentBody-contentBody-"],
+html[data-vy-engine] [class^="PageContentBody-innerContentBody-"],
+html[data-vy-engine] [class*=" PageContentBody-innerContentBody-"] {
+  padding: var(--vy-space-5);
+  color: var(--vy-text-primary);
+  background: transparent;
+}
+
+html[data-vy-engine] [class^="PageToolbar-toolbar-"],
+html[data-vy-engine] [class*=" PageToolbar-toolbar-"] {
+  min-height: 72px;
+  margin: var(--vy-native-gutter) var(--vy-native-gutter) 0;
+  padding-inline: var(--vy-space-3);
+  color: var(--vy-text-primary);
+  background: var(--vy-native-panel);
+  border: 1px solid var(--vy-border-subtle);
+  border-radius: var(--vy-radius-lg);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 12%);
+}
+
+html[data-vy-engine] [class^="PageToolbarSection-sectionContainer-"],
+html[data-vy-engine] [class*=" PageToolbarSection-sectionContainer-"] {
+  gap: var(--vy-space-2);
+}
+
+html[data-vy-engine] [class^="PageToolbarButton-toolbarButton-"],
+html[data-vy-engine] [class*=" PageToolbarButton-toolbarButton-"] {
+  min-width: 68px;
+  min-height: 52px;
+  margin: 5px 2px;
+  padding: 6px 10px;
+  color: var(--vy-text-secondary);
+  border: 1px solid transparent;
+  border-radius: var(--vy-radius-md);
+}
+
+html[data-vy-engine] [class^="PageToolbarButton-toolbarButton-"]:hover,
+html[data-vy-engine] [class*=" PageToolbarButton-toolbarButton-"]:hover {
+  color: var(--vy-text-primary);
+  background: var(--vy-surface-hover);
+  border-color: var(--vy-border-subtle);
+}
+
+html[data-vy-engine] [class^="PageToolbarSeparator-separator-"],
+html[data-vy-engine] [class*=" PageToolbarSeparator-separator-"] {
+  background-color: var(--vy-border-subtle);
+}
+
+/* Cards, settings panels, and reusable content surfaces. */
+html[data-vy-engine] [class^="Card-card-"],
+html[data-vy-engine] [class*=" Card-card-"] {
+  color: var(--vy-text-primary);
+  background: linear-gradient(145deg, var(--vy-native-panel), var(--vy-surface-panel));
+  border: 1px solid var(--vy-border-subtle);
+  border-radius: var(--vy-radius-lg);
+  box-shadow: 0 10px 28px rgb(0 0 0 / 16%);
+  transition: transform var(--vy-motion-normal) var(--vy-ease-standard),
+    border-color var(--vy-motion-normal) var(--vy-ease-standard),
+    box-shadow var(--vy-motion-normal) var(--vy-ease-standard);
+}
+
+html[data-vy-engine] [class^="StatisticsSummary-summary-"],
+html[data-vy-engine] [class*=" StatisticsSummary-summary-"],
+html[data-vy-engine] [class^="Statistics-charts-"],
+html[data-vy-engine] [class*=" Statistics-charts-"] {
+  gap: var(--vy-space-3);
+}
+
+html[data-vy-engine] [class^="StatisticsSummary-item-"],
+html[data-vy-engine] [class*=" StatisticsSummary-item-"],
+html[data-vy-engine] [class^="Statistics-chartsContainer-"],
+html[data-vy-engine] [class*=" Statistics-chartsContainer-"] {
+  color: var(--vy-text-primary);
+  background: var(--vy-native-panel);
+  border: 1px solid var(--vy-border-subtle);
+  border-radius: var(--vy-radius-lg);
+  box-shadow: 0 10px 28px rgb(0 0 0 / 14%);
+}
+
+html[data-vy-engine] [class^="StatisticsSummary-item-"],
+html[data-vy-engine] [class*=" StatisticsSummary-item-"] {
+  padding: var(--vy-space-4);
+}
+
+html[data-vy-engine] [class^="StatisticsSummary-value-"],
+html[data-vy-engine] [class*=" StatisticsSummary-value-"] {
+  color: var(--vy-engine-accent);
+  font-weight: 750;
+}
+
+html[data-vy-engine] [class^="StatisticsSummary-label-"],
+html[data-vy-engine] [class*=" StatisticsSummary-label-"],
+html[data-vy-engine] [class^="StatisticsSummary-secondary-"],
+html[data-vy-engine] [class*=" StatisticsSummary-secondary-"] {
+  color: var(--vy-text-secondary);
+}
+
+html[data-vy-engine] [class^="Card-card-"]:hover,
+html[data-vy-engine] [class*=" Card-card-"]:hover {
+  border-color: color-mix(in srgb, var(--vy-engine-accent) 52%, var(--vy-border-subtle));
+  box-shadow: 0 14px 34px rgb(0 0 0 / 22%);
+  transform: translateY(-2px);
+}
+
+html[data-vy-engine] [class^="FieldSet-fieldSet-"],
+html[data-vy-engine] [class*=" FieldSet-fieldSet-"] {
+  margin-bottom: var(--vy-space-5);
+  padding: var(--vy-space-5);
+  background: var(--vy-native-panel);
+  border: 1px solid var(--vy-border-subtle);
+  border-radius: var(--vy-radius-lg);
+}
+
+html[data-vy-engine] [class^="FieldSet-legend-"],
+html[data-vy-engine] [class*=" FieldSet-legend-"] {
+  width: calc(100% + (2 * var(--vy-space-5)));
+  margin: calc(-1 * var(--vy-space-5)) calc(-1 * var(--vy-space-5)) var(--vy-space-4);
+  padding: 13px var(--vy-space-5);
+  color: var(--vy-engine-accent);
+  background: var(--vy-surface-elevated);
+  border: 0;
+  border-bottom: 1px solid var(--vy-border-subtle);
+  border-radius: var(--vy-radius-lg) var(--vy-radius-lg) 0 0;
+  font-size: var(--vy-font-size-section);
+  font-weight: 750;
+  letter-spacing: .025em;
+}
+
+/* Tables become contained data panels without changing rows or actions. */
+html[data-vy-engine] [class^="Table-tableContainer-"],
+html[data-vy-engine] [class*=" Table-tableContainer-"] {
+  overflow: auto;
+  border: 1px solid var(--vy-border-subtle);
+  border-radius: var(--vy-radius-lg);
+  background: var(--vy-native-panel);
+  box-shadow: 0 10px 28px rgb(0 0 0 / 12%);
+}
+
+html[data-vy-engine] [class^="Table-table-"],
+html[data-vy-engine] [class*=" Table-table-"] {
+  color: var(--vy-text-primary);
+  background: transparent;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+html[data-vy-engine] [class^="TableHeaderCell-headerCell-"],
+html[data-vy-engine] [class*=" TableHeaderCell-headerCell-"] {
+  color: var(--vy-text-secondary);
+  background: var(--vy-surface-elevated);
+  border-color: var(--vy-border-subtle);
+  font-size: var(--vy-font-size-meta);
+  font-weight: 750;
+  letter-spacing: .055em;
+  text-transform: uppercase;
+}
+
+html[data-vy-engine] [class^="TableRow-row-"],
+html[data-vy-engine] [class*=" TableRow-row-"] {
+  transition: background-color var(--vy-motion-fast) var(--vy-ease-standard);
+}
+
+html[data-vy-engine] [class^="TableRow-row-"]:hover,
+html[data-vy-engine] [class*=" TableRow-row-"]:hover {
+  background: var(--vy-native-accent-soft);
+}
+
+html[data-vy-engine] [class^="TableRowCell-cell-"],
+html[data-vy-engine] [class*=" TableRowCell-cell-"] {
+  border-color: var(--vy-border-subtle);
+}
+
+/* Inputs and buttons retain native types, validation, disabled state, and events. */
+html[data-vy-engine] [class^="Input-input-"],
+html[data-vy-engine] [class*=" Input-input-"],
+html[data-vy-engine] input:not([type="checkbox"]):not([type="radio"]),
+html[data-vy-engine] select,
+html[data-vy-engine] textarea {
+  min-height: 42px;
+  color: var(--vy-text-primary);
+  background: var(--vy-surface-elevated);
+  border-color: var(--vy-border-strong);
+  border-radius: var(--vy-radius-md);
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / 14%);
+}
+
+html[data-vy-engine] input::placeholder,
+html[data-vy-engine] textarea::placeholder {
+  color: var(--vy-text-muted);
+}
+
+html[data-vy-engine] [class^="FormGroup-group-"],
+html[data-vy-engine] [class*=" FormGroup-group-"] {
+  margin-bottom: var(--vy-space-4);
+}
+
+html[data-vy-engine] [class^="FormLabel-label-"],
+html[data-vy-engine] [class*=" FormLabel-label-"] {
+  color: var(--vy-text-secondary);
+  font-weight: 650;
+}
+
+html[data-vy-engine] [class^="Button-button-"],
+html[data-vy-engine] [class*=" Button-button-"] {
+  min-height: 40px;
+  padding-inline: var(--vy-space-4);
+  border-radius: var(--vy-radius-md);
+  font-weight: 700;
+  letter-spacing: .01em;
+  transition: filter var(--vy-motion-fast) var(--vy-ease-standard),
+    transform var(--vy-motion-fast) var(--vy-ease-standard),
+    box-shadow var(--vy-motion-fast) var(--vy-ease-standard);
+}
+
+html[data-vy-engine] [class^="Button-default-"],
+html[data-vy-engine] [class*=" Button-default-"] {
+  color: var(--vy-text-primary);
+  background: var(--vy-surface-elevated);
+  border-color: var(--vy-border-strong);
+}
+
+html[data-vy-engine] [class^="Button-primary-"],
+html[data-vy-engine] [class*=" Button-primary-"] {
+  color: #081018;
+  background: var(--vy-engine-accent);
+  border-color: var(--vy-engine-accent);
+  box-shadow: 0 6px 18px var(--vy-native-accent-medium);
+}
+
+html[data-vy-engine] [class^="Button-button-"]:hover,
+html[data-vy-engine] [class*=" Button-button-"]:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+/* Menus and dialogs use the same elevated VynodeArr language. */
+html[data-vy-engine] [class^="MenuContent-menuContent-"],
+html[data-vy-engine] [class*=" MenuContent-menuContent-"],
+html[data-vy-engine] [class^="Modal-modal-"],
+html[data-vy-engine] [class*=" Modal-modal-"] {
+  color: var(--vy-text-primary);
+  background: var(--vy-native-panel);
+  border: 1px solid var(--vy-border-subtle);
+  border-radius: var(--vy-radius-lg);
+  box-shadow: 0 24px 70px rgb(0 0 0 / 42%);
+}
+
+html[data-vy-engine] [class^="Modal-modalBackdrop-"],
+html[data-vy-engine] [class*=" Modal-modalBackdrop-"] {
+  background: rgb(4 8 14 / 72%);
+  backdrop-filter: blur(5px);
+}
+
+html[data-vy-engine] [class^="MenuItem-menuItem-"],
+html[data-vy-engine] [class*=" MenuItem-menuItem-"] {
+  margin: 3px;
+  color: var(--vy-text-secondary);
+  border-radius: var(--vy-radius-sm);
+}
+
+html[data-vy-engine] [class^="MenuItem-menuItem-"]:hover,
+html[data-vy-engine] [class*=" MenuItem-menuItem-"]:hover,
+html[data-vy-engine] [class^="MenuItem-menuItem-"]:focus-visible,
+html[data-vy-engine] [class*=" MenuItem-menuItem-"]:focus-visible {
+  color: var(--vy-text-primary);
+  background: var(--vy-surface-hover);
+}
+
+html[data-vy-engine] [class^="Alert-alert-"],
+html[data-vy-engine] [class*=" Alert-alert-"] {
+  border-radius: var(--vy-radius-md);
+  border-width: 1px;
+  box-shadow: 0 8px 22px rgb(0 0 0 / 12%);
+}
+
+html[data-vy-engine] a:focus-visible,
+html[data-vy-engine] button:focus-visible,
+html[data-vy-engine] input:focus-visible,
+html[data-vy-engine] select:focus-visible,
+html[data-vy-engine] textarea:focus-visible,
+html[data-vy-engine] [tabindex]:focus-visible {
+  outline: var(--vy-focus-ring);
+  outline-offset: var(--vy-focus-offset);
+}
+
+@media (max-width: 768px) {
+  html[data-vy-engine] {
+    --vy-native-gutter: 8px;
+  }
+
+  html[data-vy-engine] [class^="PageHeader-header-"],
+  html[data-vy-engine] [class*=" PageHeader-header-"] {
+    min-height: 58px;
+    padding-inline: var(--vy-space-2);
+  }
+
+  html[data-vy-engine] [class^="PageHeader-logoContainer-"],
+  html[data-vy-engine] [class*=" PageHeader-logoContainer-"] {
+    flex-basis: 52px;
+    width: 48px;
+    min-width: 48px;
+  }
+
+  html[data-vy-engine] [class^="MovieSearchInput-wrapper-"],
+  html[data-vy-engine] [class*=" MovieSearchInput-wrapper-"],
+  html[data-vy-engine] [class^="SeriesSearchInput-wrapper-"],
+  html[data-vy-engine] [class*=" SeriesSearchInput-wrapper-"] {
+    flex-basis: auto;
+    min-width: 140px;
+  }
+
+  html[data-vy-engine] [class^="PageHeader-logoContainer-"]::after,
+  html[data-vy-engine] [class*=" PageHeader-logoContainer-"]::after {
+    content: "";
+  }
+
+  html[data-vy-engine] [class^="PageContent-content-"],
+  html[data-vy-engine] [class*=" PageContent-content-"] {
+    margin-left: 0;
+  }
+
+  html[data-vy-engine] [class^="PageToolbar-toolbar-"],
+  html[data-vy-engine] [class*=" PageToolbar-toolbar-"] {
+    margin: var(--vy-native-gutter);
+    border-radius: var(--vy-radius-md);
+  }
+
+  html[data-vy-engine] [class^="PageContentBody-contentBody-"],
+  html[data-vy-engine] [class*=" PageContentBody-contentBody-"],
+  html[data-vy-engine] [class^="PageContentBody-innerContentBody-"],
+  html[data-vy-engine] [class*=" PageContentBody-innerContentBody-"] {
+    padding: var(--vy-space-3);
+  }
+}
+
+@media (forced-colors: active) {
+  html[data-vy-engine] [class^="PageSidebarItem-isActiveLink-"],
+  html[data-vy-engine] [class*=" PageSidebarItem-isActiveLink-"],
+  html[data-vy-engine] [class^="Table-tableContainer-"],
+  html[data-vy-engine] [class*=" Table-tableContainer-"] {
+    border-color: Highlight;
+  }
+
+  html[data-vy-engine] [class^="PageHeader-logo-"],
+  html[data-vy-engine] [class*=" PageHeader-logo-"],
+  html[data-vy-engine] [class^="PageHeader-logoFull-"],
+  html[data-vy-engine] [class*=" PageHeader-logoFull-"] {
+    opacity: 1;
+  }
+}
