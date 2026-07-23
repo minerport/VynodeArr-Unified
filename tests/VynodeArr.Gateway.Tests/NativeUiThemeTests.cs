@@ -14,12 +14,14 @@ public sealed class NativeUiThemeTests
         var css = LoadTheme();
 
         Assert.Contains("html[data-vy-engine]", css, StringComparison.Ordinal);
-        Assert.Contains("PageSidebarItem/isActiveLink/", css, StringComparison.Ordinal);
-        Assert.Contains("PageToolbar/toolbar/", css, StringComparison.Ordinal);
-        Assert.Contains("Card/card/", css, StringComparison.Ordinal);
-        Assert.Contains("Table/table/", css, StringComparison.Ordinal);
-        Assert.Contains("Modal/modal/", css, StringComparison.Ordinal);
-        Assert.Contains("MenuContent/menuContent/", css, StringComparison.Ordinal);
+        Assert.Contains("PageSidebarItem-isActiveLink-", css, StringComparison.Ordinal);
+        Assert.Contains("PageToolbar-toolbar-", css, StringComparison.Ordinal);
+        Assert.Contains("Card-card-", css, StringComparison.Ordinal);
+        Assert.Contains("Table-table-", css, StringComparison.Ordinal);
+        Assert.Contains("Modal-modal-", css, StringComparison.Ordinal);
+        Assert.Contains("MenuContent-menuContent-", css, StringComparison.Ordinal);
+        Assert.Contains("PageHeader-logoContainer-", css, StringComparison.Ordinal);
+        Assert.Contains("VYNODEARR", css, StringComparison.Ordinal);
         Assert.Contains(":focus-visible", css, StringComparison.Ordinal);
         Assert.Contains("forced-colors: active", css, StringComparison.Ordinal);
         Assert.DoesNotContain("display: none", css, StringComparison.OrdinalIgnoreCase);
