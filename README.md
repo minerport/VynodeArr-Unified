@@ -35,7 +35,7 @@ VynodeArr combines complete movie and television library management behind one d
 
 | Dashboard | Movies |
 | --- | --- |
-| ![VynodeArr dashboard](docs/ui/review/phase-1/dashboard-1440x900-dark.jpg) | ![VynodeArr movie library](docs/ui/review/phase-1/movies-library-1440x900-dark.jpg) |
+| ![VynodeArr dashboard](docs/images/vynodearr-dashboard.jpg) | ![VynodeArr movie library](docs/images/vynodearr-movies.jpg) |
 
 <p align="center">
   <em>The interface is responsive across desktop, tablet, and mobile layouts.</em>
