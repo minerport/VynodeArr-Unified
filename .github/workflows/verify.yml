@@ -12,4 +12,6 @@ jobs:
         with:
           node-version: 24
       - run: npm run verify
+      - name: Prepare review environment
+        run: cp .env.example .env
       - run: docker compose --env-file .env.example config
