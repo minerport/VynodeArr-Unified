@@ -40,6 +40,9 @@ services:
       - movie-engine-config:/config
       - movie-library:/movies
       - shared-downloads:/downloads
+      - type: bind
+        source: 'E:\'
+        target: /e
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS 'http://127.0.0.1:7878/ping' >/dev/null || exit 1"]
       interval: 10s
@@ -63,6 +66,9 @@ services:
       - tv-engine-config:/config
       - tv-library:/tv
       - shared-downloads:/downloads
+      - type: bind
+        source: 'E:\'
+        target: /e
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS 'http://127.0.0.1:8989/ping' >/dev/null || exit 1"]
       interval: 10s
