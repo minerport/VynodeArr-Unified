@@ -11,7 +11,7 @@ test('management gateway exposes native capabilities and forwards only allowlist
   const client={
     get:async(path,query)=>{calls.push(['GET',path,query]);return[{id:1,name:'Profile'}];},
     post:async(path,payload)=>{calls.push(['POST',path,payload]);return{id:2,...payload};},
-    put:async(path,payload)=>{calls.push(['PUT',path,payload]);return payload;},
+    put:async(path,payload,query)=>{calls.push(['PUT',path,payload,query]);return payload;},
     delete:async(path)=>{calls.push(['DELETE',path]);return null;}
   };
   const service=new EngineManagementService({get:()=>({client})});
@@ -22,11 +22,12 @@ test('management gateway exposes native capabilities and forwards only allowlist
   for(const key of ['calendar','wantedMissing','blocklist','releases','filesystem','remotePathMappings','indexerSchemas','downloadClientSettings','diskSpace','tasks','backups','updates','events'])assert.ok(catalog.some((item)=>item.key===key),key);
   await service.execute('movie','profiles','GET');
   await service.execute('movie','library','POST',{payload:{title:'New movie'}});
-  await service.execute('movie','library','PUT',{id:7,payload:{id:7,monitored:true}});
+  await service.execute('movie','library','PUT',{id:7,payload:{id:7,monitored:true},query:{moveFiles:'true'}});
   await service.execute('movie','library','DELETE',{id:7});
   assert.deepEqual(calls.map((call)=>call.slice(0,2)),[
     ['GET','qualityprofile'],['POST','movie'],['PUT','movie/7'],['DELETE','movie/7']
   ]);
+  assert.deepEqual(calls[2][3],{moveFiles:'true'});
   await assert.rejects(()=>service.execute('movie','system/status','DELETE',{id:1}),/not available/);
   await assert.rejects(()=>service.execute('movie','library','DELETE'),/identifier/);
 });
@@ -61,6 +62,7 @@ test('native interaction workflows replace an upstream-shaped generic shell',asy
   for(const workflow of ['VynodeArr_${domain===','vynodearr.libraryView.${kind}','views:{movies:savedLibraryView'])assert.ok(script.includes(workflow)||apiSource.includes(workflow),workflow);
   for(const workflow of ["serviceTabs('advanced')",'statusSections(values)','storage-summary','status-domain-section'])assert.ok(script.includes(workflow),workflow);
   for(const workflow of ['privateProviderKeys','providerPresentation','mergeProviderPayload','Provider help is available through VynodeArr.'])assert.ok(script.includes(workflow),workflow);
+  for(const workflow of ['mediaPath(values.rootFolderPath,raw.path)','path:mediaPath','moveFiles=true'])assert.ok(script.includes(workflow),workflow);
   for(const workflow of ['requestRemoteArtwork','image?.remoteUrl','tmdb.org','thetvdb.com'])assert.ok(clientSource.includes(workflow),workflow);
   for(const workflow of ['showAddMedia','discovery-art','remotePoster','showCalendar','calendar-grid','calendar-movies','showWanted','wanted-domain','wanted-show','wanted-season','wanted-interactive','showQueue','queue-table','data-queue-sort','showRootFolders','reviewMovieImport','reviewTvImport','const target=event.currentTarget','Scan for','Import selected movies','Import selected series','showProfiles','showProviders','loadPolicy','Failed download handling','autoRedownloadFailed','Indexers','Download Clients','All provider options','folder-browser','Browse…','Use this folder','attachDetailActions','episode-monitor','episode-auto-search','episode-interactive-search','Monitoring…','Unmonitoring…','Automatic search','Interactive search','release-table','data-sort','Source','Quality','Size','Seeders','grab-release','createRecord','Refresh & scan','Allowed qualities','Custom format scores','Create Movies and Television backups'])assert.match(script,new RegExp(workflow.replace(/[&]/g,'&')));
 });
