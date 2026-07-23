@@ -117,6 +117,33 @@ export function createApplication(options={}){
       tvMetadataCache.set(key,value);return value;
     }catch{return null;}
   }
+  async function liveQueue(){
+    const results=await Promise.all(['movie','tv'].map(async domain=>{
+      const client=registry.get(domain).client;
+      const [queueValue,library,downloadClients]=await Promise.all([
+        client.get('queue',{page:1,pageSize:500,includeUnknownMovieItems:true,includeUnknownSeriesItems:true,includeMovie:true,includeSeries:true,includeEpisode:true}),
+        client.get(domain==='movie'?'movie':'series').catch(()=>[]),
+        client.get('downloadclient').catch(()=>[])
+      ]);
+      const records=Array.isArray(queueValue?.records)?queueValue.records:[],libraryById=new Map((Array.isArray(library)?library:[]).map(item=>[Number(item.id),item])),clientSlots=new Map();
+      await Promise.all((Array.isArray(downloadClients)?downloadClients:[]).filter(item=>item.enable!==false&&/sabnzbd/i.test(`${item.implementation||''} ${item.implementationName||''}`)).map(async item=>{
+        const fields=Object.fromEntries((item.fields||[]).map(field=>[field.name,field.value])),host=String(fields.host||''),port=Number(fields.port||8080),apiKey=String(fields.apiKey||''),ssl=Boolean(fields.useSsl),urlBase=String(fields.urlBase||'').replace(/^\/+|\/+$/g,'');
+        if(!host||!apiKey||!Number.isFinite(port))return;
+        try{
+          const url=new URL(`${ssl?'https':'http'}://${host}:${port}/${urlBase?`${urlBase}/`:''}api`);
+          url.search=new URLSearchParams({mode:'queue',output:'json',apikey:apiKey}).toString();
+          const response=await fetch(url,{signal:AbortSignal.timeout(5000)});if(!response.ok)return;
+          const value=await response.json();
+          for(const slot of value?.queue?.slots||[])clientSlots.set(String(slot.nzo_id||''),{status:String(slot.status||value.queue.status||''),filename:String(slot.filename||slot.name||''),percentage:Number(slot.percentage),timeLeft:String(slot.timeleft||''),sizeLeftMb:Number(slot.mbleft),speed:value.queue.speed||null});
+        }catch{}
+      }));
+      return records.map(item=>{
+        const mediaId=Number(domain==='movie'?(item.movieId||item.movie?.id):(item.seriesId||item.series?.id||item.episode?.seriesId)),media=item[domain==='movie'?'movie':'series']||libraryById.get(mediaId)||null,client=clientSlots.get(String(item.downloadId||''));
+        return{...item,domain,media,mediaId,clientStatus:client?.status||null,clientFilename:client?.filename||null,clientPercentage:Number.isFinite(client?.percentage)?client.percentage:null,clientTimeLeft:client?.timeLeft||null,clientSizeLeftMb:Number.isFinite(client?.sizeLeftMb)?client.sizeLeftMb:null,clientSpeed:client?.speed||null};
+      });
+    }));
+    return results.flat();
+  }
 
   async function handleRequest(req,res){
     const url=new URL(req.url,'http://vynodenew.local');if(!initialized)await initialize();
@@ -193,6 +220,7 @@ export function createApplication(options={}){
         const movieMatch=url.pathname.match(/^\/api\/media\/movies\/(movie_[A-Za-z0-9_-]+)$/);if(movieMatch){const item=await registry.movie().getMovie(movieMatch[1]);return item?json(res,200,{item,mode}):json(res,404,{error:{code:'not_found',message:'Movie was not found.'}});}
         if(url.pathname==='/api/media/tv')return json(res,200,{items:await sync.list('tv',{refresh:url.searchParams.get('refresh')==='true'}),mode,sync:sync.snapshot().tv});
         const tvMatch=url.pathname.match(/^\/api\/media\/tv\/(series_[A-Za-z0-9_-]+)$/);if(tvMatch){const item=await registry.tv().getSeries(tvMatch[1]);return item?json(res,200,{item,mode}):json(res,404,{error:{code:'not_found',message:'TV series was not found.'}});}
+        if(url.pathname==='/api/activity/queue/live')return json(res,200,{items:await liveQueue()});
         if(url.pathname==='/api/activity/queue')return json(res,200,{items:await sync.operations('queue')});
         if(url.pathname==='/api/activity/history')return json(res,200,{items:await sync.operations('history')});
         if(url.pathname==='/api/calendar')return json(res,200,{items:await sync.operations('calendar')});
