@@ -237,7 +237,7 @@ export function createApplication(options={}){
           const config=client.config,prefix=config.urlBase?`/${String(config.urlBase).replace(/^\/+|\/+$/g,'')}`:'',downloadUrl=new URL(`${config.https?'https':'http'}://${config.host}:${config.port}${prefix}${backup.path}`);
           const response=await fetch(downloadUrl,{headers:{'x-api-key':config.apiCredential},signal:AbortSignal.timeout(30000)});
           if(!response.ok)throw new Error('The backup could not be downloaded');
-          const filename=String(backup.name||`${domain}-backup.zip`).replace(/[^A-Za-z0-9._-]/g,'_');
+          const extension=(String(backup.name||backup.path||'').match(/\.(zip|db|xml)$/i)||[])[0]||'.zip',stamp=new Date(backup.time||Date.now()).toISOString().replace(/\.\d{3}Z$/,'Z').replace(/:/g,'-'),filename=`VynodeNew_${domain==='movie'?'Movies':'Television'}_Backup_${stamp}${extension.toLowerCase()}`;
           res.writeHead(200,{'content-type':'application/zip','content-disposition':`attachment; filename="${filename}"`,'cache-control':'no-store','x-content-type-options':'nosniff'});return res.end(Buffer.from(await response.arrayBuffer()));
         }
         const backupUpload=url.pathname.match(/^\/api\/system\/backups\/(movie|tv)\/upload$/);
