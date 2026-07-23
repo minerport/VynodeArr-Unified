@@ -139,6 +139,12 @@ html[data-vy-engine] [class*=" PageSidebar-sidebar-"] {
 html[data-vy-engine] [class^="PageSidebarItem-item-"],
 html[data-vy-engine] [class*=" PageSidebarItem-item-"] {
   margin-bottom: 3px;
+  border-left-color: transparent;
+}
+
+html[data-vy-engine] [class^="PageSidebarItem-isActiveItem-"],
+html[data-vy-engine] [class*=" PageSidebarItem-isActiveItem-"] {
+  border-left-color: transparent;
 }
 
 html[data-vy-engine] [class^="PageSidebarItem-link-"],
@@ -173,7 +179,7 @@ html[data-vy-engine] [class*=" PageSidebarItem-isActiveParentLink-"] {
   color: var(--vy-text-primary);
   background: linear-gradient(90deg, var(--vy-native-accent-medium), var(--vy-native-accent-soft));
   border-color: color-mix(in srgb, var(--vy-engine-accent) 55%, var(--vy-border-subtle));
-  box-shadow: inset 3px 0 0 var(--vy-engine-accent);
+  box-shadow: 0 4px 14px var(--vy-native-accent-soft);
 }
 
 html[data-vy-engine] [class^="PageSidebarItem-iconContainer-"],
@@ -305,8 +311,15 @@ html[data-vy-engine] [class*=" FieldSet-fieldSet-"] {
 
 html[data-vy-engine] [class^="FieldSet-legend-"],
 html[data-vy-engine] [class*=" FieldSet-legend-"] {
-  padding-inline: var(--vy-space-2);
+  width: calc(100% + (2 * var(--vy-space-5)));
+  margin: calc(-1 * var(--vy-space-5)) calc(-1 * var(--vy-space-5)) var(--vy-space-4);
+  padding: 13px var(--vy-space-5);
   color: var(--vy-engine-accent);
+  background: var(--vy-surface-elevated);
+  border: 0;
+  border-bottom: 1px solid var(--vy-border-subtle);
+  border-radius: var(--vy-radius-lg) var(--vy-radius-lg) 0 0;
+  font-size: var(--vy-font-size-section);
   font-weight: 750;
   letter-spacing: .025em;
 }

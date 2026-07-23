@@ -12,7 +12,8 @@ public sealed class UnifiedShellTests
 
         Assert.Contains("data-vy-engine=\"shared\"", html, StringComparison.Ordinal);
         Assert.Contains("src=\"/assets/vynodearr.png\"", html, StringComparison.Ordinal);
-        Assert.Contains("href=\"/assets/vynodearr-tokens.v1.css\"", html, StringComparison.Ordinal);
+        Assert.Contains("href=\"/assets/vynodearr-tokens.v1.css?rev=2\"", html, StringComparison.Ordinal);
+        Assert.Contains("rel=\"icon\" type=\"image/png\" href=\"/assets/vynodearr.png\"", html, StringComparison.Ordinal);
         Assert.Contains("Version 1.2.3", html, StringComparison.Ordinal);
         Assert.Contains("setTimeout(loadSummary, delay)", html, StringComparison.Ordinal);
         Assert.Contains("cache: 'no-store'", html, StringComparison.Ordinal);

@@ -26,6 +26,9 @@ public sealed class UnifiedSummaryServiceTests
         Assert.Equal(7, result.Domains["television"].MissingMonitored);
         Assert.Equal("VynodeArr Movies", result.Domains["movie"].Application);
         Assert.Equal("VynodeArr Television", result.Domains["television"].Application);
+        Assert.Equal(2, result.Domains["movie"].HealthIssues);
+        Assert.Equal("No download client is available", result.Domains["movie"].Health[0].Message);
+        Assert.Equal("IndexerStatusCheck", result.Domains["movie"].Health[1].Source);
         Assert.All(handler.MovieRequests, request => Assert.Equal("movie-key", request.ApiKey));
         Assert.All(handler.TelevisionRequests, request => Assert.Equal("tv-key", request.ApiKey));
     }
@@ -56,7 +59,9 @@ public sealed class UnifiedSummaryServiceTests
                             ? movie ? "{\"totalRecords\":3}" : "{\"totalRecords\":7}"
                             : path.EndsWith("/queue", StringComparison.Ordinal)
                                 ? "{\"totalRecords\":2}"
-                                : "[]";
+                                : movie
+                                    ? "[{\"source\":\"DownloadClientCheck\",\"type\":\"warning\",\"message\":\"No download client is available\"},{\"source\":\"IndexerStatusCheck\",\"type\":\"error\",\"message\":\"No indexers are available\"}]"
+                                    : "[]";
 
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
             {

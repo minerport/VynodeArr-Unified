@@ -25,6 +25,9 @@ public sealed class NativeUiThemeTests
         Assert.Contains("MovieSearchInput-wrapper-", css, StringComparison.Ordinal);
         Assert.Contains("SeriesSearchInput-wrapper-", css, StringComparison.Ordinal);
         Assert.Contains("StatisticsSummary-item-", css, StringComparison.Ordinal);
+        Assert.Contains("PageSidebarItem-isActiveItem-", css, StringComparison.Ordinal);
+        Assert.Contains("border-left-color: transparent", css, StringComparison.Ordinal);
+        Assert.Contains("FieldSet-legend-", css, StringComparison.Ordinal);
         Assert.Contains(":focus-visible", css, StringComparison.Ordinal);
         Assert.Contains("forced-colors: active", css, StringComparison.Ordinal);
         Assert.DoesNotContain("display: none", css, StringComparison.OrdinalIgnoreCase);

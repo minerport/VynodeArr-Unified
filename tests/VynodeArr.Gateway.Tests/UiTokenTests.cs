@@ -33,6 +33,7 @@ public sealed class UiTokenTests
         Assert.Contains("forced-colors: active", css, StringComparison.Ordinal);
         Assert.Contains("data-vy-engine=\"movies\"", css, StringComparison.Ordinal);
         Assert.Contains("data-vy-engine=\"television\"", css, StringComparison.Ordinal);
+        Assert.Contains("--vy-engine-television: #34d399", css, StringComparison.Ordinal);
     }
 
     [Fact]

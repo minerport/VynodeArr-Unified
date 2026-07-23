@@ -243,7 +243,21 @@ IReadOnlyList<DashboardAttentionItem> BuildAttention(DomainSummary domain)
     var link = domain.Domain == "movie" ? "/movies/system/status" : "/television/system/status";
     var items = new List<DashboardAttentionItem>();
     if (domain.Error is not null) items.Add(new($"{domain.Domain}:availability", engine, "Error", "Engine", $"{engine} Engine unavailable", "The engine could not be reached.", null, link));
-    if (domain.HealthIssues > 0) items.Add(new($"{domain.Domain}:health", engine, "Warning", "Health", $"{domain.HealthIssues} health issue(s)", "Open the native system page for details.", null, link));
+    for (var index = 0; index < domain.Health.Count; index++)
+    {
+        var issue = domain.Health[index];
+        var severity = issue.Type.Equals("error", StringComparison.OrdinalIgnoreCase) ? "Error" : "Warning";
+        items.Add(new(
+            $"{domain.Domain}:health:{index}",
+            engine,
+            severity,
+            "Health",
+            issue.Source,
+            issue.Message,
+            null,
+            link));
+    }
+    if (domain.HealthIssues > 0 && domain.Health.Count == 0) items.Add(new($"{domain.Domain}:health", engine, "Warning", "Health", $"{domain.HealthIssues} health issue(s)", "Open the native system page for details.", null, link));
     return items;
 }
 
