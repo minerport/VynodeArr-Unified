@@ -50,6 +50,16 @@
       "size": 283059555,
       "sha256": "6a1496e11a083f8868f27d7ce7227ef4330bc014649acd548ad06821cdb049b2",
       "releaseUrl": "https://github.com/minerport/VynodeArr-Unified/releases/tag/v0.4.8"
+    },
+    {
+      "version": "0.4.9",
+      "channel": "stable",
+      "platform": "windows",
+      "architecture": "x64",
+      "filename": "VynodeArr-0.4.9-win-x64-setup.exe",
+      "size": 283082248,
+      "sha256": "5aaaf2fff002a026890d85277abcc8533deaae39ef1ee2cfc9d81e3abf6ce078",
+      "releaseUrl": "https://github.com/minerport/VynodeArr-Unified/releases/tag/v0.4.9"
     }
   ]
 }
