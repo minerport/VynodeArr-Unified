@@ -54,20 +54,25 @@ export function createApplication(options={}){
   }
   async function restoreBundledCredentials(){
     if(String(env.VYNODENEW_BUNDLED_ENGINES||'false')!=='true')return false;
-    if(!baseConfig.movie.apiCredential||!baseConfig.tv.apiCredential)return false;
-    await engineSettings.save('movie',baseConfig.movie,baseConfig.movie.apiCredential);
-    await engineSettings.save('tv',baseConfig.tv,baseConfig.tv.apiCredential);
+    const configured=await engineSettings.runtime(),readKey=async domain=>{
+      const path=env[domain==='movie'?'MOVIE_ENGINE_CONFIG_PATH':'TV_ENGINE_CONFIG_PATH']||`/engine-config/${domain}/config.xml`,xml=await readFile(path,'utf8').catch(()=>'');
+      return xml.match(/<ApiKey>([^<]+)<\/ApiKey>/i)?.[1]||baseConfig[domain].apiCredential||'';
+    },[movieKey,tvKey]=await Promise.all([readKey('movie'),readKey('tv')]);
+    if(!movieKey||!tvKey)return false;
+    await engineSettings.save('movie',configured?.movie||baseConfig.movie,movieKey);
+    await engineSettings.save('tv',configured?.tv||baseConfig.tv,tvKey);
     return true;
   }
   async function initialize(){
     if(initialized)return;
     await Promise.all([auth.initialize(),engineSettings.initialize()]);
+    await restoreBundledCredentials();
     if(!options.movie)await rebuildFromSettings();
     try{
       await ensureBundledRootFolders();
       await sync.startup();
     }catch(error){
-      console.warn('Engine startup synchronization deferred:',safeError(error));
+      console.warn('Engine startup synchronization deferred:',redact(error?.safeMessage||error?.message||'Engine unavailable'));
     }
     sync.startPolling();
     initialized=true;
@@ -175,8 +180,16 @@ export function createApplication(options={}){
         }
         if(engineKey&&req.method==='POST'){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;
-          const domain=engineKey[1],client=registry.get(domain).client,host=await client.get('config/host'),apiKey=randomUUID().replaceAll('-','');
-          await client.put('config/host',{...host,apiKey});
+          if(String(env.VYNODENEW_BUNDLED_ENGINES||'false')!=='true')throw new Error('API key generation is available only for installation-managed engines');
+          const domain=engineKey[1],client=registry.get(domain).client,host=await client.get('config/host'),previousKey=String(host.apiKey||''),configPath=env[domain==='movie'?'MOVIE_ENGINE_CONFIG_PATH':'TV_ENGINE_CONFIG_PATH']||`/engine-config/${domain}/config.xml`;
+          await client.post('command',{name:'ResetApiKey'});
+          let apiKey='';
+          for(let attempt=0;attempt<40;attempt+=1){
+            const xml=await readFile(configPath,'utf8').catch(()=>''),match=xml.match(/<ApiKey>([^<]+)<\/ApiKey>/i);
+            if(match?.[1]&&match[1]!==previousKey){apiKey=match[1];break;}
+            await new Promise(resolve=>setTimeout(resolve,250));
+          }
+          if(!apiKey)throw new Error('The engine did not provide its newly generated API key');
           const runtime=await engineSettings.runtime();await engineSettings.save(domain,runtime[domain],apiKey);await rebuildFromSettings();
           let connection=null;
           for(let attempt=0;attempt<40;attempt+=1){
