@@ -16,7 +16,7 @@ public sealed class NativeShellBrandingTests
         string activePath)
     {
         var userContent = $"A user named this library {compatibilityName} Archive";
-        var html = $"<html lang=\"en\"><head><meta name=\"description\" content=\"{compatibilityName}\"><title>{compatibilityName}</title></head><body><script>window.{compatibilityName}={{}};</script><div id=\"root\">{userContent}</div></body></html>";
+        var html = $"<html lang=\"en\"><head><meta name=\"description\" content=\"{compatibilityName}\"><link rel=\"icon\" href=\"/{compatibilityName}/favicon.png\"><link rel=\"shortcut icon\" href=\"/{compatibilityName}/favicon.ico\"><link rel=\"apple-touch-icon\" href=\"/{compatibilityName}/apple.png\"><title>{compatibilityName}</title></head><body><script>window.{compatibilityName}={{}};</script><div id=\"root\">{userContent}</div></body></html>";
 
         var result = NativeShellBranding.Transform(html, domain, new UiOptions());
 
@@ -32,6 +32,10 @@ public sealed class NativeShellBrandingTests
         Assert.Contains($"window.{compatibilityName}", result, StringComparison.Ordinal);
         Assert.Contains(userContent, result, StringComparison.Ordinal);
         Assert.Contains("id=\"vynodearr-favicon\"", result, StringComparison.Ordinal);
+        Assert.Contains("id=\"vynodearr-shortcut-icon\"", result, StringComparison.Ordinal);
+        Assert.Contains("id=\"vynodearr-apple-icon\"", result, StringComparison.Ordinal);
+        Assert.DoesNotContain($"href=\"/{compatibilityName}/favicon", result, StringComparison.Ordinal);
+        Assert.DoesNotContain($"href=\"/{compatibilityName}/apple", result, StringComparison.Ordinal);
         Assert.Contains("id=\"vynodearr-native-presentation\"", result, StringComparison.Ordinal);
         Assert.Contains("replaceProductName", result, StringComparison.Ordinal);
         Assert.Contains("a[href$=\"/system/updates\"]", result, StringComparison.Ordinal);
@@ -40,6 +44,7 @@ public sealed class NativeShellBrandingTests
         Assert.Contains("hiddenLegends.add('security')", result, StringComparison.Ordinal);
         Assert.Contains("hiddenLegends.add('updates')", result, StringComparison.Ordinal);
         Assert.Contains("hiddenLegends.add('more info')", result, StringComparison.Ordinal);
+        Assert.Contains("hiddenLegends.add('donations')", result, StringComparison.Ordinal);
         Assert.Contains("versionValue.textContent = productVersion", result, StringComparison.Ordinal);
         Assert.DoesNotContain("vynodearr-import-notice", result, StringComparison.Ordinal);
         Assert.DoesNotContain("Library Import requires one folder per movie", result, StringComparison.Ordinal);

@@ -1,5 +1,6 @@
 using VynodeArr.Gateway.Configuration;
 using VynodeArr.Gateway.Runtime;
+using System.Text.RegularExpressions;
 
 namespace VynodeArr.Gateway.Proxy;
 
@@ -63,6 +64,7 @@ public static class NativeShellBranding
             : BuildLegacyNavigation(activePath);
         var transformed = AddEngineContext(html, engineKey);
         transformed = ReplaceExactMetadata(transformed, compatibilityName, productName);
+        transformed = RemoveNativeIcons(transformed);
         transformed = transformed.Replace("</head>", $"{tokenLink}{nativeThemeLink}{metadata}{style}</head>", StringComparison.OrdinalIgnoreCase);
         return transformed.Replace("<body>", $"<body>{navigation}", StringComparison.OrdinalIgnoreCase);
     }
@@ -84,6 +86,12 @@ public static class NativeShellBranding
         .Replace($"<title>{compatibilityName}</title>", $"<title>{productName}</title>", StringComparison.Ordinal)
         .Replace($"content=\"{compatibilityName}\"", $"content=\"{productName}\"", StringComparison.Ordinal);
 
+    private static string RemoveNativeIcons(string html) => Regex.Replace(
+        html,
+        """<link\b[^>]*\brel=["'](?:apple-touch-icon|icon|shortcut icon|mask-icon)["'][^>]*\/?>""",
+        string.Empty,
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
     public static string PresentText(string value) => value
         .Replace("Radarr", "VynodeArr Movies", StringComparison.OrdinalIgnoreCase)
         .Replace("Sonarr", "VynodeArr Television", StringComparison.OrdinalIgnoreCase);
@@ -93,7 +101,9 @@ public static class NativeShellBranding
         string compatibilityName,
         string activePath,
         string productVersion) => $$"""
-        <link id="vynodearr-favicon" rel="icon" type="image/png" href="/assets/vynodearr.png">
+        <link id="vynodearr-favicon" rel="icon" type="image/png" href="/assets/vynodearr.png?rev=1">
+        <link id="vynodearr-shortcut-icon" rel="shortcut icon" type="image/png" href="/assets/vynodearr.png?rev=1">
+        <link id="vynodearr-apple-icon" rel="apple-touch-icon" href="/assets/vynodearr.png?rev=1">
         <meta name="application-name" content="{{productName}}">
         <script id="vynodearr-native-presentation">
           (() => {
@@ -153,7 +163,10 @@ public static class NativeShellBranding
                 hiddenLegends.add('security');
                 hiddenLegends.add('updates');
               }
-              if (path === `${enginePath}/system/status`) hiddenLegends.add('more info');
+              if (path === `${enginePath}/system/status`) {
+                hiddenLegends.add('more info');
+                hiddenLegends.add('donations');
+              }
 
               document.querySelectorAll('fieldset').forEach((fieldSet) => {
                 if (hiddenLegends.has(fieldSetLegend(fieldSet))) fieldSet.remove();
