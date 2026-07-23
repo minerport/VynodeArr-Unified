@@ -98,6 +98,19 @@ export function createApplication(options={}){
     if(checks.some(check=>!check.reachable||!check.authenticated||!check.compatible))throw new Error('Automatic engine reconnection did not succeed');
     await sync.startup();return ['movie','tv'];
   }
+  async function completeEngineRestore(domain,previousStartTime){
+    let connection=null,restarted=false;
+    for(let attempt=0;attempt<120;attempt+=1){
+      await restoreBundledCredentials();await rebuildFromSettings();
+      const client=registry.get(domain).client,status=await client.get('system/status').catch(()=>null);
+      restarted=Boolean(status&&String(status.startTime||'')!==String(previousStartTime||''));
+      connection=await registry.get(domain).testConnection().catch(()=>null);
+      if(restarted&&connection?.reachable&&connection?.authenticated&&connection?.compatible)break;
+      await new Promise(resolve=>setTimeout(resolve,500));
+    }
+    if(!restarted||!connection?.reachable||!connection?.authenticated||!connection?.compatible)throw new Error(`${domain==='movie'?'Movie':'Television'} engine did not reconnect after restoring the backup`);
+    await sync.startup();
+  }
   async function tvMetadataArtwork(tvdbId,kind,seasonNumber,episodeNumber){
     const key=`tvmaze:${tvdbId}:${kind}:${seasonNumber||0}:${episodeNumber||0}`;
     if(tvMetadataCache.has(key))return tvMetadataCache.get(key);
@@ -211,19 +224,33 @@ export function createApplication(options={}){
         const backupRestore=url.pathname.match(/^\/api\/system\/backups\/(movie|tv)\/(\d+)\/restore$/);
         if(backupRestore&&req.method==='POST'){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;
-          const domain=backupRestore[1],id=backupRestore[2],client=registry.get(domain).client;
+          const domain=backupRestore[1],id=backupRestore[2],client=registry.get(domain).client,before=await client.get('system/status');
           await client.post(`system/backup/restore/${id}`,{});
           await client.post('command',{name:'Restart'});
-          await new Promise(resolve=>setTimeout(resolve,2000));
-          let connection=null;
-          for(let attempt=0;attempt<80;attempt+=1){
-            await restoreBundledCredentials();await rebuildFromSettings();
-            connection=await registry.get(domain).testConnection().catch(()=>null);
-            if(connection?.reachable&&connection?.authenticated&&connection?.compatible)break;
-            await new Promise(resolve=>setTimeout(resolve,500));
-          }
-          if(!connection?.reachable||!connection?.authenticated||!connection?.compatible)throw new Error(`${domain==='movie'?'Movie':'Television'} engine did not reconnect after restoring the backup`);
-          await sync.startup();return json(res,200,{restored:true,domain,backupId:id});
+          await completeEngineRestore(domain,before.startTime);return json(res,200,{restored:true,domain,backupId:id});
+        }
+        const backupDownload=url.pathname.match(/^\/api\/system\/backups\/(movie|tv)\/(\d+)\/download$/);
+        if(backupDownload&&req.method==='GET'){
+          if(!administrator(res,session))return;
+          const domain=backupDownload[1],client=registry.get(domain).client,backups=await client.get('system/backup'),backup=backups.find(item=>String(item.id)===backupDownload[2]);
+          if(!backup)return json(res,404,{error:{code:'backup_not_found',message:'Backup not found'}});
+          const config=client.config,prefix=config.urlBase?`/${String(config.urlBase).replace(/^\/+|\/+$/g,'')}`:'',downloadUrl=new URL(`${config.https?'https':'http'}://${config.host}:${config.port}${prefix}${backup.path}`);
+          const response=await fetch(downloadUrl,{headers:{'x-api-key':config.apiCredential},signal:AbortSignal.timeout(30000)});
+          if(!response.ok)throw new Error('The backup could not be downloaded');
+          const filename=String(backup.name||`${domain}-backup.zip`).replace(/[^A-Za-z0-9._-]/g,'_');
+          res.writeHead(200,{'content-type':'application/zip','content-disposition':`attachment; filename="${filename}"`,'cache-control':'no-store','x-content-type-options':'nosniff'});return res.end(Buffer.from(await response.arrayBuffer()));
+        }
+        const backupUpload=url.pathname.match(/^\/api\/system\/backups\/(movie|tv)\/upload$/);
+        if(backupUpload&&req.method==='POST'){
+          if(!administrator(res,session)||!requireCsrf(req,res,session))return;
+          const domain=backupUpload[1],client=registry.get(domain).client,before=await client.get('system/status'),incoming=new Request('http://vynodenew.local/upload',{method:'POST',headers:req.headers,body:req,duplex:'half'}),form=await incoming.formData(),file=form.get('file');
+          if(!(file instanceof File)||file.size===0||file.size>500000000)throw new Error('Choose a backup file smaller than 500 MB');
+          if(!/\.(zip|db|xml)$/i.test(file.name))throw new Error('Backup must be a .zip, .db, or .xml file');
+          const config=client.config,prefix=config.urlBase?`/${String(config.urlBase).replace(/^\/+|\/+$/g,'')}`:'',uploadUrl=new URL(`${config.https?'https':'http'}://${config.host}:${config.port}${prefix}/api/v3/system/backup/restore/upload`),upload=new FormData();
+          upload.append('file',file,file.name);
+          const response=await fetch(uploadUrl,{method:'POST',headers:{'x-api-key':config.apiCredential},body:upload,signal:AbortSignal.timeout(120000)});
+          if(!response.ok)throw new Error('The engine rejected the uploaded backup');
+          await client.post('command',{name:'Restart'});await completeEngineRestore(domain,before.startTime);return json(res,200,{restored:true,domain,uploaded:true});
         }
         if(url.pathname==='/api/system/sync'&&req.method==='POST'){if(!requireCsrf(req,res,session))return;const results=await sync.startup();return json(res,200,{synchronized:true,results:results.map((item)=>item.status),state:sync.snapshot()});}
         const catalogMatch=url.pathname.match(/^\/api\/manage\/(movie|tv)$/);
