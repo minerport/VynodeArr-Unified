@@ -10,6 +10,7 @@ const sharedResources=Object.freeze({
   importLists:{path:'importlist',methods:['GET','POST','PUT','DELETE']},
   naming:{path:'config/naming',methods:['GET','PUT']},
   mediaManagement:{path:'config/mediamanagement',methods:['GET','PUT']},
+  downloadClientSettings:{path:'config/downloadclient',methods:['GET','PUT']},
   qualityDefinitions:{path:'qualitydefinition',methods:['GET','PUT']},
   delayProfiles:{path:'delayprofile',methods:['GET','POST','PUT','DELETE']},
   restrictions:{path:'restriction',methods:['GET','POST','PUT','DELETE']},
@@ -75,7 +76,7 @@ export class EngineManagementService {
   async execute(domain,resource,method,{id,query,payload}={}){
     const definition={...sharedResources,...domainResources[domain]}[resource];
     if(!definition||!definition.methods.includes(method))throw new Error('This management operation is not available');
-    const singleton=['naming','mediaManagement','hostSettings','uiSettings','metadataSource'];
+    const singleton=['naming','mediaManagement','downloadClientSettings','hostSettings','uiSettings','metadataSource'];
     if((method==='PUT'||method==='DELETE')&&!id&&!singleton.includes(resource))throw new Error('A resource identifier is required');
     const path=id?`${definition.path}/${encodeURIComponent(String(id))}`:definition.path;
     const client=this.registry.get(domain).client;
