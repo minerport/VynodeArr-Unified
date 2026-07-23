@@ -23,6 +23,14 @@ test('TV adapter maps seasons, episodes, and operational surfaces',async()=>{
   const client=new FakeClient({series:[seriesRecord],seriesDetail:seriesRecord,episode:[{id:4,seasonNumber:1,episodeNumber:1,title:'Pilot',monitored:true,hasFile:true}],queue:{records:[]},history:{records:[]},calendar:[],health:[],'system/status':{version:'1.0'}});
   const adapter=new TvEngineAdapter({enabled:true},client);assert.equal((await adapter.listSeries())[0].id,'series_2');assert.equal((await adapter.getSeries('series_2')).seasons[0].episodes[0].title,'Pilot');
 });
+test('health adapters remove bundled engine product names from public messages',async()=>{
+  const movie=new MovieEngineAdapter({enabled:true},new FakeClient({health:[{type:'warning',source:'Radarr.Core.Health',message:'Radarr will not grab releases'}]}));
+  const tv=new TvEngineAdapter({enabled:true},new FakeClient({health:[{type:'warning',source:'Sonarr.Core.Health',message:'Sonarr will not grab episodes'}]}));
+  const values=[...(await movie.getHealth()),...(await tv.getHealth())];
+  assert.doesNotMatch(JSON.stringify(values),/\b(radarr|sonarr)\b/i);
+  assert.match(values[0].message,/movie service/i);
+  assert.match(values[1].message,/television service/i);
+});
 test('authentication failure, timeout, and invalid response are neutral',async()=>{
   const authServer=createServer((req,res)=>{res.writeHead(401);res.end('{}');});await new Promise((resolve)=>authServer.listen(0,'127.0.0.1',resolve));
   const authClient=new ReadOnlyEngineClient({enabled:true,host:'127.0.0.1',port:authServer.address().port,https:false,urlBase:'',apiCredential:'secret',timeoutMs:100,retries:0,tlsVerify:true},'Movie');

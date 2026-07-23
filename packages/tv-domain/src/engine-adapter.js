@@ -46,7 +46,8 @@ export class TvEngineAdapter {
   }
   async getHealth() {
     const value = await this.client.get('health'); if (!Array.isArray(value)) throw engineError.invalid();
-    return value.map((item, index) => ({ id: `tv_health_${index}`, domain: 'tv', severity: item.type || 'notice', message: item.message || 'TV service notice', source:item.source||null, wikiUrl:item.wikiUrl||null }));
+    const neutralize=value=>String(value||'').replace(/\bradarr\b/gi,'movie service').replace(/\bsonarr\b/gi,'television service');
+    return value.map((item, index) => ({ id: `tv_health_${index}`, domain: 'tv', severity: item.type || 'notice', message: neutralize(item.message)||'TV service notice', source:item.source?neutralize(item.source):null, wikiUrl:item.wikiUrl||null }));
   }
   async getSystemStatus() {
     const value = await this.client.get('system/status');
