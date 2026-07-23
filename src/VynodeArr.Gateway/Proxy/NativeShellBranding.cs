@@ -33,6 +33,7 @@ public static class NativeShellBranding
           .vy-shell-link:hover { color: var(--vy-text-primary, #f2f5f8); background: var(--vy-surface-hover, #2b3441); }
           .vy-shell-link:focus-visible, .vy-shell-brand:focus-visible { outline: var(--vy-focus-ring, 3px solid #93c5fd); outline-offset: var(--vy-focus-offset, 2px); }
           .vy-shell-link[aria-current="page"] { color: var(--vy-text-primary, #f2f5f8); background: var(--vy-surface-selected, #303b4b); border-color: var(--vy-engine-accent, #8aa0b8); }
+          a[href$="/system/updates"], a[href$="/system/updates/"] { display: none !important; }
           body > #root { position: relative; top: var(--vynodearr-content-offset); height: calc(100% - var(--vynodearr-content-offset)) !important; }
           @media (max-width: 620px) { .vy-shell-header { padding-inline: var(--vy-space-1, 4px); } .vy-shell-brand { width: 36px; } .vy-engine-badge { max-width: 116px; padding-inline: var(--vy-space-2, 8px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .vy-shell-link { padding-inline: var(--vy-space-2, 8px); font-size: 12px; } }
           @media (max-width: 430px) { .vy-shell-link { padding-inline: 6px; } .vy-engine-badge { max-width: 92px; } }
@@ -54,7 +55,9 @@ public static class NativeShellBranding
             ? "<link id=\"vynodearr-native-styles\" rel=\"stylesheet\" href=\"/assets/vynodearr-native.v2.css?rev=4\">"
             : string.Empty;
         var style = ui.NewShellStylingEnabled ? FoundationStyle : LegacyStyle;
-        var metadata = ui.NewShellStylingEnabled ? BuildMetadata(productName, compatibilityName) : string.Empty;
+        var metadata = ui.NewShellStylingEnabled
+            ? BuildMetadata(productName, compatibilityName, activePath)
+            : string.Empty;
         var navigation = ui.NewShellStylingEnabled
             ? BuildFoundationNavigation(productName, activePath)
             : BuildLegacyNavigation(activePath);
@@ -81,14 +84,26 @@ public static class NativeShellBranding
         .Replace($"<title>{compatibilityName}</title>", $"<title>{productName}</title>", StringComparison.Ordinal)
         .Replace($"content=\"{compatibilityName}\"", $"content=\"{productName}\"", StringComparison.Ordinal);
 
-    private static string BuildMetadata(string productName, string compatibilityName) => $$"""
+    public static string PresentText(string value) => value
+        .Replace("Radarr", "VynodeArr Movies", StringComparison.OrdinalIgnoreCase)
+        .Replace("Sonarr", "VynodeArr Television", StringComparison.OrdinalIgnoreCase);
+
+    private static string BuildMetadata(
+        string productName,
+        string compatibilityName,
+        string activePath) => $$"""
         <link id="vynodearr-favicon" rel="icon" type="image/png" href="/assets/vynodearr.png">
         <meta name="application-name" content="{{productName}}">
-        <script id="vynodearr-title-branding">
+        <script id="vynodearr-native-presentation">
           (() => {
-            const title = document.querySelector('title');
-            if (!title) return;
-            const apply = () => {
+            const compatibilityName = {{System.Text.Json.JsonSerializer.Serialize(compatibilityName)}};
+            const productName = {{System.Text.Json.JsonSerializer.Serialize(productName)}};
+            const updatePath = {{System.Text.Json.JsonSerializer.Serialize($"{activePath}system/updates")}};
+            const replaceProductName = (value) =>
+              typeof value === 'string'
+                ? value.replace(new RegExp(compatibilityName, 'gi'), productName)
+                : value;
+            const applyTitle = () => {
               const suffix = ' · {{productName}}';
               const raw = document.title
                 .replace(/\s*[-·]\s*{{compatibilityName}}\s*$/i, '')
@@ -97,8 +112,52 @@ public static class NativeShellBranding
               const next = !page ? '{{productName}}' : page.endsWith(suffix) ? page : `${page}${suffix}`;
               if (document.title !== next) document.title = next;
             };
-            apply();
-            new MutationObserver(apply).observe(title, { childList: true });
+            const presentNode = (root) => {
+              if (!(root instanceof Node)) return;
+              if (root.nodeType === Node.TEXT_NODE) {
+                const parent = root.parentElement;
+                if (parent && !parent.closest('script, style, textarea, [contenteditable="true"]')) {
+                  const next = replaceProductName(root.nodeValue);
+                  if (next !== root.nodeValue) root.nodeValue = next;
+                }
+                return;
+              }
+              if (!(root instanceof Element)) return;
+              if (root.matches('a[href$="/system/updates"], a[href$="/system/updates/"]')) {
+                root.remove();
+                return;
+              }
+              root.querySelectorAll('a[href$="/system/updates"], a[href$="/system/updates/"]').forEach((link) => link.remove());
+              const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+              while (walker.nextNode()) presentNode(walker.currentNode);
+              [root, ...root.querySelectorAll('[title], [aria-label], [alt]')].forEach((element) => {
+                for (const attribute of ['title', 'aria-label', 'alt']) {
+                  if (element.hasAttribute(attribute)) {
+                    element.setAttribute(attribute, replaceProductName(element.getAttribute(attribute)));
+                  }
+                }
+              });
+            };
+            if (location.pathname.replace(/\/$/, '').toLowerCase() === updatePath.toLowerCase()) {
+              location.replace('{{activePath}}system/status');
+              return;
+            }
+            const start = () => {
+              applyTitle();
+              presentNode(document.body);
+              new MutationObserver((records) => {
+                applyTitle();
+                for (const record of records) {
+                  if (record.type === 'characterData') presentNode(record.target);
+                  record.addedNodes.forEach(presentNode);
+                }
+              }).observe(document.body, { childList: true, subtree: true, characterData: true });
+            };
+            if (document.readyState === 'loading') {
+              document.addEventListener('DOMContentLoaded', start, { once: true });
+            } else {
+              start();
+            }
           })();
         </script>
         """;

@@ -1,9 +1,28 @@
+using Microsoft.AspNetCore.Http;
 using VynodeArr.Gateway.Proxy;
 
 namespace VynodeArr.Gateway.Tests;
 
 public sealed class EngineProxyTests
 {
+    [Theory]
+    [InlineData("/movies/system/updates")]
+    [InlineData("/movies/system/updates/")]
+    [InlineData("/television/system/updates")]
+    public void IdentifiesNativeUpdatePages(string path)
+    {
+        Assert.True(EngineProxy.IsNativeUpdatePage(new PathString(path)));
+    }
+
+    [Theory]
+    [InlineData("/movies/system/status")]
+    [InlineData("/movies/api/v3/update")]
+    [InlineData("/television/system/tasks")]
+    public void PreservesNonPageRoutes(string path)
+    {
+        Assert.False(EngineProxy.IsNativeUpdatePage(new PathString(path)));
+    }
+
     [Fact]
     public void RewritesPrivateEngineRedirectToGatewayRelativeLocation()
     {

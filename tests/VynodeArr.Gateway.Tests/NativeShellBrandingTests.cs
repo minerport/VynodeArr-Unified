@@ -32,12 +32,23 @@ public sealed class NativeShellBrandingTests
         Assert.Contains($"window.{compatibilityName}", result, StringComparison.Ordinal);
         Assert.Contains(userContent, result, StringComparison.Ordinal);
         Assert.Contains("id=\"vynodearr-favicon\"", result, StringComparison.Ordinal);
-        Assert.Contains("id=\"vynodearr-title-branding\"", result, StringComparison.Ordinal);
-        Assert.Contains("new MutationObserver(apply).observe(title", result, StringComparison.Ordinal);
-        Assert.DoesNotContain("observe(document.body", result, StringComparison.Ordinal);
-        Assert.DoesNotContain("replaceAll", result, StringComparison.Ordinal);
+        Assert.Contains("id=\"vynodearr-native-presentation\"", result, StringComparison.Ordinal);
+        Assert.Contains("replaceProductName", result, StringComparison.Ordinal);
+        Assert.Contains("a[href$=\"/system/updates\"]", result, StringComparison.Ordinal);
+        Assert.Contains("observe(document.body", result, StringComparison.Ordinal);
         Assert.DoesNotContain("vynodearr-import-notice", result, StringComparison.Ordinal);
         Assert.DoesNotContain("Library Import requires one folder per movie", result, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("Radarr", "VynodeArr Movies")]
+    [InlineData("Sonarr", "VynodeArr Television")]
+    [InlineData(
+        "Radarr and Sonarr are unavailable",
+        "VynodeArr Movies and VynodeArr Television are unavailable")]
+    public void RebrandsCompatibilityProductNamesForPresentation(string value, string expected)
+    {
+        Assert.Equal(expected, NativeShellBranding.PresentText(value));
     }
 
     [Theory]

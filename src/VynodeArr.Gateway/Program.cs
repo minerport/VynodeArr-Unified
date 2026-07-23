@@ -252,8 +252,8 @@ IReadOnlyList<DashboardAttentionItem> BuildAttention(DomainSummary domain)
             engine,
             severity,
             "Health",
-            issue.Source,
-            issue.Message,
+            NativeShellBranding.PresentText(issue.Source),
+            NativeShellBranding.PresentText(issue.Message),
             null,
             link));
     }

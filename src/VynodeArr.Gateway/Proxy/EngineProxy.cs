@@ -85,6 +85,12 @@ public static class EngineProxy
         UiOptions? ui = null,
         bool apiKeyAuthenticated = false)
     {
+        if (!apiKeyAuthenticated && IsNativeUpdatePage(context.Request.Path))
+        {
+            context.Response.Redirect($"{domain.NativePathBase()}/system/status");
+            return;
+        }
+
         if (!apiKeyAuthenticated &&
             !HttpMethods.IsGet(context.Request.Method) &&
             !HttpMethods.IsHead(context.Request.Method) &&
@@ -198,6 +204,12 @@ public static class EngineProxy
         }
 
         await response.Content.CopyToAsync(context.Response.Body, context.RequestAborted);
+    }
+
+    internal static bool IsNativeUpdatePage(PathString path)
+    {
+        var value = path.Value?.TrimEnd('/');
+        return value?.EndsWith("/system/updates", StringComparison.OrdinalIgnoreCase) == true;
     }
 
     internal static bool HasValidEngineApiKey(HttpRequest request, string expectedApiKey)
