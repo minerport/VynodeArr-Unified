@@ -53,7 +53,7 @@ public static class NativeShellBranding
             ? "<link id=\"vynodearr-token-styles\" rel=\"stylesheet\" href=\"/assets/vynodearr-tokens.v1.css?rev=2\">"
             : string.Empty;
         var nativeThemeLink = ui.TokensEnabled && ui.NewShellStylingEnabled
-            ? "<link id=\"vynodearr-native-styles\" rel=\"stylesheet\" href=\"/assets/vynodearr-native.v2.css?rev=6\">"
+            ? "<link id=\"vynodearr-native-styles\" rel=\"stylesheet\" href=\"/assets/vynodearr-native.v2.css?rev=7\">"
             : string.Empty;
         var style = ui.NewShellStylingEnabled ? FoundationStyle : LegacyStyle;
         var metadata = ui.NewShellStylingEnabled
@@ -154,6 +154,28 @@ public static class NativeShellBranding
             };
             const fieldSetLegend = (fieldSet) =>
               fieldSet.querySelector(':scope > legend')?.textContent?.trim().toLowerCase() ?? '';
+            const suppressNativeUpdateModal = () => {
+              const markers = document.querySelectorAll(
+                '[class^="AppUpdatedModalContent-version-"], [class*=" AppUpdatedModalContent-version-"]');
+              markers.forEach((marker) => {
+                const container = marker.closest(
+                  '[class^="Modal-modalContainer-"], [class*=" Modal-modalContainer-"]');
+                if (!container) return;
+                const portalChild = container.parentElement;
+                if (portalChild?.parentElement?.id === 'portal-root') {
+                  portalChild.remove();
+                } else {
+                  container.remove();
+                }
+              });
+              [...document.body.classList]
+                .filter((className) => className.startsWith('Modal-modalOpen-'))
+                .forEach((className) => document.body.classList.remove(className));
+              if (markers.length) {
+                document.body.style.removeProperty('overflow');
+                document.body.style.removeProperty('padding-right');
+              }
+            };
             const applyRoutePresentation = () => {
               const path = normalizedPath();
               const enginePath = activePath.replace(/\/+$/, '').toLowerCase();
@@ -192,6 +214,7 @@ public static class NativeShellBranding
             const start = () => {
               applyTitle();
               presentNode(document.body);
+              suppressNativeUpdateModal();
               applyRoutePresentation();
               new MutationObserver((records) => {
                 applyTitle();
@@ -199,6 +222,7 @@ public static class NativeShellBranding
                   if (record.type === 'characterData') presentNode(record.target);
                   record.addedNodes.forEach(presentNode);
                 }
+                suppressNativeUpdateModal();
                 applyRoutePresentation();
               }).observe(document.documentElement, { childList: true, subtree: true, characterData: true });
             };

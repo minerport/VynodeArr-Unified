@@ -41,6 +41,13 @@ public sealed class NativeUiThemeTests
         Assert.Contains("flex: 1 1 720px", css, StringComparison.Ordinal);
         Assert.Contains("max-width: 920px", css, StringComparison.Ordinal);
         Assert.Contains("max-height: 28px", css, StringComparison.Ordinal);
+        Assert.Contains("MovieDetails-backdrop-", css, StringComparison.Ordinal);
+        Assert.Contains("SeriesDetails-backdrop-", css, StringComparison.Ordinal);
+        Assert.Contains("MovieDetails-headerContent-", css, StringComparison.Ordinal);
+        Assert.Contains("SeriesDetails-headerContent-", css, StringComparison.Ordinal);
+        Assert.Contains("isolation: isolate", css, StringComparison.Ordinal);
+        Assert.Contains("background-position: center 22%", css, StringComparison.Ordinal);
+        Assert.Contains("backdrop-filter: blur(8px)", css, StringComparison.Ordinal);
         Assert.Contains(":focus-visible", css, StringComparison.Ordinal);
         Assert.Contains("forced-colors: active", css, StringComparison.Ordinal);
         Assert.DoesNotContain("display: none", css, StringComparison.OrdinalIgnoreCase);

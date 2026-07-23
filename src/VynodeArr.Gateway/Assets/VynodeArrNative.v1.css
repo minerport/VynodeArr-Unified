@@ -736,6 +736,78 @@ html[data-vy-engine] [class*=" Alert-alert-"] {
   box-shadow: 0 8px 22px rgb(0 0 0 / 12%);
 }
 
+/* Media details retain native artwork and actions while presenting the fanart as a VynodeArr hero. */
+html[data-vy-engine] [class^="MovieDetails-header-"],
+html[data-vy-engine] [class*=" MovieDetails-header-"],
+html[data-vy-engine] [class^="SeriesDetails-header-"],
+html[data-vy-engine] [class*=" SeriesDetails-header-"] {
+  isolation: isolate;
+  overflow: hidden;
+  margin: var(--vy-native-gutter);
+  width: calc(100% - (var(--vy-native-gutter) * 2));
+  min-height: 425px;
+  background: var(--vy-surface-panel);
+  border: 1px solid var(--vy-border-subtle);
+  border-radius: var(--vy-radius-lg);
+  box-shadow: var(--vy-shadow-panel);
+}
+
+html[data-vy-engine] [class^="MovieDetails-backdrop-"],
+html[data-vy-engine] [class*=" MovieDetails-backdrop-"],
+html[data-vy-engine] [class^="SeriesDetails-backdrop-"],
+html[data-vy-engine] [class*=" SeriesDetails-backdrop-"] {
+  z-index: 0;
+  inset: 0;
+  background-position: center 22%;
+  background-size: cover;
+  opacity: .82;
+  transform: scale(1.015);
+}
+
+html[data-vy-engine] [class^="MovieDetails-backdropOverlay-"],
+html[data-vy-engine] [class*=" MovieDetails-backdropOverlay-"],
+html[data-vy-engine] [class^="SeriesDetails-backdropOverlay-"],
+html[data-vy-engine] [class*=" SeriesDetails-backdropOverlay-"] {
+  background:
+    linear-gradient(90deg,
+      color-mix(in srgb, var(--vy-surface-app) 90%, transparent) 0%,
+      color-mix(in srgb, var(--vy-surface-app) 64%, transparent) 52%,
+      color-mix(in srgb, var(--vy-surface-app) 82%, transparent) 100%),
+    linear-gradient(0deg, var(--vy-surface-app) 0%, transparent 58%);
+  opacity: 1;
+}
+
+html[data-vy-engine] [class^="MovieDetails-headerContent-"],
+html[data-vy-engine] [class*=" MovieDetails-headerContent-"],
+html[data-vy-engine] [class^="SeriesDetails-headerContent-"],
+html[data-vy-engine] [class*=" SeriesDetails-headerContent-"] {
+  position: relative;
+  z-index: 1;
+  padding: var(--vy-space-7);
+}
+
+html[data-vy-engine] [class^="MovieDetails-poster-"],
+html[data-vy-engine] [class*=" MovieDetails-poster-"],
+html[data-vy-engine] [class^="SeriesDetails-poster-"],
+html[data-vy-engine] [class*=" SeriesDetails-poster-"] {
+  overflow: hidden;
+  border: 1px solid var(--vy-border-strong);
+  border-radius: var(--vy-radius-md);
+  box-shadow: 0 18px 42px rgb(0 0 0 / 42%);
+}
+
+html[data-vy-engine] [class^="MovieDetails-info-"],
+html[data-vy-engine] [class*=" MovieDetails-info-"],
+html[data-vy-engine] [class^="SeriesDetails-info-"],
+html[data-vy-engine] [class*=" SeriesDetails-info-"] {
+  padding: var(--vy-space-5);
+  background: color-mix(in srgb, var(--vy-surface-panel) 70%, transparent);
+  border: 1px solid color-mix(in srgb, var(--vy-border-strong) 68%, transparent);
+  border-radius: var(--vy-radius-lg);
+  box-shadow: 0 14px 34px rgb(0 0 0 / 24%);
+  backdrop-filter: blur(8px);
+}
+
 html[data-vy-engine] a:focus-visible,
 html[data-vy-engine] button:focus-visible,
 html[data-vy-engine] input:focus-visible,
@@ -793,6 +865,27 @@ html[data-vy-engine] [tabindex]:focus-visible {
   html[data-vy-engine] [class^="PageContentBody-innerContentBody-"],
   html[data-vy-engine] [class*=" PageContentBody-innerContentBody-"] {
     padding: var(--vy-space-3);
+  }
+
+  html[data-vy-engine] [class^="MovieDetails-header-"],
+  html[data-vy-engine] [class*=" MovieDetails-header-"],
+  html[data-vy-engine] [class^="SeriesDetails-header-"],
+  html[data-vy-engine] [class*=" SeriesDetails-header-"] {
+    min-height: 0;
+  }
+
+  html[data-vy-engine] [class^="MovieDetails-headerContent-"],
+  html[data-vy-engine] [class*=" MovieDetails-headerContent-"],
+  html[data-vy-engine] [class^="SeriesDetails-headerContent-"],
+  html[data-vy-engine] [class*=" SeriesDetails-headerContent-"] {
+    padding: var(--vy-space-4);
+  }
+
+  html[data-vy-engine] [class^="MovieDetails-info-"],
+  html[data-vy-engine] [class*=" MovieDetails-info-"],
+  html[data-vy-engine] [class^="SeriesDetails-info-"],
+  html[data-vy-engine] [class*=" SeriesDetails-info-"] {
+    padding: var(--vy-space-4);
   }
 }
 

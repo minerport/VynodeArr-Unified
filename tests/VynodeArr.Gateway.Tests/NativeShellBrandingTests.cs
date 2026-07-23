@@ -26,7 +26,7 @@ public sealed class NativeShellBrandingTests
         Assert.Contains($"aria-label=\"Current engine: {productName}\"", result, StringComparison.Ordinal);
         Assert.Contains("src=\"/assets/vynodearr.png\"", result, StringComparison.Ordinal);
         Assert.Contains("href=\"/assets/vynodearr-tokens.v1.css?rev=2\"", result, StringComparison.Ordinal);
-        Assert.Contains("href=\"/assets/vynodearr-native.v2.css?rev=6\"", result, StringComparison.Ordinal);
+        Assert.Contains("href=\"/assets/vynodearr-native.v2.css?rev=7\"", result, StringComparison.Ordinal);
         Assert.Contains($"href=\"{activePath}\" aria-current=\"page\"", result, StringComparison.Ordinal);
         Assert.Contains("href=\"/\">Dashboard</a>", result, StringComparison.Ordinal);
         Assert.Contains($"window.{compatibilityName}", result, StringComparison.Ordinal);
@@ -46,6 +46,9 @@ public sealed class NativeShellBrandingTests
         Assert.Contains("hiddenLegends.add('more info')", result, StringComparison.Ordinal);
         Assert.Contains("hiddenLegends.add('donations')", result, StringComparison.Ordinal);
         Assert.Contains("versionValue.textContent = productVersion", result, StringComparison.Ordinal);
+        Assert.Contains("suppressNativeUpdateModal", result, StringComparison.Ordinal);
+        Assert.Contains("AppUpdatedModalContent-version-", result, StringComparison.Ordinal);
+        Assert.Contains("Modal-modalOpen-", result, StringComparison.Ordinal);
         Assert.DoesNotContain("vynodearr-import-notice", result, StringComparison.Ordinal);
         Assert.DoesNotContain("Library Import requires one folder per movie", result, StringComparison.Ordinal);
     }
