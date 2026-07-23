@@ -37,7 +37,7 @@ test('native interaction workflows replace an upstream-shaped generic shell',asy
     readFile(new URL('../apps/web/public/app.js',import.meta.url),'utf8')
   ]);
   for(const route of ['#add','#wanted','#queue','#service/root-folders','#system'])assert.match(html,new RegExp(route));
-  for(const workflow of ['showAddMedia','showWanted','showQueue','showRootFolders','showProfiles','attachDetailActions','createRecord','Search releases','Refresh & scan','Allowed qualities','Custom format scores','Create both backups'])assert.match(script,new RegExp(workflow.replace(/[&]/g,'&')));
+  for(const workflow of ['showAddMedia','showWanted','showQueue','showRootFolders','showProfiles','folder-browser','Browse…','Use this folder','attachDetailActions','createRecord','Search releases','Refresh & scan','Allowed qualities','Custom format scores','Create both backups'])assert.match(script,new RegExp(workflow.replace(/[&]/g,'&')));
 });
 
 test('environment engine credentials auto-configure the private gateway once',async()=>{
