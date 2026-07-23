@@ -58,8 +58,6 @@ The movie and television engines are initialized and connected automatically. Do
 | `/tv` | Television library | `/mnt/user/media/tv` |
 | `/downloads` | Shared download-client data | `/mnt/user/downloads` |
 | `8686` | VynodeArr WebUI | Required |
-| `7878` | Movie compatibility API | Optional, for request applications |
-| `8989` | Television compatibility API | Optional, for request applications |
 
 For normal Unraid HTTP access, keep `VYNODEARR_SECURE_COOKIES=false`. Set it to `true` only when VynodeArr is always accessed through HTTPS.
 
@@ -88,10 +86,12 @@ After signing in:
 
 ## Connecting Seerr and other request applications
 
-Use the VynodeArr server's address with the compatibility ports:
+Use the VynodeArr server's address and WebUI port for both services:
 
-- Movies: `http://YOUR-SERVER-IP:7878`
-- Television: `http://YOUR-SERVER-IP:8989`
+- Hostname: `YOUR-SERVER-IP`
+- Port: `8686`
+- Movie URL Base: `/movies`
+- Television URL Base: `/tv`
 
 Administrators can reveal or generate each engine API key from **Account Settings → Engines**. If a key is regenerated, update every external application that uses it.
 

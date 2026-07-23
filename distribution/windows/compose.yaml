@@ -1,12 +1,10 @@
 services:
   vynodearr:
-    image: ghcr.io/minerport/vynodearr-unified:${VYNODEARR_VERSION:-1.0.3}
+    image: ghcr.io/minerport/vynodearr-unified:${VYNODEARR_VERSION:-1.0.4}
     container_name: vynodearr
     restart: unless-stopped
     ports:
       - "8686:8686"
-      - "7878:7878"
-      - "8989:8989"
     environment:
       TZ: ${TZ:-America/New_York}
       VYNODEARR_SECURE_COOKIES: "false"

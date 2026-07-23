@@ -12,7 +12,7 @@ FROM node:24-alpine
 LABEL org.opencontainers.image.title="VynodeArr" \
       org.opencontainers.image.description="Unified movie and television management for Unraid" \
       org.opencontainers.image.source="https://github.com/minerport/VynodeArr-Unified" \
-      org.opencontainers.image.version="1.0.3" \
+      org.opencontainers.image.version="1.0.4" \
       org.opencontainers.image.licenses="Apache-2.0"
 RUN apk add --no-cache icu-libs sqlite-libs libgcc libstdc++ tzdata tini
 WORKDIR /app
@@ -35,7 +35,7 @@ ENV NODE_ENV=production PORT=8686 VYNODEARR_DATA_DIR=/config/vynodearr \
     MOVIE_ENGINE_CONFIG_PATH=/config/movies/config.xml \
     TV_ENGINE_CONFIG_PATH=/config/television/config.xml
 VOLUME ["/config", "/movies", "/tv", "/downloads"]
-EXPOSE 8686 7878 8989
+EXPOSE 8686
 HEALTHCHECK --interval=30s --timeout=5s --start-period=45s --retries=3 \
   CMD node -e "Promise.all([8686,7878,8989].map(p=>fetch('http://127.0.0.1:'+p+(p===8686?'/healthz':'/ping')))).then(rs=>{if(rs.some(r=>!r.ok))process.exit(1)}).catch(()=>process.exit(1))"
 ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/vynodearr-entrypoint"]

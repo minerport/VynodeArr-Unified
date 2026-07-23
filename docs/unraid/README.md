@@ -8,8 +8,8 @@
 5. Configure indexers and download clients from Service Settings.
 
 The image automatically creates and connects its isolated movie and television
-engines. Ports 7878 and 8989 are optional compatibility endpoints for request
-applications. Engine API keys can be revealed from Account Settings.
+engines. Request applications connect through port 8686 using URL Base
+`/movies` or `/tv`. Engine API keys can be revealed from Account Settings.
 Automatic file-schema migrations run when a newer image requires them.
 
 Before upgrading or uninstalling, create and download both configuration

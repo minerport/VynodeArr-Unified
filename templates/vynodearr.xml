@@ -22,8 +22,6 @@
   <DonateLink/>
   <Requires>x86-64 Unraid host with Docker. Appdata, media, and download paths must be writable by nobody:users (99:100).</Requires>
   <Config Name="Web UI" Target="8686" Default="8686" Mode="tcp" Description="VynodeArr web interface" Type="Port" Display="always" Required="true" Mask="false">8686</Config>
-  <Config Name="Movies API" Target="7878" Default="7878" Mode="tcp" Description="Optional compatibility port for request applications such as Seerr" Type="Port" Display="advanced" Required="false" Mask="false">7878</Config>
-  <Config Name="Television API" Target="8989" Default="8989" Mode="tcp" Description="Optional compatibility port for request applications such as Seerr" Type="Port" Display="advanced" Required="false" Mask="false">8989</Config>
   <Config Name="Appdata" Target="/config" Default="/mnt/user/appdata/vynodearr" Mode="rw" Description="Persistent VynodeArr and engine configuration" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/vynodearr</Config>
   <Config Name="Movies" Target="/movies" Default="/mnt/user/media/movies" Mode="rw" Description="Movie library" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/media/movies</Config>
   <Config Name="Television" Target="/tv" Default="/mnt/user/media/tv" Mode="rw" Description="Television library" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/media/tv</Config>

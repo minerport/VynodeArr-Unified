@@ -53,6 +53,7 @@ test('native interaction workflows replace an upstream-shaped generic shell',asy
   for(const workflow of ['External application access','Reveal','Copy','Generate new key','/api/settings/engines/${domain}/api-key'])assert.ok(script.includes(workflow));
   for(const workflow of ["reveal.textContent==='Hide'","code.textContent='Hidden'","reveal.textContent='Reveal'"])assert.ok(script.includes(workflow));
   for(const workflow of ["client.post('command',{name:'ResetApiKey'})","/engine-config/${domain}/config.xml",'The engine did not provide its newly generated API key'])assert.ok(apiSource.includes(workflow));
+  for(const workflow of ["proxyCompatibilityApi","'/movies'","'/tv'","Compatibility API endpoint not found"])assert.ok(apiSource.includes(workflow));
   assert.ok(apiSource.includes("xml.match(/<ApiKey>([^<]+)<\\/ApiKey>/i)"),'bundled engine configuration must remain the credential source of truth');
   assert.ok(apiSource.includes('did not reconnect with the new API key'));
   for(const workflow of ['taskSections(items)','MOVIE ENGINE','TELEVISION ENGINE','/api/system/application-update','VynodeArr updates'])assert.ok(script.includes(workflow)||apiSource.includes(workflow));

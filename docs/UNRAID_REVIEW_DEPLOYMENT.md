@@ -9,7 +9,7 @@ Use `templates/vynodearr.xml` for Community Applications and
 - Television: selected share → `/tv`
 - Downloads: selected share → `/downloads`
 - Web interface: `http://UNRAID-IP:8686`
-- Optional external APIs: ports 7878 and 8989
+- External application APIs: port 8686 with URL Base `/movies` or `/tv`
 
 The single x86-64 image starts VynodeArr and its two installation-managed,
 isolated engines. API credentials are generated during the first start and

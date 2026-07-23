@@ -11,9 +11,9 @@ management application.
   `templates/ca_profile.xml`
 
 The Unraid image contains installation-managed movie and television engines.
-Only VynodeArr branding is presented in the main interface. Ports 7878 and 8989
-remain available for API-based request applications, while port 8686 serves the
-VynodeArr interface.
+Only VynodeArr branding is presented in the main interface. API-based request
+applications use port 8686 with URL Base `/movies` or `/tv`; the same port
+serves the VynodeArr interface.
 
 ## Persistent paths
 

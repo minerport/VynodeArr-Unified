@@ -1,5 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
+import { request as httpRequest } from 'node:http';
+import { request as httpsRequest } from 'node:https';
 import { extname,join,normalize,resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MediaEngineRegistry } from '../../../packages/platform/src/engine-registry.js';
@@ -26,6 +28,7 @@ function sessionFor(req,auth){return auth.session(cookies(req.headers.cookie).vy
 function requireSession(req,res,auth){const session=sessionFor(req,auth);if(!session){json(res,401,{error:{code:'authentication_required',message:'Sign in to VynodeArr to continue.'}});return null;}return session;}
 function requireCsrf(req,res,session){if(req.headers['x-vynodearr-csrf']!==session.csrf){json(res,403,{error:{code:'csrf_invalid',message:'The security token was invalid.'}});return false;}return true;}
 function administrator(res,session){if(session.user.role!=='administrator'){json(res,403,{error:{code:'administrator_required',message:'Administrator access is required.'}});return false;}return true;}
+const hopHeaders=new Set(['connection','keep-alive','proxy-authenticate','proxy-authorization','te','trailer','transfer-encoding','upgrade']);
 
 export function createApplication(options={}){
   const env=options.env||process.env,baseConfig=options.config||loadEngineConfiguration(env);
@@ -152,11 +155,31 @@ export function createApplication(options={}){
     }));
     return results.flat();
   }
+  function proxyCompatibilityApi(req,res,url,domain,prefix){
+    const adapter=registry.get(domain),config=adapter.config||adapter.client?.config;
+    if(!config?.enabled)return json(res,503,{error:{message:`${domain==='movie'?'Movie':'Television'} service unavailable`}});
+    const relative=url.pathname.slice(prefix.length)||'/';
+    if(!/^\/(?:api\/|ping\/?$)/i.test(relative))return json(res,404,{error:{message:'Compatibility API endpoint not found'}});
+    const upstreamBase=config.urlBase?`/${String(config.urlBase).replace(/^\/+|\/+$/g,'')}`:'';
+    const transport=config.https?httpsRequest:httpRequest,headers={};
+    for(const[name,value]of Object.entries(req.headers))if(!hopHeaders.has(name)&&name!=='host'&&value!==undefined)headers[name]=value;
+    headers.host=`${config.host}:${config.port}`;
+    const upstream=transport({protocol:config.https?'https:':'http:',hostname:config.host,port:config.port,method:req.method,path:`${upstreamBase}${relative}${url.search}`,headers,rejectUnauthorized:config.tlsVerify},response=>{
+      const responseHeaders={};
+      for(const[name,value]of Object.entries(response.headers))if(!hopHeaders.has(name)&&value!==undefined)responseHeaders[name]=value;
+      res.writeHead(response.statusCode||502,responseHeaders);response.pipe(res);
+    });
+    upstream.setTimeout(config.timeoutMs||10000,()=>upstream.destroy(new Error('Compatibility API timed out')));
+    upstream.on('error',()=>{if(!res.headersSent)json(res,502,{error:{message:`${domain==='movie'?'Movie':'Television'} service unavailable`}});else res.destroy();});
+    req.pipe(upstream);
+  }
 
   async function handleRequest(req,res){
     const url=new URL(req.url,'http://vynodearr.local');if(!initialized)await initialize();
     try{
       if(req.method==='GET'&&url.pathname==='/healthz')return json(res,200,{status:'ready',service:'VynodeArr'});
+      if(url.pathname==='/movies'||url.pathname.startsWith('/movies/'))return proxyCompatibilityApi(req,res,url,'movie','/movies');
+      if(url.pathname==='/tv'||url.pathname.startsWith('/tv/'))return proxyCompatibilityApi(req,res,url,'tv','/tv');
       if(url.pathname==='/api/auth/status'&&req.method==='GET'){const session=sessionFor(req,auth);return json(res,200,{setupRequired:await auth.setupRequired(),authenticated:Boolean(session),user:session?.user||null,csrf:session?.csrf||null,enginesConfigured:engineSettings.configured()});}
       if(url.pathname==='/api/auth/setup'&&req.method==='POST'){
         const input=await body(req),user=await auth.createInitialAdministrator(input),result=await auth.createSession(user,{ip:req.socket.remoteAddress,userAgent:req.headers['user-agent'],remember:true});
@@ -220,7 +243,7 @@ export function createApplication(options={}){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;const input=await body(req),result=await testEngine(engineSave[1],input);if(!result.validated)return json(res,422,{error:{code:'engine_validation_failed',message:result.connection.safeError||'Engine validation did not succeed.'}});
           await engineSettings.save(engineSave[1],input,input.apiCredential);await rebuildFromSettings();await sync.startup();return json(res,200,{saved:true,settings:engineSettings.public(),validation:result});
         }
-        if(url.pathname==='/api/system/application-update'&&req.method==='GET')return json(res,200,{application:'VynodeArr',installedVersion:String(env.VYNODEARR_VERSION||'1.0.3'),channel:String(env.VYNODEARR_UPDATE_CHANNEL||'develop'),mechanism:'Container image',repository:'https://github.com/minerport/VynodeArr-Unified',message:'Pull the newest VynodeArr container image, then recreate the application container. Engine updates are managed separately.'});
+        if(url.pathname==='/api/system/application-update'&&req.method==='GET')return json(res,200,{application:'VynodeArr',installedVersion:String(env.VYNODEARR_VERSION||'1.0.4'),channel:String(env.VYNODEARR_UPDATE_CHANNEL||'develop'),mechanism:'Container image',repository:'https://github.com/minerport/VynodeArr-Unified',message:'Pull the newest VynodeArr container image, then recreate the application container. Engine updates are managed separately.'});
         const backupRestore=url.pathname.match(/^\/api\/system\/backups\/(movie|tv)\/(\d+)\/restore$/);
         if(backupRestore&&req.method==='POST'){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;
