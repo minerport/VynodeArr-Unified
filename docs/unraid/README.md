@@ -1,17 +1,20 @@
 # Unraid installation
 
-1. Copy `infrastructure/unraid/vynodearr.xml` into your template workflow.
-2. Map `/mnt/user/appdata/vynodearr` to `/data`.
-3. Create the read-only secrets directory and stable `master-key` file.
-4. Connect the container to the same private user-defined network as the Movies
-   and TV engines.
-5. Open port 4310, complete first-run administrator setup, then validate and
-   save both engine cards.
+1. Add this repository as a template source or import
+   `templates/vynodearr.xml`.
+2. Keep the default `/mnt/user/appdata/vynodearr` mapping for `/config`.
+3. Select writable movie, television, and shared download folders.
+4. Open port 8686 and create the first administrator.
+5. Configure indexers and download clients from Service Settings.
 
-Before upgrading, back up appdata and the master key. The container runs
-automatic file-schema migrations at startup. If setup must be restarted, stop
-the container, back up appdata, then use the documented local reset procedure
-against only VynodeArr data.
+The image automatically creates and connects its isolated movie and television
+engines. Ports 7878 and 8989 are optional compatibility endpoints for request
+applications. Engine API keys can be revealed from Account Settings.
+Automatic file-schema migrations run when a newer image requires them.
+
+Before upgrading or uninstalling, create and download both configuration
+backups. The `/config` mapping contains all persistent application and engine
+state.
 
 Screenshots:
 

@@ -9,13 +9,28 @@ test('local Compose bundles private healthy engines and exposes only VynodeArr',
   assert.match(text,/MOVIE_ENGINE_HOST: movie-engine/);
   assert.match(text,/TV_ENGINE_HOST: tv-engine/);
 });
-test('Unraid template has required mappings, secrets, health-compatible port, and neutral overview',async()=>{
+test('Unraid template has required mappings, self-contained image, and neutral overview',async()=>{
   const text=await readFile(new URL('../infrastructure/unraid/vynodearr.xml',import.meta.url),'utf8');
-  for(const value of ['<Name>VynodeArr</Name>','Target="4310"','/mnt/user/appdata/vynodearr','MOVIE_ENGINE_HOST','TV_ENGINE_HOST','API_CREDENTIAL_FILE'])assert.match(text,new RegExp(value));
+  for(const value of ['<Name>VynodeArr</Name>','ghcr.io/minerport/vynodearr-unified:latest','Target="8686"','Target="/config"','Target="/movies"','Target="/tv"','Target="/downloads"'])assert.match(text,new RegExp(value));
   const overview=text.match(/<Overview>(.*?)<\/Overview>/s)?.[1]||'';assert.doesNotMatch(overview,/\b(radarr|sonarr)\b/i);
 });
 test('production image is non-root and has a health check',async()=>{
   const text=await readFile(new URL('../Dockerfile',import.meta.url),'utf8');assert.match(text,/USER vynodearr/);assert.match(text,/HEALTHCHECK/);assert.match(text,/VYNODEARR_DATA_DIR=\/data/);
+});
+
+test('1.0 release includes self-contained Unraid and Windows distributions',async()=>{
+  const [image,entrypoint,template,profile,windows]=await Promise.all([
+    readFile(new URL('../Dockerfile.unraid',import.meta.url),'utf8'),
+    readFile(new URL('../infrastructure/unraid/entrypoint.sh',import.meta.url),'utf8'),
+    readFile(new URL('../templates/vynodearr.xml',import.meta.url),'utf8'),
+    readFile(new URL('../templates/ca_profile.xml',import.meta.url),'utf8'),
+    readFile(new URL('../distribution/windows/compose.yaml',import.meta.url),'utf8')
+  ]);
+  for(const value of ['Radarr.master.','Sonarr.main.','EXPOSE 8686 7878 8989','vynodearr-entrypoint'])assert.match(image,new RegExp(value.replaceAll('.','\\.')));
+  for(const value of ['/config/movies','/config/television','MOVIE_ENGINE_API_CREDENTIAL','TV_ENGINE_API_CREDENTIAL','env -u PORT'])assert.match(entrypoint,new RegExp(value));
+  for(const value of ['ghcr.io/minerport/vynodearr-unified:latest','Target="8686"','Target="/config"','Target="/movies"','Target="/tv"','Target="/downloads"'])assert.match(template,new RegExp(value));
+  assert.match(profile,/<CommunityApplications>/);
+  assert.match(windows,/ghcr\.io\/minerport\/vynodearr-unified/);
 });
 test('Unraid installation includes first-run and dashboard screenshots',async()=>{
   await access(new URL('../docs/unraid/first-run.png',import.meta.url));

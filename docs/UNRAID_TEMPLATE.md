@@ -1,13 +1,13 @@
-# Unraid template
+# Unraid Community Applications template
 
-The N2 XML defines the VynodeArr image, web UI, original icon, appdata,
-read-only secret mount, neutral engine hosts/ports, and credential-file
-variables. Its overview contains only VynodeArr product terminology.
+The release template is `templates/vynodearr.xml`. It declares the published
+image, VynodeArr icon, web interface, appdata, movie, television, download, and
+timezone settings required by Community Applications.
 
-The referenced registry image is a readiness target. This milestone does not
-publish a container image or submit the template. Build locally or configure a
-future CI-produced, signed image before production review.
+The companion `templates/ca_profile.xml` contains the repository profile used
+when submitting the template feed. Both XML documents are parsed during release
+validation and attached to each GitHub release.
 
-Validate XML structure, path/port mappings, permissions, network reachability,
-health status, initial administrator creation, fixture mode, and real read-only
-data before considering Community Applications submission.
+The image is published for Linux x86-64. Validate folder permissions, health,
+first-run administrator creation, engine connectivity, backup/restore, and
+external API access before Community Applications submission.

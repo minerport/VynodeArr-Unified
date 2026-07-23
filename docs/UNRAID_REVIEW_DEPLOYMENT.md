@@ -1,22 +1,20 @@
-# Unraid review deployment
+# Unraid deployment
 
-Use `infrastructure/unraid/vynodearr.xml` for manual template testing or the
-Compose example beside it. The template is not submitted to Community
-Applications in N2.
+Use `templates/vynodearr.xml` for Community Applications and
+`infrastructure/unraid/vynodearr.xml` for local template validation.
 
-- Appdata: `/mnt/user/appdata/vynodearr` → `/data`
-- Secrets: `/mnt/user/appdata/vynodearr/secrets` → `/run/secrets` read-only
-- Web port: host `4310` → container `4310`
-- URL: `http://UNRAID-IP:4310`
+- Image: `ghcr.io/minerport/vynodearr-unified:latest`
+- Appdata: `/mnt/user/appdata/vynodearr` → `/config`
+- Movies: selected share → `/movies`
+- Television: selected share → `/tv`
+- Downloads: selected share → `/downloads`
+- Web interface: `http://UNRAID-IP:8686`
+- Optional external APIs: ports 7878 and 8989
 
-Create `/mnt/user/appdata/vynodearr/secrets/master-key` with a stable random
-24+ character value and restrictive permissions. Back it up separately. Engine
-credentials are entered through the first-run UI; legacy secret-file variables
-remain supported. Connect VynodeArr and the existing engines to a user-defined
-Docker network and use internal DNS names, never public forwarding. If a TLS
-reverse proxy is used, set secure cookies and restrict direct port access.
+The single x86-64 image starts VynodeArr and its two installation-managed,
+isolated engines. API credentials are generated during the first start and
+stored below `/config`. Back up `/config` before upgrading or uninstalling.
 
-Update by pinning and pulling a tested image tag, backing up appdata/master key,
-then recreating the container. Automatic migrations run on startup. Engine
-databases remain independently owned and backed up. Recovery and screenshots
-are in `docs/unraid`.
+Update by pulling a tested versioned image or `latest`, then recreating the
+container. The application and both engines run automatic database migrations
+when required.

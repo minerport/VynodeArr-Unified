@@ -29,6 +29,19 @@ Application corresponding source:
 https://github.com/Radarr/Radarr
 https://github.com/Sonarr/Sonarr
 
-Review the notices and licenses shipped inside each pulled image before
-redistribution. VynodeArr retains this attribution while keeping upstream names,
-logos, and interface assets out of the product interface.
+VynodeArr 1.0 Unraid image
+==========================
+
+The VynodeArr 1.0 Unraid image aggregates unmodified executable distributions:
+
+Radarr 6.3.0.10514 — GNU General Public License version 3
+Corresponding source: https://github.com/Radarr/Radarr/tree/v6.3.0.10514
+
+Sonarr 4.0.19.2979 — GNU General Public License version 3
+Corresponding source: https://github.com/Sonarr/Sonarr/tree/v4.0.19.2979
+
+The projects execute as isolated processes and retain separate configuration,
+databases, update metadata, copyrights, and licenses. Their names and interfaces
+are not presented as VynodeArr product branding. Complete GPLv3 license text is
+available from https://www.gnu.org/licenses/gpl-3.0.txt and in each corresponding
+source repository.

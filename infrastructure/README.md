@@ -1,5 +1,6 @@
-# Infrastructure boundary
+# Infrastructure
 
-N1 intentionally ships no production container topology. N2 will define a
-gateway-facing private network, per-engine data volumes, health probes, secrets,
-resource limits, backup ownership, and user-visible VynodeArr service labels.
+`compose.yaml` is the three-container development environment.
+`Dockerfile.unraid` produces the self-contained Linux x86-64 release image.
+Community Applications metadata lives under `templates/`, and the Windows
+Docker Desktop launcher lives under `distribution/windows/`.

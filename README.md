@@ -1,5 +1,7 @@
 # VynodeArr
 
+Current release: **1.0.0**
+
 VynodeArr is one secure Movies and TV application. It provides guided first-run
 setup, local accounts and roles, durable media projections, unified activity,
 authenticated artwork, and encrypted connections to private bundled media
