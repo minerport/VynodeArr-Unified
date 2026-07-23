@@ -39,20 +39,30 @@ html[data-vy-engine] [class*=" PageHeader-header-"] {
 
 html[data-vy-engine] [class^="PageHeader-logoContainer-"],
 html[data-vy-engine] [class*=" PageHeader-logoContainer-"] {
-  width: 190px;
-  min-width: 190px;
+  flex: 0 0 210px;
+  width: 210px;
+  min-width: 210px;
   height: 52px;
+  padding-left: 12px;
   background: url("/assets/vynodearr.png") left center / 44px 44px no-repeat;
 }
 
 html[data-vy-engine] [class^="PageHeader-logoContainer-"]::after,
 html[data-vy-engine] [class*=" PageHeader-logoContainer-"]::after {
   content: "VYNODEARR";
-  margin-left: 54px;
+  margin-left: 8px;
   color: var(--vy-text-primary);
   font-size: 15px;
   font-weight: 800;
   letter-spacing: .14em;
+}
+
+html[data-vy-engine] [class^="PageHeader-logoLink-"],
+html[data-vy-engine] [class*=" PageHeader-logoLink-"] {
+  flex: 0 0 44px;
+  overflow: hidden;
+  width: 44px;
+  height: 44px;
 }
 
 html[data-vy-engine] [class^="PageHeader-logo-"],
@@ -67,9 +77,49 @@ html[data-vy-engine] [class*=" PageHeader-right-"] {
   gap: var(--vy-space-2);
 }
 
+html[data-vy-engine] [class^="MovieSearchInput-wrapper-"],
+html[data-vy-engine] [class*=" MovieSearchInput-wrapper-"],
+html[data-vy-engine] [class^="SeriesSearchInput-wrapper-"],
+html[data-vy-engine] [class*=" SeriesSearchInput-wrapper-"] {
+  flex: 0 1 420px;
+  min-width: 220px;
+  max-width: 420px;
+  height: 42px;
+  padding: 0 var(--vy-space-3);
+  color: var(--vy-engine-accent);
+  background: var(--vy-surface-elevated);
+  border: 1px solid var(--vy-border-subtle);
+  border-radius: var(--vy-radius-md);
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / 14%);
+}
+
+html[data-vy-engine] [class^="MovieSearchInput-container-"],
+html[data-vy-engine] [class*=" MovieSearchInput-container-"],
+html[data-vy-engine] [class^="SeriesSearchInput-container-"],
+html[data-vy-engine] [class*=" SeriesSearchInput-container-"] {
+  min-width: 0;
+  width: 100%;
+}
+
+html[data-vy-engine] [class^="MovieSearchInput-input-"],
+html[data-vy-engine] [class*=" MovieSearchInput-input-"],
+html[data-vy-engine] [class^="SeriesSearchInput-input-"],
+html[data-vy-engine] [class*=" SeriesSearchInput-input-"] {
+  width: 100%;
+  min-height: 38px;
+  margin-left: var(--vy-space-2);
+  padding: 0;
+  color: var(--vy-text-primary);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
 /* Floating navigation rail. All native links and child navigation remain. */
 html[data-vy-engine] [class^="PageSidebar-sidebarContainer-"],
 html[data-vy-engine] [class*=" PageSidebar-sidebarContainer-"] {
+  flex: 0 0 var(--vy-native-sidebar-width);
   width: var(--vy-native-sidebar-width);
   padding: var(--vy-native-gutter) 0 var(--vy-native-gutter) var(--vy-native-gutter);
   background: transparent;
@@ -134,7 +184,7 @@ html[data-vy-engine] [class*=" PageSidebarItem-iconContainer-"] {
 /* Main canvas and page-level command bar. */
 html[data-vy-engine] [class^="PageContent-content-"],
 html[data-vy-engine] [class*=" PageContent-content-"] {
-  margin-left: var(--vy-native-sidebar-width);
+  min-width: 0;
   color: var(--vy-text-primary);
   background: transparent;
 }
@@ -199,6 +249,42 @@ html[data-vy-engine] [class*=" Card-card-"] {
   transition: transform var(--vy-motion-normal) var(--vy-ease-standard),
     border-color var(--vy-motion-normal) var(--vy-ease-standard),
     box-shadow var(--vy-motion-normal) var(--vy-ease-standard);
+}
+
+html[data-vy-engine] [class^="StatisticsSummary-summary-"],
+html[data-vy-engine] [class*=" StatisticsSummary-summary-"],
+html[data-vy-engine] [class^="Statistics-charts-"],
+html[data-vy-engine] [class*=" Statistics-charts-"] {
+  gap: var(--vy-space-3);
+}
+
+html[data-vy-engine] [class^="StatisticsSummary-item-"],
+html[data-vy-engine] [class*=" StatisticsSummary-item-"],
+html[data-vy-engine] [class^="Statistics-chartsContainer-"],
+html[data-vy-engine] [class*=" Statistics-chartsContainer-"] {
+  color: var(--vy-text-primary);
+  background: var(--vy-native-panel);
+  border: 1px solid var(--vy-border-subtle);
+  border-radius: var(--vy-radius-lg);
+  box-shadow: 0 10px 28px rgb(0 0 0 / 14%);
+}
+
+html[data-vy-engine] [class^="StatisticsSummary-item-"],
+html[data-vy-engine] [class*=" StatisticsSummary-item-"] {
+  padding: var(--vy-space-4);
+}
+
+html[data-vy-engine] [class^="StatisticsSummary-value-"],
+html[data-vy-engine] [class*=" StatisticsSummary-value-"] {
+  color: var(--vy-engine-accent);
+  font-weight: 750;
+}
+
+html[data-vy-engine] [class^="StatisticsSummary-label-"],
+html[data-vy-engine] [class*=" StatisticsSummary-label-"],
+html[data-vy-engine] [class^="StatisticsSummary-secondary-"],
+html[data-vy-engine] [class*=" StatisticsSummary-secondary-"] {
+  color: var(--vy-text-secondary);
 }
 
 html[data-vy-engine] [class^="Card-card-"]:hover,
@@ -395,8 +481,17 @@ html[data-vy-engine] [tabindex]:focus-visible {
 
   html[data-vy-engine] [class^="PageHeader-logoContainer-"],
   html[data-vy-engine] [class*=" PageHeader-logoContainer-"] {
+    flex-basis: 52px;
     width: 48px;
     min-width: 48px;
+  }
+
+  html[data-vy-engine] [class^="MovieSearchInput-wrapper-"],
+  html[data-vy-engine] [class*=" MovieSearchInput-wrapper-"],
+  html[data-vy-engine] [class^="SeriesSearchInput-wrapper-"],
+  html[data-vy-engine] [class*=" SeriesSearchInput-wrapper-"] {
+    flex-basis: auto;
+    min-width: 140px;
   }
 
   html[data-vy-engine] [class^="PageHeader-logoContainer-"]::after,

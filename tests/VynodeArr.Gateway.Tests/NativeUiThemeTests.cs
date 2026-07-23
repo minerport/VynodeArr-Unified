@@ -22,6 +22,9 @@ public sealed class NativeUiThemeTests
         Assert.Contains("MenuContent-menuContent-", css, StringComparison.Ordinal);
         Assert.Contains("PageHeader-logoContainer-", css, StringComparison.Ordinal);
         Assert.Contains("VYNODEARR", css, StringComparison.Ordinal);
+        Assert.Contains("MovieSearchInput-wrapper-", css, StringComparison.Ordinal);
+        Assert.Contains("SeriesSearchInput-wrapper-", css, StringComparison.Ordinal);
+        Assert.Contains("StatisticsSummary-item-", css, StringComparison.Ordinal);
         Assert.Contains(":focus-visible", css, StringComparison.Ordinal);
         Assert.Contains("forced-colors: active", css, StringComparison.Ordinal);
         Assert.DoesNotContain("display: none", css, StringComparison.OrdinalIgnoreCase);
@@ -39,6 +42,19 @@ public sealed class NativeUiThemeTests
         Assert.DoesNotContain("javascript:", css, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("/movies/", css, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("/television/", css, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void AllowsRemoteHttpsArtworkWithoutAllowingRemoteScriptsOrApiConnections()
+    {
+        var root = FindRepositoryRoot();
+        var program = File.ReadAllText(Path.Combine(root, "src", "VynodeArr.Gateway", "Program.cs"));
+
+        Assert.Contains("img-src 'self' data: https:", program, StringComparison.Ordinal);
+        Assert.Contains("script-src 'self' 'unsafe-inline'", program, StringComparison.Ordinal);
+        Assert.Contains("connect-src 'self' ws: wss:", program, StringComparison.Ordinal);
+        Assert.DoesNotContain("script-src 'self' https:", program, StringComparison.Ordinal);
+        Assert.DoesNotContain("connect-src 'self' https:", program, StringComparison.Ordinal);
     }
 
     private static string FindRepositoryRoot()

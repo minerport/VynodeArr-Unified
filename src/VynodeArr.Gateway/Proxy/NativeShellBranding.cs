@@ -51,7 +51,7 @@ public static class NativeShellBranding
             ? "<link id=\"vynodearr-token-styles\" rel=\"stylesheet\" href=\"/assets/vynodearr-tokens.v1.css\">"
             : string.Empty;
         var nativeThemeLink = ui.TokensEnabled && ui.NewShellStylingEnabled
-            ? "<link id=\"vynodearr-native-styles\" rel=\"stylesheet\" href=\"/assets/vynodearr-native.v2.css\">"
+            ? "<link id=\"vynodearr-native-styles\" rel=\"stylesheet\" href=\"/assets/vynodearr-native.v2.css?rev=3\">"
             : string.Empty;
         var style = ui.NewShellStylingEnabled ? FoundationStyle : LegacyStyle;
         var navigation = ui.NewShellStylingEnabled
