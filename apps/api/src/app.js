@@ -208,6 +208,22 @@ export function createApplication(options={}){
           await engineSettings.save(engineSave[1],input,input.apiCredential);await rebuildFromSettings();await sync.startup();return json(res,200,{saved:true,settings:engineSettings.public(),validation:result});
         }
         if(url.pathname==='/api/system/application-update'&&req.method==='GET')return json(res,200,{application:'VynodeNew',installedVersion:String(env.VYNODENEW_VERSION||'0.1.0'),channel:String(env.VYNODENEW_UPDATE_CHANNEL||'develop'),mechanism:'Container image',repository:'https://github.com/minerport/VynodeNew',message:'Pull the newest VynodeNew container image, then recreate the application container. Engine updates are managed separately.'});
+        const backupRestore=url.pathname.match(/^\/api\/system\/backups\/(movie|tv)\/(\d+)\/restore$/);
+        if(backupRestore&&req.method==='POST'){
+          if(!administrator(res,session)||!requireCsrf(req,res,session))return;
+          const domain=backupRestore[1],id=backupRestore[2],client=registry.get(domain).client;
+          await client.post(`system/backup/restore/${id}`,{});
+          await new Promise(resolve=>setTimeout(resolve,2000));
+          let connection=null;
+          for(let attempt=0;attempt<80;attempt+=1){
+            await restoreBundledCredentials();await rebuildFromSettings();
+            connection=await registry.get(domain).testConnection().catch(()=>null);
+            if(connection?.reachable&&connection?.authenticated&&connection?.compatible)break;
+            await new Promise(resolve=>setTimeout(resolve,500));
+          }
+          if(!connection?.reachable||!connection?.authenticated||!connection?.compatible)throw new Error(`${domain==='movie'?'Movie':'Television'} engine did not reconnect after restoring the backup`);
+          await sync.startup();return json(res,200,{restored:true,domain,backupId:id});
+        }
         if(url.pathname==='/api/system/sync'&&req.method==='POST'){if(!requireCsrf(req,res,session))return;const results=await sync.startup();return json(res,200,{synchronized:true,results:results.map((item)=>item.status),state:sync.snapshot()});}
         const catalogMatch=url.pathname.match(/^\/api\/manage\/(movie|tv)$/);
         if(catalogMatch&&req.method==='GET'){if(!administrator(res,session))return;return json(res,200,{domain:catalogMatch[1],available:management.available(catalogMatch[1]),resources:management.catalog(catalogMatch[1])});}
