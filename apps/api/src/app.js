@@ -62,7 +62,6 @@ export function createApplication(options={}){
   async function initialize(){
     if(initialized)return;
     await Promise.all([auth.initialize(),engineSettings.initialize()]);
-    await restoreBundledCredentials();
     if(!options.movie)await rebuildFromSettings();
     try{
       await ensureBundledRootFolders();
@@ -85,9 +84,12 @@ export function createApplication(options={}){
   }
   async function repairBundledConnections(){
     if(String(env.VYNODENEW_BUNDLED_ENGINES||'false')!=='true')throw new Error('Automatic connection repair is only available for bundled engines');
-    if(!await restoreBundledCredentials())throw new Error('Installation-managed engine credentials are unavailable');
     await rebuildFromSettings();
-    const checks=await Promise.all([registry.movie().testConnection(),registry.tv().testConnection()]);
+    let checks=await Promise.all([registry.movie().testConnection(),registry.tv().testConnection()]);
+    if(checks.some(check=>!check.reachable||!check.authenticated||!check.compatible)){
+      if(!await restoreBundledCredentials())throw new Error('Installation-managed engine credentials are unavailable');
+      await rebuildFromSettings();checks=await Promise.all([registry.movie().testConnection(),registry.tv().testConnection()]);
+    }
     if(checks.some(check=>!check.reachable||!check.authenticated||!check.compatible))throw new Error('Automatic engine reconnection did not succeed');
     await sync.startup();return ['movie','tv'];
   }
@@ -176,6 +178,13 @@ export function createApplication(options={}){
           const domain=engineKey[1],client=registry.get(domain).client,host=await client.get('config/host'),apiKey=randomUUID().replaceAll('-','');
           await client.put('config/host',{...host,apiKey});
           const runtime=await engineSettings.runtime();await engineSettings.save(domain,runtime[domain],apiKey);await rebuildFromSettings();
+          let connection=null;
+          for(let attempt=0;attempt<40;attempt+=1){
+            connection=await registry.get(domain).testConnection().catch(()=>null);
+            if(connection?.reachable&&connection?.authenticated&&connection?.compatible)break;
+            await new Promise(resolve=>setTimeout(resolve,500));
+          }
+          if(!connection?.reachable||!connection?.authenticated||!connection?.compatible)throw new Error(`${domain==='movie'?'Movie':'TV'} engine did not reconnect with the new API key`);
           return json(res,200,{domain,apiKey,regenerated:true});
         }
         const engineTest=url.pathname.match(/^\/api\/settings\/engines\/(movie|tv)\/test$/);
