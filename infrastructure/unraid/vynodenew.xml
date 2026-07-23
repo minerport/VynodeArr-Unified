@@ -2,16 +2,16 @@
 <Container version="2">
   <Name>VynodeNew</Name>
   <Repository>ghcr.io/minerport/vynodenew:develop</Repository>
-  <Registry>https://github.com/minerport/VynodeNew</Registry>
+  <Registry>https://github.com/minerport/VynodeArr-Unified</Registry>
   <Network>bridge</Network>
   <Shell>sh</Shell>
   <Privileged>false</Privileged>
-  <Support>https://github.com/minerport/VynodeNew</Support>
-  <Project>https://github.com/minerport/VynodeNew</Project>
+  <Support>https://github.com/minerport/VynodeArr-Unified</Support>
+  <Project>https://github.com/minerport/VynodeArr-Unified</Project>
   <Overview>One secure Movies and TV experience with guided first-run administrator and engine setup. Credentials remain encrypted and never reach the browser.</Overview>
   <Category>MediaApp:Other</Category>
   <WebUI>http://[IP]:[PORT:4310]/</WebUI>
-  <Icon>https://raw.githubusercontent.com/minerport/VynodeNew/develop/apps/web/public/art/vynodenew-icon.svg</Icon>
+  <Icon>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/develop/apps/web/public/art/vynodenew-icon.svg</Icon>
   <ExtraParams>--restart unless-stopped</ExtraParams>
   <PostArgs/>
   <CPUset/>
