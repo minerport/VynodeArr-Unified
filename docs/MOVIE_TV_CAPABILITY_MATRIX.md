@@ -52,3 +52,12 @@ User, Role, Session, Secret, Provider, Indexer, DownloadClient, Schedule,
 Command, QueueProjection, HistoryProjection, CalendarProjection, HealthEvent,
 AuditEvent, AppSetting, and UiPreference. Domain entities remain isolated until
 their behavior and migration history can be extracted with parity tests.
+
+## N2 implementation update
+
+Library/details, monitoring, quality/profile, root references, collections/tags,
+season/episode projections, queue, history, calendar, health, status, connection
+testing, authentication, bounded synchronization, and real-or-fixture review
+pages are implemented as read-only projections. Provider mutation, acquisition,
+import, rename, settings mutation, durable projections, and engine bundling
+remain deferred.

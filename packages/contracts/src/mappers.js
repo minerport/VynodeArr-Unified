@@ -1,0 +1,117 @@
+import { assertModel } from './models.js';
+
+export const artwork = (images = [], kind = 'poster') => {
+  const image = images.find((item) => item.coverType?.toLowerCase() === kind) || images[0];
+  return image ? { url: image.remoteUrl || image.url || '', kind, width: 0, height: 0 } : { url: '', kind, width: 0, height: 0 };
+};
+export const imageSet = (images = []) => ({
+  poster: artwork(images, 'poster'),
+  backdrop: artwork(images, 'fanart')
+});
+export const monitoring = (monitored) => monitored ? 'all' : 'none';
+export const qualityName = (file) => file?.quality?.quality?.name || file?.quality?.name || null;
+export const profile = (record) => record?.qualityProfile?.name || record?.qualityProfileId || null;
+export const tags = (record) => Array.isArray(record?.tags) ? record.tags.map(String) : [];
+export const safeDate = (value) => value || null;
+
+export function movieSummary(record, context = {}) {
+  if (!record || record.id == null || !record.title) throw new TypeError('Invalid movie record');
+  const hasFile = Boolean(record.hasFile || record.movieFile);
+  return assertModel('MovieSummary', {
+    id: `movie_${record.id}`, title: record.title, year: Number(record.year || 0),
+    artwork: imageSet(record.images).poster, status: record.status || 'announced',
+    monitoring: monitoring(record.monitored), hasFile,
+    quality: qualityName(record.movieFile) || 'Not available',
+    qualityProfile: profile(record), rootFolder: record.rootFolderPath || record.path || null,
+    collection: record.collection?.title || record.collectionTitle || null,
+    tags: tags(record), state: !hasFile ? 'missing' : context.cutoffIds?.has(record.id) ? 'cutoff' : 'available',
+    queue: context.queueById?.get(record.id) || null
+  });
+}
+
+export function movieDetails(record, context = {}) {
+  const summary = movieSummary(record, context);
+  return {
+    ...summary, overview: record.overview || '', runtimeMinutes: Number(record.runtime || 0),
+    genres: record.genres || [], availability: record.minimumAvailability || record.status || 'unknown',
+    backdrop: imageSet(record.images).backdrop, recentHistory: context.history || [],
+    calendar: context.calendar || []
+  };
+}
+
+export function seriesSummary(record, context = {}) {
+  if (!record || record.id == null || !record.title) throw new TypeError('Invalid series record');
+  const statistics = record.statistics || {};
+  const episodeCount = Number(statistics.episodeCount || 0);
+  const fileCount = Number(statistics.episodeFileCount || 0);
+  return assertModel('SeriesSummary', {
+    id: `series_${record.id}`, title: record.title, year: Number(record.year || 0),
+    network: record.network || 'Unknown network', artwork: imageSet(record.images).poster,
+    status: record.status || 'unknown', monitoring: monitoring(record.monitored),
+    seasonProgress: `${(record.seasons || []).filter((season) => season.monitored).length} / ${(record.seasons || []).length}`,
+    episodeProgress: `${fileCount} / ${episodeCount}`, missingEpisodes: Math.max(0, Number(statistics.episodeCount || 0) - Number(statistics.episodeFileCount || 0)),
+    cutoffUnmetEpisodes: Number(statistics.cutoffNotMetCount || 0),
+    nextEpisode: record.nextAiring ? { title: 'Next episode', airDateUtc: record.nextAiring } : null,
+    qualityProfile: profile(record), rootFolder: record.rootFolderPath || record.path || null,
+    tags: tags(record), queue: context.queueById?.get(record.id) || null
+  });
+}
+
+export function seriesDetails(record, episodes = [], context = {}) {
+  const summary = seriesSummary(record, context);
+  const seasons = (record.seasons || []).map((season) => {
+    const seasonEpisodes = episodes.filter((episode) => episode.seasonNumber === season.seasonNumber);
+    const files = seasonEpisodes.filter((episode) => episode.hasFile).length;
+    return {
+      seasonNumber: season.seasonNumber, monitored: Boolean(season.monitored),
+      episodeCount: seasonEpisodes.length, episodeFileCount: files,
+      percentComplete: seasonEpisodes.length ? Math.round(files / seasonEpisodes.length * 100) : 0,
+      episodes: seasonEpisodes.map((episode) => ({
+        id: `episode_${episode.id}`, title: episode.title || `Episode ${episode.episodeNumber}`,
+        episodeNumber: episode.episodeNumber, absoluteNumber: episode.absoluteEpisodeNumber || null,
+        airDateUtc: safeDate(episode.airDateUtc), monitored: Boolean(episode.monitored),
+        hasFile: Boolean(episode.hasFile), quality: qualityName(episode.episodeFile)
+      }))
+    };
+  });
+  return {
+    ...summary, overview: record.overview || '', genres: record.genres || [],
+    backdrop: imageSet(record.images).backdrop, seriesType: record.seriesType || 'standard',
+    seasons, recentHistory: context.history || [], calendar: context.calendar || []
+  };
+}
+
+export function queueItem(record, domain) {
+  const media = domain === 'movie' ? record.movie : record.series;
+  const size = Number(record.size || 0), left = Number(record.sizeleft || record.sizeLeft || 0);
+  return {
+    id: `${domain}_queue_${record.id}`, domain, mediaId: media?.id ? `${domain === 'movie' ? 'movie' : 'series'}_${media.id}` : null,
+    title: media?.title || record.title || 'Media download', context: record.episode?.title || null,
+    artwork: imageSet(media?.images).poster, progress: size ? Math.round((size - left) / size * 100) : 0,
+    eta: safeDate(record.estimatedCompletionTime), client: record.downloadClient || 'Download client',
+    status: record.status || record.trackedDownloadState || 'unknown', warning: record.statusMessages?.[0]?.messages?.[0] || null
+  };
+}
+
+export function historyItem(record, domain) {
+  const media = domain === 'movie' ? record.movie : record.series;
+  return {
+    id: `${domain}_history_${record.id}`, domain, mediaId: media?.id ? `${domain === 'movie' ? 'movie' : 'series'}_${media.id}` : null,
+    title: media?.title || record.sourceTitle || 'Media event', artwork: imageSet(media?.images).poster,
+    eventType: record.eventType || 'unknown', quality: record.quality?.quality?.name || null,
+    timestamp: safeDate(record.date), details: record.data?.message || null
+  };
+}
+
+export function calendarItem(record, domain) {
+  if (domain === 'movie') return {
+    id: `movie_calendar_${record.id}`, domain, mediaId: `movie_${record.id}`, title: record.title,
+    artwork: imageSet(record.images).poster, dateUtc: record.digitalRelease || record.physicalRelease || record.inCinemas || null,
+    eventType: 'release'
+  };
+  return {
+    id: `tv_calendar_${record.id}`, domain, mediaId: `series_${record.seriesId}`, title: record.series?.title || record.title,
+    context: record.title, artwork: imageSet(record.series?.images).poster, dateUtc: record.airDateUtc || null,
+    eventType: 'airing'
+  };
+}

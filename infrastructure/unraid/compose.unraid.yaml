@@ -1,0 +1,27 @@
+services:
+  vynodenew:
+    image: ghcr.io/minerport/vynodenew:develop
+    container_name: vynodenew
+    restart: unless-stopped
+    ports:
+      - "4310:4310"
+    volumes:
+      - /mnt/user/appdata/vynodenew:/data
+      - /mnt/user/appdata/vynodenew/secrets:/run/secrets:ro
+    environment:
+      VYNODENEW_DATA_MODE: engine
+      VYNODENEW_DATA_DIR: /data
+      VYNODENEW_SECURE_COOKIES: "false"
+      MOVIE_ENGINE_ENABLED: "true"
+      MOVIE_ENGINE_HOST: movie-engine
+      MOVIE_ENGINE_PORT: "7878"
+      MOVIE_ENGINE_API_CREDENTIAL_FILE: /run/secrets/movie-api-key
+      TV_ENGINE_ENABLED: "true"
+      TV_ENGINE_HOST: tv-engine
+      TV_ENGINE_PORT: "8989"
+      TV_ENGINE_API_CREDENTIAL_FILE: /run/secrets/tv-api-key
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4310/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

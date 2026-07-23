@@ -1,23 +1,17 @@
 export const movieOperations = Object.freeze([
-  'listMovies', 'getMovie', 'searchMovies', 'addMovie', 'updateMovie',
-  'deleteMovieRecord', 'refreshMovie', 'scanMovie', 'searchMovieReleases',
-  'searchMissingMovies', 'searchCutoffUnmetMovies', 'getMovieFiles',
-  'getMovieHistory', 'getMovieCalendar', 'getMovieCollections'
+  'listMovies', 'getMovie', 'getQueue', 'getHistory', 'getCalendar',
+  'getHealth', 'getSystemStatus', 'testConnection'
 ]);
 
 export const tvOperations = Object.freeze([
-  'listSeries', 'getSeries', 'searchSeries', 'addSeries', 'updateSeries',
-  'deleteSeriesRecord', 'refreshSeries', 'scanSeries', 'listSeasons',
-  'listEpisodes', 'updateSeriesMonitoring', 'updateSeasonMonitoring',
-  'updateEpisodeMonitoring', 'searchSeriesReleases', 'searchSeason',
-  'searchEpisode', 'searchMissingEpisodes', 'searchCutoffUnmetEpisodes',
-  'getEpisodeFiles', 'getSeriesHistory', 'getTvCalendar'
+  'listSeries', 'getSeries', 'getQueue', 'getHistory', 'getCalendar',
+  'getHealth', 'getSystemStatus', 'testConnection'
 ]);
 
 export const platformContracts = Object.freeze([
-  'ProviderAdapter', 'IndexerAdapter', 'DownloadClientAdapter', 'MetadataAdapter',
-  'QueueService', 'CommandService', 'SchedulerService', 'HealthService',
-  'NotificationService', 'HistoryService', 'CalendarService'
+  'MediaEngineRegistry', 'ProviderAdapter', 'IndexerAdapter',
+  'DownloadClientAdapter', 'MetadataAdapter', 'QueueService',
+  'SchedulerService', 'HealthService', 'HistoryService', 'CalendarService'
 ]);
 
 export function assertContract(contract, operations) {

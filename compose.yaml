@@ -1,0 +1,46 @@
+services:
+  vynodenew:
+    build:
+      context: .
+    image: vynodenew:review
+    container_name: vynodenew
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "127.0.0.1:4310:4310"
+    volumes:
+      - vynodenew-data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4310/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - vynodenew-private
+
+  movie-engine-placeholder:
+    image: alpine:3.22
+    profiles: ["bundled-engine-preparation"]
+    command: ["sh", "-c", "echo 'No engine binary is included'; sleep infinity"]
+    networks: [vynodenew-private]
+    labels:
+      com.vynodenew.preparation-only: "true"
+
+  tv-engine-placeholder:
+    image: alpine:3.22
+    profiles: ["bundled-engine-preparation"]
+    command: ["sh", "-c", "echo 'No engine binary is included'; sleep infinity"]
+    networks: [vynodenew-private]
+    labels:
+      com.vynodenew.preparation-only: "true"
+
+volumes:
+  vynodenew-data:
+
+networks:
+  vynodenew-private:
+    internal: false

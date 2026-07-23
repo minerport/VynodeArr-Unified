@@ -9,3 +9,6 @@ Source reviewed locally at commit a29f15e92bd2c21e646d065d9d78066952cac05d.
 
 No source files, artwork, logos, styles, screenshots, frontend pages, or
 binaries from either project are included in this N1 repository.
+
+N2 continues to include no such code, asset, binary, container layer, or
+database. Its adapters communicate only with separately installed services.

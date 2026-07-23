@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>VynodeNew</Name>
+  <Repository>ghcr.io/minerport/vynodenew:develop</Repository>
+  <Registry>https://github.com/minerport/VynodeNew</Registry>
+  <Network>bridge</Network>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/minerport/VynodeNew</Support>
+  <Project>https://github.com/minerport/VynodeNew</Project>
+  <Overview>One secure, read-only Movies and TV review interface. Connects to separately running internal media engines without exposing their credentials to the browser.</Overview>
+  <Category>MediaApp:Other</Category>
+  <WebUI>http://[IP]:[PORT:4310]/</WebUI>
+  <Icon>https://raw.githubusercontent.com/minerport/VynodeNew/develop/apps/web/public/art/vynodenew-icon.svg</Icon>
+  <ExtraParams>--restart unless-stopped</ExtraParams>
+  <PostArgs/>
+  <CPUset/>
+  <DateInstalled/>
+  <DonateText/>
+  <DonateLink/>
+  <Requires>Separately running Movies and TV engines reachable through the selected Docker network. Review documentation before using secret files.</Requires>
+  <Config Name="Web Port" Target="4310" Default="4310" Mode="tcp" Description="VynodeNew web and API port" Type="Port" Display="always" Required="true" Mask="false">4310</Config>
+  <Config Name="Application data" Target="/data" Default="/mnt/user/appdata/vynodenew" Mode="rw" Description="Authentication and application state" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/vynodenew</Config>
+  <Config Name="Data mode" Target="VYNODENEW_DATA_MODE" Default="engine" Description="Use engine for real data or fixture for deterministic review data" Type="Variable" Display="always" Required="true" Mask="false">engine</Config>
+  <Config Name="Movies engine host" Target="MOVIE_ENGINE_HOST" Default="movie-engine" Description="Internal hostname for the Movies engine" Type="Variable" Display="always" Required="true" Mask="false">movie-engine</Config>
+  <Config Name="Movies engine port" Target="MOVIE_ENGINE_PORT" Default="7878" Description="Internal Movies engine port" Type="Variable" Display="always" Required="true" Mask="false">7878</Config>
+  <Config Name="Movies credential file" Target="MOVIE_ENGINE_API_CREDENTIAL_FILE" Default="/run/secrets/movie-api-key" Description="Mounted file containing the Movies API credential" Type="Variable" Display="advanced" Required="true" Mask="false">/run/secrets/movie-api-key</Config>
+  <Config Name="TV engine host" Target="TV_ENGINE_HOST" Default="tv-engine" Description="Internal hostname for the TV engine" Type="Variable" Display="always" Required="true" Mask="false">tv-engine</Config>
+  <Config Name="TV engine port" Target="TV_ENGINE_PORT" Default="8989" Description="Internal TV engine port" Type="Variable" Display="always" Required="true" Mask="false">8989</Config>
+  <Config Name="TV credential file" Target="TV_ENGINE_API_CREDENTIAL_FILE" Default="/run/secrets/tv-api-key" Description="Mounted file containing the TV API credential" Type="Variable" Display="advanced" Required="true" Mask="false">/run/secrets/tv-api-key</Config>
+  <Config Name="Secrets" Target="/run/secrets" Default="/mnt/user/appdata/vynodenew/secrets" Mode="ro" Description="Read-only credential files" Type="Path" Display="advanced" Required="true" Mask="false">/mnt/user/appdata/vynodenew/secrets</Config>
+</Container>

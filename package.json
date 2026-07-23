@@ -9,6 +9,7 @@
     "test": "node --test tests/*.test.js",
     "check:branding": "node scripts/check-branding.mjs",
     "build": "node scripts/build.mjs",
-    "verify": "npm run test && npm run check:branding && npm run build"
+    "validate:deployment": "node scripts/validate-deployment.mjs",
+    "verify": "npm run test && npm run build && npm run check:branding && npm run validate:deployment"
   }
 }
