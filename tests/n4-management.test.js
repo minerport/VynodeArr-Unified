@@ -37,6 +37,7 @@ test('native interaction workflows replace an upstream-shaped generic shell',asy
     readFile(new URL('../apps/web/public/app.js',import.meta.url),'utf8')
   ]);
   for(const route of ['#add','#wanted','#queue','#service/root-folders','#system'])assert.match(html,new RegExp(route));
+  for(const workflow of ['wanted-series-search','wanted-season-search','SeriesSearch','SeasonSearch','Search entire show','Search entire season'])assert.match(script,new RegExp(workflow));
   for(const workflow of ['showAddMedia','discovery-art','remotePoster','showCalendar','calendar-grid','calendar-movies','showWanted','wanted-domain','wanted-show','wanted-season','wanted-interactive','showQueue','queue-table','data-queue-sort','showRootFolders','reviewMovieImport','reviewTvImport','const target=event.currentTarget','Scan for','Import selected movies','Import selected series','showProfiles','showProviders','loadPolicy','Failed download handling','autoRedownloadFailed','Indexers','Download Clients','All provider options','folder-browser','Browse…','Use this folder','attachDetailActions','episode-monitor','episode-auto-search','episode-interactive-search','Monitoring…','Unmonitoring…','Automatic search','Interactive search','release-table','data-sort','Source','Quality','Size','Seeders','grab-release','createRecord','Refresh & scan','Allowed qualities','Custom format scores','Create both backups'])assert.match(script,new RegExp(workflow.replace(/[&]/g,'&')));
 });
 
