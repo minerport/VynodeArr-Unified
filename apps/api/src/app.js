@@ -213,6 +213,7 @@ export function createApplication(options={}){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;
           const domain=backupRestore[1],id=backupRestore[2],client=registry.get(domain).client;
           await client.post(`system/backup/restore/${id}`,{});
+          await client.post('command',{name:'Restart'});
           await new Promise(resolve=>setTimeout(resolve,2000));
           let connection=null;
           for(let attempt=0;attempt<80;attempt+=1){
