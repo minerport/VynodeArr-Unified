@@ -21,7 +21,7 @@ public sealed class NativeUiThemeTests
         Assert.Contains("Modal-modal-", css, StringComparison.Ordinal);
         Assert.Contains("MenuContent-menuContent-", css, StringComparison.Ordinal);
         Assert.Contains("PageHeader-logoContainer-", css, StringComparison.Ordinal);
-        Assert.Contains("VYNODEARR", css, StringComparison.Ordinal);
+        Assert.Contains("flex: 0 0 0", css, StringComparison.Ordinal);
         Assert.Contains("MovieSearchInput-wrapper-", css, StringComparison.Ordinal);
         Assert.Contains("SeriesSearchInput-wrapper-", css, StringComparison.Ordinal);
         Assert.Contains("StatisticsSummary-item-", css, StringComparison.Ordinal);
@@ -36,6 +36,11 @@ public sealed class NativeUiThemeTests
         Assert.Contains("SeriesIndexRow-cell-", css, StringComparison.Ordinal);
         Assert.Contains("@media (hover: none), (pointer: coarse)", css, StringComparison.Ordinal);
         Assert.Contains(":focus-within", css, StringComparison.Ordinal);
+        Assert.Contains("img[src^=\"data:image/\"]", css, StringComparison.Ordinal);
+        Assert.Contains("content: url(\"/assets/vynodearr.png\")", css, StringComparison.Ordinal);
+        Assert.Contains("flex: 1 1 720px", css, StringComparison.Ordinal);
+        Assert.Contains("max-width: 920px", css, StringComparison.Ordinal);
+        Assert.Contains("max-height: 28px", css, StringComparison.Ordinal);
         Assert.Contains(":focus-visible", css, StringComparison.Ordinal);
         Assert.Contains("forced-colors: active", css, StringComparison.Ordinal);
         Assert.DoesNotContain("display: none", css, StringComparison.OrdinalIgnoreCase);

@@ -26,7 +26,7 @@ public sealed class NativeShellBrandingTests
         Assert.Contains($"aria-label=\"Current engine: {productName}\"", result, StringComparison.Ordinal);
         Assert.Contains("src=\"/assets/vynodearr.png\"", result, StringComparison.Ordinal);
         Assert.Contains("href=\"/assets/vynodearr-tokens.v1.css?rev=2\"", result, StringComparison.Ordinal);
-        Assert.Contains("href=\"/assets/vynodearr-native.v2.css?rev=5\"", result, StringComparison.Ordinal);
+        Assert.Contains("href=\"/assets/vynodearr-native.v2.css?rev=6\"", result, StringComparison.Ordinal);
         Assert.Contains($"href=\"{activePath}\" aria-current=\"page\"", result, StringComparison.Ordinal);
         Assert.Contains("href=\"/\">Dashboard</a>", result, StringComparison.Ordinal);
         Assert.Contains($"window.{compatibilityName}", result, StringComparison.Ordinal);
