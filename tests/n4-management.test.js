@@ -19,7 +19,7 @@ test('management gateway exposes native capabilities and forwards only allowlist
   const catalog=service.catalog('movie');
   assert.ok(catalog.some((item)=>item.key==='library'&&item.methods.includes('PUT')));
   assert.ok(catalog.some((item)=>item.key==='indexers'&&item.methods.includes('POST')));
-  for(const key of ['wantedMissing','blocklist','releases','filesystem','remotePathMappings','indexerSchemas','downloadClientSettings','diskSpace','tasks','backups','updates','events'])assert.ok(catalog.some((item)=>item.key===key),key);
+  for(const key of ['calendar','wantedMissing','blocklist','releases','filesystem','remotePathMappings','indexerSchemas','downloadClientSettings','diskSpace','tasks','backups','updates','events'])assert.ok(catalog.some((item)=>item.key===key),key);
   await service.execute('movie','profiles','GET');
   await service.execute('movie','library','POST',{payload:{title:'New movie'}});
   await service.execute('movie','library','PUT',{id:7,payload:{id:7,monitored:true}});
@@ -37,7 +37,7 @@ test('native interaction workflows replace an upstream-shaped generic shell',asy
     readFile(new URL('../apps/web/public/app.js',import.meta.url),'utf8')
   ]);
   for(const route of ['#add','#wanted','#queue','#service/root-folders','#system'])assert.match(html,new RegExp(route));
-  for(const workflow of ['showAddMedia','showWanted','showQueue','queue-table','data-queue-sort','showRootFolders','reviewMovieImport','reviewTvImport','const target=event.currentTarget','Scan for','Import selected movies','Import selected series','showProfiles','showProviders','loadPolicy','Failed download handling','autoRedownloadFailed','Indexers','Download Clients','All provider options','folder-browser','Browse…','Use this folder','attachDetailActions','episode-monitor','episode-auto-search','episode-interactive-search','Monitoring…','Unmonitoring…','Automatic search','Interactive search','release-table','data-sort','Source','Quality','Size','Seeders','grab-release','createRecord','Refresh & scan','Allowed qualities','Custom format scores','Create both backups'])assert.match(script,new RegExp(workflow.replace(/[&]/g,'&')));
+  for(const workflow of ['showAddMedia','discovery-art','remotePoster','showCalendar','calendar-grid','calendar-movies','showWanted','wanted-domain','wanted-show','wanted-season','wanted-interactive','showQueue','queue-table','data-queue-sort','showRootFolders','reviewMovieImport','reviewTvImport','const target=event.currentTarget','Scan for','Import selected movies','Import selected series','showProfiles','showProviders','loadPolicy','Failed download handling','autoRedownloadFailed','Indexers','Download Clients','All provider options','folder-browser','Browse…','Use this folder','attachDetailActions','episode-monitor','episode-auto-search','episode-interactive-search','Monitoring…','Unmonitoring…','Automatic search','Interactive search','release-table','data-sort','Source','Quality','Size','Seeders','grab-release','createRecord','Refresh & scan','Allowed qualities','Custom format scores','Create both backups'])assert.match(script,new RegExp(workflow.replace(/[&]/g,'&')));
 });
 
 test('environment engine credentials auto-configure the private gateway once',async()=>{

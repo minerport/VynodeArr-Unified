@@ -15,6 +15,7 @@ const sharedResources=Object.freeze({
   delayProfiles:{path:'delayprofile',methods:['GET','POST','PUT','DELETE']},
   restrictions:{path:'restriction',methods:['GET','POST','PUT','DELETE']},
   commands:{path:'command',methods:['GET','POST']},
+  calendar:{path:'calendar',methods:['GET']},
   queue:{path:'queue',methods:['GET','DELETE']},
   queueGrab:{path:'queue/grab',methods:['POST']},
   history:{path:'history',methods:['GET']},
