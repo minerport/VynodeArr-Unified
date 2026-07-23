@@ -37,7 +37,7 @@ test('native interaction workflows replace an upstream-shaped generic shell',asy
     readFile(new URL('../apps/web/public/app.js',import.meta.url),'utf8')
   ]);
   for(const route of ['#add','#wanted','#queue','#service/root-folders','#system'])assert.match(html,new RegExp(route));
-  for(const workflow of ['showAddMedia','showWanted','showQueue','showRootFolders','reviewMovieImport','Scan & import','Import selected movies','showProfiles','folder-browser','Browse…','Use this folder','attachDetailActions','createRecord','Search releases','Refresh & scan','Allowed qualities','Custom format scores','Create both backups'])assert.match(script,new RegExp(workflow.replace(/[&]/g,'&')));
+  for(const workflow of ['showAddMedia','showWanted','showQueue','showRootFolders','reviewMovieImport','reviewTvImport','Scan for','Import selected movies','Import selected series','showProfiles','showProviders','Indexers','Download Clients','All provider options','folder-browser','Browse…','Use this folder','attachDetailActions','createRecord','Search releases','Refresh & scan','Allowed qualities','Custom format scores','Create both backups'])assert.match(script,new RegExp(workflow.replace(/[&]/g,'&')));
 });
 
 test('environment engine credentials auto-configure the private gateway once',async()=>{
