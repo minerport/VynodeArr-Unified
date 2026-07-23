@@ -165,6 +165,19 @@ export function createApplication(options={}){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;
           return json(res,200,{repaired:await repairBundledConnections(),at:new Date().toISOString()});
         }
+        const engineKey=url.pathname.match(/^\/api\/settings\/engines\/(movie|tv)\/api-key$/);
+        if(engineKey&&req.method==='GET'){
+          if(!administrator(res,session))return;
+          const host=await registry.get(engineKey[1]).client.get('config/host');
+          return json(res,200,{domain:engineKey[1],apiKey:String(host.apiKey||'')});
+        }
+        if(engineKey&&req.method==='POST'){
+          if(!administrator(res,session)||!requireCsrf(req,res,session))return;
+          const domain=engineKey[1],client=registry.get(domain).client,host=await client.get('config/host'),apiKey=randomUUID().replaceAll('-','');
+          await client.put('config/host',{...host,apiKey});
+          const runtime=await engineSettings.runtime();await engineSettings.save(domain,runtime[domain],apiKey);await rebuildFromSettings();
+          return json(res,200,{domain,apiKey,regenerated:true});
+        }
         const engineTest=url.pathname.match(/^\/api\/settings\/engines\/(movie|tv)\/test$/);
         if(engineTest&&req.method==='POST'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;return json(res,200,await testEngine(engineTest[1],await body(req)));}
         const engineSave=url.pathname.match(/^\/api\/settings\/engines\/(movie|tv)$/);
