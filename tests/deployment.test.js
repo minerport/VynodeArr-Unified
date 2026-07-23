@@ -4,7 +4,7 @@ import { access,readFile } from 'node:fs/promises';
 
 test('local Compose bundles private healthy engines and exposes only VynodeNew',async()=>{
   const text=await readFile(new URL('../compose.yaml',import.meta.url),'utf8');
-  for(const value of ['127.0.0.1:4310:4310','movie-engine-config','tv-engine-config','shared-downloads','lscr.io/linuxserver/radarr','lscr.io/linuxserver/sonarr','condition: service_healthy'])assert.match(text,new RegExp(value.replaceAll('.','\\.')));
+  for(const value of ['127.0.0.1:4310:4310','movie-engine-config','tv-engine-config','shared-downloads','lscr.io/linuxserver/radarr','lscr.io/linuxserver/sonarr','condition: service_healthy','VYNODENEW_BUNDLED_ENGINES'])assert.match(text,new RegExp(value.replaceAll('.','\\.')));
   assert.equal((text.match(/ports:/g)||[]).length,1);
   assert.match(text,/MOVIE_ENGINE_HOST: movie-engine/);
   assert.match(text,/TV_ENGINE_HOST: tv-engine/);

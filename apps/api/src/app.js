@@ -52,8 +52,26 @@ export function createApplication(options={}){
       if(Array.isArray(roots)&&roots.length===0)await client.post('rootfolder',{path});
     }
   }
+  async function restoreBundledCredentials(){
+    if(String(env.VYNODENEW_BUNDLED_ENGINES||'false')!=='true')return false;
+    if(!baseConfig.movie.apiCredential||!baseConfig.tv.apiCredential)return false;
+    await engineSettings.save('movie',baseConfig.movie,baseConfig.movie.apiCredential);
+    await engineSettings.save('tv',baseConfig.tv,baseConfig.tv.apiCredential);
+    return true;
+  }
   async function initialize(){
-    if(initialized)return;await Promise.all([auth.initialize(),engineSettings.initialize()]);if(!options.movie)await rebuildFromSettings();await ensureBundledRootFolders();await sync.startup();sync.startPolling();initialized=true;
+    if(initialized)return;
+    await Promise.all([auth.initialize(),engineSettings.initialize()]);
+    await restoreBundledCredentials();
+    if(!options.movie)await rebuildFromSettings();
+    try{
+      await ensureBundledRootFolders();
+      await sync.startup();
+    }catch(error){
+      console.warn('Engine startup synchronization deferred:',safeError(error));
+    }
+    sync.startPolling();
+    initialized=true;
   }
   async function testEngine(domain,input){
     const config=engineSettings.normalize(domain,input);config.apiCredential=String(input.apiCredential||'');
@@ -64,6 +82,14 @@ export function createApplication(options={}){
       counts={library:library.length,queue:queue.length,calendar:calendar.length,health:health.length};
     }
     return{connection,counts,validated:Boolean(connection.reachable&&connection.authenticated&&connection.compatible)};
+  }
+  async function repairBundledConnections(){
+    if(String(env.VYNODENEW_BUNDLED_ENGINES||'false')!=='true')throw new Error('Automatic connection repair is only available for bundled engines');
+    if(!await restoreBundledCredentials())throw new Error('Installation-managed engine credentials are unavailable');
+    await rebuildFromSettings();
+    const checks=await Promise.all([registry.movie().testConnection(),registry.tv().testConnection()]);
+    if(checks.some(check=>!check.reachable||!check.authenticated||!check.compatible))throw new Error('Automatic engine reconnection did not succeed');
+    await sync.startup();return ['movie','tv'];
   }
 
   async function handleRequest(req,res){
@@ -94,6 +120,10 @@ export function createApplication(options={}){
         const userMatch=url.pathname.match(/^\/api\/admin\/users\/(user_[A-Za-z0-9_-]+)$/);
         if(userMatch&&req.method==='PATCH'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;return json(res,200,{user:await auth.administerUser(userMatch[1],await body(req),session.user.id)});}
         if(url.pathname==='/api/settings/engines'&&req.method==='GET')return json(res,200,engineSettings.public());
+        if(url.pathname==='/api/settings/engines/repair'&&req.method==='POST'){
+          if(!administrator(res,session)||!requireCsrf(req,res,session))return;
+          return json(res,200,{repaired:await repairBundledConnections(),at:new Date().toISOString()});
+        }
         const engineTest=url.pathname.match(/^\/api\/settings\/engines\/(movie|tv)\/test$/);
         if(engineTest&&req.method==='POST'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;return json(res,200,await testEngine(engineTest[1],await body(req)));}
         const engineSave=url.pathname.match(/^\/api\/settings\/engines\/(movie|tv)$/);
@@ -139,7 +169,7 @@ export function createApplication(options={}){
           const [movies,tvItems,queue,history,calendar,health]=await Promise.all([sync.list('movie'),sync.list('tv'),sync.operations('queue'),sync.operations('history'),sync.operations('calendar'),sync.operations('health')]);
           return json(res,200,{metrics:{movies:movies.length,tv:tvItems.length,queue:queue.length,upcomingMovies:calendar.filter((item)=>item.domain==='movie').length,upcomingEpisodes:calendar.filter((item)=>item.domain==='tv').length,missing:movies.filter((item)=>item.state==='missing').length+tvItems.reduce((sum,item)=>sum+item.missingEpisodes,0),downloading:queue.filter((item)=>String(item.status).toLowerCase().includes('down')).length,health:health.length,storage:movies.filter((item)=>item.hasFile).length+tvItems.length},recentlyAdded:[...movies.slice(-3),...tvItems.slice(-3)].slice(0,6),recentActivity:history.slice(0,6),engines:{configured:engineSettings.configured(),mode,status:sync.snapshot()}});
         }
-        if(url.pathname==='/api/system/engines'){const [movieTest,tvTest,movieStatus,tvStatus]=await Promise.all([registry.movie().testConnection(),registry.tv().testConnection(),registry.movie().getSystemStatus().catch(()=>null),registry.tv().getSystemStatus().catch(()=>null)]);const publicSettings=engineSettings.public();return json(res,200,{mode,configured:engineSettings.configured(),engines:[{domain:'movie',displayName:'Movies',configuration:publicSettings.movie||publicEngineConfiguration(baseConfig.movie),connection:movieTest,status:movieStatus,synchronization:sync.snapshot().movie},{domain:'tv',displayName:'TV',configuration:publicSettings.tv||publicEngineConfiguration(baseConfig.tv),connection:tvTest,status:tvStatus,synchronization:sync.snapshot().tv}]});}
+        if(url.pathname==='/api/system/engines'){const [movieTest,tvTest,movieStatus,tvStatus]=await Promise.all([registry.movie().testConnection(),registry.tv().testConnection(),registry.movie().getSystemStatus().catch(()=>null),registry.tv().getSystemStatus().catch(()=>null)]);const publicSettings=engineSettings.public();return json(res,200,{mode,managed:String(env.VYNODENEW_BUNDLED_ENGINES||'false')==='true',configured:engineSettings.configured(),engines:[{domain:'movie',displayName:'Movies',configuration:publicSettings.movie||publicEngineConfiguration(baseConfig.movie),connection:movieTest,status:movieStatus,synchronization:sync.snapshot().movie},{domain:'tv',displayName:'TV',configuration:publicSettings.tv||publicEngineConfiguration(baseConfig.tv),connection:tvTest,status:tvStatus,synchronization:sync.snapshot().tv}]});}
         return json(res,404,{error:{code:'not_found',message:'The requested VynodeNew resource was not found.'}});
       }
       const requested=url.pathname==='/'?'index.html':url.pathname.slice(1),safe=normalize(requested).replace(/^(\.\.[/\\])+/, '');

@@ -94,6 +94,7 @@ services:
       TV_ENGINE_PORT: "8989"
       TV_ENGINE_API_CREDENTIAL: "${TV_ENGINE_API_CREDENTIAL:-vynodenew-local-tv-key-2026}"
       VYNODENEW_BOOTSTRAP_ROOT_FOLDERS: "true"
+      VYNODENEW_BUNDLED_ENGINES: "true"
     ports:
       - "127.0.0.1:4310:4310"
     volumes:
