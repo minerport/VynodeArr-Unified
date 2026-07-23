@@ -120,26 +120,14 @@ export function createApplication(options={}){
   async function liveQueue(){
     const results=await Promise.all(['movie','tv'].map(async domain=>{
       const client=registry.get(domain).client;
-      const [queueValue,library,downloadClients]=await Promise.all([
+      const [queueValue,library]=await Promise.all([
         client.get('queue',{page:1,pageSize:500,includeUnknownMovieItems:true,includeUnknownSeriesItems:true,includeMovie:true,includeSeries:true,includeEpisode:true}),
-        client.get(domain==='movie'?'movie':'series').catch(()=>[]),
-        client.get('downloadclient').catch(()=>[])
+        client.get(domain==='movie'?'movie':'series').catch(()=>[])
       ]);
-      const records=Array.isArray(queueValue?.records)?queueValue.records:[],libraryById=new Map((Array.isArray(library)?library:[]).map(item=>[Number(item.id),item])),clientSlots=new Map();
-      await Promise.all((Array.isArray(downloadClients)?downloadClients:[]).filter(item=>item.enable!==false&&/sabnzbd/i.test(`${item.implementation||''} ${item.implementationName||''}`)).map(async item=>{
-        const fields=Object.fromEntries((item.fields||[]).map(field=>[field.name,field.value])),host=String(fields.host||''),port=Number(fields.port||8080),apiKey=String(fields.apiKey||''),ssl=Boolean(fields.useSsl),urlBase=String(fields.urlBase||'').replace(/^\/+|\/+$/g,'');
-        if(!host||!apiKey||!Number.isFinite(port))return;
-        try{
-          const url=new URL(`${ssl?'https':'http'}://${host}:${port}/${urlBase?`${urlBase}/`:''}api`);
-          url.search=new URLSearchParams({mode:'queue',output:'json',apikey:apiKey}).toString();
-          const response=await fetch(url,{signal:AbortSignal.timeout(5000)});if(!response.ok)return;
-          const value=await response.json();
-          for(const slot of value?.queue?.slots||[])clientSlots.set(String(slot.nzo_id||''),{status:String(slot.status||value.queue.status||''),filename:String(slot.filename||slot.name||''),percentage:Number(slot.percentage),timeLeft:String(slot.timeleft||''),sizeLeftMb:Number(slot.mbleft),speed:value.queue.speed||null});
-        }catch{}
-      }));
+      const records=Array.isArray(queueValue?.records)?queueValue.records:[],libraryById=new Map((Array.isArray(library)?library:[]).map(item=>[Number(item.id),item]));
       return records.map(item=>{
-        const mediaId=Number(domain==='movie'?(item.movieId||item.movie?.id):(item.seriesId||item.series?.id||item.episode?.seriesId)),media=item[domain==='movie'?'movie':'series']||libraryById.get(mediaId)||null,client=clientSlots.get(String(item.downloadId||''));
-        return{...item,domain,media,mediaId,clientStatus:client?.status||null,clientFilename:client?.filename||null,clientPercentage:Number.isFinite(client?.percentage)?client.percentage:null,clientTimeLeft:client?.timeLeft||null,clientSizeLeftMb:Number.isFinite(client?.sizeLeftMb)?client.sizeLeftMb:null,clientSpeed:client?.speed||null};
+        const mediaId=Number(domain==='movie'?(item.movieId||item.movie?.id):(item.seriesId||item.series?.id||item.episode?.seriesId)),media=item[domain==='movie'?'movie':'series']||libraryById.get(mediaId)||null,size=Number(item.size||0),sizeLeft=Number(item.sizeleft||0),percentage=size>0?(size-sizeLeft)/size*100:null;
+        return{...item,domain,media,mediaId,clientStatus:item.status||item.trackedDownloadState||null,clientFilename:item.title||null,clientPercentage:Number.isFinite(percentage)?percentage:null,clientTimeLeft:item.timeleft||item.estimatedCompletionTime||null,clientSizeLeftMb:Number.isFinite(sizeLeft)?sizeLeft/1048576:null,clientSpeed:null};
       });
     }));
     return results.flat();
