@@ -1,124 +1,205 @@
 # VynodeArr
 
-VynodeArr is one self-hosted application for managing movie and television libraries. It presents one dashboard, one Windows service, one installer, and one system-tray controller while keeping the movie and television engines operationally isolated.
+<p align="center">
+  <img src="assets/branding/VynodeArr.png" alt="VynodeArr" width="180">
+</p>
 
-> VynodeArr is under active development. Back up existing media-manager configuration before testing upgrades.
+<p align="center">
+  <strong>Movies and television. One self-hosted application.</strong>
+</p>
 
-VynodeArr 0.4.9 uses one authenticated control center. Users sign in once at the dashboard; the private Movies and Television engines trust only the loopback gateway and do not present separate login prompts. See [`docs/AUTHENTICATED_CONTROL_CENTER.md`](docs/AUTHENTICATED_CONTROL_CENTER.md) and [`SECURITY.md`](SECURITY.md).
+<p align="center">
+  <a href="https://github.com/minerport/VynodeArr-Unified/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/minerport/VynodeArr-Unified?display_name=tag"></a>
+  <a href="https://github.com/minerport/VynodeArr-Unified/actions/workflows/ci.yml"><img alt="CI status" src="https://github.com/minerport/VynodeArr-Unified/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/minerport/VynodeArr-Unified"></a>
+  <a href="https://github.com/minerport/VynodeArr-Unified/pkgs/container/vynodearr-unified"><img alt="Container image" src="https://img.shields.io/badge/GHCR-vynodearr--unified-2496ED?logo=docker&logoColor=white"></a>
+</p>
 
-## What works today
+VynodeArr combines complete movie and television library management behind one dashboard, one login, and one public port. The two media engines remain operationally isolated, with separate databases, settings, queues, commands, logs, API keys, and persistent data.
 
-- Unified dashboard at `http://127.0.0.1:8686/`
-- Complete movie interface under `/movies/`
-- Complete television interface under `/television/`
-- Persistent navigation between Dashboard, Movies, and Television
-- Independent movie and television databases, settings, queues, commands, logs, and data roots
-- Combined library, wanted, queue, download, and health summaries
-- Color-coded 30-day movie and television calendar summaries
-- Independent start and stop controls for each media engine
-- One action to shut down the gateway and both engines
-- One Windows service and one notification-area controller
-- Branded installer, executables, tray icon, Start menu entry, and desktop shortcut
-- Graceful uninstall shutdown with forced VynodeArr-only cleanup as a fallback
-- Automatic dashboard refresh during engine start and stop transitions
+> [!IMPORTANT]
+> VynodeArr is under active development. Back up your configuration before upgrading. Update VynodeArr as a complete package; native engine self-updates are not supported.
 
-The movie and television payloads remain separate processes. A failure, command, database migration, or configuration change in one domain is not routed into the other domain.
+## Why VynodeArr?
 
-## Architecture
+- **One control center** for movies and television
+- **One login** across the dashboard and both media interfaces
+- **One public port** with private, loopback-only engine processes
+- **Independent media domains** that do not share databases or settings
+- **Unified visibility** for health, queues, missing media, downloads, and upcoming releases
+- **Cross-platform packages** for Windows x64, Linux x64, Docker x86-64, and Unraid x86-64
+- **Third-party API compatibility** through gateway-proxied movie and television endpoints
+- **Coordinated lifecycle management** that starts and stops the gateway and both engines together
 
-```text
-Browser
-  |
-  v
-VynodeArr Gateway :8686
-  |-- /                    Unified dashboard
-  |-- /movies/*            Movie engine proxy
-  |-- /television/*        Television engine proxy
-  |-- /api/unified/v1/*    Unified status and lifecycle API
-  |
-  |-- VynodeArr Movies     Private loopback process and data
-  `-- VynodeArr Television Private loopback process and data
-```
+## Screenshots
 
-The locked engine revisions and provenance are recorded in [`distribution/source-lock.json`](distribution/source-lock.json). See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/SOURCE_INVENTORY.md`](docs/SOURCE_INVENTORY.md), and [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md) for the detailed design and roadmap.
+| Dashboard | Movies |
+| --- | --- |
+| ![VynodeArr dashboard](docs/ui/review/phase-1/dashboard-1440x900-dark.jpg) | ![VynodeArr movie library](docs/ui/review/phase-1/movies-library-1440x900-dark.jpg) |
 
-## Windows installation
+<p align="center">
+  <em>The interface is responsive across desktop, tablet, and mobile layouts.</em>
+</p>
 
-VynodeArr currently targets 64-bit Windows. Run the latest `VynodeArr-<version>-win-x64-setup.exe` from the project’s GitHub Releases when a release is published.
+## Supported platforms
 
-The tracked [`installers/`](installers/) index identifies approved builds, checksums, and download locations. Installer binaries are stored as GitHub Release assets because they exceed GitHub's normal source-file size limit.
-
-The installer creates:
-
-- Windows service: `VynodeArr`
-- Application files: `C:\Program Files\VynodeArr`
-- Movie data: `C:\ProgramData\VynodeArr\movie`
-- Television data: `C:\ProgramData\VynodeArr\television`
-- Unified state: `C:\ProgramData\VynodeArr\unified`
-- Desktop and Start menu shortcuts
-- One notification-area controller that starts with the signed-in user
-
-Open `http://127.0.0.1:8686/` after installation. The tray menu can open the dashboard, start the service, or shut down the gateway and both engines.
-
-Uninstall removes services and program files but intentionally preserves `C:\ProgramData\VynodeArr` so library settings and databases are not silently destroyed.
-
-Detailed instructions:
-
-- [`docs/WINDOWS_INSTALLER.md`](docs/WINDOWS_INSTALLER.md) — build and test the Windows installer
-- [`docs/PLATFORM_INSTALLATION.md`](docs/PLATFORM_INSTALLATION.md) — current Windows, Linux, Docker, Unraid, and other-platform status
-- [`docs/CROSS_PLATFORM_REVIEW.md`](docs/CROSS_PLATFORM_REVIEW.md) — portability findings, implemented foundation, and release gates
-
-## Linux installation
-
-The supported Linux x64 package is published in [VynodeArr 0.4.9](https://github.com/minerport/VynodeArr-Unified/releases/tag/v0.4.9). Download the archive and checksum, verify them, extract the package, and run `sudo ./install.sh`. Detailed commands, service management, permissions, upgrades, and uninstall instructions are in [`distribution/linux/README.md`](distribution/linux/README.md).
-
-## Docker and Unraid
-
-The validated x86-64 container is:
-
-```text
-ghcr.io/minerport/vynodearr-unified:0.4.9
-```
-
-For Unraid, install VynodeArr from Community Applications after the listing is approved, or load [`templates/vynodearr.xml`](templates/vynodearr.xml) as a user template. The default mappings are:
-
-| Container path | Default Unraid path | Purpose |
+| Platform | Status | Installation |
 | --- | --- | --- |
-| `/config` | `/mnt/user/appdata/vynodearr` | Persistent VynodeArr configuration and databases |
+| Windows x64 | Supported | GitHub Release installer |
+| Linux x64 | Supported | Versioned archive and systemd installer |
+| Docker x86-64 | Supported | GHCR image |
+| Unraid x86-64 | Supported | Community Applications template |
+| Linux ARM64 | Not yet supported | Packaging exists, runtime validation pending |
+| macOS | Not currently supported | No release package |
+
+See the complete [platform support and installation notes](docs/PLATFORM_INSTALLATION.md).
+
+## Install
+
+### Windows
+
+1. Download `VynodeArr-<version>-win-x64-setup.exe` from the [latest release](https://github.com/minerport/VynodeArr-Unified/releases/latest).
+2. Run the installer.
+3. Open [http://127.0.0.1:8686](http://127.0.0.1:8686).
+4. Create the first administrator account.
+
+The installer creates one Windows service, desktop and Start menu shortcuts, and one notification-area controller. Uninstall removes the application but preserves configuration and databases under `C:\ProgramData\VynodeArr`.
+
+### Linux x64
+
+Download the current archive and checksum from the [latest release](https://github.com/minerport/VynodeArr-Unified/releases/latest), then:
+
+```bash
+sha256sum --check VynodeArr-<version>-linux-x64.tar.gz.sha256
+tar -xzf VynodeArr-<version>-linux-x64.tar.gz
+cd VynodeArr-linux-x64
+sudo ./install.sh
+```
+
+Open `http://LINUX_HOST:8686`. The installer creates a dedicated `vynodearr` account, installs the application under `/opt/vynodearr`, stores persistent data under `/var/lib/vynodearr`, and enables one systemd service.
+
+Detailed Linux installation, permissions, upgrades, and removal instructions are available in the [Linux package guide](distribution/linux/README.md).
+
+### Docker
+
+The supported container image is:
+
+```text
+ghcr.io/minerport/vynodearr-unified:latest
+```
+
+A versioned tag such as `0.4.9` may be used when a deployment must remain pinned. Start with the supported [Compose example](distribution/docker/compose.yml) and replace every media path before launching it:
+
+```bash
+export VYNODEARR_CONTROL_KEY="$(openssl rand -hex 32)"
+docker compose -f distribution/docker/compose.yml up -d
+```
+
+Never reuse existing Radarr or Sonarr appdata as VynodeArr's `/config` directory.
+
+### Unraid
+
+Install **VynodeArr** from Community Applications, or load the canonical [Unraid template](templates/vynodearr.xml) as a user template.
+
+| Container path | Typical Unraid path | Purpose |
+| --- | --- | --- |
+| `/config` | `/mnt/user/appdata/vynodearr` | VynodeArr configuration and databases |
 | `/movies` | `/mnt/user/movies` | Movie library |
 | `/tv` | `/mnt/user/tv` | Television library |
-| `/downloads` | `/mnt/user/downloads` | Shared download-client path |
+| `/downloads` | `/mnt/user/downloads` | Download-client files |
 
-The container runs as Unraid `nobody:users` (`99:100`). Every mapped directory must be writable by that identity. Never map existing Radarr or Sonarr appdata into `/config`; VynodeArr must keep its own application data. Existing media folders may be shared, but use unique download-client categories such as `vynode-movies` and `vynode-tv` to prevent multiple managers from processing the same downloads.
-
-Generate a lifecycle control key before installation:
+The template follows the `latest` supported image and runs as Unraid `nobody:users` (`99:100`). All mapped directories must be writable by that identity. Generate the required lifecycle control key with:
 
 ```bash
 openssl rand -hex 32
 ```
 
-Enter the result in the required **Lifecycle Control Key** template field. See [`distribution/docker/README.md`](distribution/docker/README.md) for Docker details and [`docs/PLATFORM_INSTALLATION.md`](docs/PLATFORM_INSTALLATION.md) for platform status.
+If other media managers use the same download client, assign dedicated categories such as `vynode-movies` and `vynode-tv`.
 
-### Connecting other applications
+## First-run paths
 
-Applications that normally connect to Radarr or Sonarr can use VynodeArr's public gateway without exposing either native engine port. Configure the applications with these URL bases:
+After installation:
 
-- Movies: `http://VYNODEARR_HOST:8686/movies`
-- Television: `http://VYNODEARR_HOST:8686/television`
+- Dashboard: `http://VYNODEARR_HOST:8686/`
+- Movies: `http://VYNODEARR_HOST:8686/movies/`
+- Television: `http://VYNODEARR_HOST:8686/television/`
+- Health check: `http://VYNODEARR_HOST:8686/health`
 
-Use the API key displayed by the corresponding engine under **Settings > General > Security**. The movie and television API keys are intentionally separate. On Unraid, use the Unraid server address or a resolvable container hostname instead of `127.0.0.1`; localhost inside another container refers to that other container.
+The first visit redirects to `/setup`, where the initial administrator account is created.
 
-Only native API routes under `/movies/api/*` and `/television/api/*` accept engine API-key authentication. Dashboard pages and all non-API engine routes continue to require the VynodeArr login. The gateway validates each supplied key against the selected engine and forwards the request over its private loopback connection.
+## Connecting other applications
+
+Applications that normally integrate with Radarr or Sonarr can connect through VynodeArr without exposing either private engine port.
+
+| Service type | Hostname or IP | Port | URL base |
+| --- | --- | --- | --- |
+| Movies | VynodeArr host | `8686` | `/movies` |
+| Television | VynodeArr host | `8686` | `/television` |
+
+Use the API key displayed by the corresponding engine under **Settings → General → Security**. Movie and television API keys are intentionally separate.
+
+On Docker or Unraid, do not use `127.0.0.1` from another container; it refers to that container itself. Use the Unraid server address, VynodeArr container name on a shared Docker network, or another resolvable hostname.
+
+Only native API routes under `/movies/api/*` and `/television/api/*` accept engine API-key authentication. Dashboard pages and non-API routes require the VynodeArr login.
+
+## Architecture and isolation
+
+```text
+Browser and API clients
+          |
+          v
+VynodeArr Gateway :8686
+  |-- /                    Unified dashboard
+  |-- /movies/*            Movie interface and API proxy
+  |-- /television/*        Television interface and API proxy
+  `-- /api/unified/v1/*    Unified status and lifecycle API
+          |
+          |-- Movies engine      private process + private data
+          `-- Television engine  private process + private data
+```
+
+VynodeArr keeps these boundaries intact:
+
+- separate movie and television databases;
+- separate configuration, logs, queues, commands, and API keys;
+- private engine listeners accessible only through the gateway;
+- coordinated startup and shutdown without merging engine behavior;
+- locked and traceable engine source revisions.
+
+The exact engine revisions are recorded in [`distribution/source-lock.json`](distribution/source-lock.json). More detail is available in the [architecture](docs/ARCHITECTURE.md), [source inventory](docs/SOURCE_INVENTORY.md), and [authenticated control center](docs/AUTHENTICATED_CONTROL_CENTER.md) documentation.
+
+## Media permissions and imports
+
+VynodeArr can use any media location its service or container account can read and write. Linux and Unraid permissions are enforced by the operating system; VynodeArr does not impose a hard-coded folder allowlist.
+
+Movie Library Import expects one directory per movie:
+
+```text
+/movies/Movie Title (Year)/movie-file.mkv
+```
+
+Loose movie files placed directly in the library root are not import candidates.
+
+## Updating
+
+Update the complete VynodeArr package:
+
+- **Windows:** install the newer release over the existing installation.
+- **Linux:** download the newer archive and rerun `sudo ./install.sh`.
+- **Docker/Unraid:** pull or force-update the `latest` image and recreate the container.
+
+Configuration and databases are stored outside the application payload and are preserved during normal upgrades. Back them up before every upgrade.
+
+Do not use the native Movies or Television update functions. VynodeArr releases package and validate both locked engines as one compatible set.
 
 ## Development
 
 Requirements:
 
-- .NET SDK 8.0.423 or a compatible 8.0 patch selected by `global.json`
-- PowerShell 7 or Windows PowerShell
-- Windows x64 for producing the complete installer
-- Inno Setup 7 for installer compilation
-- Reviewed movie and television engine payloads for full runtime packaging
+- .NET SDK selected by [`global.json`](global.json)
+- PowerShell
+- reviewed movie and television engine sources for full packages
+- Inno Setup 7 and Windows x64 for the Windows installer
 
 Build and test the gateway:
 
@@ -129,39 +210,14 @@ dotnet test VynodeArr.Unified.sln --configuration Release --no-build
 dotnet run --project src/VynodeArr.Gateway
 ```
 
-The development configuration keeps both native engines disabled until their reviewed executables are supplied. The health endpoint remains available at `http://127.0.0.1:8686/health`.
+Generated packages are written under `artifacts/` and are not committed. Maintainers should follow the [Windows installer guide](docs/WINDOWS_INSTALLER.md), [cross-platform review](docs/CROSS_PLATFORM_REVIEW.md), and [contribution requirements](CONTRIBUTING.md).
 
-## Building the Windows installer
+## Security
 
-Stage reviewed engine builds and compile the installer:
+Review [`SECURITY.md`](SECURITY.md) before exposing VynodeArr outside a trusted network. Report vulnerabilities privately through the process described there rather than opening a public issue.
 
-```powershell
-.\distribution\windows\package.ps1 `
-  -MovieEnginePath C:\path\to\movie-build `
-  -TelevisionEnginePath C:\path\to\television-build `
-  -SkipArchive
+## License and acknowledgements
 
-.\distribution\windows\build-installer.ps1 `
-  -IsccPath "$env:LOCALAPPDATA\Programs\Inno Setup 7\ISCC.exe" `
-  -Version 0.4.9
-```
-
-Generated packages are written under `artifacts/` and excluded from Git. Publish installers as GitHub Release assets rather than committing generated binaries.
-
-## Library import note
-
-Movie Library Import expects one directory per movie. Loose media files directly inside a root folder are not import candidates.
-
-```text
-E:\Movies\Movie Title (Year)\movie-file.mkv
-```
-
-## Contributing
-
-Read [`CONTRIBUTING.md`](CONTRIBUTING.md) before changing engine lifecycle, proxy routing, packaging, or data isolation behavior. Changes must keep both domains independently testable and must not merge their databases, dependency-injection containers, background jobs, or command buses.
-
-## Source and licensing
-
-The locked movie and television source repositories are both distributed under GPL-3.0. Their repository URLs and exact revisions are recorded in the source lock and source inventory. Preserve upstream copyright and license notices when redistributing engine payloads.
+VynodeArr and its locked movie and television sources are distributed under the [GNU General Public License v3.0](LICENSE). Preserve upstream copyright and license notices when redistributing engine payloads.
 
 VynodeArr is an independent project and is not affiliated with or endorsed by the Radarr or Sonarr projects.
