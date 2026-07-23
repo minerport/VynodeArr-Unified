@@ -74,10 +74,10 @@ artifacts/windows/VynodeArr-win-x64/
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File .\distribution\windows\build-installer.ps1 `
   -IsccPath "$env:LOCALAPPDATA\Programs\Inno Setup 7\ISCC.exe" `
-  -Version 0.4.8
+  -Version 0.4.9
 ```
 
-Replace `0.4.8` with the version being released. The resulting file is:
+Replace `0.4.9` with the version being released. The resulting file is:
 
 ```text
 artifacts/installer/VynodeArr-<version>-win-x64-setup.exe
