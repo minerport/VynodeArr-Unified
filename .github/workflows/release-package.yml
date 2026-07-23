@@ -83,6 +83,7 @@ jobs:
           ./distribution/windows/package.ps1
           -MovieEnginePath ./artifacts/native-inputs/win-x64/movie
           -TelevisionEnginePath ./artifacts/native-inputs/win-x64/television
+          -Version '${{ inputs.image_tag }}'
       - name: Install Inno Setup
         run: choco install innosetup --yes --no-progress
       - name: Build installer
@@ -166,6 +167,7 @@ jobs:
           -MovieEnginePath ./artifacts/native-inputs/${{ env.TARGET_RUNTIME }}/movie
           -TelevisionEnginePath ./artifacts/native-inputs/${{ env.TARGET_RUNTIME }}/television
           -RuntimeIdentifier '${{ env.TARGET_RUNTIME }}'
+          -Version '${{ inputs.image_tag }}'
 
       - name: Verify Linux installer payload
         working-directory: unified

@@ -70,6 +70,7 @@ jobs:
           ./distribution/windows/package.ps1
           -MovieEnginePath ./artifacts/native-inputs/win-x64/movie
           -TelevisionEnginePath ./artifacts/native-inputs/win-x64/television
+          -Version '${{ env.PREVIEW_VERSION }}'
       - name: Install Inno Setup
         shell: pwsh
         run: choco install innosetup --yes --no-progress
@@ -138,6 +139,7 @@ jobs:
           -MovieEnginePath ./artifacts/native-inputs/linux-x64/movie
           -TelevisionEnginePath ./artifacts/native-inputs/linux-x64/television
           -RuntimeIdentifier linux-x64
+          -Version '${{ env.PREVIEW_VERSION }}'
       - name: Validate Linux scripts
         working-directory: unified
         run: |

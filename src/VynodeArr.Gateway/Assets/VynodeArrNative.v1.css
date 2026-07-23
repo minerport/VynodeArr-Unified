@@ -72,6 +72,16 @@ html[data-vy-engine] [class*=" PageHeader-logoFull-"] {
   opacity: 0;
 }
 
+/* Replace the native engine splash artwork while the React application loads. */
+html[data-vy-engine] img[class^="LoadingPage-logoFull-"],
+html[data-vy-engine] img[class*=" LoadingPage-logoFull-"] {
+  content: url("/assets/vynodearr.png");
+  width: 128px;
+  height: 128px;
+  object-fit: contain;
+  border-radius: var(--vy-radius-lg);
+}
+
 html[data-vy-engine] [class^="PageHeader-right-"],
 html[data-vy-engine] [class*=" PageHeader-right-"] {
   gap: var(--vy-space-2);

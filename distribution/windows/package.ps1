@@ -8,6 +8,8 @@ param(
 
     [string] $RuntimeIdentifier = 'win-x64',
 
+    [string] $Version = '0.4.9',
+
     [switch] $SkipArchive
 )
 
@@ -60,6 +62,7 @@ $dotnet = Get-Command dotnet -ErrorAction Stop
     --self-contained true `
     --output $gatewayRoot `
     -p:PublishSingleFile=true `
+    -p:Version=$Version `
     -p:DebugType=None `
     -p:DebugSymbols=false
 

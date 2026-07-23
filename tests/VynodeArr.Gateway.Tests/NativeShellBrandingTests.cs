@@ -36,6 +36,11 @@ public sealed class NativeShellBrandingTests
         Assert.Contains("replaceProductName", result, StringComparison.Ordinal);
         Assert.Contains("a[href$=\"/system/updates\"]", result, StringComparison.Ordinal);
         Assert.Contains("observe(document.body", result, StringComparison.Ordinal);
+        Assert.Contains("hiddenLegends.add('style')", result, StringComparison.Ordinal);
+        Assert.Contains("hiddenLegends.add('security')", result, StringComparison.Ordinal);
+        Assert.Contains("hiddenLegends.add('updates')", result, StringComparison.Ordinal);
+        Assert.Contains("hiddenLegends.add('more info')", result, StringComparison.Ordinal);
+        Assert.Contains("versionValue.textContent = productVersion", result, StringComparison.Ordinal);
         Assert.DoesNotContain("vynodearr-import-notice", result, StringComparison.Ordinal);
         Assert.DoesNotContain("Library Import requires one folder per movie", result, StringComparison.Ordinal);
     }

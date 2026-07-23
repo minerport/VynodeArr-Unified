@@ -162,7 +162,7 @@ app.MapGet("/assets/vynodearr-native.v2.css", () =>
         : Results.Stream(stream, "text/css; charset=utf-8");
 }).AllowAnonymous();
 app.MapGet("/", () => Results.Content(
-    UnifiedShell.Render(options.Ui, typeof(Program).Assembly.GetName().Version?.ToString() ?? "development"),
+    UnifiedShell.Render(options.Ui, ProductIdentity.Version),
     "text/html")).RequireAuthorization(VynodeArrPolicies.Read);
 app.MapGet("/api/unified/v1/engines", () => Results.Ok(registry.CreateHealthSnapshot().Engines)).RequireAuthorization(VynodeArrPolicies.Read);
 app.MapGet("/api/unified/v1/summary", (UnifiedSummaryService summary, CancellationToken cancellationToken) =>

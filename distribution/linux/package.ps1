@@ -15,6 +15,8 @@ param(
 
     [string] $TelevisionEntryPoint = 'Sonarr',
 
+    [string] $Version = '0.4.9',
+
     [switch] $SkipArchive
 )
 
@@ -80,6 +82,7 @@ $dotnet = Get-Command $DotnetPath -ErrorAction Stop
     --self-contained true `
     --output $gatewayRoot `
     -p:PublishSingleFile=true `
+    -p:Version=$Version `
     -p:DebugType=None `
     -p:DebugSymbols=false
 

@@ -56,7 +56,7 @@ public static class NativeShellBranding
             : string.Empty;
         var style = ui.NewShellStylingEnabled ? FoundationStyle : LegacyStyle;
         var metadata = ui.NewShellStylingEnabled
-            ? BuildMetadata(productName, compatibilityName, activePath)
+            ? BuildMetadata(productName, compatibilityName, activePath, ProductIdentity.Version)
             : string.Empty;
         var navigation = ui.NewShellStylingEnabled
             ? BuildFoundationNavigation(productName, activePath)
@@ -91,14 +91,18 @@ public static class NativeShellBranding
     private static string BuildMetadata(
         string productName,
         string compatibilityName,
-        string activePath) => $$"""
+        string activePath,
+        string productVersion) => $$"""
         <link id="vynodearr-favicon" rel="icon" type="image/png" href="/assets/vynodearr.png">
         <meta name="application-name" content="{{productName}}">
         <script id="vynodearr-native-presentation">
           (() => {
             const compatibilityName = {{System.Text.Json.JsonSerializer.Serialize(compatibilityName)}};
             const productName = {{System.Text.Json.JsonSerializer.Serialize(productName)}};
+            const productVersion = {{System.Text.Json.JsonSerializer.Serialize(productVersion)}};
+            const activePath = {{System.Text.Json.JsonSerializer.Serialize(activePath)}};
             const updatePath = {{System.Text.Json.JsonSerializer.Serialize($"{activePath}system/updates")}};
+            const normalizedPath = () => location.pathname.replace(/\/+$/, '').toLowerCase();
             const replaceProductName = (value) =>
               typeof value === 'string'
                 ? value.replace(new RegExp(compatibilityName, 'gi'), productName)
@@ -138,6 +142,36 @@ public static class NativeShellBranding
                 }
               });
             };
+            const fieldSetLegend = (fieldSet) =>
+              fieldSet.querySelector(':scope > legend')?.textContent?.trim().toLowerCase() ?? '';
+            const applyRoutePresentation = () => {
+              const path = normalizedPath();
+              const enginePath = activePath.replace(/\/+$/, '').toLowerCase();
+              const hiddenLegends = new Set();
+              if (path === `${enginePath}/settings/ui`) hiddenLegends.add('style');
+              if (path === `${enginePath}/settings/general`) {
+                hiddenLegends.add('security');
+                hiddenLegends.add('updates');
+              }
+              if (path === `${enginePath}/system/status`) hiddenLegends.add('more info');
+
+              document.querySelectorAll('fieldset').forEach((fieldSet) => {
+                if (hiddenLegends.has(fieldSetLegend(fieldSet))) fieldSet.remove();
+              });
+
+              if (path === `${enginePath}/system/status`) {
+                const about = [...document.querySelectorAll('fieldset')]
+                  .find((fieldSet) => fieldSetLegend(fieldSet) === 'about');
+                const versionLabel = about
+                  ? [...about.querySelectorAll('dt')]
+                    .find((item) => item.textContent?.trim().toLowerCase() === 'version')
+                  : null;
+                const versionValue = versionLabel?.nextElementSibling;
+                if (versionValue && versionValue.textContent !== productVersion) {
+                  versionValue.textContent = productVersion;
+                }
+              }
+            };
             if (location.pathname.replace(/\/$/, '').toLowerCase() === updatePath.toLowerCase()) {
               location.replace('{{activePath}}system/status');
               return;
@@ -145,12 +179,14 @@ public static class NativeShellBranding
             const start = () => {
               applyTitle();
               presentNode(document.body);
+              applyRoutePresentation();
               new MutationObserver((records) => {
                 applyTitle();
                 for (const record of records) {
                   if (record.type === 'characterData') presentNode(record.target);
                   record.addedNodes.forEach(presentNode);
                 }
+                applyRoutePresentation();
               }).observe(document.body, { childList: true, subtree: true, characterData: true });
             };
             if (document.readyState === 'loading') {
