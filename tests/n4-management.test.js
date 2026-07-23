@@ -32,16 +32,18 @@ test('management gateway exposes native capabilities and forwards only allowlist
 });
 
 test('native interaction workflows replace an upstream-shaped generic shell',async()=>{
-  const [html,script]=await Promise.all([
+  const [html,script,apiSource]=await Promise.all([
     readFile(new URL('../apps/web/public/index.html',import.meta.url),'utf8'),
-    readFile(new URL('../apps/web/public/app.js',import.meta.url),'utf8')
+    readFile(new URL('../apps/web/public/app.js',import.meta.url),'utf8'),
+    readFile(new URL('../apps/api/src/app.js',import.meta.url),'utf8')
   ]);
   for(const route of ['#add','#wanted','#queue','#service/root-folders','#system'])assert.match(html,new RegExp(route));
   for(const workflow of ['wanted-series-search','wanted-season-search','SeriesSearch','SeasonSearch','Search entire show','Search entire season'])assert.match(script,new RegExp(workflow));
   for(const workflow of ['seasonTone','episodeTone','availability-complete','availability-missing','availability-unmonitored','availability-count'])assert.match(script,new RegExp(workflow));
   for(const workflow of ['season-monitor','data-file-count','This season is no longer available','Season ${seasonNumber} monitored'])assert.ok(script.includes(workflow));
   for(const workflow of ['item.backdrop','detail-backdrop','detail-copy'])assert.match(script,new RegExp(workflow.replace('.','\\.')));
-  for(const workflow of ['wantedImage','wanted-art','wanted-movie-row','wanted-episode-row','/api/artwork/movie/movie_${item.id}/fanart','/api/artwork/tv/series_${seriesId}/fanart'])assert.ok(script.includes(workflow));
+  for(const workflow of ['wantedImage','wanted-art','wanted-movie-row','wanted-episode-row','/api/artwork/movie/movie_${item.id}/poster','/api/artwork/tv/series_${seriesId}/fanart','/api/artwork/tv-metadata/${tvdbId}','season?season=${season}','episode?season=${season}&episode=${item.episodeNumber}'])assert.ok(script.includes(workflow));
+  for(const workflow of ['tvMetadataArtwork','api.tvmaze.com/lookup/shows','api.tvmaze.com/shows/${show.id}/seasons','episodebynumber','static.tvmaze.com'])assert.ok(apiSource.includes(workflow));
   for(const workflow of ['showEngineManagement','Repair automatic connections','external-engine-settings','No API keys are required from users','/api/settings/engines/repair'])assert.ok(script.includes(workflow));
   for(const workflow of ['showAddMedia','discovery-art','remotePoster','showCalendar','calendar-grid','calendar-movies','showWanted','wanted-domain','wanted-show','wanted-season','wanted-interactive','showQueue','queue-table','data-queue-sort','showRootFolders','reviewMovieImport','reviewTvImport','const target=event.currentTarget','Scan for','Import selected movies','Import selected series','showProfiles','showProviders','loadPolicy','Failed download handling','autoRedownloadFailed','Indexers','Download Clients','All provider options','folder-browser','Browse…','Use this folder','attachDetailActions','episode-monitor','episode-auto-search','episode-interactive-search','Monitoring…','Unmonitoring…','Automatic search','Interactive search','release-table','data-sort','Source','Quality','Size','Seeders','grab-release','createRecord','Refresh & scan','Allowed qualities','Custom format scores','Create both backups'])assert.match(script,new RegExp(workflow.replace(/[&]/g,'&')));
 });

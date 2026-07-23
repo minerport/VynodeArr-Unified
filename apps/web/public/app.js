@@ -94,27 +94,27 @@ async function showWanted(){
       ]);
       const items=value.result?.records||value.result||[],library=libraryValue.result||[];
       const libraryById=new Map(library.map(media=>[Number(media.id),media]));
-      const wantedImage=(src,label,kind='thumbnail')=>`<span class="wanted-art ${kind}"><img src="${esc(src)}" alt="${esc(label)} fanart" loading="lazy" onerror="this.parentElement.classList.add('failed');this.hidden=true"><span class="art-fallback" aria-hidden="true">${domain==='movie'?'M':'TV'}</span></span>`;
+      const wantedImage=(src,label,kind='thumbnail',description='artwork',fallback='')=>`<span class="wanted-art ${kind}"><img src="${esc(src)}"${fallback?` data-fallback="${esc(fallback)}"`:''} alt="${esc(label)} ${description}" loading="lazy" onerror="if(this.dataset.fallback&&!this.dataset.used){this.dataset.used='1';this.src=this.dataset.fallback}else{this.parentElement.classList.add('failed');this.hidden=true}"><span class="art-fallback" aria-hidden="true">${domain==='movie'?'M':'TV'}</span></span>`;
       host.className='panel';
       if(!items.length){host.innerHTML='<div class="empty"><h2>Nothing wanted</h2><p>This monitored library has no items in this view.</p></div>';return;}
       if(domain==='movie'){
         host.innerHTML=items.map((item,index)=>{
           const movie=item.movie||libraryById.get(Number(item.id))||item,title=item.title||movie.title||'Untitled movie';
-          return`<article class="wanted-row wanted-movie-row">${wantedImage(`/api/artwork/movie/movie_${item.id}/fanart`,title,'movie')}<span class="wanted-copy"><strong>${esc(title)}</strong><small>${esc(item.qualityProfile?.name||item.status||'Missing')}</small></span><div class="wanted-actions"><button class="secondary wanted-search" data-index="${index}">Automatic search</button><button class="secondary wanted-interactive" data-index="${index}">Interactive search</button></div></article>`;
+          return`<article class="wanted-row wanted-movie-row">${wantedImage(`/api/artwork/movie/movie_${item.id}/poster`,title,'movie','poster')}<span class="wanted-copy"><strong>${esc(title)}</strong><small>${esc(item.qualityProfile?.name||item.status||'Missing')}</small></span><div class="wanted-actions"><button class="secondary wanted-search" data-index="${index}">Automatic search</button><button class="secondary wanted-interactive" data-index="${index}">Interactive search</button></div></article>`;
         }).join('');
         attach(items);return;
       }
       const groups=new Map();
       items.forEach((item,index)=>{
-        const seriesId=Number(item.seriesId),show=item.series?.title||libraryById.get(seriesId)?.title||`Series ${item.seriesId}`,season=item.seasonNumber??0;
-        if(!groups.has(seriesId))groups.set(seriesId,{show,seasons:new Map()});
+        const seriesId=Number(item.seriesId),series=item.series||libraryById.get(seriesId)||{},show=series.title||`Series ${item.seriesId}`,season=item.seasonNumber??0,tvdbId=Number(series.tvdbId||0);
+        if(!groups.has(seriesId))groups.set(seriesId,{show,tvdbId,seasons:new Map()});
         const seasons=groups.get(seriesId).seasons;
         if(!seasons.has(season))seasons.set(season,[]);
         seasons.get(season).push({item,index});
       });
-      host.innerHTML=[...groups].map(([seriesId,{show,seasons}])=>{
-        const fanart=`/api/artwork/tv/series_${seriesId}/fanart`;
-        return`<details class="wanted-show"><summary>${wantedImage(fanart,show,'show')}<span class="wanted-copy"><strong>${esc(show)}</strong><small>${[...seasons.values()].reduce((sum,rows)=>sum+rows.length,0)} wanted</small></span></summary><div class="wanted-group-actions"><button class="secondary wanted-series-search" data-series-id="${seriesId}">Search entire show</button></div>${[...seasons].map(([season,rows])=>`<details class="wanted-season"><summary>${wantedImage(fanart,`${show} season ${season}`,'season')}<span class="wanted-copy"><strong>Season ${season}</strong><small>${rows.length} wanted</small></span></summary><div class="wanted-group-actions"><button class="secondary wanted-season-search" data-series-id="${seriesId}" data-season="${season}">Search entire season</button></div><div class="wanted-season-episodes">${rows.map(({item,index})=>`<article class="wanted-row wanted-episode-row">${wantedImage(fanart,`${show} episode ${item.episodeNumber??''}`,'episode')}<span class="wanted-copy"><strong>E${item.episodeNumber??'–'} · ${esc(item.title||'Untitled episode')}</strong><small>${esc(item.qualityProfile?.name||item.status||'Missing')}</small></span><div class="wanted-actions"><button class="secondary wanted-search" data-index="${index}">Automatic search</button><button class="secondary wanted-interactive" data-index="${index}">Interactive search</button></div></article>`).join('')}</div></details>`).join('')}</details>`;
+      host.innerHTML=[...groups].map(([seriesId,{show,tvdbId,seasons}])=>{
+        const fanart=`/api/artwork/tv/series_${seriesId}/fanart`,metadataBase=tvdbId?`/api/artwork/tv-metadata/${tvdbId}`:'';
+        return`<details class="wanted-show"><summary>${wantedImage(fanart,show,'show','fanart')}<span class="wanted-copy"><strong>${esc(show)}</strong><small>${[...seasons.values()].reduce((sum,rows)=>sum+rows.length,0)} wanted</small></span></summary><div class="wanted-group-actions"><button class="secondary wanted-series-search" data-series-id="${seriesId}">Search entire show</button></div>${[...seasons].map(([season,rows])=>`<details class="wanted-season"><summary>${wantedImage(metadataBase?`${metadataBase}/season?season=${season}`:fanart,`${show} season ${season}`,'season','poster',fanart)}<span class="wanted-copy"><strong>Season ${season}</strong><small>${rows.length} wanted</small></span></summary><div class="wanted-group-actions"><button class="secondary wanted-season-search" data-series-id="${seriesId}" data-season="${season}">Search entire season</button></div><div class="wanted-season-episodes">${rows.map(({item,index})=>`<article class="wanted-row wanted-episode-row">${wantedImage(metadataBase?`${metadataBase}/episode?season=${season}&episode=${item.episodeNumber}`:fanart,`${show} episode ${item.episodeNumber??''}`,'episode','still',fanart)}<span class="wanted-copy"><strong>E${item.episodeNumber??'–'} · ${esc(item.title||'Untitled episode')}</strong><small>${esc(item.qualityProfile?.name||item.status||'Missing')}</small></span><div class="wanted-actions"><button class="secondary wanted-search" data-index="${index}">Automatic search</button><button class="secondary wanted-interactive" data-index="${index}">Interactive search</button></div></article>`).join('')}</div></details>`).join('')}</details>`;
       }).join('');
       attach(items);
     }catch(error){host.className='panel';host.innerHTML=`<div class="error-state"><p>${esc(error.message)}</p></div>`;}

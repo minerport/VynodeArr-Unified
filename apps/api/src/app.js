@@ -34,7 +34,7 @@ export function createApplication(options={}){
   const engineSettings=options.engineSettings||new EngineSettingsService({path:join(dataDir,'engine-settings.json'),vaultPath:join(dataDir,'credentials.enc'),masterKey:options.masterKey||loadSecret(env,'VYNODENEW_MASTER_KEY')||'local-development-key-change-me-2026',defaults:baseConfig});
   const projectionStore=options.projectionStore||new ProjectionStore(join(dataDir,'projections.json'));
   const auditStore=options.auditStore||new JsonStore(join(dataDir,'management-audit.json'),{version:1,entries:[]});
-  const artworkCache=new Map();let mode=baseConfig.dataMode;
+  const artworkCache=new Map(),tvMetadataCache=new Map();let mode=baseConfig.dataMode;
   let movie=options.movie||(mode==='fixture'?new MovieFixtureAdapter(baseConfig.movie):new MovieEngineAdapter(baseConfig.movie));
   let tv=options.tv||(mode==='fixture'?new TvFixtureAdapter(baseConfig.tv):new TvEngineAdapter(baseConfig.tv));
   const registry=options.registry||new MediaEngineRegistry().register('movie',movie).register('tv',tv);
@@ -90,6 +90,32 @@ export function createApplication(options={}){
     const checks=await Promise.all([registry.movie().testConnection(),registry.tv().testConnection()]);
     if(checks.some(check=>!check.reachable||!check.authenticated||!check.compatible))throw new Error('Automatic engine reconnection did not succeed');
     await sync.startup();return ['movie','tv'];
+  }
+  async function tvMetadataArtwork(tvdbId,kind,seasonNumber,episodeNumber){
+    const key=`tvmaze:${tvdbId}:${kind}:${seasonNumber||0}:${episodeNumber||0}`;
+    if(tvMetadataCache.has(key))return tvMetadataCache.get(key);
+    try{
+      const request=async url=>{
+        const response=await fetch(url,{headers:{accept:'application/json','user-agent':'VynodeNew/1.0'},signal:AbortSignal.timeout(8000)});
+        if(!response.ok)throw new Error('Metadata artwork unavailable');
+        return response.json();
+      };
+      const show=await request(`https://api.tvmaze.com/lookup/shows?thetvdb=${Number(tvdbId)}`);
+      let record;
+      if(kind==='season'){
+        const seasons=await request(`https://api.tvmaze.com/shows/${show.id}/seasons`);
+        record=seasons.find(item=>Number(item.number)===Number(seasonNumber));
+      }else{
+        record=await request(`https://api.tvmaze.com/shows/${show.id}/episodebynumber?season=${Number(seasonNumber)}&number=${Number(episodeNumber)}`);
+      }
+      const imageUrl=record?.image?.original||record?.image?.medium;
+      if(!imageUrl||new URL(imageUrl).hostname!=='static.tvmaze.com')return null;
+      const imageResponse=await fetch(imageUrl,{signal:AbortSignal.timeout(10000)});
+      const contentType=imageResponse.headers.get('content-type')||'';
+      if(!imageResponse.ok||!contentType.startsWith('image/'))return null;
+      const value={body:Buffer.from(await imageResponse.arrayBuffer()),contentType};
+      tvMetadataCache.set(key,value);return value;
+    }catch{return null;}
   }
 
   async function handleRequest(req,res){
@@ -151,6 +177,12 @@ export function createApplication(options={}){
         }
         if(url.pathname==='/api/manage/audit'&&req.method==='GET'){if(!administrator(res,session))return;const audit=await auditStore.read();return json(res,200,{items:audit.entries||[]});}
         if(req.method!=='GET')return json(res,405,{error:{code:'read_only',message:'Read-only review mode'}});
+        const metadataArtworkMatch=url.pathname.match(/^\/api\/artwork\/tv-metadata\/(\d+)\/(season|episode)$/);
+        if(metadataArtworkMatch){
+          const value=await tvMetadataArtwork(metadataArtworkMatch[1],metadataArtworkMatch[2],url.searchParams.get('season'),url.searchParams.get('episode'));
+          if(!value){res.writeHead(204,{'cache-control':'private, max-age=300'});return res.end();}
+          res.writeHead(200,{'content-type':value.contentType,'cache-control':'private, max-age=86400','x-content-type-options':'nosniff'});return res.end(value.body);
+        }
         const artworkMatch=url.pathname.match(/^\/api\/artwork\/(movie|tv)\/((?:movie|series)_[A-Za-z0-9_-]+)\/(poster|fanart|logo|banner|episode|season)$/);
         if(artworkMatch){
           const key=artworkMatch.slice(1).join(':');let value=artworkCache.get(key);
