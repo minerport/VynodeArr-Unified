@@ -1,4 +1,71 @@
 services:
+  engine-config-init:
+    image: alpine:3.22
+    container_name: vynodenew-engine-config
+    restart: "no"
+    environment:
+      MOVIE_KEY: "${MOVIE_ENGINE_API_CREDENTIAL:-vynodenew-local-movie-key-2026}"
+      TV_KEY: "${TV_ENGINE_API_CREDENTIAL:-vynodenew-local-tv-key-2026}"
+    volumes:
+      - movie-engine-config:/movie
+      - tv-engine-config:/tv
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        if [ ! -f /movie/config.xml ]; then
+          printf '%s\n' '<Config><BindAddress>*</BindAddress><Port>7878</Port><EnableSsl>False</EnableSsl><LaunchBrowser>False</LaunchBrowser><ApiKey>'"$${MOVIE_KEY}"'</ApiKey><AuthenticationMethod>External</AuthenticationMethod><AuthenticationRequired>DisabledForLocalAddresses</AuthenticationRequired><LogLevel>info</LogLevel><UrlBase></UrlBase><InstanceName>VynodeNew Movies</InstanceName><UpdateMechanism>Docker</UpdateMechanism></Config>' > /movie/config.xml
+        fi
+        if [ ! -f /tv/config.xml ]; then
+          printf '%s\n' '<Config><BindAddress>*</BindAddress><Port>8989</Port><EnableSsl>False</EnableSsl><LaunchBrowser>False</LaunchBrowser><ApiKey>'"$${TV_KEY}"'</ApiKey><AuthenticationMethod>External</AuthenticationMethod><AuthenticationRequired>DisabledForLocalAddresses</AuthenticationRequired><LogLevel>info</LogLevel><UrlBase></UrlBase><InstanceName>VynodeNew Television</InstanceName><UpdateMechanism>Docker</UpdateMechanism></Config>' > /tv/config.xml
+        fi
+
+  movie-engine:
+    image: lscr.io/linuxserver/radarr:latest
+    container_name: vynodenew-movie-engine
+    restart: unless-stopped
+    depends_on:
+      engine-config-init:
+        condition: service_completed_successfully
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: "${TZ:-America/New_York}"
+    volumes:
+      - movie-engine-config:/config
+      - movie-library:/movies
+      - shared-downloads:/downloads
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS 'http://127.0.0.1:7878/ping' >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks: [vynodenew-private]
+
+  tv-engine:
+    image: lscr.io/linuxserver/sonarr:latest
+    container_name: vynodenew-tv-engine
+    restart: unless-stopped
+    depends_on:
+      engine-config-init:
+        condition: service_completed_successfully
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: "${TZ:-America/New_York}"
+    volumes:
+      - tv-engine-config:/config
+      - tv-library:/tv
+      - shared-downloads:/downloads
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS 'http://127.0.0.1:8989/ping' >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks: [vynodenew-private]
+
   vynodenew:
     build:
       context: .
@@ -7,12 +74,25 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    environment:
+      VYNODENEW_DATA_MODE: engine
+      MOVIE_ENGINE_HOST: movie-engine
+      MOVIE_ENGINE_PORT: "7878"
+      MOVIE_ENGINE_API_CREDENTIAL: "${MOVIE_ENGINE_API_CREDENTIAL:-vynodenew-local-movie-key-2026}"
+      TV_ENGINE_HOST: tv-engine
+      TV_ENGINE_PORT: "8989"
+      TV_ENGINE_API_CREDENTIAL: "${TV_ENGINE_API_CREDENTIAL:-vynodenew-local-tv-key-2026}"
     ports:
       - "127.0.0.1:4310:4310"
     volumes:
       - vynodenew-data:/data
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    depends_on:
+      movie-engine:
+        condition: service_healthy
+      tv-engine:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4310/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 30s
@@ -22,24 +102,13 @@ services:
     networks:
       - vynodenew-private
 
-  movie-engine-placeholder:
-    image: alpine:3.22
-    profiles: ["bundled-engine-preparation"]
-    command: ["sh", "-c", "echo 'No engine binary is included'; sleep infinity"]
-    networks: [vynodenew-private]
-    labels:
-      com.vynodenew.preparation-only: "true"
-
-  tv-engine-placeholder:
-    image: alpine:3.22
-    profiles: ["bundled-engine-preparation"]
-    command: ["sh", "-c", "echo 'No engine binary is included'; sleep infinity"]
-    networks: [vynodenew-private]
-    labels:
-      com.vynodenew.preparation-only: "true"
-
 volumes:
   vynodenew-data:
+  movie-engine-config:
+  tv-engine-config:
+  movie-library:
+  tv-library:
+  shared-downloads:
 
 networks:
   vynodenew-private:

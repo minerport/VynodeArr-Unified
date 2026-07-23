@@ -2,8 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { access,readFile } from 'node:fs/promises';
 
-test('local Compose is loopback-bound, healthy, persistent, and neutral',async()=>{
-  const text=await readFile(new URL('../compose.yaml',import.meta.url),'utf8');assert.match(text,/127\.0\.0\.1:4310:4310/);assert.match(text,/healthcheck:/);assert.match(text,/vynodenew-data/);assert.doesNotMatch(text,/\b(radarr|sonarr)\b/i);
+test('local Compose bundles private healthy engines and exposes only VynodeNew',async()=>{
+  const text=await readFile(new URL('../compose.yaml',import.meta.url),'utf8');
+  for(const value of ['127.0.0.1:4310:4310','movie-engine-config','tv-engine-config','shared-downloads','lscr.io/linuxserver/radarr','lscr.io/linuxserver/sonarr','condition: service_healthy'])assert.match(text,new RegExp(value.replaceAll('.','\\.')));
+  assert.equal((text.match(/ports:/g)||[]).length,1);
+  assert.match(text,/MOVIE_ENGINE_HOST: movie-engine/);
+  assert.match(text,/TV_ENGINE_HOST: tv-engine/);
 });
 test('Unraid template has required mappings, secrets, health-compatible port, and neutral overview',async()=>{
   const text=await readFile(new URL('../infrastructure/unraid/vynodenew.xml',import.meta.url),'utf8');

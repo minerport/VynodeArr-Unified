@@ -19,8 +19,17 @@ export class ReadOnlyEngineClient {
         res.on('data',(chunk)=>{size+=chunk.length;if(size>32*1024*1024){req.destroy(engineError.invalid());return;}chunks.push(chunk);});
         res.on('end',()=>{
           if(res.statusCode===401||res.statusCode===403)return reject(engineError.authentication());
-          if(res.statusCode<200||res.statusCode>=300)return reject(engineError.unavailable(this.domain));
           const text=Buffer.concat(chunks).toString('utf8');
+          if(res.statusCode<200||res.statusCode>=300){
+            if([400,409,422].includes(res.statusCode)){
+              try{
+                const value=JSON.parse(text),items=Array.isArray(value)?value:[value];
+                const message=items.map((item)=>item?.errorMessage||item?.message).filter(Boolean).join('; ');
+                if(message)return reject(new Error(message.slice(0,500)));
+              }catch{}
+            }
+            return reject(engineError.unavailable(this.domain));
+          }
           if(!text)return resolve(null);
           try{resolve(JSON.parse(text));}catch{reject(engineError.invalid());}
         });

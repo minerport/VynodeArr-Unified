@@ -2,8 +2,8 @@
 
 VynodeNew is one secure Movies and TV application. It provides guided first-run
 setup, local accounts and roles, durable media projections, unified activity,
-authenticated artwork, and encrypted connections to separately running media
-engines. Its administrator control center provides an allowlisted management
+authenticated artwork, and encrypted connections to private bundled media
+services. Its administrator control center provides an allowlisted management
 gateway without exposing either backend interface. See
 `docs/N4_MANAGEMENT_GATEWAY.md`.
 
@@ -15,12 +15,13 @@ docker compose up --build -d
 ```
 
 Open `http://localhost:4310`. A new installation opens **Welcome to
-VynodeNew**, creates the first administrator, signs them in, and continues to
-the engine wizard. No default username or password exists.
+VynodeNew**, creates the first administrator, and signs them in. Both private
+media services are started and connected automatically. No default VynodeNew
+username or password exists.
 
-The engine wizard validates authentication, version, capabilities, library,
-queue, calendar, and health before saving encrypted credentials. It can be
-skipped to use deterministic review data.
+The engine settings screen validates authentication, version, capabilities,
+library, queue, calendar, and health. Manual connection remains available for
+deployments that use existing external services.
 
 Run `npm run verify` for tests, build, branding, and deployment checks. See
 `docs/LOCAL_REVIEW_DEPLOYMENT.md` or `docs/UNRAID_REVIEW_DEPLOYMENT.md`.

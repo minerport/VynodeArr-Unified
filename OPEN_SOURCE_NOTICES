@@ -10,5 +10,25 @@ Source reviewed locally at commit a29f15e92bd2c21e646d065d9d78066952cac05d.
 No source files, artwork, logos, styles, screenshots, frontend pages, or
 binaries from either project are included in this N1 repository.
 
-N2 continues to include no such code, asset, binary, container layer, or
-database. Its adapters communicate only with separately installed services.
+N2 and N3 included no such code, asset, binary, container layer, or database.
+
+Local N4 deployment
+===================
+
+The N4 Compose deployment pulls LinuxServer.io container images for Radarr and
+Sonarr at installation time. These images and applications are separate works;
+they are not copied into the VynodeNew source tree or presented as VynodeNew UI.
+
+Image documentation and source:
+https://docs.linuxserver.io/images/docker-radarr/
+https://github.com/linuxserver/docker-radarr
+https://docs.linuxserver.io/images/docker-sonarr/
+https://github.com/linuxserver/docker-sonarr
+
+Application corresponding source:
+https://github.com/Radarr/Radarr
+https://github.com/Sonarr/Sonarr
+
+Review the notices and licenses shipped inside each pulled image before
+redistribution. VynodeNew retains this attribution while keeping upstream names,
+logos, and interface assets out of the product interface.

@@ -9,16 +9,20 @@ docker compose up --build -d
 ```
 
 Open `http://localhost:4310`. The first visit launches the setup wizard; there
-is no committed default password. Administrator and engine setup require no
-file or database editing. The Compose port binds to loopback.
+is no committed default account password. The local stack automatically starts
+private movie and television engines, waits for both to become healthy, and
+registers them with VynodeNew. The Compose port binds only VynodeNew to
+loopback; engine ports are not published to the host.
 PowerShell helpers are in `infrastructure/local`.
 
-## Real data
+## Bundled engines and real data
 
-Set `VYNODENEW_DATA_MODE=engine`, configure internal engine hosts/ports and
-credential files, then recreate the container. On Docker Desktop,
-`host.docker.internal` is preconfigured. Both engines must permit the gateway
-network to reach their read-only API endpoints.
+The included services persist configuration in `movie-engine-config` and
+`tv-engine-config`, libraries in `movie-library` and `tv-library`, and use a
+shared `shared-downloads` volume. Replace the local example API keys in `.env`
+before any non-local deployment. The engines have outbound network access for
+provider and download-client integrations but are reachable from the browser
+only through VynodeNew's authenticated gateway.
 
 ## Checks and troubleshooting
 
@@ -26,11 +30,11 @@ network to reach their read-only API endpoints.
 - `curl http://127.0.0.1:4310/healthz`
 - `docker compose logs vynodenew` (credentials are never intentionally logged)
 - Confirm internal DNS/routing, URL base, credential, and TLS policy.
-- Use fixture mode to separate gateway/UI problems from engine connectivity.
+- Inspect private services with `docker compose logs movie-engine tv-engine`.
 - Stop with `docker compose down`.
 
-The reset script removes only the named VynodeNew development volume. It erases
-the local administrator and application state, not engine data.
+The reset script removes only the named VynodeNew application volume. Engine
+configuration, libraries, and downloads remain in their separate volumes.
 
 ## Upgrade and recovery
 
