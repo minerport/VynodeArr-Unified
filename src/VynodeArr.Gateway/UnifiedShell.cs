@@ -177,7 +177,7 @@ public static class UnifiedShell
                   .finally(() => scheduleRefresh());
                 authReady.then(loadSummary);
                 const renderAttention = (data) => {
-                  const target = document.getElementById('attention-center'); const items = Object.values(data.domains || {}).flatMap(domain => domain.items || []);
+                  const target = document.getElementById('attention-center'); const items = Object.values(data.domains || {}).flatMap(domain => Array.isArray(domain) ? domain : (domain.items || []));
                   target.innerHTML = items.length ? `<ul class="vy-module-list">${items.map(item => `<li class="vy-module-item vy-attention"><span class="vy-engine-chip" data-engine="${escapeHtml(item.engine)}">${escapeHtml(item.engine)}</span><span><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.message)}</small></span>${item.nativeUrl ? `<a class="vy-button" href="${escapeHtml(item.nativeUrl)}">Review</a>` : ''}</li>`).join('')}</ul>` : '<p class="vy-calendar-empty">No issues currently require attention.</p>';
                 };
                 let attentionTimer;

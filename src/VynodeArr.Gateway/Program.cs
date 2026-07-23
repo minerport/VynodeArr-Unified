@@ -182,7 +182,7 @@ app.MapGet("/api/dashboard/attention", async (UnifiedSummaryService summary, Can
     {
         engine = domain.Domain,
         items = BuildAttention(domain)
-    }).ToDictionary(item => item.engine, item => item.items);
+    }).ToDictionary(item => item.engine, item => item);
     return Results.Ok(new { generatedAt = current.Timestamp, domains });
 }).RequireAuthorization(VynodeArrPolicies.Read);
 app.MapPost("/api/unified/v1/engines/{domain}/{action}", async (

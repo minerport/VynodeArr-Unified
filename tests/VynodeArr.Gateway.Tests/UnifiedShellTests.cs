@@ -23,6 +23,7 @@ public sealed class UnifiedShellTests
         Assert.Contains("label: 'Running'", html, StringComparison.Ordinal);
         Assert.Contains("Upcoming 30 days", html, StringComparison.Ordinal);
         Assert.Contains("Attention center", html, StringComparison.Ordinal);
+        Assert.Contains("Array.isArray(domain) ? domain : (domain.items || [])", html, StringComparison.Ordinal);
         Assert.Contains("Active queue", html, StringComparison.Ordinal);
         Assert.DoesNotContain("/movies/wanted/manualimport", html, StringComparison.Ordinal);
         Assert.DoesNotContain("/television/wanted/manualimport", html, StringComparison.Ordinal);
