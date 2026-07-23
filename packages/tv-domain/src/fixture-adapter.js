@@ -23,5 +23,6 @@ export class TvFixtureAdapter {
   async getQueue(){return structuredClone(queue);} async getHistory(){return structuredClone(history);}
   async getCalendar(){return structuredClone(calendar);} async getHealth(){return [];}
   async getSystemStatus(){return{domain:'tv',version:'fixture-1',compatible:true,mode:'fixture'};}
+  async getArtwork(){return null;}
   async testConnection(){return{enabled:true,reachable:true,authenticated:true,compatible:true,latencyMs:0,capabilities:['library','details','episodes','queue','history','calendar','health','status'],safeError:null};}
 }

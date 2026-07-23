@@ -8,7 +8,7 @@
   <Privileged>false</Privileged>
   <Support>https://github.com/minerport/VynodeNew</Support>
   <Project>https://github.com/minerport/VynodeNew</Project>
-  <Overview>One secure, read-only Movies and TV review interface. Connects to separately running internal media engines without exposing their credentials to the browser.</Overview>
+  <Overview>One secure Movies and TV experience with guided first-run administrator and engine setup. Credentials remain encrypted and never reach the browser.</Overview>
   <Category>MediaApp:Other</Category>
   <WebUI>http://[IP]:[PORT:4310]/</WebUI>
   <Icon>https://raw.githubusercontent.com/minerport/VynodeNew/develop/apps/web/public/art/vynodenew-icon.svg</Icon>
@@ -29,4 +29,5 @@
   <Config Name="TV engine port" Target="TV_ENGINE_PORT" Default="8989" Description="Internal TV engine port" Type="Variable" Display="always" Required="true" Mask="false">8989</Config>
   <Config Name="TV credential file" Target="TV_ENGINE_API_CREDENTIAL_FILE" Default="/run/secrets/tv-api-key" Description="Mounted file containing the TV API credential" Type="Variable" Display="advanced" Required="true" Mask="false">/run/secrets/tv-api-key</Config>
   <Config Name="Secrets" Target="/run/secrets" Default="/mnt/user/appdata/vynodenew/secrets" Mode="ro" Description="Read-only credential files" Type="Path" Display="advanced" Required="true" Mask="false">/mnt/user/appdata/vynodenew/secrets</Config>
+  <Config Name="Master key file" Target="VYNODENEW_MASTER_KEY_FILE" Default="/run/secrets/master-key" Description="Stable encryption key file; back it up securely" Type="Variable" Display="advanced" Required="true" Mask="false">/run/secrets/master-key</Config>
 </Container>

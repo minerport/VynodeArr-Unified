@@ -8,8 +8,9 @@ Copy `.env.example` to `.env`, then run:
 docker compose up --build -d
 ```
 
-Open `http://127.0.0.1:4310`. The first visit creates the initial administrator;
-there is no committed default password. The Compose port binds to loopback.
+Open `http://localhost:4310`. The first visit launches the setup wizard; there
+is no committed default password. Administrator and engine setup require no
+file or database editing. The Compose port binds to loopback.
 PowerShell helpers are in `infrastructure/local`.
 
 ## Real data
@@ -30,3 +31,11 @@ network to reach their read-only API endpoints.
 
 The reset script removes only the named VynodeNew development volume. It erases
 the local administrator and application state, not engine data.
+
+## Upgrade and recovery
+
+Back up the Docker volume before upgrades. Startup automatically upgrades N2
+user arrays into the versioned N3 account schema while preserving password
+hashes. If the master key is lost, encrypted engine credentials cannot be
+recovered; restore the key backup or reconnect engines. Account recovery is
+currently an administrator operation.

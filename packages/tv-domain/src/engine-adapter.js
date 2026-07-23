@@ -52,6 +52,7 @@ export class TvEngineAdapter {
     const value = await this.client.get('system/status');
     return { domain: 'tv', version: String(value?.version || ''), compatible: Boolean(value?.version), mode: 'read_only' };
   }
+  async getArtwork(id,type){return this.client.getArtwork(numericId(id),type);}
   async testConnection() {
     const started = Date.now();
     try {

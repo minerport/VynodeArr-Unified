@@ -56,6 +56,7 @@ export class MovieEngineAdapter {
     const value = await this.client.get('system/status');
     return { domain: 'movie', version: String(value?.version || ''), compatible: Boolean(value?.version), mode: 'read_only' };
   }
+  async getArtwork(id,type){return this.client.getArtwork(numericId(id),type);}
   async testConnection() {
     const started = Date.now();
     try {

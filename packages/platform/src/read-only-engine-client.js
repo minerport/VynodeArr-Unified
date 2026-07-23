@@ -26,6 +26,16 @@ export class ReadOnlyEngineClient {
       req.on('error',reject);req.end();
     });
   }
+  #requestBuffer(url){
+    return new Promise((resolve,reject)=>{
+      const transport=url.protocol==='https:'?httpsRequest:httpRequest;
+      const req=transport(url,{method:'GET',headers:{accept:'image/*','x-api-key':this.config.apiCredential},rejectUnauthorized:this.config.tlsVerify},(res)=>{
+        const chunks=[];let size=0;if(res.statusCode<200||res.statusCode>=300){res.resume();return reject(engineError.unavailable(this.domain));}
+        res.on('data',(chunk)=>{size+=chunk.length;if(size>16*1024*1024){req.destroy(engineError.invalid());return;}chunks.push(chunk);});
+        res.on('end',()=>resolve({body:Buffer.concat(chunks),contentType:String(res.headers['content-type']||'image/jpeg')}));
+      });req.setTimeout(this.config.timeoutMs,()=>req.destroy(engineError.timeout(this.domain)));req.on('error',reject);req.end();
+    });
+  }
   async get(path,query){
     if(!this.config.enabled)throw engineError.unavailable(this.domain);
     let lastError;
@@ -35,5 +45,12 @@ export class ReadOnlyEngineClient {
     }
     if(lastError?.safeMessage)throw lastError;
     throw engineError.unavailable(this.domain);
+  }
+  async getArtwork(mediaId,type){
+    if(!this.config.enabled)throw engineError.unavailable(this.domain);
+    const prefix=this.config.urlBase?`/${this.config.urlBase}`:'';
+    const safeType=['poster','fanart','banner','logo','headshot','season','episode'].includes(type)?type:'poster';
+    const url=new URL(`${this.config.https?'https':'http'}://${this.config.host}:${this.config.port}${prefix}/MediaCover/${Number(mediaId)}/${safeType}.jpg`);
+    return this.#requestBuffer(url);
   }
 }

@@ -19,7 +19,7 @@ export function movieSummary(record, context = {}) {
   const hasFile = Boolean(record.hasFile || record.movieFile);
   return assertModel('MovieSummary', {
     id: `movie_${record.id}`, title: record.title, year: Number(record.year || 0),
-    artwork: imageSet(record.images).poster, status: record.status || 'announced',
+    artwork: { url:`/api/artwork/movie/movie_${record.id}/poster`,kind:'poster',width:0,height:0 }, status: record.status || 'announced',
     monitoring: monitoring(record.monitored), hasFile,
     quality: qualityName(record.movieFile) || 'Not available',
     qualityProfile: profile(record), rootFolder: record.rootFolderPath || record.path || null,
@@ -34,7 +34,7 @@ export function movieDetails(record, context = {}) {
   return {
     ...summary, overview: record.overview || '', runtimeMinutes: Number(record.runtime || 0),
     genres: record.genres || [], availability: record.minimumAvailability || record.status || 'unknown',
-    backdrop: imageSet(record.images).backdrop, recentHistory: context.history || [],
+    backdrop: { url:`/api/artwork/movie/movie_${record.id}/fanart`,kind:'backdrop',width:0,height:0 }, recentHistory: context.history || [],
     calendar: context.calendar || []
   };
 }
@@ -46,7 +46,7 @@ export function seriesSummary(record, context = {}) {
   const fileCount = Number(statistics.episodeFileCount || 0);
   return assertModel('SeriesSummary', {
     id: `series_${record.id}`, title: record.title, year: Number(record.year || 0),
-    network: record.network || 'Unknown network', artwork: imageSet(record.images).poster,
+    network: record.network || 'Unknown network', artwork: { url:`/api/artwork/tv/series_${record.id}/poster`,kind:'poster',width:0,height:0 },
     status: record.status || 'unknown', monitoring: monitoring(record.monitored),
     seasonProgress: `${(record.seasons || []).filter((season) => season.monitored).length} / ${(record.seasons || []).length}`,
     episodeProgress: `${fileCount} / ${episodeCount}`, missingEpisodes: Math.max(0, Number(statistics.episodeCount || 0) - Number(statistics.episodeFileCount || 0)),
@@ -76,18 +76,19 @@ export function seriesDetails(record, episodes = [], context = {}) {
   });
   return {
     ...summary, overview: record.overview || '', genres: record.genres || [],
-    backdrop: imageSet(record.images).backdrop, seriesType: record.seriesType || 'standard',
+    backdrop: { url:`/api/artwork/tv/series_${record.id}/fanart`,kind:'backdrop',width:0,height:0 }, seriesType: record.seriesType || 'standard',
     seasons, recentHistory: context.history || [], calendar: context.calendar || []
   };
 }
 
 export function queueItem(record, domain) {
   const media = domain === 'movie' ? record.movie : record.series;
+  const publicMediaId=media?.id ? `${domain === 'movie' ? 'movie' : 'series'}_${media.id}` : null;
   const size = Number(record.size || 0), left = Number(record.sizeleft || record.sizeLeft || 0);
   return {
-    id: `${domain}_queue_${record.id}`, domain, mediaId: media?.id ? `${domain === 'movie' ? 'movie' : 'series'}_${media.id}` : null,
+    id: `${domain}_queue_${record.id}`, domain, mediaId: publicMediaId,
     title: media?.title || record.title || 'Media download', context: record.episode?.title || null,
-    artwork: imageSet(media?.images).poster, progress: size ? Math.round((size - left) / size * 100) : 0,
+    artwork: publicMediaId?{url:`/api/artwork/${domain}/${publicMediaId}/poster`,kind:'poster',width:0,height:0}:artwork([]), progress: size ? Math.round((size - left) / size * 100) : 0,
     eta: safeDate(record.estimatedCompletionTime), client: record.downloadClient || 'Download client',
     status: record.status || record.trackedDownloadState || 'unknown', warning: record.statusMessages?.[0]?.messages?.[0] || null
   };
@@ -95,9 +96,10 @@ export function queueItem(record, domain) {
 
 export function historyItem(record, domain) {
   const media = domain === 'movie' ? record.movie : record.series;
+  const publicMediaId=media?.id ? `${domain === 'movie' ? 'movie' : 'series'}_${media.id}` : null;
   return {
-    id: `${domain}_history_${record.id}`, domain, mediaId: media?.id ? `${domain === 'movie' ? 'movie' : 'series'}_${media.id}` : null,
-    title: media?.title || record.sourceTitle || 'Media event', artwork: imageSet(media?.images).poster,
+    id: `${domain}_history_${record.id}`, domain, mediaId: publicMediaId,
+    title: media?.title || record.sourceTitle || 'Media event', artwork: publicMediaId?{url:`/api/artwork/${domain}/${publicMediaId}/poster`,kind:'poster',width:0,height:0}:artwork([]),
     eventType: record.eventType || 'unknown', quality: record.quality?.quality?.name || null,
     timestamp: safeDate(record.date), details: record.data?.message || null
   };
@@ -106,12 +108,12 @@ export function historyItem(record, domain) {
 export function calendarItem(record, domain) {
   if (domain === 'movie') return {
     id: `movie_calendar_${record.id}`, domain, mediaId: `movie_${record.id}`, title: record.title,
-    artwork: imageSet(record.images).poster, dateUtc: record.digitalRelease || record.physicalRelease || record.inCinemas || null,
+    artwork: {url:`/api/artwork/movie/movie_${record.id}/poster`,kind:'poster',width:0,height:0}, dateUtc: record.digitalRelease || record.physicalRelease || record.inCinemas || null,
     eventType: 'release'
   };
   return {
     id: `tv_calendar_${record.id}`, domain, mediaId: `series_${record.seriesId}`, title: record.series?.title || record.title,
-    context: record.title, artwork: imageSet(record.series?.images).poster, dateUtc: record.airDateUtc || null,
+    context: record.title, artwork: {url:`/api/artwork/tv/series_${record.seriesId}/poster`,kind:'poster',width:0,height:0}, dateUtc: record.airDateUtc || null,
     eventType: 'airing'
   };
 }

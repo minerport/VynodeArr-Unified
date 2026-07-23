@@ -1,20 +1,24 @@
 # VynodeNew
 
-VynodeNew is one secure Movies and TV review application. The browser talks
-only to the VynodeNew gateway; separately running media engines remain hidden
-and authoritative. N2 is strictly read-only.
+VynodeNew is one secure Movies and TV application. It provides guided first-run
+setup, local accounts and roles, durable read-only media projections, unified
+activity, authenticated artwork, and encrypted connections to separately
+running media engines.
 
-## Fastest local review
+## Install and start
 
-1. Copy `.env.example` to `.env` (it defaults to deterministic fixture mode).
-2. Run `docker compose up --build -d`.
-3. Open `http://127.0.0.1:4310`.
-4. Create the initial administrator in the setup screen.
+```powershell
+Copy-Item .env.example .env
+docker compose up --build -d
+```
 
-To review real data, set `VYNODENEW_DATA_MODE=engine`, configure the neutral
-`MOVIE_ENGINE_*` and `TV_ENGINE_*` variables, and restart. Prefer mounted
-credential files over environment values. See
-`docs/LOCAL_REVIEW_DEPLOYMENT.md` and `docs/ENGINE_CONFIGURATION.md`.
+Open `http://localhost:4310`. A new installation opens **Welcome to
+VynodeNew**, creates the first administrator, signs them in, and continues to
+the engine wizard. No default username or password exists.
 
-Without Docker, use Node.js 20 or newer: `npm start`. Run all release gates with
-`npm run verify`. No production credentials or engine binaries are included.
+The engine wizard validates authentication, version, capabilities, library,
+queue, calendar, and health before saving encrypted credentials. It can be
+skipped to use deterministic review data.
+
+Run `npm run verify` for tests, build, branding, and deployment checks. See
+`docs/LOCAL_REVIEW_DEPLOYMENT.md` or `docs/UNRAID_REVIEW_DEPLOYMENT.md`.

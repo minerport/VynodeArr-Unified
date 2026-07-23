@@ -6,6 +6,7 @@ const secret = (env, name) => {
   if (env[`${name}_FILE`]) return readFileSync(env[`${name}_FILE`], 'utf8').trim();
   return env[name] || '';
 };
+export const loadSecret = (env,name) => secret(env,name);
 
 function domainConfig(env, prefix, displayName, fixtureFallback) {
   const https = bool(env[`${prefix}_HTTPS`], false);

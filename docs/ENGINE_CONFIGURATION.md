@@ -11,10 +11,10 @@ Credential-file variables take precedence over direct credential values:
 - `TV_ENGINE_API_CREDENTIAL_FILE`
 
 Files should be mounted read-only and readable only by the container user.
-Credentials are never returned by `/api/system/engines`. The
-`EncryptedCredentialVault` provides AES-256-GCM replace/remove storage for the
-future settings workflow; its master key must be supplied outside the stored
-data. N2 intentionally exposes no credential-setting API.
+Credentials are never returned by `/api/system/engines`. The engine wizard
+requires successful validation before the `EncryptedCredentialVault` performs
+AES-256-GCM replacement. Its stable master key must be supplied outside stored
+data, preferably with `VYNODENEW_MASTER_KEY_FILE`.
 
 Connection tests read system status only and report enabled, reachability,
 authentication, compatibility, latency, capabilities, synchronization state,
