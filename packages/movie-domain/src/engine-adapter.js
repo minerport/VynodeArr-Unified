@@ -48,7 +48,7 @@ export class MovieEngineAdapter {
   }
   async getHealth() {
     const value = await this.client.get('health'); if (!Array.isArray(value)) throw engineError.invalid();
-    return value.map((item, index) => ({ id: `movie_health_${index}`, domain: 'movie', severity: item.type || 'notice', message: item.message || 'Movie service notice' }));
+    return value.map((item, index) => ({ id: `movie_health_${index}`, domain: 'movie', severity: item.type || 'notice', message: item.message || 'Movie service notice', source:item.source||null, wikiUrl:item.wikiUrl||null }));
   }
   async getSystemStatus() {
     const value = await this.client.get('system/status');

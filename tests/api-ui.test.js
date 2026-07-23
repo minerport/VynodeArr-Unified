@@ -50,6 +50,6 @@ test('public errors and health are neutral',async()=>{
 test('UI exposes login, dashboard, media, operations, settings, and responsive shell',async()=>{
   const html=await readFile(new URL('../apps/web/public/index.html',import.meta.url),'utf8');const script=await readFile(new URL('../apps/web/public/app.js',import.meta.url),'utf8');const css=await readFile(new URL('../apps/web/public/styles.css',import.meta.url),'utf8');
   for(const value of ['Create Administrator','Sign in','Username or email','Remember me','Forgot password','Movies','TV','Queue','History','Calendar','Settings','System','Read-only mode'])assert.match(html,new RegExp(value));
-  for(const value of ['showDashboard','showMedia','showDetail','showOperational','showSettings','showEngineSetup','showAccountSettings','showSessions','showUsers'])assert.match(script,new RegExp(value));
+  for(const value of ['showDashboard','showHealth','healthFix','showMedia','showDetail','showOperational','showSettings','showEngineSetup','showAccountSettings','showSessions','showUsers'])assert.match(script,new RegExp(value));
   assert.match(css,/@media\(max-width:760px\)/);
 });
