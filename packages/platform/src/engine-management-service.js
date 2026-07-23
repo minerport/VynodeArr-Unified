@@ -1,5 +1,6 @@
 const sharedResources=Object.freeze({
   profiles:{path:'qualityprofile',methods:['GET','POST','PUT','DELETE']},
+  profileSchema:{path:'qualityprofile/schema',methods:['GET']},
   rootFolders:{path:'rootfolder',methods:['GET','POST','DELETE']},
   tags:{path:'tag',methods:['GET','POST','PUT','DELETE']},
   customFormats:{path:'customformat',methods:['GET','POST','PUT','DELETE']},

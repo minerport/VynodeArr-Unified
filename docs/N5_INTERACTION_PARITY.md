@@ -31,6 +31,10 @@ against the following interaction groups.
   monitoring, availability, series type, season folder, and immediate-search
   choices.
 - Automatic writable root-folder setup for bundled local services.
+- Native root-folder management with path entry, accessibility, free space,
+  unmapped-folder status, and protected removal.
+- Native quality-profile creation and editing with upgrade/cutoff behavior,
+  allowed quality groups, custom-format scores, and protected deletion.
 - Movie/series edit, search, refresh/scan, and safe library removal actions.
 - Missing and cutoff-unmet views with per-item searches.
 - Queue progress, warnings, retry, and removal.
