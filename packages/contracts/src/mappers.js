@@ -34,8 +34,15 @@ export function movieDetails(record, context = {}) {
   return {
     ...summary, overview: record.overview || '', runtimeMinutes: Number(record.runtime || 0),
     genres: record.genres || [], availability: record.minimumAvailability || record.status || 'unknown',
-    backdrop: { url:`/api/artwork/movie/movie_${record.id}/fanart`,kind:'backdrop',width:0,height:0 }, recentHistory: context.history || [],
-    calendar: context.calendar || []
+    studio: record.studio || null, certification: record.certification || null,
+    originalLanguage: record.originalLanguage?.name || record.originalLanguage || null,
+    rating: Number(record.ratings?.value || record.ratings?.imdb?.value || record.ratings?.tmdb?.value || 0) || null,
+    releaseDates: {
+      cinemas: safeDate(record.inCinemas),
+      digital: safeDate(record.digitalRelease),
+      physical: safeDate(record.physicalRelease)
+    },
+    backdrop: { url:`/api/artwork/movie/movie_${record.id}/fanart`,kind:'backdrop',width:0,height:0 }
   };
 }
 
@@ -77,7 +84,7 @@ export function seriesDetails(record, episodes = [], context = {}) {
   return {
     ...summary, overview: record.overview || '', genres: record.genres || [],
     backdrop: { url:`/api/artwork/tv/series_${record.id}/fanart`,kind:'backdrop',width:0,height:0 }, seriesType: record.seriesType || 'standard',
-    seasons, recentHistory: context.history || [], calendar: context.calendar || []
+    seasons
   };
 }
 

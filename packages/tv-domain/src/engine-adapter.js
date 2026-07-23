@@ -21,12 +21,12 @@ export class TvEngineAdapter {
   async getSeries(id) {
     const engineId = numericId(id); if (!Number.isFinite(engineId)) return null;
     try {
-      const [record, episodes, history, calendar, context] = await Promise.all([
+      const [record, episodes, context] = await Promise.all([
         this.client.get(`series/${engineId}`), this.client.get('episode', { seriesId: engineId, includeEpisodeFile: true }),
-        this.getHistory({ mediaId: engineId, limit: 20 }), this.getCalendar(), this.#context()
+        this.#context()
       ]);
       if (!Array.isArray(episodes)) throw engineError.invalid();
-      return seriesDetails(record, episodes, { ...context, history, calendar: calendar.filter((item) => item.mediaId === `series_${engineId}`) });
+      return seriesDetails(record, episodes, context);
     } catch (error) { if (error.code) throw error; throw engineError.invalid(); }
   }
   async getQueue() {

@@ -24,13 +24,11 @@ export class MovieEngineAdapter {
     const engineId = numericId(id);
     if (!Number.isFinite(engineId)) return null;
     try {
-      const [record, history, calendar, context] = await Promise.all([
+      const [record, context] = await Promise.all([
         this.client.get(`movie/${engineId}`),
-        this.getHistory({ mediaId: engineId, limit: 20 }),
-        this.getCalendar(),
         this.#context()
       ]);
-      return movieDetails(record, { ...context, history, calendar: calendar.filter((item) => item.mediaId === `movie_${engineId}`) });
+      return movieDetails(record, context);
     } catch (error) { if (error.code) throw error; throw engineError.invalid(); }
   }
   async getQueue() {
