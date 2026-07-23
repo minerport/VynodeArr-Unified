@@ -45,8 +45,15 @@ export function createApplication(options={}){
     const runtime=await engineSettings.runtime();if(!runtime)return;
     movie=new MovieEngineAdapter(runtime.movie);tv=new TvEngineAdapter(runtime.tv);registry.register('movie',movie).register('tv',tv);sync.setEngines(movie,tv);mode='engine';
   }
+  async function ensureBundledRootFolders(){
+    if(String(env.VYNODENEW_BOOTSTRAP_ROOT_FOLDERS||'false')!=='true'||mode!=='engine')return;
+    for(const [domain,path] of [['movie','/movies'],['tv','/tv']]){
+      const client=registry.get(domain).client,roots=await client.get('rootfolder');
+      if(Array.isArray(roots)&&roots.length===0)await client.post('rootfolder',{path});
+    }
+  }
   async function initialize(){
-    if(initialized)return;await Promise.all([auth.initialize(),engineSettings.initialize()]);if(!options.movie)await rebuildFromSettings();await sync.startup();sync.startPolling();initialized=true;
+    if(initialized)return;await Promise.all([auth.initialize(),engineSettings.initialize()]);if(!options.movie)await rebuildFromSettings();await ensureBundledRootFolders();await sync.startup();sync.startPolling();initialized=true;
   }
   async function testEngine(domain,input){
     const config=engineSettings.normalize(domain,input);config.apiCredential=String(input.apiCredential||'');
@@ -117,7 +124,7 @@ export function createApplication(options={}){
         const artworkMatch=url.pathname.match(/^\/api\/artwork\/(movie|tv)\/((?:movie|series)_[A-Za-z0-9_-]+)\/(poster|fanart|logo|banner|episode|season)$/);
         if(artworkMatch){
           const key=artworkMatch.slice(1).join(':');let value=artworkCache.get(key);
-          if(!value){value=await registry.get(artworkMatch[1]).getArtwork(artworkMatch[2],artworkMatch[3]);if(!value)return json(res,404,{error:{code:'artwork_missing',message:'Artwork is not available.'}});artworkCache.set(key,{...value,cachedAt:Date.now()});}
+          if(!value){value=await registry.get(artworkMatch[1]).getArtwork(artworkMatch[2],artworkMatch[3]);if(!value){res.writeHead(204,{'cache-control':'private, max-age=60'});return res.end();}artworkCache.set(key,{...value,cachedAt:Date.now()});}
           res.writeHead(200,{'content-type':value.contentType,'cache-control':'private, max-age=3600','x-content-type-options':'nosniff'});return res.end(value.body);
         }
         if(url.pathname==='/api/media/movies')return json(res,200,{items:await sync.list('movie',{refresh:url.searchParams.get('refresh')==='true'}),mode,sync:sync.snapshot().movie});

@@ -13,7 +13,31 @@ const sharedResources=Object.freeze({
   delayProfiles:{path:'delayprofile',methods:['GET','POST','PUT','DELETE']},
   restrictions:{path:'restriction',methods:['GET','POST','PUT','DELETE']},
   commands:{path:'command',methods:['GET','POST']},
-  queue:{path:'queue',methods:['GET','DELETE']}
+  queue:{path:'queue',methods:['GET','DELETE']},
+  queueGrab:{path:'queue/grab',methods:['POST']},
+  history:{path:'history',methods:['GET']},
+  blocklist:{path:'blocklist',methods:['GET','DELETE']},
+  wantedMissing:{path:'wanted/missing',methods:['GET']},
+  wantedCutoff:{path:'wanted/cutoff',methods:['GET']},
+  releases:{path:'release',methods:['GET','POST']},
+  manualImport:{path:'manualimport',methods:['GET','POST']},
+  renamePreview:{path:'rename',methods:['GET']},
+  filesystem:{path:'filesystem',methods:['GET']},
+  remotePathMappings:{path:'remotepathmapping',methods:['GET','POST','PUT','DELETE']},
+  metadata:{path:'metadata',methods:['GET','POST','PUT','DELETE']},
+  hostSettings:{path:'config/host',methods:['GET','PUT']},
+  uiSettings:{path:'config/ui',methods:['GET','PUT']},
+  indexerSchemas:{path:'indexer/schema',methods:['GET']},
+  downloadClientSchemas:{path:'downloadclient/schema',methods:['GET']},
+  notificationSchemas:{path:'notification/schema',methods:['GET']},
+  importListSchemas:{path:'importlist/schema',methods:['GET']},
+  metadataSchemas:{path:'metadata/schema',methods:['GET']},
+  diskSpace:{path:'diskspace',methods:['GET']},
+  tasks:{path:'system/task',methods:['GET']},
+  backups:{path:'system/backup',methods:['GET','POST','DELETE']},
+  updates:{path:'update',methods:['GET']},
+  events:{path:'log',methods:['GET']},
+  logFiles:{path:'log/file',methods:['GET']}
 });
 
 const domainResources=Object.freeze({
@@ -22,14 +46,19 @@ const domainResources=Object.freeze({
     lookup:{path:'movie/lookup',methods:['GET']},
     exclusions:{path:'exclusions',methods:['GET','POST','DELETE']},
     collections:{path:'collection',methods:['GET','PUT']},
-    manualImport:{path:'manualimport',methods:['GET','POST']}
+    movieFiles:{path:'moviefile',methods:['GET','PUT','DELETE']},
+    importExclusions:{path:'importlistexclusion',methods:['GET','POST','PUT','DELETE']}
   },
   tv:{
     library:{path:'series',methods:['GET','POST','PUT','DELETE']},
     lookup:{path:'series/lookup',methods:['GET']},
     episodes:{path:'episode',methods:['GET','PUT']},
     episodeFiles:{path:'episodefile',methods:['GET','DELETE']},
-    manualImport:{path:'manualimport',methods:['GET','POST']}
+    seasonPass:{path:'seasonpass',methods:['POST']},
+    parse:{path:'parse',methods:['GET']},
+    statistics:{path:'statistics',methods:['GET']},
+    releaseProfiles:{path:'releaseprofile',methods:['GET','POST','PUT','DELETE']},
+    metadataSource:{path:'config/metadatasource',methods:['GET','PUT']}
   }
 });
 
@@ -45,7 +74,8 @@ export class EngineManagementService {
   async execute(domain,resource,method,{id,query,payload}={}){
     const definition={...sharedResources,...domainResources[domain]}[resource];
     if(!definition||!definition.methods.includes(method))throw new Error('This management operation is not available');
-    if((method==='PUT'||method==='DELETE')&&!id&&resource!=='naming'&&resource!=='mediaManagement')throw new Error('A resource identifier is required');
+    const singleton=['naming','mediaManagement','hostSettings','uiSettings','metadataSource'];
+    if((method==='PUT'||method==='DELETE')&&!id&&!singleton.includes(resource))throw new Error('A resource identifier is required');
     const path=id?`${definition.path}/${encodeURIComponent(String(id))}`:definition.path;
     const client=this.registry.get(domain).client;
     if(!client)throw new Error('The connected engine does not support management');

@@ -9,10 +9,15 @@ services:
     volumes:
       - movie-engine-config:/movie
       - tv-engine-config:/tv
+      - movie-library:/movies
+      - tv-library:/television
+      - shared-downloads:/downloads
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
         set -eu
+        chown -R 1000:1000 /movies /television /downloads
+        chmod 775 /movies /television /downloads
         if [ ! -f /movie/config.xml ]; then
           printf '%s\n' '<Config><BindAddress>*</BindAddress><Port>7878</Port><EnableSsl>False</EnableSsl><LaunchBrowser>False</LaunchBrowser><ApiKey>'"$${MOVIE_KEY}"'</ApiKey><AuthenticationMethod>External</AuthenticationMethod><AuthenticationRequired>DisabledForLocalAddresses</AuthenticationRequired><LogLevel>info</LogLevel><UrlBase></UrlBase><InstanceName>VynodeNew Movies</InstanceName><UpdateMechanism>Docker</UpdateMechanism></Config>' > /movie/config.xml
         fi
@@ -82,6 +87,7 @@ services:
       TV_ENGINE_HOST: tv-engine
       TV_ENGINE_PORT: "8989"
       TV_ENGINE_API_CREDENTIAL: "${TV_ENGINE_API_CREDENTIAL:-vynodenew-local-tv-key-2026}"
+      VYNODENEW_BOOTSTRAP_ROOT_FOLDERS: "true"
     ports:
       - "127.0.0.1:4310:4310"
     volumes:

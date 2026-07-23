@@ -42,7 +42,7 @@ export class ReadOnlyEngineClient {
     return new Promise((resolve,reject)=>{
       const transport=url.protocol==='https:'?httpsRequest:httpRequest;
       const req=transport(url,{method:'GET',headers:{accept:'image/*','x-api-key':this.config.apiCredential},rejectUnauthorized:this.config.tlsVerify},(res)=>{
-        const chunks=[];let size=0;if(res.statusCode<200||res.statusCode>=300){res.resume();return reject(engineError.unavailable(this.domain));}
+        const chunks=[];let size=0;if(res.statusCode===404){res.resume();return resolve(null);}if(res.statusCode<200||res.statusCode>=300){res.resume();return reject(engineError.unavailable(this.domain));}
         res.on('data',(chunk)=>{size+=chunk.length;if(size>16*1024*1024){req.destroy(engineError.invalid());return;}chunks.push(chunk);});
         res.on('end',()=>resolve({body:Buffer.concat(chunks),contentType:String(res.headers['content-type']||'image/jpeg')}));
       });req.setTimeout(this.config.timeoutMs,()=>req.destroy(engineError.timeout(this.domain)));req.on('error',reject);req.end();

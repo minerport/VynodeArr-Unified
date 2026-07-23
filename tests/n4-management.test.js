@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { EngineManagementService } from '../packages/platform/src/engine-management-service.js';
@@ -19,6 +19,7 @@ test('management gateway exposes native capabilities and forwards only allowlist
   const catalog=service.catalog('movie');
   assert.ok(catalog.some((item)=>item.key==='library'&&item.methods.includes('PUT')));
   assert.ok(catalog.some((item)=>item.key==='indexers'&&item.methods.includes('POST')));
+  for(const key of ['wantedMissing','blocklist','releases','filesystem','remotePathMappings','indexerSchemas','diskSpace','tasks','backups','updates','events'])assert.ok(catalog.some((item)=>item.key===key),key);
   await service.execute('movie','profiles','GET');
   await service.execute('movie','library','POST',{payload:{title:'New movie'}});
   await service.execute('movie','library','PUT',{id:7,payload:{id:7,monitored:true}});
@@ -28,6 +29,15 @@ test('management gateway exposes native capabilities and forwards only allowlist
   ]);
   await assert.rejects(()=>service.execute('movie','system/status','DELETE',{id:1}),/not available/);
   await assert.rejects(()=>service.execute('movie','library','DELETE'),/identifier/);
+});
+
+test('native interaction workflows replace an upstream-shaped generic shell',async()=>{
+  const [html,script]=await Promise.all([
+    readFile(new URL('../apps/web/public/index.html',import.meta.url),'utf8'),
+    readFile(new URL('../apps/web/public/app.js',import.meta.url),'utf8')
+  ]);
+  for(const route of ['#add','#wanted','#queue','#management','#system'])assert.match(html,new RegExp(route));
+  for(const workflow of ['showAddMedia','showWanted','showQueue','attachDetailActions','createRecord','Search releases','Refresh & scan','Create both backups'])assert.match(script,new RegExp(workflow.replace(/[&]/g,'&')));
 });
 
 test('environment engine credentials auto-configure the private gateway once',async()=>{

@@ -5,7 +5,7 @@ setup, local accounts and roles, durable media projections, unified activity,
 authenticated artwork, and encrypted connections to private bundled media
 services. Its administrator control center provides an allowlisted management
 gateway without exposing either backend interface. See
-`docs/N4_MANAGEMENT_GATEWAY.md`.
+`docs/N4_MANAGEMENT_GATEWAY.md` and `docs/N5_INTERACTION_PARITY.md`.
 
 ## Install and start
 

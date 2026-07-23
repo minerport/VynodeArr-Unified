@@ -11,6 +11,10 @@
   configuration, allowlisted library and settings writes, acquisition commands,
   destructive-action confirmation, administrator authorization, and durable
   change auditing.
-- **N5 recommended:** transactional database, email recovery and MFA, signed
+- **N5 in progress:** workflow-level interaction parity. Native search/add,
+  detail editing and commands, Wanted, actionable Queue, provider setup, and
+  System operations are implemented. The remaining acceptance checklist is in
+  `N5_INTERACTION_PARITY.md`.
+- **N6 recommended:** transactional database, email recovery and MFA, signed
   release images, full accessibility automation, connection compatibility
   matrix, storage metrics, projection pagination, and idempotent job tracking.
