@@ -19,7 +19,9 @@ COPY . /opt/vynodearr
 RUN chmod +x \
       /opt/vynodearr/gateway/VynodeArr.Gateway \
       /opt/vynodearr/engines/movie/Radarr \
+      /opt/vynodearr/engines/movie/ffprobe \
       /opt/vynodearr/engines/television/Sonarr \
+      /opt/vynodearr/engines/television/ffprobe \
     && mkdir -p /config/movie /config/television /config/unified \
     && chown -R vynodearr:vynodearr /config
 

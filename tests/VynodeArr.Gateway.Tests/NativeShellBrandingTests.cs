@@ -35,7 +35,7 @@ public sealed class NativeShellBrandingTests
         Assert.Contains("id=\"vynodearr-native-presentation\"", result, StringComparison.Ordinal);
         Assert.Contains("replaceProductName", result, StringComparison.Ordinal);
         Assert.Contains("a[href$=\"/system/updates\"]", result, StringComparison.Ordinal);
-        Assert.Contains("observe(document.body", result, StringComparison.Ordinal);
+        Assert.Contains("observe(document.documentElement", result, StringComparison.Ordinal);
         Assert.Contains("hiddenLegends.add('style')", result, StringComparison.Ordinal);
         Assert.Contains("hiddenLegends.add('security')", result, StringComparison.Ordinal);
         Assert.Contains("hiddenLegends.add('updates')", result, StringComparison.Ordinal);

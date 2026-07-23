@@ -77,7 +77,9 @@ install -m 0755 "${package_root}/uninstall.sh" "${staging_root}/uninstall.sh"
 chmod 0755 \
   "${staging_root}/gateway/VynodeArr.Gateway" \
   "${staging_root}/engines/movie/Radarr" \
-  "${staging_root}/engines/television/Sonarr"
+  "${staging_root}/engines/movie/ffprobe" \
+  "${staging_root}/engines/television/Sonarr" \
+  "${staging_root}/engines/television/ffprobe"
 
 rm -rf -- "${backup_root}"
 if [[ -d ${install_root} ]]; then

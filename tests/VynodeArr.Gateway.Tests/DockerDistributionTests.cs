@@ -18,6 +18,8 @@ public sealed class DockerDistributionTests
             "VynodeArr__Engines__Television__Arguments=\"-nobrowser -data={data}\"",
             dockerfile,
             StringComparison.Ordinal);
+        Assert.Contains("/opt/vynodearr/engines/movie/ffprobe", dockerfile, StringComparison.Ordinal);
+        Assert.Contains("/opt/vynodearr/engines/television/ffprobe", dockerfile, StringComparison.Ordinal);
     }
 
     private static string FindRepositoryRoot()

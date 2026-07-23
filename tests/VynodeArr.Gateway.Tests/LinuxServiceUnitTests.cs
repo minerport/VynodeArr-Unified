@@ -17,6 +17,17 @@ public sealed class LinuxServiceUnitTests
         Assert.DoesNotContain("ReadWritePaths=", unit, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void InstallerMakesBothEngineProbeBinariesExecutable()
+    {
+        var repositoryRoot = FindRepositoryRoot();
+        var installer = File.ReadAllText(
+            Path.Combine(repositoryRoot, "distribution", "linux", "install.sh"));
+
+        Assert.Contains("engines/movie/ffprobe", installer, StringComparison.Ordinal);
+        Assert.Contains("engines/television/ffprobe", installer, StringComparison.Ordinal);
+    }
+
     private static string FindRepositoryRoot()
     {
         var current = new DirectoryInfo(AppContext.BaseDirectory);

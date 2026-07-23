@@ -187,7 +187,7 @@ public static class NativeShellBranding
                   record.addedNodes.forEach(presentNode);
                 }
                 applyRoutePresentation();
-              }).observe(document.body, { childList: true, subtree: true, characterData: true });
+              }).observe(document.documentElement, { childList: true, subtree: true, characterData: true });
             };
             if (document.readyState === 'loading') {
               document.addEventListener('DOMContentLoaded', start, { once: true });
