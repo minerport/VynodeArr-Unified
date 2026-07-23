@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#090d18">
+  <title>VynodeNew — Your media, one horizon</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside>
+      <a class="brand" href="#dashboard" aria-label="VynodeNew home"><span class="brand-mark">V</span><span>VynodeNew</span></a>
+      <nav aria-label="Primary">
+        <a href="#dashboard">Dashboard</a>
+        <p>Media</p>
+        <a href="#movies" class="active">Movies</a>
+        <a href="#tv">TV</a>
+        <a href="#wanted">Wanted</a>
+        <a href="#activity">Activity</a>
+        <a href="#calendar">Calendar</a>
+        <a href="#collections">Collections</a>
+        <a href="#automation">Automation</a>
+        <p>Manage</p>
+        <a href="#settings">Settings</a>
+        <a href="#system">System</a>
+      </nav>
+      <div class="account"><span class="avatar">MN</span><span><strong>Media owner</strong><small>Signed in</small></span></div>
+    </aside>
+    <main>
+      <header>
+        <button class="menu" aria-label="Open navigation">☰</button>
+        <label class="search"><span>⌕</span><input aria-label="Search all media" placeholder="Search your library"></label>
+        <span class="status-dot"></span><span class="status-label">All systems ready</span>
+      </header>
+      <section id="content" aria-live="polite"></section>
+    </main>
+  </div>
+  <template id="media-page">
+    <div class="hero">
+      <div><span class="eyebrow"></span><h1></h1><p class="lede"></p></div>
+      <button class="primary">＋ Add <span class="add-label"></span></button>
+    </div>
+    <div class="summary">
+      <div><strong class="count">—</strong><span>Titles</span></div>
+      <div><strong class="monitored">—</strong><span>Monitored</span></div>
+      <div><strong class="attention">—</strong><span>Need attention</span></div>
+      <div><strong class="coverage">—</strong><span>Library coverage</span></div>
+    </div>
+    <div class="toolbar"><div><button class="chip selected">All</button><button class="chip">Monitored</button><button class="chip">Missing</button></div><span>Fixture proof · read only</span></div>
+    <div class="grid"></div>
+  </template>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

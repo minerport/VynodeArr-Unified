@@ -1,0 +1,14 @@
+{
+  "name": "vynodenew",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node apps/api/src/server.js",
+    "test": "node --test tests/*.test.js",
+    "check:branding": "node scripts/check-branding.mjs",
+    "build": "node scripts/build.mjs",
+    "verify": "npm run test && npm run check:branding && npm run build"
+  }
+}

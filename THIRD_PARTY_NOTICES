@@ -1,0 +1,8 @@
+VynodeNew milestone N1 contains no copied source code or bundled binaries from
+the reviewed media-engine projects.
+
+Those projects informed the development-only capability inventories and are
+licensed under GNU GPL version 3. See OPEN_SOURCE_NOTICES for review provenance.
+Before distributing any future adapter with a bundled engine, obtain legal
+review and include that engine's complete required notices and corresponding
+source offer.
