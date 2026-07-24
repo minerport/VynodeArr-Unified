@@ -27,6 +27,8 @@ test('request engine gateway rewrites subpath assets, APIs, redirects, and cooki
     assert.match(html,/vynodearr-request-theme/);
     assert.match(html,/vynodearr-request-bridge/);
     assert.match(html,/VynodeArr Requests/);
+    assert.match(html,/document\.title!=='VynodeArr Requests'/);
+    assert.match(html,/requestAnimationFrame\(rename\)/);
     const script=await fetch(`${base}/requests/_next/app.js`).then(response=>response.text());
     assert.match(script,/endpoint="\/requests\/api\/v1\/status"/);
     assert.match(script,/matcher=\/api\\\/v1\/i/);

@@ -15,11 +15,14 @@ body.vynodearr-embedded img[src*="logo_full"],body.vynodearr-embedded img[alt="S
 </style>`;
 const vynodeArrBridge=`<script id="vynodearr-request-bridge">
 (()=>{if(window.self!==window.top)document.body?.classList.add('vynodearr-embedded');
-const rename=()=>{document.title='VynodeArr Requests';document.body?.classList.toggle('vynodearr-embedded',window.self!==window.top);
+let brandingPending=false;
+const rename=()=>{brandingPending=false;if(document.title!=='VynodeArr Requests')document.title='VynodeArr Requests';document.body?.classList.toggle('vynodearr-embedded',window.self!==window.top);
 const walker=document.createTreeWalker(document.body||document.documentElement,NodeFilter.SHOW_TEXT);let node;
 while(node=walker.nextNode()){if(node.parentElement?.closest('script,style'))continue;const value=node.nodeValue||'';
-if(/seerr/i.test(value))node.nodeValue=value.replace(/Welcome to Seerr/gi,'Welcome to VynodeArr Requests').replace(/Seerr/gi,'VynodeArr Requests');}}
-rename();new MutationObserver(rename).observe(document.documentElement,{subtree:true,childList:true});})();
+if(/seerr/i.test(value)){const branded=value.replace(/Welcome to Seerr/gi,'Welcome to VynodeArr Requests').replace(/Seerr/gi,'VynodeArr Requests');if(branded!==value)node.nodeValue=branded;}}}
+const scheduleRename=()=>{if(brandingPending)return;brandingPending=true;requestAnimationFrame(rename);};
+const startBranding=()=>{rename();new MutationObserver(scheduleRename).observe(document.body||document.documentElement,{subtree:true,childList:true,characterData:true});};
+if(document.readyState==='complete')setTimeout(startBranding,0);else addEventListener('load',()=>setTimeout(startBranding,0),{once:true});})();
 </script>`;
 
 function rewriteLocation(value,prefix){
