@@ -323,6 +323,9 @@ export function createApplication(options={}){
   async function initialize(){
     if(initialized)return;
     await Promise.all([auth.initialize(),engineSettings.initialize()]);
+    const storedDiscoveryCredential=await engineSettings.discoveryCredential();
+    if(storedDiscoveryCredential)discovery.setToken(storedDiscoveryCredential);
+    else if(discovery.configured())await engineSettings.saveDiscoveryCredential(discovery.token);
     await restoreBundledCredentials();
     if(!options.movie)await rebuildFromSettings();
     try{
@@ -481,7 +484,24 @@ export function createApplication(options={}){
         if(url.pathname==='/api/account'&&req.method==='GET')return json(res,200,{user:session.user});
         if(url.pathname==='/api/account'&&req.method==='PATCH'){if(!requireCsrf(req,res,session))return;return json(res,200,{user:await auth.updateAccount(session.user.id,await body(req),sessionId)});}
         if(url.pathname==='/api/account/sessions'&&req.method==='GET')return json(res,200,{items:await auth.listSessions(session.user.id,sessionId)});
-        if(url.pathname==='/api/discover/status'&&req.method==='GET')return json(res,200,{configured:discovery.configured()});
+        if(url.pathname==='/api/discover/status'&&req.method==='GET')return json(res,200,{configured:discovery.configured(),provider:'TMDB'});
+        if(url.pathname==='/api/settings/discover'&&req.method==='GET'){if(!administrator(res,session))return;return json(res,200,{configured:discovery.configured(),provider:'TMDB'});}
+        if(url.pathname==='/api/settings/discover/test'&&req.method==='POST'){
+          if(!administrator(res,session)||!requireCsrf(req,res,session))return;
+          const input=await body(req),candidate=new TmdbDiscoveryService({token:input.token});
+          const result=await candidate.feed('trending',1);return json(res,200,{valid:true,provider:'TMDB',sampleResults:result.results.length});
+        }
+        if(url.pathname==='/api/settings/discover'&&req.method==='POST'){
+          if(!administrator(res,session)||!requireCsrf(req,res,session))return;
+          const input=await body(req),candidate=new TmdbDiscoveryService({token:input.token});
+          await candidate.feed('trending',1);await engineSettings.saveDiscoveryCredential(input.token);discovery.setToken(input.token);
+          return json(res,200,{configured:true,provider:'TMDB'});
+        }
+        if(url.pathname==='/api/settings/discover'&&req.method==='DELETE'){
+          if(!administrator(res,session)||!requireCsrf(req,res,session))return;
+          await engineSettings.removeDiscoveryCredential();discovery.setToken('');
+          return json(res,200,{configured:false,provider:'TMDB'});
+        }
         if(url.pathname==='/api/discover/feed'&&req.method==='GET')return json(res,200,await discovery.feed(url.searchParams.get('kind'),url.searchParams.get('page')));
         if(url.pathname==='/api/discover/genres'&&req.method==='GET')return json(res,200,{items:await discovery.genres(url.searchParams.get('domain'))});
         if(url.pathname==='/api/discover/categories'&&req.method==='GET')return json(res,200,{items:await discovery.categories(url.searchParams.get('type'))});

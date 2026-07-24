@@ -7,3 +7,6 @@ Requirements:
 Run Start-VynodeArr.ps1. VynodeArr opens at http://localhost:8686.
 Your configuration and libraries remain in this folder. Stop-VynodeArr.ps1
 stops the application without removing any data.
+
+Discover can be configured after signing in under Service Settings > Discover.
+Optionally set TMDB_API_READ_TOKEN before starting for automatic first-run setup.

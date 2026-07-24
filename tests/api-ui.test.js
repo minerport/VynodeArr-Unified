@@ -35,6 +35,10 @@ test('neutral movie/TV list and detail APIs',()=>fixtureServer(async({base,cooki
   const series=await (await get(base,`/api/media/tv/${tv.items[0].id}`,cookie)).json();
   assert.ok(movie.item.overview&&movie.item.recentHistory);assert.ok(series.item.seasons[0].episodes);
 }));
+test('Discover settings expose status without returning credentials',()=>fixtureServer(async({base,cookie})=>{
+  const response=await get(base,'/api/settings/discover',cookie),value=await response.json();
+  assert.equal(response.status,200);assert.equal(value.configured,false);assert.equal(value.provider,'TMDB');assert.equal('token' in value,false);
+}));
 test('unified queue, history, calendar, health, and engine status',()=>fixtureServer(async({base,cookie})=>{
   for(const [path,min] of [['/api/activity/queue',2],['/api/activity/history',6],['/api/calendar',5],['/api/system/health',0]]){
     const response=await get(base,path,cookie);assert.equal(response.status,200);const value=await response.json();assert.ok(value.items.length>=min,path);
@@ -50,6 +54,6 @@ test('public errors and health are neutral',async()=>{
 test('UI exposes login, dashboard, media, operations, settings, and responsive shell',async()=>{
   const html=await readFile(new URL('../apps/web/public/index.html',import.meta.url),'utf8');const script=await readFile(new URL('../apps/web/public/app.js',import.meta.url),'utf8');const css=await readFile(new URL('../apps/web/public/styles.css',import.meta.url),'utf8');
   for(const value of ['Create Administrator','Sign in','Username or email','Remember me','Forgot password','Discover','Movies','TV','Queue','History','Calendar','Settings','System','Read-only mode'])assert.match(html,new RegExp(value));
-  for(const value of ['showDashboard','showDiscover','renderDiscoverRows','resolveDiscoverItem','openDiscoverDetails','addDiscoverToEngine','discoverLibraryKey','discover-taxonomy','discover-request-title','showHealth','healthFix','showMedia','showDetail','showOperational','showSettings','showEngineSetup','showAccountSettings','showSessions','showUsers'])assert.match(script,new RegExp(value));
+  for(const value of ['showDashboard','showDiscover','showDiscoverSettings','Configure Discover','/api/settings/discover','TMDB_API_READ_TOKEN','renderDiscoverRows','resolveDiscoverItem','openDiscoverDetails','addDiscoverToEngine','discoverLibraryKey','discover-taxonomy','discover-request-title','showHealth','healthFix','showMedia','showDetail','showOperational','showSettings','showEngineSetup','showAccountSettings','showSessions','showUsers'])assert.match(script,new RegExp(value));
   assert.match(css,/@media\(max-width:760px\)/);
 });

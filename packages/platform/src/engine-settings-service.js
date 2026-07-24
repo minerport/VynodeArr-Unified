@@ -41,4 +41,10 @@ export class EngineSettingsService {
     return this.public();
   }
   async remove(domain){await this.vault.remove(domain);this.value[domain]=null;this.value.configured=false;this.value.updatedAt=new Date().toISOString();await this.store.write(this.value);}
+  async discoveryCredential(){return await this.vault.get('tmdb')||'';}
+  async saveDiscoveryCredential(credential){
+    const value=String(credential||'').trim();if(!value)throw new Error('TMDB read access token is required');
+    await this.vault.replace('tmdb',value);return{configured:true};
+  }
+  async removeDiscoveryCredential(){await this.vault.remove('tmdb');return{configured:false};}
 }

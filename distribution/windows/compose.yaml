@@ -1,6 +1,6 @@
 services:
   vynodearr:
-    image: ghcr.io/minerport/vynodearr-unified:${VYNODEARR_VERSION:-1.0.13}
+    image: ghcr.io/minerport/vynodearr-unified:${VYNODEARR_VERSION:-1.0.27}
     container_name: vynodearr
     restart: unless-stopped
     ports:
@@ -8,6 +8,9 @@ services:
     environment:
       TZ: ${TZ:-America/New_York}
       VYNODEARR_SECURE_COOKIES: "false"
+      # Optional first-run bootstrap. You can configure or replace this later
+      # under Service Settings > Discover in VynodeArr.
+      TMDB_API_READ_TOKEN: ${TMDB_API_READ_TOKEN:-}
     volumes:
       - ./data:/config
       - ./movies:/movies

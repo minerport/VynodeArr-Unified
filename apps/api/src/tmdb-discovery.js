@@ -25,6 +25,7 @@ export class TmdbDiscoveryService{
     this.token=String(token||'').trim();this.fetcher=fetcher;this.language=language;this.cache=new Map();
   }
   configured(){return Boolean(this.token);}
+  setToken(token){this.token=String(token||'').trim();this.cache.clear();return this.configured();}
   async request(path,params={}){
     if(!this.configured())throw new Error('TMDB discovery is not configured');
     const url=new URL(`https://api.themoviedb.org/3${path}`);
