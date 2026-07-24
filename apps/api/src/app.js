@@ -312,6 +312,14 @@ export function createApplication(options={}){
     }));
     return results.flat();
   }
+  function resolveCollectionMembers(collection,movies){
+    if(collection.type!=='smart')return(collection.movieIds||[]).map(id=>movies.find(movie=>movie.id===id)).filter(Boolean);
+    const rules=collection.rules||{titleContains:collection.titleContains||''},title=String(rules.titleContains||'').trim().toLowerCase(),genres=(rules.genres||[]).map(value=>String(value).toLowerCase()),year=Number(rules.year||0),decade=Number(rules.decade||0),libraryCollection=String(rules.collection||''),monitoring=String(rules.monitoring||''),availability=String(rules.availability||'');
+    const matches=movies.filter(movie=>(!title||movie.title.toLowerCase().includes(title))&&(!genres.length||genres.every(genre=>(movie.genres||[]).some(value=>String(value).toLowerCase()===genre)))&&(!year||movie.year===year)&&(!decade||movie.year>=decade&&movie.year<decade+10)&&(!libraryCollection||movie.collection===libraryCollection)&&(!monitoring||(monitoring==='monitored'?movie.monitoring!=='none':movie.monitoring==='none'))&&(!availability||(availability==='available'?movie.hasFile:!movie.hasFile)));
+    const excluded=new Set((collection.excludedMovieIds||[]).map(String)),included=new Set((collection.includedMovieIds||[]).map(String)),ids=new Set(matches.filter(movie=>!excluded.has(movie.id)).map(movie=>movie.id));
+    for(const id of included)ids.add(id);
+    return[...ids].map(id=>movies.find(movie=>movie.id===id)).filter(Boolean);
+  }
   function proxyCompatibilityApi(req,res,url,domain,prefix){
     const adapter=registry.get(domain),config=adapter.config||adapter.client?.config;
     if(!config?.enabled)return json(res,503,{error:{message:`${domain==='movie'?'Movie':'Television'} service unavailable`}});
@@ -408,7 +416,7 @@ export function createApplication(options={}){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;const input=await body(req),result=await testEngine(engineSave[1],input);if(!result.validated)return json(res,422,{error:{code:'engine_validation_failed',message:result.connection.safeError||'Engine validation did not succeed.'}});
           await engineSettings.save(engineSave[1],input,input.apiCredential);await rebuildFromSettings();await sync.startup();return json(res,200,{saved:true,settings:engineSettings.public(),validation:result});
         }
-        if(url.pathname==='/api/system/application-update'&&req.method==='GET')return json(res,200,{application:'VynodeArr',installedVersion:String(env.VYNODEARR_VERSION||'1.0.16'),channel:String(env.VYNODEARR_UPDATE_CHANNEL||'develop'),mechanism:'Container image',repository:'https://github.com/minerport/VynodeArr-Unified',message:'Pull the newest VynodeArr container image, then recreate the application container. Engine updates are managed separately.'});
+        if(url.pathname==='/api/system/application-update'&&req.method==='GET')return json(res,200,{application:'VynodeArr',installedVersion:String(env.VYNODEARR_VERSION||'1.0.17'),channel:String(env.VYNODEARR_UPDATE_CHANNEL||'develop'),mechanism:'Container image',repository:'https://github.com/minerport/VynodeArr-Unified',message:'Pull the newest VynodeArr container image, then recreate the application container. Engine updates are managed separately.'});
         const backupRestore=url.pathname.match(/^\/api\/system\/backups\/(movie|tv)\/(\d+)\/restore$/);
         if(backupRestore&&req.method==='POST'){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;
@@ -443,26 +451,33 @@ export function createApplication(options={}){
         if(url.pathname==='/api/system/sync'&&req.method==='POST'){if(!requireCsrf(req,res,session))return;const results=await sync.startup();return json(res,200,{synchronized:true,results:results.map((item)=>item.status),state:sync.snapshot()});}
         if(url.pathname==='/api/collections'&&req.method==='GET'){
           const stored=await collectionStore.read(),movies=await sync.list('movie'),collections=(stored.collections||[]).map(collection=>{
-            const needle=String(collection.titleContains||'').trim().toLowerCase();
-            const memberIds=collection.type==='smart'
-              ?movies.filter(movie=>needle&&movie.title.toLowerCase().includes(needle)).map(movie=>movie.id)
-              :(collection.movieIds||[]);
-            const members=memberIds.map(id=>movies.find(movie=>movie.id===id)).filter(Boolean);
-            return{...collection,movieIds:memberIds,members,count:members.length};
+            const members=resolveCollectionMembers(collection,movies);
+            return{...collection,movieIds:members.map(movie=>movie.id),members,count:members.length};
           });
           return json(res,200,{items:collections});
         }
         if(url.pathname==='/api/collections'&&req.method==='POST'){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;
-          const input=await body(req),name=String(input.name||'').trim(),type=input.type==='smart'?'smart':'custom',titleContains=String(input.titleContains||'').trim();
+          const input=await body(req),name=String(input.name||'').trim(),type=input.type==='smart'?'smart':'custom',rules=input.rules&&typeof input.rules==='object'?input.rules:{titleContains:String(input.titleContains||'').trim()};
           if(!name)throw new Error('Collection name is required');
-          if(type==='smart'&&!titleContains)throw new Error('Smart collections require a movie-name rule');
+          if(type==='smart'&&!Object.values(rules).some(value=>Array.isArray(value)?value.length:Boolean(value)))throw new Error('Smart collections require at least one rule');
           const stored=await collectionStore.read(),collections=stored.collections||[];
           if(collections.some(collection=>collection.name.toLowerCase()===name.toLowerCase()))throw new Error('A collection with this name already exists');
-          const collection={id:`collection_${randomUUID()}`,name,type,titleContains:type==='smart'?titleContains:'',movieIds:type==='custom'?[...new Set((input.movieIds||[]).map(String))]:[],createdAt:new Date().toISOString()};
+          const collection={id:`collection_${randomUUID()}`,name,type,rules:type==='smart'?rules:{},movieIds:type==='custom'?[...new Set((input.movieIds||[]).map(String))]:[],includedMovieIds:type==='smart'?[...new Set((input.includedMovieIds||[]).map(String))]:[],excludedMovieIds:type==='smart'?[...new Set((input.excludedMovieIds||[]).map(String))]:[],createdAt:new Date().toISOString()};
           collections.push(collection);await collectionStore.write({version:1,collections});return json(res,201,{item:collection});
         }
         const collectionMatch=url.pathname.match(/^\/api\/collections\/(collection_[A-Za-z0-9-]+)$/);
+        if(collectionMatch&&req.method==='PUT'){
+          if(!administrator(res,session)||!requireCsrf(req,res,session))return;
+          const input=await body(req),stored=await collectionStore.read(),collections=stored.collections||[],index=collections.findIndex(collection=>collection.id===collectionMatch[1]);
+          if(index<0)return json(res,404,{error:{message:'Collection not found'}});
+          const name=String(input.name||'').trim(),type=input.type==='smart'?'smart':'custom',rules=input.rules&&typeof input.rules==='object'?input.rules:{};
+          if(!name)throw new Error('Collection name is required');
+          if(type==='smart'&&!Object.values(rules).some(value=>Array.isArray(value)?value.length:Boolean(value)))throw new Error('Smart collections require at least one rule');
+          if(collections.some((collection,collectionIndex)=>collectionIndex!==index&&collection.name.toLowerCase()===name.toLowerCase()))throw new Error('A collection with this name already exists');
+          collections[index]={...collections[index],name,type,rules:type==='smart'?rules:{},movieIds:type==='custom'?[...new Set((input.movieIds||[]).map(String))]:[],includedMovieIds:type==='smart'?[...new Set((input.includedMovieIds||[]).map(String))]:[],excludedMovieIds:type==='smart'?[...new Set((input.excludedMovieIds||[]).map(String))]:[],updatedAt:new Date().toISOString()};
+          await collectionStore.write({version:1,collections});return json(res,200,{item:collections[index]});
+        }
         if(collectionMatch&&req.method==='DELETE'){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;
           const stored=await collectionStore.read(),collections=(stored.collections||[]).filter(collection=>collection.id!==collectionMatch[1]);

@@ -83,6 +83,7 @@ test('native interaction workflows replace an upstream-shaped generic shell',asy
   for(const workflow of ['startMissingSearchJob','/api/search-jobs','Search all missing','Stopping after the current batch','MoviesSearch','EpisodeSearch','ensureBundledDownloadPathMappings','VYNODEARR_DOWNLOAD_CLIENT_REMOTE_PATH','/data/complete','/downloads','detail-navigation','← Previous','Next →'])assert.ok(script.includes(workflow)||apiSource.includes(workflow),workflow);
   for(const workflow of ['reassignMediaFile','/api/media-files/reassign','filterExistingFiles:false',"name:'ManualImport'","importMode:'Auto'",'Choose movie file','episode-change-file','CHOOSE MEDIA FILE','This replaces its stale file association'])assert.ok(script.includes(workflow)||apiSource.includes(workflow),workflow);
   for(const workflow of ['queue-removing',"button.classList.add('activated')","button.textContent='Removing…'",'queue-select-all','queue-select-completed','queue-status-filter','queue-media-filter','queue-source-filter','removeQueueButton'])assert.ok(script.includes(workflow),workflow);
+  for(const workflow of ['showCollectionsV2','collection-builder-layout','LIVE PREVIEW','titleContains','genres','decade','includedMovieIds','excludedMovieIds','Retained from earlier rule','remove-preview-movie','Edit rules & movies'])assert.ok(script.includes(workflow)||apiSource.includes(workflow),workflow);
 });
 
 test('environment engine credentials auto-configure the private gateway once',async()=>{

@@ -70,6 +70,18 @@ test('authenticated artwork proxy caches binary responses without exposing engin
 test('dashboard API returns useful product metrics',()=>appSession({movie:new MovieFixtureAdapter(),tv:new TvFixtureAdapter()},async({base,cookie})=>{
   const response=await fetch(`${base}/api/dashboard`,{headers:{cookie}}),value=await response.json();assert.equal(value.metrics.movies,3);assert.equal(value.metrics.tv,3);assert.ok('missing'in value.metrics&&'upcomingEpisodes'in value.metrics);assert.ok(value.recentActivity.length);
 }));
+test('smart collections combine rules with retained and excluded movie choices',()=>appSession({movie:new MovieFixtureAdapter(),tv:new TvFixtureAdapter()},async({base,cookie,csrf})=>{
+  const movies=(await (await fetch(`${base}/api/media/movies`,{headers:{cookie}})).json()).items,first=movies[0],retained=movies[1];
+  const created=await fetch(`${base}/api/collections`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({name:'Flexible picks',type:'smart',rules:{year:first.year,genres:first.genres?.slice(0,1)||[]},includedMovieIds:[retained.id],excludedMovieIds:[first.id]})});
+  assert.equal(created.status,201);
+  const collection=(await (await fetch(`${base}/api/collections`,{headers:{cookie}})).json()).items[0];
+  assert.ok(collection.movieIds.includes(retained.id));
+  assert.ok(!collection.movieIds.includes(first.id));
+  const updated=await fetch(`${base}/api/collections/${collection.id}`,{method:'PUT',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({name:'Hand picked',type:'custom',movieIds:[first.id]})});
+  assert.equal(updated.status,200);
+  const edited=(await (await fetch(`${base}/api/collections`,{headers:{cookie}})).json()).items[0];
+  assert.deepEqual(edited.movieIds,[first.id]);
+}));
 test('engine wizard validates actual read-only HTTP capabilities and saves only successful connections',async()=>{
   const engine=createServer((req,res)=>{
     if(req.headers['x-api-key']!=='review-key'){res.writeHead(401);return res.end('{}');}
