@@ -18,7 +18,7 @@ const calendar=series.filter((item)=>item.nextEpisode).map((item,i)=>({id:`tv_ca
 
 export class TvFixtureAdapter {
   constructor(config={enabled:true,displayName:'TV'}){this.config=config;}
-  async listSeries({limit=5000}={}){return series.slice(0,Math.min(limit,5000)).map(({backdrop,overview,genres,seriesType,seasons,...summary})=>summary);}
+  async listSeries({limit=5000}={}){return series.slice(0,Math.min(limit,5000)).map(({backdrop,seriesType,seasons,...summary})=>summary);}
   async getSeries(id){const item=series.find((candidate)=>candidate.id===id);return item?{...item,recentHistory:history.filter((event)=>event.mediaId===id),calendar:calendar.filter((event)=>event.mediaId===id)}:null;}
   async getQueue(){return structuredClone(queue);} async getHistory(){return structuredClone(history);}
   async getCalendar(){return structuredClone(calendar);} async getHealth(){return [];}

@@ -30,6 +30,41 @@ function requireSession(req,res,auth){const session=sessionFor(req,auth);if(!ses
 function requireCsrf(req,res,session){if(req.headers['x-vynodearr-csrf']!==session.csrf){json(res,403,{error:{code:'csrf_invalid',message:'The security token was invalid.'}});return false;}return true;}
 function administrator(res,session){if(session.user.role!=='administrator'){json(res,403,{error:{code:'administrator_required',message:'Administrator access is required.'}});return false;}return true;}
 const hopHeaders=new Set(['connection','keep-alive','proxy-authenticate','proxy-authorization','te','trailer','transfer-encoding','upgrade']);
+function dashboardAnalytics(movies=[],series=[],history=[],days=30){
+  const dayKeys=Array.from({length:days},(_,index)=>new Date(Date.now()-(days-index-1)*86400000).toISOString().slice(0,10));
+  const downloads={movie:Object.fromEntries(dayKeys.map(day=>[day,0])),tv:Object.fromEntries(dayKeys.map(day=>[day,0]))};
+  const activity={movie:{completed:0,grabbed:0,failed:0},tv:{completed:0,grabbed:0,failed:0}};
+  for(const item of history){
+    const domain=item.domain==='tv'?'tv':'movie',event=String(item.eventType||'').toLowerCase();
+    const parsedTimestamp=item.timestamp?new Date(item.timestamp):null;
+    const day=parsedTimestamp&&!Number.isNaN(parsedTimestamp.getTime())?parsedTimestamp.toISOString().slice(0,10):'';
+    if(event.includes('failed'))activity[domain].failed++;
+    else if(event.includes('grabbed'))activity[domain].grabbed++;
+    else if(event.includes('imported')||event.includes('downloaded')){
+      activity[domain].completed++;
+      if(day in downloads[domain])downloads[domain][day]++;
+    }
+  }
+  const distribution=(items,selector)=>Object.entries(items.reduce((counts,item)=>{const value=selector(item)||'Unknown';counts[value]=(counts[value]||0)+1;return counts;},{})).map(([name,count])=>({name,count})).sort((left,right)=>right.count-left.count);
+  const movieAvailable=movies.filter(item=>item.hasFile).length;
+  const tvMissing=series.reduce((sum,item)=>sum+Number(item.monitoring==='none'?0:item.missingEpisodes||0),0);
+  return{
+    rangeDays:days,
+    downloadsOverTime:{
+      movie:dayKeys.map(date=>({date,count:downloads.movie[date]})),
+      tv:dayKeys.map(date=>({date,count:downloads.tv[date]}))
+    },
+    qualityDistribution:{
+      movie:distribution(movies,item=>item.quality),
+      tv:distribution(series,item=>item.qualityProfile)
+    },
+    activity,
+    library:{
+      movie:{total:movies.length,available:movieAvailable,missing:movies.filter(item=>item.state==='missing').length,belowCutoff:movies.filter(item=>item.state==='cutoff').length,monitored:movies.filter(item=>item.monitoring!=='none').length,sizeOnDisk:movies.reduce((sum,item)=>sum+Number(item.sizeOnDisk||0),0)},
+      tv:{total:series.length,complete:series.filter(item=>Number(item.missingEpisodes||0)===0).length,needsAttention:series.filter(item=>item.monitoring!=='none'&&Number(item.missingEpisodes||0)>0).length,monitored:series.filter(item=>item.monitoring!=='none').length,episodesMissing:tvMissing,sizeOnDisk:series.reduce((sum,item)=>sum+Number(item.sizeOnDisk||0),0)}
+    }
+  };
+}
 
 export function createApplication(options={}){
   const env=options.env||process.env,baseConfig=options.config||loadEngineConfiguration(env);
@@ -491,7 +526,7 @@ export function createApplication(options={}){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;const input=await body(req),result=await testEngine(engineSave[1],input);if(!result.validated)return json(res,422,{error:{code:'engine_validation_failed',message:result.connection.safeError||'Engine validation did not succeed.'}});
           await engineSettings.save(engineSave[1],input,input.apiCredential);await rebuildFromSettings();await sync.startup();return json(res,200,{saved:true,settings:engineSettings.public(),validation:result});
         }
-        if(url.pathname==='/api/system/application-update'&&req.method==='GET')return json(res,200,{application:'VynodeArr',installedVersion:String(env.VYNODEARR_VERSION||'1.0.20'),channel:String(env.VYNODEARR_UPDATE_CHANNEL||'develop'),mechanism:'Container image',repository:'https://github.com/minerport/VynodeArr-Unified',message:'Pull the newest VynodeArr container image, then recreate the application container. Engine updates are managed separately.'});
+        if(url.pathname==='/api/system/application-update'&&req.method==='GET')return json(res,200,{application:'VynodeArr',installedVersion:String(env.VYNODEARR_VERSION||'1.0.22'),channel:String(env.VYNODEARR_UPDATE_CHANNEL||'develop'),mechanism:'Container image',repository:'https://github.com/minerport/VynodeArr-Unified',message:'Pull the newest VynodeArr container image, then recreate the application container. Engine updates are managed separately.'});
         const backupRestore=url.pathname.match(/^\/api\/system\/backups\/(movie|tv)\/(\d+)\/restore$/);
         if(backupRestore&&req.method==='POST'){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;
@@ -636,7 +671,7 @@ export function createApplication(options={}){
         if(url.pathname==='/api/system/health')return json(res,200,{items:await sync.operations('health'),sync:sync.snapshot()});
         if(url.pathname==='/api/dashboard'){
           const [movies,tvItems,queue,history,calendar,health]=await Promise.all([sync.list('movie'),sync.list('tv'),sync.operations('queue'),sync.operations('history'),sync.operations('calendar'),sync.operations('health')]);
-          return json(res,200,{metrics:{movies:movies.length,tv:tvItems.length,queue:queue.length,upcomingMovies:calendar.filter((item)=>item.domain==='movie').length,upcomingEpisodes:calendar.filter((item)=>item.domain==='tv').length,missing:movies.filter((item)=>item.state==='missing').length+tvItems.reduce((sum,item)=>sum+item.missingEpisodes,0),downloading:queue.filter((item)=>String(item.status).toLowerCase().includes('down')).length,health:health.length,storage:movies.filter((item)=>item.hasFile).length+tvItems.length},recentlyAdded:[...movies.slice(-3),...tvItems.slice(-3)].slice(0,6),recentActivity:history.slice(0,6),engines:{configured:engineSettings.configured(),mode,status:sync.snapshot()}});
+          return json(res,200,{metrics:{movies:movies.length,tv:tvItems.length,queue:queue.length,upcomingMovies:calendar.filter((item)=>item.domain==='movie').length,upcomingEpisodes:calendar.filter((item)=>item.domain==='tv').length,missing:movies.filter((item)=>item.state==='missing').length+tvItems.reduce((sum,item)=>sum+item.missingEpisodes,0),downloading:queue.filter((item)=>String(item.status).toLowerCase().includes('down')).length,health:health.length,storage:movies.filter((item)=>item.hasFile).length+tvItems.length},analytics:dashboardAnalytics(movies,tvItems,history),recentlyAdded:[...movies.slice(-3),...tvItems.slice(-3)].slice(0,6),recentActivity:history.slice(0,6),engines:{configured:engineSettings.configured(),mode,status:sync.snapshot()}});
         }
         if(url.pathname==='/api/system/engines'){const [movieTest,tvTest,movieStatus,tvStatus]=await Promise.all([registry.movie().testConnection(),registry.tv().testConnection(),registry.movie().getSystemStatus().catch(()=>null),registry.tv().getSystemStatus().catch(()=>null)]);const publicSettings=engineSettings.public();return json(res,200,{mode,managed:String(env.VYNODEARR_BUNDLED_ENGINES||'false')==='true',configured:engineSettings.configured(),engines:[{domain:'movie',displayName:'Movies',configuration:publicSettings.movie||publicEngineConfiguration(baseConfig.movie),connection:movieTest,status:movieStatus,synchronization:sync.snapshot().movie},{domain:'tv',displayName:'TV',configuration:publicSettings.tv||publicEngineConfiguration(baseConfig.tv),connection:tvTest,status:tvStatus,synchronization:sync.snapshot().tv}]});}
         return json(res,404,{error:{code:'not_found',message:'The requested VynodeArr resource was not found.'}});

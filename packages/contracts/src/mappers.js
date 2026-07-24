@@ -36,6 +36,9 @@ export function movieSummary(record, context = {}) {
     quality: qualityName(record.movieFile) || (hasFile ? 'Detected media' : 'Not available'),
     qualityProfile: profile(record), rootFolder: record.rootFolderPath || record.path || null,
     collection: record.collection?.title || record.collectionTitle || null,
+    overview: record.overview || '', runtimeMinutes: Number(record.runtime || record.runtimeMinutes || 0),
+    rating: Number(record.ratings?.value || record.ratings?.imdb?.value || record.ratings?.tmdb?.value || record.rating || 0) || null,
+    sizeOnDisk: Number(record.sizeOnDisk || record.movieFile?.size || 0),
     tags: tags(record), state: !hasFile ? 'missing' : context.cutoffIds?.has(record.id) ? 'cutoff' : 'available',
     queue: context.queueById?.get(record.id) || null
   });
@@ -74,6 +77,10 @@ export function seriesSummary(record, context = {}) {
     cutoffUnmetEpisodes: Number(statistics.cutoffNotMetCount || 0),
     nextEpisode: record.nextAiring ? { title: 'Next episode', airDateUtc: record.nextAiring } : null,
     qualityProfile: profile(record), rootFolder: record.rootFolderPath || record.path || null,
+    overview: record.overview || '', genres: record.genres || [],
+    runtimeMinutes: Array.isArray(record.runtime) ? Number(record.runtime[0] || 0) : Number(record.runtime || record.runtimeMinutes || 0),
+    rating: Number(record.ratings?.value || record.ratings?.imdb?.value || record.ratings?.tvdb?.value || record.rating || 0) || null,
+    sizeOnDisk: Number(statistics.sizeOnDisk || record.sizeOnDisk || 0),
     tags: tags(record), queue: context.queueById?.get(record.id) || null
   });
 }
