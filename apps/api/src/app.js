@@ -16,6 +16,7 @@ import { MovieEngineAdapter } from '../../../packages/movie-domain/src/engine-ad
 import { TvEngineAdapter } from '../../../packages/tv-domain/src/engine-adapter.js';
 import { MovieFixtureAdapter } from '../../../packages/movie-domain/src/fixture-adapter.js';
 import { TvFixtureAdapter } from '../../../packages/tv-domain/src/fixture-adapter.js';
+import { completedQueueItemHasArrived } from '../../../packages/contracts/src/mappers.js';
 
 const webRoot=fileURLToPath(new URL('../../web/public/',import.meta.url));
 const mime={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.ico':'image/x-icon'};
@@ -102,12 +103,16 @@ export function createApplication(options={}){
     const movieId=Number(input.movieId),episodeId=Number(input.episodeId),seriesId=Number(input.seriesId);
     if(domain==='movie'&&!Number.isFinite(movieId))throw new Error('Choose the movie that owns this file');
     if(domain==='tv'&&(!Number.isFinite(episodeId)||!Number.isFinite(seriesId)))throw new Error('Choose the television episode that owns this file');
-    const folder=selectedPath.split('/').slice(0,-1).join('/')||'/',value=await management.execute(domain,'manualImport','GET',{query:{folder,filterExistingFiles:false,replaceExistingFiles:true}});
+    const identityQuery=domain==='movie'?{movieId}:{seriesId};
+    const value=await management.execute(domain,'manualImport','GET',{query:{...identityQuery,filterExistingFiles:false}});
     const candidates=Array.isArray(value)?value:value?.records||[],normalize=value=>String(value||'').replaceAll('\\','/').replace(/\/+$/,'').toLowerCase();
     const candidate=candidates.find(item=>normalize(item.path)===normalize(selectedPath));
     if(!candidate)throw new Error('The selected file could not be validated by the media service');
-    const assignment={...candidate,path:selectedPath,...(domain==='movie'?{movieId,movie:{...(candidate.movie||{}),id:movieId}}:{seriesId,episodeIds:[episodeId],series:{...(candidate.series||{}),id:seriesId}})};
-    const result=await management.execute(domain,'manualImport','POST',{payload:[assignment]});
+    const assignment={...candidate,path:selectedPath,...(domain==='movie'?{movieId,movie:{...(candidate.movie||{}),id:movieId}}:{seriesId,episodeIds:[episodeId],episodes:[...(candidate.episodes||[])],series:{...(candidate.series||{}),id:seriesId}})};
+    const reprocessed=await management.execute(domain,'manualImport','POST',{payload:[assignment]});
+    const processed=(Array.isArray(reprocessed)?reprocessed:[assignment])[0]||assignment;
+    const file={...processed,path:selectedPath,folderName:processed.folderName||selectedPath.split('/').slice(-2,-1)[0]||'',...(domain==='movie'?{movieId}:{seriesId,episodeIds:[episodeId]})};
+    const result=await management.execute(domain,'commands','POST',{payload:{name:'ManualImport',files:[file],importMode:'Auto',priority:'high'}});
     sync.invalidate(domain);setTimeout(()=>sync.synchronize(domain).catch(()=>{}),2_000);
     return result;
   }
@@ -287,7 +292,7 @@ export function createApplication(options={}){
         client.get(domain==='movie'?'movie':'series').catch(()=>[])
       ]);
       const records=Array.isArray(queueValue?.records)?queueValue.records:[],libraryById=new Map((Array.isArray(library)?library:[]).map(item=>[Number(item.id),item]));
-      return records.map(item=>{
+      return records.filter(item=>!completedQueueItemHasArrived(item,domain)).map(item=>{
         const mediaId=Number(domain==='movie'?(item.movieId||item.movie?.id):(item.seriesId||item.series?.id||item.episode?.seriesId)),media=item[domain==='movie'?'movie':'series']||libraryById.get(mediaId)||null,size=Number(item.size||0),sizeLeft=Number(item.sizeleft||0),percentage=size>0?(size-sizeLeft)/size*100:null;
         return{...item,domain,media,mediaId,clientStatus:item.status||item.trackedDownloadState||null,clientFilename:item.title||null,clientPercentage:Number.isFinite(percentage)?percentage:null,clientTimeLeft:item.timeleft||item.estimatedCompletionTime||null,clientSizeLeftMb:Number.isFinite(sizeLeft)?sizeLeft/1048576:null,clientSpeed:null};
       });
@@ -390,7 +395,7 @@ export function createApplication(options={}){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;const input=await body(req),result=await testEngine(engineSave[1],input);if(!result.validated)return json(res,422,{error:{code:'engine_validation_failed',message:result.connection.safeError||'Engine validation did not succeed.'}});
           await engineSettings.save(engineSave[1],input,input.apiCredential);await rebuildFromSettings();await sync.startup();return json(res,200,{saved:true,settings:engineSettings.public(),validation:result});
         }
-        if(url.pathname==='/api/system/application-update'&&req.method==='GET')return json(res,200,{application:'VynodeArr',installedVersion:String(env.VYNODEARR_VERSION||'1.0.14'),channel:String(env.VYNODEARR_UPDATE_CHANNEL||'develop'),mechanism:'Container image',repository:'https://github.com/minerport/VynodeArr-Unified',message:'Pull the newest VynodeArr container image, then recreate the application container. Engine updates are managed separately.'});
+        if(url.pathname==='/api/system/application-update'&&req.method==='GET')return json(res,200,{application:'VynodeArr',installedVersion:String(env.VYNODEARR_VERSION||'1.0.15'),channel:String(env.VYNODEARR_UPDATE_CHANNEL||'develop'),mechanism:'Container image',repository:'https://github.com/minerport/VynodeArr-Unified',message:'Pull the newest VynodeArr container image, then recreate the application container. Engine updates are managed separately.'});
         const backupRestore=url.pathname.match(/^\/api\/system\/backups\/(movie|tv)\/(\d+)\/restore$/);
         if(backupRestore&&req.method==='POST'){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;

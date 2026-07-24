@@ -24,6 +24,19 @@ test('movie adapter recognizes scanned media when the engine reports disk usage 
   const adapter=new MovieEngineAdapter({enabled:true},new FakeClient({movie:[pendingFile],queue:{records:[]},'wanted/cutoff':{records:[]}})),item=(await adapter.listMovies())[0];
   assert.equal(item.hasFile,true);assert.equal(item.state,'available');assert.equal(item.quality,'Detected media');
 });
+test('completed queue records clear after their media file reaches the library',async()=>{
+  const movie=new MovieEngineAdapter({enabled:true},new FakeClient({queue:{records:[
+    {id:1,status:'completed',size:100,sizeleft:0,movie:{id:1,title:'Arrived',hasFile:true}},
+    {id:2,status:'completed',size:100,sizeleft:0,movie:{id:2,title:'Needs import',hasFile:false}},
+    {id:3,status:'downloading',size:100,sizeleft:50,movie:{id:3,title:'Active',hasFile:true}}
+  ]}}));
+  const tv=new TvEngineAdapter({enabled:true},new FakeClient({queue:{records:[
+    {id:4,status:'completed',size:100,sizeleft:0,series:{id:2,title:'Arrived show'},episode:{id:9,seriesId:2,hasFile:true}},
+    {id:5,status:'completed',size:100,sizeleft:0,series:{id:2,title:'Needs import'},episode:{id:10,seriesId:2,hasFile:false}}
+  ]}}));
+  assert.deepEqual((await movie.getQueue()).map(item=>item.title),['Needs import','Active']);
+  assert.deepEqual((await tv.getQueue()).map(item=>item.title),['Needs import']);
+});
 test('TV adapter maps seasons, episodes, and operational surfaces',async()=>{
   const client=new FakeClient({series:[seriesRecord],seriesDetail:seriesRecord,episode:[{id:4,seasonNumber:1,episodeNumber:1,title:'Pilot',monitored:true,hasFile:true}],queue:{records:[]},history:{records:[]},calendar:[],health:[],'system/status':{version:'1.0'}});
   const adapter=new TvEngineAdapter({enabled:true},client);assert.equal((await adapter.listSeries())[0].id,'series_2');assert.equal((await adapter.getSeries('series_2')).seasons[0].episodes[0].title,'Pilot');

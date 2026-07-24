@@ -13,6 +13,15 @@ export const qualityName = (file) => file?.quality?.quality?.name || file?.quali
 export const profile = (record) => record?.qualityProfile?.name || record?.qualityProfileId || null;
 export const tags = (record) => Array.isArray(record?.tags) ? record.tags.map(String) : [];
 export const safeDate = (value) => value || null;
+export const completedQueueItemHasArrived = (record, domain) => {
+  const status = String(record?.status || record?.trackedDownloadStatus || '').toLowerCase();
+  const completed = status === 'completed' || status === 'complete';
+  if (!completed || Number(record?.sizeleft ?? record?.sizeLeft ?? 0) > 0) return false;
+  if (domain === 'movie') {
+    return Boolean(record?.movie?.hasFile || record?.movieFileId || record?.movie?.movieFile?.id || Number(record?.movie?.sizeOnDisk || 0) > 0);
+  }
+  return Boolean(record?.episode?.hasFile || record?.episodeFileId || record?.episode?.episodeFile?.id);
+};
 
 export function movieSummary(record, context = {}) {
   if (!record || record.id == null || !record.title) throw new TypeError('Invalid movie record');

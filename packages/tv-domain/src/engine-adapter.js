@@ -1,6 +1,6 @@
 import { ReadOnlyEngineClient } from '../../platform/src/read-only-engine-client.js';
 import { engineError } from '../../platform/src/engine-errors.js';
-import { calendarItem, historyItem, queueItem, seriesDetails, seriesSummary } from '../../contracts/src/mappers.js';
+import { calendarItem, completedQueueItemHasArrived, historyItem, queueItem, seriesDetails, seriesSummary } from '../../contracts/src/mappers.js';
 
 const records = (value) => Array.isArray(value) ? value : Array.isArray(value?.records) ? value.records : null;
 const numericId = (id) => Number(String(id).replace(/^series_/, ''));
@@ -32,7 +32,7 @@ export class TvEngineAdapter {
   async getQueue() {
     const value = await this.client.get('queue', { page: 1, pageSize: 1000, includeSeries: true, includeEpisode: true });
     const items = records(value); if (!items) throw engineError.invalid();
-    return items.map((record) => queueItem(record, 'tv'));
+    return items.filter((record) => !completedQueueItemHasArrived(record, 'tv')).map((record) => queueItem(record, 'tv'));
   }
   async getHistory({ mediaId, limit = 100 } = {}) {
     const value = await this.client.get('history', { page: 1, pageSize: limit, seriesId: mediaId, includeSeries: true });

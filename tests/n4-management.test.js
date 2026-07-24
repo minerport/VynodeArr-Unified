@@ -61,7 +61,7 @@ test('native interaction workflows replace an upstream-shaped generic shell',asy
   for(const workflow of ["proxyCompatibilityApi","'/movies'","'/tv'","Compatibility API endpoint not found"])assert.ok(apiSource.includes(workflow));
   assert.ok(apiSource.includes("xml.match(/<ApiKey>([^<]+)<\\/ApiKey>/i)"),'bundled engine configuration must remain the credential source of truth');
   assert.ok(apiSource.includes('did not reconnect with the new API key'));
-  for(const workflow of ['taskSections(items)','MOVIE ENGINE','TELEVISION ENGINE','/api/system/application-update','VynodeArr updates'])assert.ok(script.includes(workflow)||apiSource.includes(workflow));
+  for(const workflow of ['taskSections(items)','MOVIE ENGINE','TELEVISION ENGINE','Automatic schedules are active','Automatically every','item.interval','lastExecution','nextExecution','Queueing…','Queued ✓','/api/system/application-update','VynodeArr updates'])assert.ok(script.includes(workflow)||apiSource.includes(workflow));
   for(const workflow of ['backupSections(items)','configuration backup','Create Movies and Television backups','restore-backup','/api/system/backups/${button.dataset.domain}/${button.dataset.id}/restore','did not reconnect after restoring the backup'])assert.ok(script.includes(workflow)||apiSource.includes(workflow));
   for(const workflow of ["client.post('command',{name:'Restart'})",'historySections(items)','eventSections(items)','wireEventFilters','event-toolbar','Movie and television activity separated by library'])assert.ok(script.includes(workflow)||apiSource.includes(workflow));
   for(const workflow of ['Download backups before uninstalling','Upload & restore','backup-upload-input','/download','/upload','completeEngineRestore','Backup must be a .zip, .db, or .xml file'])assert.ok(script.includes(workflow)||apiSource.includes(workflow));
@@ -80,7 +80,8 @@ test('native interaction workflows replace an upstream-shaped generic shell',asy
   for(const workflow of ['[400,404,409,422,500]','item?.detail','item?.description'])assert.ok(clientSource.includes(workflow),workflow);
   for(const workflow of ['VYNODEARR_IMPORT_PACE_MS||25','cancelRequested',"status='canceling'",'cancel-import-job','importRefreshMilestones','job.completed%50===0','Stopping after the current item','Refresh and folder scan queued','includeFiles=true','Video files ('])assert.ok(script.includes(workflow)||apiSource.includes(workflow),workflow);
   for(const workflow of ['startMissingSearchJob','/api/search-jobs','Search all missing','Stopping after the current batch','MoviesSearch','EpisodeSearch','ensureBundledDownloadPathMappings','VYNODEARR_DOWNLOAD_CLIENT_REMOTE_PATH','/data/complete','/downloads','detail-navigation','← Previous','Next →'])assert.ok(script.includes(workflow)||apiSource.includes(workflow),workflow);
-  for(const workflow of ['reassignMediaFile','/api/media-files/reassign','replaceExistingFiles:true','manualImport','Choose movie file','episode-change-file','CHOOSE MEDIA FILE','This replaces its stale file association'])assert.ok(script.includes(workflow)||apiSource.includes(workflow),workflow);
+  for(const workflow of ['reassignMediaFile','/api/media-files/reassign','filterExistingFiles:false',"name:'ManualImport'","importMode:'Auto'",'Choose movie file','episode-change-file','CHOOSE MEDIA FILE','This replaces its stale file association'])assert.ok(script.includes(workflow)||apiSource.includes(workflow),workflow);
+  for(const workflow of ['queue-removing',"button.classList.add('activated')","button.textContent='Removing…'","row?.remove()"])assert.ok(script.includes(workflow),workflow);
 });
 
 test('environment engine credentials auto-configure the private gateway once',async()=>{
