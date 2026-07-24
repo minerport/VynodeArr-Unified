@@ -656,7 +656,7 @@
   display: grid;
   min-width: 0;
   min-height: 96px;
-  grid-template-columns: 58px minmax(0, 1fr) auto;
+  grid-template-columns: 58px minmax(0, 1fr) auto auto;
   gap: .75rem;
   padding: .55rem;
   align-items: center;
@@ -708,6 +708,32 @@
 
 .remove-preview-movie:hover {
   color: #ff8793;
+}
+
+.retain-preview-movie {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  padding: .35rem .55rem;
+  border: 1px solid #34435e;
+  border-radius: .55rem;
+  background: #172238;
+  color: #c9d4e6;
+  font-size: .82rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.retain-preview-movie:has(input:checked) {
+  border-color: #80613a;
+  background: #2b251d;
+  color: #f3c983;
+}
+
+.retain-preview-movie input {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
 }
 
 .retained-badge {
