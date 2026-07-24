@@ -78,7 +78,9 @@ test('native interaction workflows replace an upstream-shaped generic shell',asy
   for(const workflow of ['televisionSeriesReleases','includeEpisodeFile:true','query.seriesId','reacquireRelease','mappedMovieId','no longer available from the search source','explainEmptyTelevisionSearch','No television indexer is enabled for interactive search'])assert.ok(apiSource.includes(workflow),workflow);
   for(const workflow of ["String(path).replace(/^\\/+?/,'')==='release'".replace('+?','+'),'120_000'])assert.ok(clientSource.includes(workflow),workflow);
   for(const workflow of ['[400,404,409,422,500]','item?.detail','item?.description'])assert.ok(clientSource.includes(workflow),workflow);
-  for(const workflow of ['VYNODEARR_IMPORT_PACE_MS||25','cancelRequested',"status='canceling'",'cancel-import-job','importRefreshMilestones','job.completed%50===0','Stopping after the current item','Folder scan started','includeFiles=true','Video files ('])assert.ok(script.includes(workflow)||apiSource.includes(workflow),workflow);
+  for(const workflow of ['VYNODEARR_IMPORT_PACE_MS||25','cancelRequested',"status='canceling'",'cancel-import-job','importRefreshMilestones','job.completed%50===0','Stopping after the current item','Refresh and folder scan queued','includeFiles=true','Video files ('])assert.ok(script.includes(workflow)||apiSource.includes(workflow),workflow);
+  for(const workflow of ['startMissingSearchJob','/api/search-jobs','Search all missing','Stopping after the current batch','MoviesSearch','EpisodeSearch','ensureBundledDownloadPathMappings','VYNODEARR_DOWNLOAD_CLIENT_REMOTE_PATH','/data/complete','/downloads','detail-navigation','← Previous','Next →'])assert.ok(script.includes(workflow)||apiSource.includes(workflow),workflow);
+  for(const workflow of ['reassignMediaFile','/api/media-files/reassign','replaceExistingFiles:true','manualImport','Choose movie file','episode-change-file','CHOOSE MEDIA FILE','This replaces its stale file association'])assert.ok(script.includes(workflow)||apiSource.includes(workflow),workflow);
 });
 
 test('environment engine credentials auto-configure the private gateway once',async()=>{

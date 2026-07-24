@@ -43,7 +43,7 @@ export function createApplication(options={}){
   const registry=options.registry||new MediaEngineRegistry().register('movie',movie).register('tv',tv);
   const sync=options.sync||new SynchronizationService({movie,tv,maxItems:baseConfig.cacheMaxItems,pollIntervalMs:baseConfig.pollIntervalMs,projectionStore});
   const management=new EngineManagementService(registry);
-  const importJobs=new Map();
+  const importJobs=new Map(),searchJobs=new Map();
   let initialized=false;
   function importIdentityKeys(value={}){
     const keys=[],title=String(value.title||value.name||'').trim().toLowerCase(),year=Number(value.year||0);
@@ -53,6 +53,7 @@ export function createApplication(options={}){
     return keys;
   }
   function publicImportJob(job){return{id:job.id,domain:job.domain,label:job.label,status:job.status,total:job.total,completed:job.completed,skipped:job.skipped,failed:job.failed,currentTitle:job.currentTitle,errors:job.errors.slice(-25),createdAt:job.createdAt,finishedAt:job.finishedAt};}
+  function publicSearchJob(job){return{id:job.id,domain:job.domain,label:job.label,status:job.status,total:job.total,completed:job.completed,failed:job.failed,currentTitle:job.currentTitle,errors:job.errors.slice(-25),createdAt:job.createdAt,finishedAt:job.finishedAt};}
   const duplicateImportError=(message)=>/(?:already|existing).*(?:add|exist|configur|use)|(?:path|tmdb|tvdb|title).*(?:already|exist|configur|use)|another (?:movie|series)/i.test(String(message||''));
   const qualityRank=(release)=>{
     const name=String(release?.quality?.quality?.name||release?.quality?.name||release?.title||'').toLowerCase();
@@ -95,6 +96,21 @@ export function createApplication(options={}){
     if(!enabled.length)throw new Error('No television indexer is enabled for interactive search. Open Service Settings, choose Television, and configure an indexer.');
     return result;
   }
+  async function reassignMediaFile(input){
+    const domain=String(input.domain||''),selectedPath=String(input.path||'').trim().replaceAll('\\','/');
+    if(!['movie','tv'].includes(domain)||!selectedPath||!/\.(?:avi|mkv|mp4|m4v|mov|wmv|mpg|mpeg|ts|m2ts|webm)$/i.test(selectedPath))throw new Error('Choose a supported video file');
+    const movieId=Number(input.movieId),episodeId=Number(input.episodeId),seriesId=Number(input.seriesId);
+    if(domain==='movie'&&!Number.isFinite(movieId))throw new Error('Choose the movie that owns this file');
+    if(domain==='tv'&&(!Number.isFinite(episodeId)||!Number.isFinite(seriesId)))throw new Error('Choose the television episode that owns this file');
+    const folder=selectedPath.split('/').slice(0,-1).join('/')||'/',value=await management.execute(domain,'manualImport','GET',{query:{folder,filterExistingFiles:false,replaceExistingFiles:true}});
+    const candidates=Array.isArray(value)?value:value?.records||[],normalize=value=>String(value||'').replaceAll('\\','/').replace(/\/+$/,'').toLowerCase();
+    const candidate=candidates.find(item=>normalize(item.path)===normalize(selectedPath));
+    if(!candidate)throw new Error('The selected file could not be validated by the media service');
+    const assignment={...candidate,path:selectedPath,...(domain==='movie'?{movieId,movie:{...(candidate.movie||{}),id:movieId}}:{seriesId,episodeIds:[episodeId],series:{...(candidate.series||{}),id:seriesId}})};
+    const result=await management.execute(domain,'manualImport','POST',{payload:[assignment]});
+    sync.invalidate(domain);setTimeout(()=>sync.synchronize(domain).catch(()=>{}),2_000);
+    return result;
+  }
   const importPaceMs=Math.max(0,Math.min(2000,Number(env.VYNODEARR_IMPORT_PACE_MS||25)));
   const pause=(milliseconds)=>new Promise(resolve=>setTimeout(resolve,milliseconds));
   function startImportJob(userId,input){
@@ -117,6 +133,39 @@ export function createApplication(options={}){
     })();
     return publicImportJob(job);
   }
+  function startMissingSearchJob(userId,input){
+    const domain=input.domain,label=domain==='movie'?'Movies':'Television';
+    if(!['movie','tv'].includes(domain))throw new Error('Choose Movies or Television');
+    const active=[...searchJobs.values()].find(job=>job.userId===userId&&job.domain===domain&&['queued','running','canceling'].includes(job.status));
+    if(active)return publicSearchJob(active);
+    const job={id:`search_${randomUUID()}`,userId,domain,label,status:'queued',total:0,completed:0,failed:0,currentTitle:'Loading missing items',errors:[],createdAt:new Date().toISOString(),finishedAt:null,cancelRequested:false};
+    searchJobs.set(job.id,job);
+    void(async()=>{
+      job.status='running';
+      try{
+        const value=await management.execute(domain,'wantedMissing','GET',{query:{page:1,pageSize:10000,sortKey:'title',sortDirection:'ascending'}});
+        const items=Array.isArray(value)?value:value?.records||[];
+        job.total=items.length;
+        const batchSize=domain==='movie'?20:40;
+        for(let offset=0;offset<items.length&&!job.cancelRequested;offset+=batchSize){
+          const batch=items.slice(offset,offset+batchSize),ids=batch.map(item=>Number(item.id)).filter(Number.isFinite);
+          job.currentTitle=`${offset+1}-${Math.min(offset+batch.length,items.length)} of ${items.length}`;
+          if(!ids.length){job.failed+=batch.length;continue;}
+          try{
+            await management.execute(domain,'commands','POST',{payload:domain==='movie'?{name:'MoviesSearch',movieIds:ids}:{name:'EpisodeSearch',episodeIds:ids}});
+            job.completed+=ids.length;
+          }catch(error){
+            const message=redact(error?.safeMessage||error?.message||'Search batch failed');
+            job.failed+=ids.length;job.errors.push({title:job.currentTitle,message});
+          }
+          await pause(250);
+        }
+      }catch(error){job.failed=Math.max(job.failed,job.total||1);job.errors.push({title:'Missing search',message:redact(error?.safeMessage||error?.message||'Search failed')});}
+      job.currentTitle=null;job.status=job.cancelRequested?'canceled':job.failed&&job.completed===0?'failed':'completed';job.finishedAt=new Date().toISOString();
+      setTimeout(()=>searchJobs.delete(job.id),6*60*60*1000);
+    })();
+    return publicSearchJob(job);
+  }
   async function rebuildFromSettings(){
     const runtime=await engineSettings.runtime();if(!runtime)return;
     movie=new MovieEngineAdapter(runtime.movie);tv=new TvEngineAdapter(runtime.tv);registry.register('movie',movie).register('tv',tv);sync.setEngines(movie,tv);mode='engine';
@@ -126,6 +175,22 @@ export function createApplication(options={}){
     for(const [domain,path] of [['movie','/movies'],['tv','/tv']]){
       const client=registry.get(domain).client,roots=await client.get('rootfolder');
       if(Array.isArray(roots)&&roots.length===0)await client.post('rootfolder',{path});
+    }
+  }
+  async function ensureBundledDownloadPathMappings(){
+    if(String(env.VYNODEARR_BUNDLED_ENGINES||'false')!=='true'||mode!=='engine')return;
+    const remotePath=String(env.VYNODEARR_DOWNLOAD_CLIENT_REMOTE_PATH||'/data/complete').replace(/\/+$/,'')||'/data/complete';
+    const localPath=String(env.VYNODEARR_DOWNLOADS_PATH||'/downloads').replace(/\/+$/,'')||'/downloads';
+    for(const domain of ['movie','tv']){
+      try{
+        const client=registry.get(domain).client,[clients,mappings]=await Promise.all([client.get('downloadclient'),client.get('remotepathmapping')]),configured=new Set((Array.isArray(mappings)?mappings:[]).map(mapping=>`${String(mapping.host).toLowerCase()}|${String(mapping.remotePath).replace(/\/+$/,'')}`));
+        for(const provider of Array.isArray(clients)?clients:[]){
+          if(provider.enable===false)continue;
+          const host=String((provider.fields||[]).find(field=>String(field.name).toLowerCase()==='host')?.value||provider.host||'').trim(),key=`${host.toLowerCase()}|${remotePath}`;
+          if(!host||configured.has(key))continue;
+          await client.post('remotepathmapping',{host,remotePath,localPath});configured.add(key);
+        }
+      }catch(error){console.warn(`${domain} download path mapping deferred:`,redact(error?.safeMessage||error?.message||'engine unavailable'));}
     }
   }
   async function restoreBundledCredentials(){
@@ -146,6 +211,7 @@ export function createApplication(options={}){
     if(!options.movie)await rebuildFromSettings();
     try{
       await ensureBundledRootFolders();
+      await ensureBundledDownloadPathMappings();
       await sync.startup();
     }catch(error){
       console.warn('Engine startup synchronization deferred:',redact(error?.safeMessage||error?.message||'Engine unavailable'));
@@ -269,6 +335,10 @@ export function createApplication(options={}){
         if(url.pathname==='/api/import-jobs'&&req.method==='POST'){if(!requireCsrf(req,res,session))return;return json(res,202,{job:startImportJob(session.user.id,await body(req,25_000_000))});}
         const importJobMatch=url.pathname.match(/^\/api\/import-jobs\/(import_[A-Za-z0-9-]+)$/);
         if(importJobMatch&&req.method==='DELETE'){if(!requireCsrf(req,res,session))return;const job=importJobs.get(importJobMatch[1]);if(!job||job.userId!==session.user.id)return json(res,404,{error:{code:'not_found',message:'Import job was not found'}});if(['queued','running'].includes(job.status)){job.cancelRequested=true;job.status='canceling';job.currentTitle='Stopping after the current item';}return json(res,200,{job:publicImportJob(job)});}
+        if(url.pathname==='/api/search-jobs'&&req.method==='GET')return json(res,200,{items:[...searchJobs.values()].filter(job=>job.userId===session.user.id).map(publicSearchJob)});
+        if(url.pathname==='/api/search-jobs'&&req.method==='POST'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;return json(res,202,{job:startMissingSearchJob(session.user.id,await body(req))});}
+        const searchJobMatch=url.pathname.match(/^\/api\/search-jobs\/(search_[A-Za-z0-9-]+)$/);
+        if(searchJobMatch&&req.method==='DELETE'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;const job=searchJobs.get(searchJobMatch[1]);if(!job||job.userId!==session.user.id)return json(res,404,{error:{code:'not_found',message:'Search job was not found'}});if(['queued','running'].includes(job.status)){job.cancelRequested=true;job.status='canceling';job.currentTitle='Stopping after the current batch';}return json(res,200,{job:publicSearchJob(job)});}
         if(url.pathname==='/api/auth/logout'&&req.method==='POST'){if(!requireCsrf(req,res,session))return;await auth.logout(sessionId);return json(res,200,{authenticated:false},{'set-cookie':auth.cookie('',true)});}
         if(url.pathname==='/api/account'&&req.method==='GET')return json(res,200,{user:session.user});
         if(url.pathname==='/api/account'&&req.method==='PATCH'){if(!requireCsrf(req,res,session))return;return json(res,200,{user:await auth.updateAccount(session.user.id,await body(req),sessionId)});}
@@ -320,7 +390,7 @@ export function createApplication(options={}){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;const input=await body(req),result=await testEngine(engineSave[1],input);if(!result.validated)return json(res,422,{error:{code:'engine_validation_failed',message:result.connection.safeError||'Engine validation did not succeed.'}});
           await engineSettings.save(engineSave[1],input,input.apiCredential);await rebuildFromSettings();await sync.startup();return json(res,200,{saved:true,settings:engineSettings.public(),validation:result});
         }
-        if(url.pathname==='/api/system/application-update'&&req.method==='GET')return json(res,200,{application:'VynodeArr',installedVersion:String(env.VYNODEARR_VERSION||'1.0.13'),channel:String(env.VYNODEARR_UPDATE_CHANNEL||'develop'),mechanism:'Container image',repository:'https://github.com/minerport/VynodeArr-Unified',message:'Pull the newest VynodeArr container image, then recreate the application container. Engine updates are managed separately.'});
+        if(url.pathname==='/api/system/application-update'&&req.method==='GET')return json(res,200,{application:'VynodeArr',installedVersion:String(env.VYNODEARR_VERSION||'1.0.14'),channel:String(env.VYNODEARR_UPDATE_CHANNEL||'develop'),mechanism:'Container image',repository:'https://github.com/minerport/VynodeArr-Unified',message:'Pull the newest VynodeArr container image, then recreate the application container. Engine updates are managed separately.'});
         const backupRestore=url.pathname.match(/^\/api\/system\/backups\/(movie|tv)\/(\d+)\/restore$/);
         if(backupRestore&&req.method==='POST'){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;
@@ -353,6 +423,7 @@ export function createApplication(options={}){
           await client.post('command',{name:'Restart'});await completeEngineRestore(domain,before.startTime);return json(res,200,{restored:true,domain,uploaded:true});
         }
         if(url.pathname==='/api/system/sync'&&req.method==='POST'){if(!requireCsrf(req,res,session))return;const results=await sync.startup();return json(res,200,{synchronized:true,results:results.map((item)=>item.status),state:sync.snapshot()});}
+        if(url.pathname==='/api/media-files/reassign'&&req.method==='POST'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;return json(res,200,{reassigned:true,result:await reassignMediaFile(await body(req))});}
         const catalogMatch=url.pathname.match(/^\/api\/manage\/(movie|tv)$/);
         if(catalogMatch&&req.method==='GET'){if(!administrator(res,session))return;return json(res,200,{domain:catalogMatch[1],available:management.available(catalogMatch[1]),resources:management.catalog(catalogMatch[1])});}
         const automaticSearchMatch=url.pathname.match(/^\/api\/manage\/(movie|tv)\/automaticSearch$/);
@@ -387,6 +458,7 @@ export function createApplication(options={}){
             if(['library','libraryEditor'].includes(managementMatch[2]))await sync.synchronize(managementMatch[1]);
             else if(['episodes','episodeFiles'].includes(managementMatch[2]))await sync.synchronize('tv');
             else if(managementMatch[2]==='queue')await sync.synchronizeOperations();
+            else if(managementMatch[2]==='downloadClients')setTimeout(()=>ensureBundledDownloadPathMappings().catch(()=>{}),500);
             else if(managementMatch[2]==='commands'&&/^Refresh(?:Movie|Series)$/.test(String(input.name||''))){sync.invalidate(managementMatch[1]);setTimeout(()=>sync.synchronize(managementMatch[1]).catch(()=>{}),5_000);}
           }
           return json(res,method==='POST'?201:200,{result});
