@@ -79,6 +79,22 @@ export function createApplication(options={}){
     }
     return releases.sort(compareReleases).slice(0,200);
   }
+  async function reacquireRelease(domain,release){
+    if(domain!=='movie')return release;
+    const movieId=Number(release?.mappedMovieId||release?.movieId),guid=String(release?.guid||''),indexerId=Number(release?.indexerId);
+    if(!Number.isFinite(movieId)||!guid||!Number.isFinite(indexerId))throw new Error('This release is missing its movie or indexer identity. Search again before grabbing it.');
+    const current=await management.execute('movie','releases','GET',{query:{movieId}});
+    const match=(Array.isArray(current)?current:[]).find(item=>Number(item.indexerId)===indexerId&&String(item.guid||'')===guid);
+    if(!match)throw new Error('This release is no longer available from the search source. Search again and choose another result.');
+    return match;
+  }
+  async function explainEmptyTelevisionSearch(query,result){
+    if(!query.episodeId||!Array.isArray(result)||result.length)return result;
+    const indexers=await management.execute('tv','indexers','GET').catch(()=>[]);
+    const enabled=(Array.isArray(indexers)?indexers:[]).filter(indexer=>(indexer.enable??true)&&indexer.enableInteractiveSearch!==false);
+    if(!enabled.length)throw new Error('No television indexer is enabled for interactive search. Open Service Settings, choose Television, and configure an indexer.');
+    return result;
+  }
   const importPaceMs=Math.max(0,Math.min(2000,Number(env.VYNODEARR_IMPORT_PACE_MS||25)));
   const pause=(milliseconds)=>new Promise(resolve=>setTimeout(resolve,milliseconds));
   function startImportJob(userId,input){
@@ -304,7 +320,7 @@ export function createApplication(options={}){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;const input=await body(req),result=await testEngine(engineSave[1],input);if(!result.validated)return json(res,422,{error:{code:'engine_validation_failed',message:result.connection.safeError||'Engine validation did not succeed.'}});
           await engineSettings.save(engineSave[1],input,input.apiCredential);await rebuildFromSettings();await sync.startup();return json(res,200,{saved:true,settings:engineSettings.public(),validation:result});
         }
-        if(url.pathname==='/api/system/application-update'&&req.method==='GET')return json(res,200,{application:'VynodeArr',installedVersion:String(env.VYNODEARR_VERSION||'1.0.12'),channel:String(env.VYNODEARR_UPDATE_CHANNEL||'develop'),mechanism:'Container image',repository:'https://github.com/minerport/VynodeArr-Unified',message:'Pull the newest VynodeArr container image, then recreate the application container. Engine updates are managed separately.'});
+        if(url.pathname==='/api/system/application-update'&&req.method==='GET')return json(res,200,{application:'VynodeArr',installedVersion:String(env.VYNODEARR_VERSION||'1.0.13'),channel:String(env.VYNODEARR_UPDATE_CHANNEL||'develop'),mechanism:'Container image',repository:'https://github.com/minerport/VynodeArr-Unified',message:'Pull the newest VynodeArr container image, then recreate the application container. Engine updates are managed separately.'});
         const backupRestore=url.pathname.match(/^\/api\/system\/backups\/(movie|tv)\/(\d+)\/restore$/);
         if(backupRestore&&req.method==='POST'){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;
@@ -356,9 +372,14 @@ export function createApplication(options={}){
           const method=req.method||'GET';
           if(method!=='GET'&&!requireCsrf(req,res,session))return;
           const input=method==='GET'?{}:await body(req);
-          const query=Object.fromEntries(url.searchParams),result=managementMatch[1]==='tv'&&managementMatch[2]==='releases'&&method==='GET'&&query.seriesId
-            ?await televisionSeriesReleases(query.seriesId)
-            :await management.execute(managementMatch[1],managementMatch[2],method,{id:managementMatch[3],query,payload:input});
+          const query=Object.fromEntries(url.searchParams);
+          let result;
+          if(managementMatch[1]==='tv'&&managementMatch[2]==='releases'&&method==='GET'&&query.seriesId)result=await televisionSeriesReleases(query.seriesId);
+          else{
+            const payload=managementMatch[2]==='releases'&&method==='POST'?await reacquireRelease(managementMatch[1],input):input;
+            result=await management.execute(managementMatch[1],managementMatch[2],method,{id:managementMatch[3],query,payload});
+            if(managementMatch[1]==='tv'&&managementMatch[2]==='releases'&&method==='GET')result=await explainEmptyTelevisionSearch(query,result);
+          }
           if(method!=='GET'){
             const audit=await auditStore.read(),entries=Array.isArray(audit.entries)?audit.entries:[];
             entries.unshift({id:`change_${randomUUID()}`,timestamp:new Date().toISOString(),userId:session.user.id,username:session.user.username,domain:managementMatch[1],resource:managementMatch[2],method,resourceId:managementMatch[3]||null});

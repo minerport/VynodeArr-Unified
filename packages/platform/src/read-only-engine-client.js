@@ -21,10 +21,10 @@ export class ReadOnlyEngineClient {
           if(res.statusCode===401||res.statusCode===403)return reject(engineError.authentication());
           const text=Buffer.concat(chunks).toString('utf8');
           if(res.statusCode<200||res.statusCode>=300){
-            if([400,409,422].includes(res.statusCode)){
+            if([400,404,409,422,500].includes(res.statusCode)){
               try{
                 const value=JSON.parse(text),items=Array.isArray(value)?value:[value];
-                const message=items.map((item)=>item?.errorMessage||item?.message).filter(Boolean).join('; ');
+                const message=items.map((item)=>item?.errorMessage||item?.message||item?.detail||item?.description||item?.title).filter(Boolean).join('; ');
                 if(message)return reject(engineError.validation(message.slice(0,500)));
               }catch{}
             }

@@ -75,8 +75,9 @@ test('native interaction workflows replace an upstream-shaped generic shell',asy
   for(const workflow of ['importIdentityKeys','skipped:job.skipped','already present/skipped','importPaceMs','VYNODEARR_IMPORT_PACE_MS','sync.invalidate(domain)','mapWithConcurrency(folders,4','toggle-import-panel'])assert.ok(script.includes(workflow)||apiSource.includes(workflow),workflow);
   for(const redundantWork of ['Scanning imported folders','movieIds:createdIds','setTimeout(()=>sync.synchronize(domain).catch(()=>{}),15_000)'])assert.ok(!apiSource.includes(redundantWork),redundantWork);
   for(const workflow of ['duplicateImportError','qualityRank','eligibleRelease','approved!==false','downloadAllowed!==false','customFormatScore','compareReleases','automaticSearch','acceptedCandidates','Selecting best release','Media location','fileLocation'])assert.ok(script.includes(workflow)||apiSource.includes(workflow),workflow);
-  for(const workflow of ['televisionSeriesReleases','includeEpisodeFile:true','query.seriesId'])assert.ok(apiSource.includes(workflow),workflow);
+  for(const workflow of ['televisionSeriesReleases','includeEpisodeFile:true','query.seriesId','reacquireRelease','mappedMovieId','no longer available from the search source','explainEmptyTelevisionSearch','No television indexer is enabled for interactive search'])assert.ok(apiSource.includes(workflow),workflow);
   for(const workflow of ["String(path).replace(/^\\/+?/,'')==='release'".replace('+?','+'),'120_000'])assert.ok(clientSource.includes(workflow),workflow);
+  for(const workflow of ['[400,404,409,422,500]','item?.detail','item?.description'])assert.ok(clientSource.includes(workflow),workflow);
   for(const workflow of ['VYNODEARR_IMPORT_PACE_MS||25','cancelRequested',"status='canceling'",'cancel-import-job','importRefreshMilestones','job.completed%50===0','Stopping after the current item','Folder scan started','includeFiles=true','Video files ('])assert.ok(script.includes(workflow)||apiSource.includes(workflow),workflow);
 });
 
