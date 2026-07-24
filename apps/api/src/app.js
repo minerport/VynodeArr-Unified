@@ -45,13 +45,31 @@ export function createApplication(options={}){
   const management=new EngineManagementService(registry);
   const importJobs=new Map();
   let initialized=false;
-  function publicImportJob(job){return{id:job.id,domain:job.domain,label:job.label,status:job.status,total:job.total,completed:job.completed,failed:job.failed,currentTitle:job.currentTitle,errors:job.errors.slice(-5),createdAt:job.createdAt,finishedAt:job.finishedAt};}
+  function importIdentityKeys(value={}){
+    const keys=[],title=String(value.title||value.name||'').trim().toLowerCase(),year=Number(value.year||0);
+    for(const field of ['tmdbId','tvdbId','imdbId'])if(value[field])keys.push(`${field}:${String(value[field]).toLowerCase()}`);
+    const path=String(value.path||'').replaceAll('\\','/').replace(/\/+$/,'').toLowerCase();if(path)keys.push(`path:${path}`);
+    if(!keys.length&&title)keys.push(`title:${title}:${year||''}`);
+    return keys;
+  }
+  function publicImportJob(job){return{id:job.id,domain:job.domain,label:job.label,status:job.status,total:job.total,completed:job.completed,skipped:job.skipped,failed:job.failed,currentTitle:job.currentTitle,errors:job.errors.slice(-25),createdAt:job.createdAt,finishedAt:job.finishedAt};}
   function startImportJob(userId,input){
     const domain=input.domain,label=domain==='movie'?'Movies':'Television',items=Array.isArray(input.items)?input.items:[];
     if(!['movie','tv'].includes(domain)||!items.length||items.length>5000)throw new Error('Select between 1 and 5,000 titles to import');
-    const job={id:`import_${randomUUID()}`,userId,domain,label,status:'queued',total:items.length,completed:0,failed:0,currentTitle:null,errors:[],createdAt:new Date().toISOString(),finishedAt:null};
+    const job={id:`import_${randomUUID()}`,userId,domain,label,status:'queued',total:items.length,completed:0,skipped:0,failed:0,currentTitle:null,errors:[],createdAt:new Date().toISOString(),finishedAt:null};
     importJobs.set(job.id,job);
-    void(async()=>{job.status='running';for(const item of items){job.currentTitle=String(item.title||'Untitled');try{await management.execute(domain,'library','POST',{payload:item.payload});job.completed+=1;}catch(error){job.failed+=1;job.errors.push({title:job.currentTitle,message:redact(error?.safeMessage||error?.message||'Import failed')});}}job.currentTitle=null;job.status=job.failed===job.total?'failed':'completed';job.finishedAt=new Date().toISOString();await sync.startup().catch(()=>{});setTimeout(()=>importJobs.delete(job.id),60*60*1000);})();
+    void(async()=>{
+      job.status='running';const known=new Set(),createdIds=[];
+      try{const existing=await management.execute(domain,'library','GET',{});for(const record of Array.isArray(existing)?existing:existing?.records||[])for(const key of importIdentityKeys(record))known.add(key);}catch{}
+      for(const item of items){
+        job.currentTitle=String(item.title||'Untitled');const keys=importIdentityKeys(item.payload),duplicate=keys.some(key=>known.has(key));
+        if(duplicate){job.skipped+=1;continue;}
+        try{const created=await management.execute(domain,'library','POST',{payload:item.payload});job.completed+=1;if(created?.id)createdIds.push(Number(created.id));for(const key of keys)known.add(key);}
+        catch(error){const message=redact(error?.safeMessage||error?.message||'Import failed');if(/already (?:been )?(?:added|exists)|already exists/i.test(message))job.skipped+=1;else{job.failed+=1;job.errors.push({title:job.currentTitle,message});}}
+      }
+      if(createdIds.length){job.currentTitle='Scanning imported folders';try{if(domain==='movie')await management.execute('movie','commands','POST',{payload:{name:'RefreshMovie',movieIds:createdIds}});else for(const seriesId of createdIds)await management.execute('tv','commands','POST',{payload:{name:'RefreshSeries',seriesId}});}catch(error){job.errors.push({title:'Post-import folder scan',message:redact(error?.safeMessage||error?.message||'The folder scan could not be queued')});}}
+      job.currentTitle=null;job.status=job.failed===job.total?'failed':'completed';job.finishedAt=new Date().toISOString();await sync.startup().catch(()=>{});setTimeout(()=>sync.startup().catch(()=>{}),15_000);setTimeout(()=>importJobs.delete(job.id),6*60*60*1000);
+    })();
     return publicImportJob(job);
   }
   async function rebuildFromSettings(){
@@ -255,7 +273,7 @@ export function createApplication(options={}){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;const input=await body(req),result=await testEngine(engineSave[1],input);if(!result.validated)return json(res,422,{error:{code:'engine_validation_failed',message:result.connection.safeError||'Engine validation did not succeed.'}});
           await engineSettings.save(engineSave[1],input,input.apiCredential);await rebuildFromSettings();await sync.startup();return json(res,200,{saved:true,settings:engineSettings.public(),validation:result});
         }
-        if(url.pathname==='/api/system/application-update'&&req.method==='GET')return json(res,200,{application:'VynodeArr',installedVersion:String(env.VYNODEARR_VERSION||'1.0.5'),channel:String(env.VYNODEARR_UPDATE_CHANNEL||'develop'),mechanism:'Container image',repository:'https://github.com/minerport/VynodeArr-Unified',message:'Pull the newest VynodeArr container image, then recreate the application container. Engine updates are managed separately.'});
+        if(url.pathname==='/api/system/application-update'&&req.method==='GET')return json(res,200,{application:'VynodeArr',installedVersion:String(env.VYNODEARR_VERSION||'1.0.6'),channel:String(env.VYNODEARR_UPDATE_CHANNEL||'develop'),mechanism:'Container image',repository:'https://github.com/minerport/VynodeArr-Unified',message:'Pull the newest VynodeArr container image, then recreate the application container. Engine updates are managed separately.'});
         const backupRestore=url.pathname.match(/^\/api\/system\/backups\/(movie|tv)\/(\d+)\/restore$/);
         if(backupRestore&&req.method==='POST'){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;
