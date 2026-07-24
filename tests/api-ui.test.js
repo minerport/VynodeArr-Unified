@@ -40,6 +40,7 @@ test('unified queue, history, calendar, health, and engine status',()=>fixtureSe
     const response=await get(base,path,cookie);assert.equal(response.status,200);const value=await response.json();assert.ok(value.items.length>=min,path);
   }
   const engines=await (await get(base,'/api/system/engines',cookie)).json();assert.equal(engines.engines.length,3);assert.equal(engines.engines.at(-1).domain,'requests');assert.equal(JSON.stringify(engines).includes('apiCredential'),false);
+  const requestSetup=await get(base,'/api/requests/setup/status',cookie);assert.equal(requestSetup.status,200);assert.equal(typeof (await requestSetup.json()).initialized,'boolean');
 }));
 test('public errors and health are neutral',async()=>{
   const directory=await mkdtemp(join(tmpdir(),'vynodearr-error-'));const app=createApplication({env:{VYNODEARR_DATA_MODE:'fixture',VYNODEARR_DATA_DIR:directory}});
@@ -51,5 +52,6 @@ test('UI exposes login, dashboard, media, operations, settings, and responsive s
   const html=await readFile(new URL('../apps/web/public/index.html',import.meta.url),'utf8');const script=await readFile(new URL('../apps/web/public/app.js',import.meta.url),'utf8');const css=await readFile(new URL('../apps/web/public/styles.css',import.meta.url),'utf8');
   for(const value of ['Create Administrator','Sign in','Username or email','Remember me','Forgot password','Movies','TV','Requests','Queue','History','Calendar','Settings','System','Read-only mode'])assert.match(html,new RegExp(value));
   for(const value of ['showDashboard','showHealth','healthFix','showMedia','showDetail','showOperational','showRequests','request-engine-frame','showSettings','showEngineSetup','showAccountSettings','showSessions','showUsers'])assert.match(script,new RegExp(value));
+  for(const value of ['CHECKING SETUP','Connect your media account','Set up Requests','/api/requests/setup/status'])assert.match(script,new RegExp(value));
   assert.match(css,/@media\(max-width:760px\)/);
 });

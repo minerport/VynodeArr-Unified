@@ -293,6 +293,15 @@ export function createApplication(options={}){
       }
       if(url.pathname.startsWith('/api/')){
         const session=requireSession(req,res,auth);if(!session)return;const sessionId=cookies(req.headers.cookie).vynodearr_session;
+        if(url.pathname==='/api/requests/setup/status'&&req.method==='GET'){
+          const status=await requestEngine.publicStatus();
+          return json(res,200,{
+            reachable:status.reachable,
+            initialized:Boolean(status.status?.initialized),
+            mediaServerType:status.settings?.mediaServerType||0,
+            version:status.status?.version||null
+          });
+        }
         if(url.pathname==='/api/import-jobs'&&req.method==='GET')return json(res,200,{items:[...importJobs.values()].filter(job=>job.userId===session.user.id).map(publicImportJob)});
         if(url.pathname==='/api/import-jobs'&&req.method==='POST'){if(!requireCsrf(req,res,session))return;return json(res,202,{job:startImportJob(session.user.id,await body(req,25_000_000))});}
         const importJobMatch=url.pathname.match(/^\/api\/import-jobs\/(import_[A-Za-z0-9-]+)$/);
