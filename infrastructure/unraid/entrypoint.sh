@@ -4,7 +4,8 @@ set -eu
 movie_config=/config/movies
 tv_config=/config/television
 app_config=/config/vynodearr
-mkdir -p "$movie_config" "$tv_config" "$app_config" /movies /tv /downloads
+request_config=/config/requests
+mkdir -p "$movie_config" "$tv_config" "$app_config" "$request_config" /movies /tv /downloads
 
 random_key() {
   od -An -N16 -tx1 /dev/urandom | tr -d ' \n'
@@ -26,16 +27,18 @@ env -u PORT /opt/vynodearr/movies/Radarr -nobrowser -data="$movie_config" &
 movie_pid=$!
 env -u PORT /opt/vynodearr/television/Sonarr -nobrowser -data="$tv_config" &
 tv_pid=$!
+(cd /opt/vynodearr/requests && PORT=5055 CONFIG_DIRECTORY="$request_config" node dist/index.js) &
+request_pid=$!
 node apps/api/src/server.js &
 app_pid=$!
 
 shutdown() {
-  kill -TERM "$app_pid" "$movie_pid" "$tv_pid" 2>/dev/null || true
-  wait "$app_pid" "$movie_pid" "$tv_pid" 2>/dev/null || true
+  kill -TERM "$app_pid" "$movie_pid" "$tv_pid" "$request_pid" 2>/dev/null || true
+  wait "$app_pid" "$movie_pid" "$tv_pid" "$request_pid" 2>/dev/null || true
 }
 trap shutdown INT TERM EXIT
 
-while kill -0 "$app_pid" 2>/dev/null && kill -0 "$movie_pid" 2>/dev/null && kill -0 "$tv_pid" 2>/dev/null; do
+while kill -0 "$app_pid" 2>/dev/null && kill -0 "$movie_pid" 2>/dev/null && kill -0 "$tv_pid" 2>/dev/null && kill -0 "$request_pid" 2>/dev/null; do
   sleep 2
 done
 exit 1

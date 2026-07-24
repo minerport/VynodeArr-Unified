@@ -8,8 +8,33 @@ services:
     environment:
       TZ: ${TZ:-America/New_York}
       VYNODEARR_SECURE_COOKIES: "false"
+      REQUEST_ENGINE_HOST: request-engine
+      REQUEST_ENGINE_PORT: "5055"
     volumes:
       - ./data:/config
       - ./movies:/movies
       - ./television:/tv
       - ./downloads:/downloads
+    depends_on:
+      request-engine:
+        condition: service_healthy
+
+  request-engine:
+    build:
+      context: https://github.com/minerport/VynodeSeerr.git#develop
+    image: vynodearr-request-engine:1.0
+    container_name: vynodearr-request-engine
+    restart: unless-stopped
+    init: true
+    environment:
+      PORT: "5055"
+      CONFIG_DIRECTORY: /app/config
+      TZ: ${TZ:-America/New_York}
+    volumes:
+      - ./requests:/app/config
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5055/api/v1/status').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 45s

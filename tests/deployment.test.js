@@ -18,6 +18,19 @@ test('production image is non-root and has a health check',async()=>{
   const text=await readFile(new URL('../Dockerfile',import.meta.url),'utf8');assert.match(text,/USER vynodearr/);assert.match(text,/HEALTHCHECK/);assert.match(text,/VYNODEARR_DATA_DIR=\/data/);
 });
 
+test('request engine is independently persisted and bundled without changing media engine ports',async()=>{
+  const [compose,image,entrypoint]=await Promise.all([
+    readFile(new URL('../compose.yaml',import.meta.url),'utf8'),
+    readFile(new URL('../Dockerfile.unraid',import.meta.url),'utf8'),
+    readFile(new URL('../infrastructure/unraid/entrypoint.sh',import.meta.url),'utf8')
+  ]);
+  for(const marker of ['request-engine','minerport/VynodeSeerr.git','request-engine-config','REQUEST_ENGINE_PORT'])assert.match(compose,new RegExp(marker));
+  for(const marker of ['VYNODESEERR_COMMIT','/opt/vynodearr/requests','REQUEST_ENGINE_PORT=5055'])assert.match(image,new RegExp(marker.replaceAll('/','\\/')));
+  assert.match(entrypoint,/CONFIG_DIRECTORY="\$request_config"/);
+  assert.match(entrypoint,/request_pid/);
+  assert.match(image,/MOVIE_ENGINE_PORT=7878 TV_ENGINE_HOST=127\.0\.0\.1 TV_ENGINE_PORT=8989/);
+});
+
 test('1.0 release includes self-contained Unraid and Windows distributions',async()=>{
   const [image,entrypoint,template,profile,windows]=await Promise.all([
     readFile(new URL('../Dockerfile.unraid',import.meta.url),'utf8'),
