@@ -18,13 +18,20 @@ function rewriteCookie(value,prefix){
   return String(value).replace(/;\s*Path=\/(?:;|$)/i,`; Path=${prefix};`);
 }
 
-function rewriteBody(value,prefix){
-  const escaped=prefix.replaceAll('/','\\/');
+function rewriteBody(value,prefix,contentType=''){
+  const isScript=contentType.includes('javascript');
+  if(isScript){
+    return value
+      .replace(/(["'`])\/api\/v1/g,`$1${prefix}/api/v1`)
+      .replace(/(["'`])\/_next/g,`$1${prefix}/_next`)
+      .replace(/(["'`])\/login\/plex\/loading/g,`$1${prefix}/login/plex/loading`)
+      .replace(/(["'`])\/(images|imageproxy|avatarproxy)\//g,`$1${prefix}/$2/`)
+      .replace(/(["'`])\/(android-|apple-|favicon|logo_|site\.webmanifest)/g,`$1${prefix}/$2`);
+  }
   return value
     .replaceAll('href="/"',`href="${prefix}/"`)
     .replaceAll('href="/login"',`href="${prefix}/login"`)
     .replaceAll('href:"/"',`href:"${prefix}/"`)
-    .replaceAll('\\/_next',`${escaped}\\/_next`)
     .replaceAll('/_next',`${prefix}/_next`)
     .replaceAll('/api/v1',`${prefix}/api/v1`)
     .replaceAll('/login/plex/loading',`${prefix}/login/plex/loading`)
@@ -86,7 +93,10 @@ export function createRequestEngineProxy({
       });
       response.on('end',()=>{
         if(finished)return;
-        const output=Buffer.from(rewriteBody(Buffer.concat(chunks).toString('utf8'),prefix));
+        const output=Buffer.from(rewriteBody(Buffer.concat(chunks).toString('utf8'),prefix,contentType));
+        delete responseHeaders.etag;
+        delete responseHeaders['last-modified'];
+        responseHeaders['cache-control']='no-store';
         responseHeaders['content-length']=String(output.length);
         res.writeHead(response.statusCode||502,responseHeaders);res.end(output);
       });

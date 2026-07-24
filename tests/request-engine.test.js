@@ -6,6 +6,10 @@ import { createRequestEngineProxy } from '../packages/request-domain/src/gateway
 test('request engine gateway rewrites subpath assets, APIs, redirects, and cookies',async()=>{
   const upstream=createServer((req,res)=>{
     if(req.url==='/login'){res.writeHead(302,{location:'/setup','set-cookie':'connect.sid=test; Path=/; HttpOnly'});return res.end();}
+    if(req.url==='/_next/app.js'){
+      res.writeHead(200,{'content-type':'application/javascript; charset=utf-8'});
+      return res.end('const endpoint="/api/v1/status"; const matcher=/api\\/v1/i;');
+    }
     res.writeHead(200,{'content-type':'text/html; charset=utf-8'});
     res.end('<a href="/">Home</a><script src="/_next/app.js"></script><script>fetch("/api/v1/status")</script><img src="/images/a.jpg">');
   });
@@ -20,6 +24,10 @@ test('request engine gateway rewrites subpath assets, APIs, redirects, and cooki
     assert.match(html,/\/requests\/_next\/app\.js/);
     assert.match(html,/\/requests\/api\/v1\/status/);
     assert.match(html,/\/requests\/images\/a\.jpg/);
+    const script=await fetch(`${base}/requests/_next/app.js`).then(response=>response.text());
+    assert.match(script,/endpoint="\/requests\/api\/v1\/status"/);
+    assert.match(script,/matcher=\/api\\\/v1\/i/);
+    assert.doesNotThrow(()=>new Function(script));
     const redirect=await fetch(`${base}/requests/login`,{redirect:'manual'});
     assert.equal(redirect.headers.get('location'),'/requests/setup');
     assert.match(redirect.headers.get('set-cookie'),/Path=\/requests/);
