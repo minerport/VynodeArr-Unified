@@ -1,125 +1,168 @@
 <p align="center">
-  <img src="assets/branding/VynodeArr.png" alt="VynodeArr" width="180">
+  <img src="assets/branding/VynodeArr.png" alt="VynodeArr logo" width="190">
 </p>
 
 <h1 align="center">VynodeArr</h1>
 
 <p align="center">
-  One self-hosted application for managing movies and television.
+  Movies and television, managed together.
 </p>
 
 <p align="center">
   <a href="https://github.com/minerport/VynodeArr-Unified/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/minerport/VynodeArr-Unified"></a>
-  <a href="https://github.com/minerport/VynodeArr-Unified/actions/workflows/verify.yml"><img alt="Build status" src="https://github.com/minerport/VynodeArr-Unified/actions/workflows/verify.yml/badge.svg"></a>
+  <a href="https://github.com/minerport/VynodeArr-Unified/actions/workflows/verify.yml"><img alt="Verification status" src="https://github.com/minerport/VynodeArr-Unified/actions/workflows/verify.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="Apache 2.0 license" src="https://img.shields.io/badge/license-Apache%202.0-blue.svg"></a>
-  <img alt="Platforms" src="https://img.shields.io/badge/platforms-Unraid%20%7C%20Windows-7c5cff">
+  <img alt="Unraid and Windows" src="https://img.shields.io/badge/platforms-Unraid%20%7C%20Windows-7c5cff">
 </p>
 
-VynodeArr combines movie and television acquisition, library management, monitoring, search, activity, and service configuration behind one consistent interface. Its bundled movie and television engines are installed, connected, and maintained automatically.
+VynodeArr is a self-hosted media-management application with one account system, one interface, and dedicated movie and television services operating behind its secure gateway. It brings library management, discovery, monitoring, acquisition, activity, and administration into a consistent VynodeArr experience.
 
-![VynodeArr dashboard](docs/unraid/dashboard.png)
+![VynodeArr movie library](docs/screenshots/movie-library.png)
 
-## Highlights
+## Why VynodeArr
 
-- Unified movie and television libraries with posters, fanart, details, monitoring, and independent saved layouts
-- Automatic and interactive searches for movies, shows, seasons, and individual episodes
-- Wanted views grouped by show and season, with availability and monitoring indicators
-- Combined calendar, sortable download queue, history, and actionable health reporting
-- Guided root-folder browser, quality profiles, indexers, download clients, and media-management forms
-- First-run administrator creation, local users, roles, active sessions, and encrypted credentials
-- Bundled and automatically connected movie and television engines
-- Compatibility API ports for applications such as Seerr
-- In-app configuration backup, download, upload, and restore workflows
-- Responsive VynodeArr interface without exposing the bundled engines' original web interfaces
+| One place for your media | Familiar control without the clutter | Built for real libraries |
+|---|---|---|
+| Browse movies, shows, seasons, episodes, wanted items, queue, history, and calendar from one sidebar. | Use guided forms for folders, profiles, indexers, clients, imports, backups, and service settings. | Bulk-edit large libraries, import in the background, monitor at every level, and keep movie and TV preferences independent. |
 
-## Install on Unraid
+## Feature tour
 
-VynodeArr uses one self-contained image:
+### Rich movie and television libraries
+
+- Poster, list, and compact layouts remembered independently for movies and television
+- Artwork-backed detail pages with monitoring, search, refresh, edit, and location controls
+- Movie filters for title, year, genre, and collection
+- Show, season, and episode monitoring with color-coded availability
+- Bulk profile, root-folder, availability, refresh, and removal actions
+
+### Search, acquire, and follow progress
+
+- Automatic and interactive search for movies, shows, seasons, and individual episodes
+- Release results with quality, size, source, status, and rejection reasons
+- Wanted views grouped by show and season
+- Sortable, filterable queue with download-client status and bulk actions
+- Unified calendar, history, health, and scheduled-task views
+
+### Flexible collections
+
+Build hand-picked collections or combine smart rules such as title, year, decade, genre, monitoring state, file availability, and an existing movie collection. Preview matches, keep earlier selections while trying new rules, and remove individual movies before saving.
+
+![VynodeArr collections](docs/screenshots/collections.png)
+
+### Administration without configuration files
+
+- First-run administrator creation and secure local accounts
+- User roles, active sessions, encrypted credentials, and engine-key controls
+- Visual root-folder browser, quality profiles, indexers, and download clients
+- Movie and television settings kept separate where their behavior differs
+- Backup creation, download, upload, and restore from the VynodeArr interface
+- Actionable health issues with direct links to the setting that needs attention
+
+## Install
+
+| Platform | Best for | Start here |
+|---|---|---|
+| Unraid | Always-on media servers | Use the Community Apps template or [`templates/vynodearr.xml`](templates/vynodearr.xml) |
+| Windows 10/11 x64 | Desktop testing or a Windows host | Download the Windows archive from the [latest release](https://github.com/minerport/VynodeArr-Unified/releases/latest) |
+
+### Unraid
+
+The container image is:
 
 ```text
 ghcr.io/minerport/vynodearr-unified:latest
 ```
 
-1. Download the [latest Unraid template](https://github.com/minerport/VynodeArr-Unified/releases/latest) or import [`templates/vynodearr.xml`](templates/vynodearr.xml).
-2. Keep `/config` mapped to `/mnt/user/appdata/vynodearr`.
-3. Select writable host folders for `/movies`, `/tv`, and `/downloads`.
-4. Install the container and open the WebUI on port `8686`.
-5. Create the first administrator account.
-6. Add indexers and download clients under **Service Settings**.
+1. Install VynodeArr from Community Apps, or import [`templates/vynodearr.xml`](templates/vynodearr.xml).
+2. Keep `/config` mapped to a persistent appdata folder.
+3. Map writable movie, television, and download folders.
+4. Open the WebUI on port `8686`.
+5. Create the first administrator.
+6. Confirm root folders, then add indexers and download clients under **Service Settings**.
 
-The movie and television engines are initialized and connected automatically. Do not delete `/config` when updating the container; it contains accounts, settings, engine databases, and other persistent state.
-
-### Unraid paths and ports
-
-| Container location | Purpose | Suggested Unraid mapping |
+| Container path | Purpose | Example Unraid path |
 |---|---|---|
-| `/config` | Application accounts, settings, databases, and backups | `/mnt/user/appdata/vynodearr` |
+| `/config` | Accounts, settings, databases, and backups | `/mnt/user/appdata/vynodearr` |
 | `/movies` | Movie library | `/mnt/user/media/movies` |
 | `/tv` | Television library | `/mnt/user/media/tv` |
-| `/downloads` | Shared download-client data | `/mnt/user/downloads` |
-| `8686` | VynodeArr WebUI | Required |
+| `/downloads` | Shared completed-download data | `/mnt/user/downloads` |
+| `8686` | VynodeArr WebUI and compatibility gateway | Required |
 
-For normal Unraid HTTP access, keep `VYNODEARR_SECURE_COOKIES=false`. Set it to `true` only when VynodeArr is always accessed through HTTPS.
+> Keep `/config` when updating or recreating the container. It contains the application state and both service databases.
 
-![VynodeArr first-run administrator setup](docs/unraid/first-run.png)
+For normal Unraid HTTP access, leave `VYNODEARR_SECURE_COOKIES=false`. Enable secure cookies only when VynodeArr is always accessed over HTTPS.
 
-## Install on Windows
+### Windows
 
-Windows 10 or 11 x64 and Docker Desktop with Linux containers are required.
+Docker Desktop with Linux containers is required.
 
 1. Download `VynodeArr-Windows-x64-<version>.zip` from the [latest release](https://github.com/minerport/VynodeArr-Unified/releases/latest).
-2. Extract the archive to a permanent folder.
+2. Extract it to a permanent folder.
 3. Run `Start-VynodeArr.ps1`.
-4. Open [http://localhost:8686](http://localhost:8686) and create the first administrator.
+4. Open [http://localhost:8686](http://localhost:8686).
+5. Create the first administrator and complete the same guided setup.
 
-Run `Stop-VynodeArr.ps1` to stop the application without removing its data.
+Run `Stop-VynodeArr.ps1` to stop VynodeArr without removing its data.
 
-## First steps
-
-After signing in:
+## First-run checklist
 
 1. Open **Service Settings → Root Folders** and confirm the movie and television locations.
-2. Configure quality profiles for each library.
-3. Add indexers and a download client.
-4. Use **Add Media** to search for a movie or show and choose its folder, profile, and monitoring behavior.
-5. Check **Health** on the dashboard for configuration issues and direct links to resolve them.
+2. Review the quality profiles for each library.
+3. Add at least one indexer and download client.
+4. Ensure the same completed-download folder is visible to VynodeArr and the download client.
+5. Add or import media and choose monitoring behavior.
+6. Open **Health** from the dashboard to resolve any remaining setup issues.
 
-## Connecting Seerr and other request applications
+## Connect Seerr or another request application
 
-Use the VynodeArr server's address and WebUI port for both services:
+Use the VynodeArr server address and port `8686` for both services:
 
-- Hostname: `YOUR-SERVER-IP`
-- Port: `8686`
-- Movie URL Base: `/movies`
-- Television URL Base: `/tv`
+| Service | URL base |
+|---|---|
+| Movies | `/movies` |
+| Television | `/tv` |
 
-Administrators can reveal or generate each engine API key from **Account Settings → Engines**. If a key is regenerated, update every external application that uses it.
+Administrators can reveal or generate the individual API keys under **Account Settings → Engines**. Regenerating a key requires updating every external application that uses it.
 
-## Updates and data protection
+## Updates, backups, and removal
 
-- On Unraid, update or force-update the container to pull the latest image.
-- Keep the `/config` mapping when recreating or updating the container.
-- Before uninstalling, create and download both backups from **System → Backups**.
-- A fresh installation can upload and restore previously downloaded backup files.
-- Media files remain in the mapped `/movies` and `/tv` locations and are not stored inside the container.
+- On Unraid, update the container to pull the newest image.
+- Never remove the persistent `/config` mapping during an update.
+- Create and download both backups from **System → Backups** before uninstalling.
+- A new installation can upload and restore downloaded backup files.
+- Library media remains in `/movies` and `/tv`; it is not stored inside the application container.
 
 ## Troubleshooting
 
-### I am signed out immediately after login
+<details>
+<summary><strong>I am signed out immediately after login</strong></summary>
 
-Update to the latest image and ensure `VYNODEARR_SECURE_COOKIES=false` when accessing the WebUI over HTTP. If necessary, clear cookies for the server address and sign in again.
+Update to the latest image and use `VYNODEARR_SECURE_COOKIES=false` when accessing VynodeArr over HTTP. Clear cookies for the server address before signing in again.
+</details>
 
-### An engine or integration shows unhealthy
+<details>
+<summary><strong>A service or integration is unhealthy</strong></summary>
 
-Select **Health** on the dashboard. Movie and television issues are separated and include links to the applicable root-folder, indexer, download-client, quality-profile, storage, or advanced settings page.
+Open **Health** from the dashboard. Movie and television issues are separated and link directly to the applicable root-folder, indexer, download-client, quality-profile, storage, or advanced setting.
+</details>
 
-### A local download client cannot be reached
+<details>
+<summary><strong>A download completed but cannot be imported</strong></summary>
 
-Inside a container, `localhost` refers to that container—not the Unraid host. Use the host's LAN IP address and ensure the download client listens on an address accessible from the Docker network.
+The download client and VynodeArr must see the completed folder through compatible container paths. Confirm that `/downloads` maps to the host folder used by the client, and review remote path mappings when the applications use different paths.
+</details>
 
-### Artwork is missing
+<details>
+<summary><strong>A local service cannot be reached</strong></summary>
 
-Use **Refresh & scan** for the affected title and confirm both bundled engines report healthy. Artwork is proxied through the authenticated VynodeArr gateway.
+Inside a container, `localhost` refers to that container, not the Unraid host. Use the host LAN address or a shared Docker network address and make sure the target service listens on that interface.
+</details>
+
+<details>
+<summary><strong>Artwork is missing</strong></summary>
+
+Run **Refresh & scan** for the affected title and check **Health** for connectivity or storage issues. Artwork is served through the authenticated VynodeArr gateway.
+</details>
 
 ## Development
 
@@ -130,15 +173,15 @@ docker compose up --build -d
 
 The development interface opens at [http://localhost:4310](http://localhost:4310).
 
-Run the full verification suite with:
+Run the full verification suite:
 
 ```text
 npm run verify
 ```
 
-Architecture and implementation documentation is available in [`docs/`](docs/). Start with:
+More documentation:
 
-- [VynodeArr architecture](docs/VYNODEARR_ARCHITECTURE.md)
+- [Architecture](docs/VYNODEARR_ARCHITECTURE.md)
 - [Authentication and accounts](docs/AUTHENTICATION.md)
 - [Management gateway](docs/N4_MANAGEMENT_GATEWAY.md)
 - [Interaction parity](docs/N5_INTERACTION_PARITY.md)
@@ -146,4 +189,4 @@ Architecture and implementation documentation is available in [`docs/`](docs/). 
 
 ## License and acknowledgements
 
-VynodeArr source code is licensed under the [Apache License 2.0](LICENSE). Bundled third-party components retain their own licenses and notices; see [`THIRD_PARTY_NOTICES`](THIRD_PARTY_NOTICES).
+VynodeArr source code is licensed under the [Apache License 2.0](LICENSE). Bundled third-party components retain their respective licenses and notices; see [`THIRD_PARTY_NOTICES`](THIRD_PARTY_NOTICES).

@@ -45,8 +45,8 @@ export function createApplication(options={}){
   const registry=options.registry||new MediaEngineRegistry().register('movie',movie).register('tv',tv);
   const sync=options.sync||new SynchronizationService({movie,tv,maxItems:baseConfig.cacheMaxItems,pollIntervalMs:baseConfig.pollIntervalMs,projectionStore});
   const management=new EngineManagementService(registry);
-  const importJobs=new Map(),searchJobs=new Map();
-  let initialized=false;
+  const importJobs=new Map(),searchJobs=new Map(),completedQueueRefreshes=new Map();
+  let initialized=false,queueCompletionTimer=null;
   function importIdentityKeys(value={}){
     const keys=[],title=String(value.title||value.name||'').trim().toLowerCase(),year=Number(value.year||0);
     for(const field of ['tmdbId','tvdbId','imdbId'])if(value[field])keys.push(`${field}:${String(value[field]).toLowerCase()}`);
@@ -111,8 +111,17 @@ export function createApplication(options={}){
     const movieId=Number(input.movieId),episodeId=Number(input.episodeId),seriesId=Number(input.seriesId);
     if(domain==='movie'&&!Number.isFinite(movieId))throw new Error('Choose the movie that owns this file');
     if(domain==='tv'&&(!Number.isFinite(episodeId)||!Number.isFinite(seriesId)))throw new Error('Choose the television episode that owns this file');
-    const identityQuery=domain==='movie'?{movieId}:{seriesId};
-    const value=await management.execute(domain,'manualImport','GET',{query:{...identityQuery,filterExistingFiles:false}});
+    const selectedFolder=selectedPath.slice(0,selectedPath.lastIndexOf('/'))||'/';
+    if(domain==='movie'){
+      const movieRecord=await management.execute('movie','library','GET',{id:movieId});
+      await management.execute('movie','library','PUT',{id:movieId,query:{moveFiles:false},payload:{...movieRecord,path:selectedFolder}});
+      const result=await management.execute('movie','commands','POST',{payload:{name:'RefreshMovie',movieIds:[movieId]}});
+      sync.invalidate('movie');
+      setTimeout(()=>sync.synchronize('movie').catch(()=>{}),5_000);
+      setTimeout(()=>sync.synchronize('movie').catch(()=>{}),20_000);
+      return result;
+    }
+    const value=await management.execute(domain,'manualImport','GET',{query:{seriesId,folder:selectedFolder,filterExistingFiles:false}});
     const candidates=Array.isArray(value)?value:value?.records||[],normalize=value=>String(value||'').replaceAll('\\','/').replace(/\/+$/,'').toLowerCase();
     const candidate=candidates.find(item=>normalize(item.path)===normalize(selectedPath));
     if(!candidate)throw new Error('The selected file could not be validated by the media service');
@@ -123,6 +132,63 @@ export function createApplication(options={}){
     const result=await management.execute(domain,'commands','POST',{payload:{name:'ManualImport',files:[file],importMode:'Auto',priority:'high'}});
     sync.invalidate(domain);setTimeout(()=>sync.synchronize(domain).catch(()=>{}),2_000);
     return result;
+  }
+  const normalizeMediaPath=value=>String(value||'').replaceAll('\\','/').replace(/\/+$/,'');
+  const parentMediaPath=value=>{
+    const path=normalizeMediaPath(value),index=path.lastIndexOf('/');
+    return index>0?path.slice(0,index):'/';
+  };
+  const joinMediaPath=(root,folder)=>{
+    const separator=String(root||'').includes('\\')?'\\':'/';
+    return `${String(root||'').replace(/[\\/]+$/,'')}${separator}${String(folder||'').replace(/^[\\/]+/,'')}`;
+  };
+  async function renameMediaPreview(input){
+    const domain=String(input.domain||''),mediaId=Number(input.mediaId);
+    if(!['movie','tv'].includes(domain)||!Number.isFinite(mediaId))throw new Error('Choose a movie or television series to organize');
+    const record=await management.execute(domain,'library','GET',{id:mediaId});
+    const folderResult=await management.execute(domain,'libraryFolder','GET',{id:mediaId});
+    const folder=String(folderResult?.folder||'').trim();
+    if(!folder)throw new Error('The media service could not calculate the configured folder name');
+    const rootFolderPath=String(record.rootFolderPath||parentMediaPath(record.path));
+    const destinationPath=joinMediaPath(rootFolderPath,folder);
+    const renameItems=await management.execute(domain,'renamePreview','GET',{query:domain==='movie'?{movieId:mediaId}:{seriesId:mediaId}});
+    return{
+      domain,mediaId,title:record.title,currentPath:record.path,rootFolderPath,destinationPath,folderChange:normalizeMediaPath(record.path)!==normalizeMediaPath(destinationPath),
+      files:(Array.isArray(renameItems)?renameItems:[]).map(item=>({
+        id:item.movieFileId??item.episodeFileId??item.id,
+        existingPath:item.existingPath||item.path||'',
+        newPath:item.newPath||''
+      }))
+    };
+  }
+  async function renameMedia(input){
+    const preview=await renameMediaPreview(input),domain=preview.domain,mediaId=preview.mediaId;
+    if(preview.folderChange){
+      const record=await management.execute(domain,'library','GET',{id:mediaId});
+      await management.execute(domain,'library','PUT',{id:mediaId,query:{moveFiles:true},payload:{...record,path:preview.destinationPath,rootFolderPath:preview.rootFolderPath}});
+    }
+    const command=await management.execute(domain,'commands','POST',{payload:domain==='movie'?{name:'RenameMovie',movieIds:[mediaId]}:{name:'RenameSeries',seriesIds:[mediaId]}});
+    sync.invalidate(domain);
+    for(const delay of [2_000,10_000,30_000])setTimeout(()=>sync.synchronize(domain).catch(()=>{}),delay);
+    return{preview,command};
+  }
+  function queueRecordKey(domain,item){
+    return `${domain}:${String(item.id||item.downloadId||item.downloadClientId||item.title||'unknown')}`;
+  }
+  function scheduleCompletedMediaRefresh(domain,item){
+    const mediaId=Number(domain==='movie'?(item.movieId||item.movie?.id):(item.seriesId||item.series?.id||item.episode?.seriesId));
+    if(!Number.isFinite(mediaId))return;
+    const key=queueRecordKey(domain,item),last=completedQueueRefreshes.get(key)||0,now=Date.now();
+    if(now-last<30*60*1000)return;
+    completedQueueRefreshes.set(key,now);
+    const payload=domain==='movie'?{name:'RefreshMovie',movieIds:[mediaId]}:{name:'RefreshSeries',seriesId:mediaId};
+    for(const delay of [2_000,15_000]){
+      setTimeout(async()=>{
+        try{await management.execute(domain,'commands','POST',{payload});sync.invalidate(domain);await sync.synchronize(domain);}
+        catch{}
+      },delay);
+    }
+    if(completedQueueRefreshes.size>2_000)for(const [recordKey,timestamp] of completedQueueRefreshes)if(now-timestamp>24*60*60*1000)completedQueueRefreshes.delete(recordKey);
   }
   const importPaceMs=Math.max(0,Math.min(2000,Number(env.VYNODEARR_IMPORT_PACE_MS||25)));
   const pause=(milliseconds)=>new Promise(resolve=>setTimeout(resolve,milliseconds));
@@ -230,6 +296,11 @@ export function createApplication(options={}){
       console.warn('Engine startup synchronization deferred:',redact(error?.safeMessage||error?.message||'Engine unavailable'));
     }
     sync.startPolling();
+    if(mode==='engine'&&!queueCompletionTimer){
+      const interval=Math.max(10_000,Number(env.VYNODEARR_QUEUE_COMPLETION_POLL_MS||15_000));
+      queueCompletionTimer=setInterval(()=>liveQueue().catch(()=>{}),interval);
+      queueCompletionTimer.unref?.();
+    }
     initialized=true;
   }
   async function testEngine(domain,input){
@@ -300,6 +371,10 @@ export function createApplication(options={}){
         client.get(domain==='movie'?'movie':'series').catch(()=>[])
       ]);
       const records=Array.isArray(queueValue?.records)?queueValue.records:[],libraryById=new Map((Array.isArray(library)?library:[]).map(item=>[Number(item.id),item]));
+      for(const item of records){
+        const status=String(item.status||item.trackedDownloadStatus||item.trackedDownloadState||'').toLowerCase(),sizeLeft=Number(item.sizeleft??item.sizeLeft??0);
+        if((status==='completed'||status==='complete')&&sizeLeft<=0)scheduleCompletedMediaRefresh(domain,item);
+      }
       return records.filter(item=>{
         const mediaId=Number(domain==='movie'?(item.movieId||item.movie?.id):(item.seriesId||item.series?.id||item.episode?.seriesId));
         const status=String(item.status||item.trackedDownloadStatus||item.trackedDownloadState||'').toLowerCase(),sizeLeft=Number(item.sizeleft??item.sizeLeft??0);
@@ -416,7 +491,7 @@ export function createApplication(options={}){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;const input=await body(req),result=await testEngine(engineSave[1],input);if(!result.validated)return json(res,422,{error:{code:'engine_validation_failed',message:result.connection.safeError||'Engine validation did not succeed.'}});
           await engineSettings.save(engineSave[1],input,input.apiCredential);await rebuildFromSettings();await sync.startup();return json(res,200,{saved:true,settings:engineSettings.public(),validation:result});
         }
-        if(url.pathname==='/api/system/application-update'&&req.method==='GET')return json(res,200,{application:'VynodeArr',installedVersion:String(env.VYNODEARR_VERSION||'1.0.17'),channel:String(env.VYNODEARR_UPDATE_CHANNEL||'develop'),mechanism:'Container image',repository:'https://github.com/minerport/VynodeArr-Unified',message:'Pull the newest VynodeArr container image, then recreate the application container. Engine updates are managed separately.'});
+        if(url.pathname==='/api/system/application-update'&&req.method==='GET')return json(res,200,{application:'VynodeArr',installedVersion:String(env.VYNODEARR_VERSION||'1.0.18'),channel:String(env.VYNODEARR_UPDATE_CHANNEL||'develop'),mechanism:'Container image',repository:'https://github.com/minerport/VynodeArr-Unified',message:'Pull the newest VynodeArr container image, then recreate the application container. Engine updates are managed separately.'});
         const backupRestore=url.pathname.match(/^\/api\/system\/backups\/(movie|tv)\/(\d+)\/restore$/);
         if(backupRestore&&req.method==='POST'){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;
@@ -461,6 +536,10 @@ export function createApplication(options={}){
           const input=await body(req),name=String(input.name||'').trim(),type=input.type==='smart'?'smart':'custom',rules=input.rules&&typeof input.rules==='object'?input.rules:{titleContains:String(input.titleContains||'').trim()};
           if(!name)throw new Error('Collection name is required');
           if(type==='smart'&&!Object.values(rules).some(value=>Array.isArray(value)?value.length:Boolean(value)))throw new Error('Smart collections require at least one rule');
+          if(type==='smart'&&String(rules.titleContains||'').trim()){
+            const title=String(rules.titleContains).trim().toLowerCase(),movies=await sync.list('movie');
+            if(movies.filter(movie=>String(movie.title||'').toLowerCase().includes(title)).length<2)throw new Error('A title-based smart collection requires at least two matching movies');
+          }
           const stored=await collectionStore.read(),collections=stored.collections||[];
           if(collections.some(collection=>collection.name.toLowerCase()===name.toLowerCase()))throw new Error('A collection with this name already exists');
           const collection={id:`collection_${randomUUID()}`,name,type,rules:type==='smart'?rules:{},movieIds:type==='custom'?[...new Set((input.movieIds||[]).map(String))]:[],includedMovieIds:type==='smart'?[...new Set((input.includedMovieIds||[]).map(String))]:[],excludedMovieIds:type==='smart'?[...new Set((input.excludedMovieIds||[]).map(String))]:[],createdAt:new Date().toISOString()};
@@ -474,6 +553,10 @@ export function createApplication(options={}){
           const name=String(input.name||'').trim(),type=input.type==='smart'?'smart':'custom',rules=input.rules&&typeof input.rules==='object'?input.rules:{};
           if(!name)throw new Error('Collection name is required');
           if(type==='smart'&&!Object.values(rules).some(value=>Array.isArray(value)?value.length:Boolean(value)))throw new Error('Smart collections require at least one rule');
+          if(type==='smart'&&String(rules.titleContains||'').trim()){
+            const title=String(rules.titleContains).trim().toLowerCase(),movies=await sync.list('movie');
+            if(movies.filter(movie=>String(movie.title||'').toLowerCase().includes(title)).length<2)throw new Error('A title-based smart collection requires at least two matching movies');
+          }
           if(collections.some((collection,collectionIndex)=>collectionIndex!==index&&collection.name.toLowerCase()===name.toLowerCase()))throw new Error('A collection with this name already exists');
           collections[index]={...collections[index],name,type,rules:type==='smart'?rules:{},movieIds:type==='custom'?[...new Set((input.movieIds||[]).map(String))]:[],includedMovieIds:type==='smart'?[...new Set((input.includedMovieIds||[]).map(String))]:[],excludedMovieIds:type==='smart'?[...new Set((input.excludedMovieIds||[]).map(String))]:[],updatedAt:new Date().toISOString()};
           await collectionStore.write({version:1,collections});return json(res,200,{item:collections[index]});
@@ -484,6 +567,8 @@ export function createApplication(options={}){
           await collectionStore.write({version:1,collections});return json(res,200,{deleted:true});
         }
         if(url.pathname==='/api/media-files/reassign'&&req.method==='POST'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;return json(res,200,{reassigned:true,result:await reassignMediaFile(await body(req))});}
+        if(url.pathname==='/api/media-files/rename'&&req.method==='GET'){if(!administrator(res,session))return;return json(res,200,{preview:await renameMediaPreview(Object.fromEntries(url.searchParams))});}
+        if(url.pathname==='/api/media-files/rename'&&req.method==='POST'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;return json(res,202,{queued:true,result:await renameMedia(await body(req))});}
         const catalogMatch=url.pathname.match(/^\/api\/manage\/(movie|tv)$/);
         if(catalogMatch&&req.method==='GET'){if(!administrator(res,session))return;return json(res,200,{domain:catalogMatch[1],available:management.available(catalogMatch[1]),resources:management.catalog(catalogMatch[1])});}
         const automaticSearchMatch=url.pathname.match(/^\/api\/manage\/(movie|tv)\/automaticSearch$/);

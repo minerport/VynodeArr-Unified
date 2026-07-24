@@ -46,6 +46,7 @@ const sharedResources=Object.freeze({
 const domainResources=Object.freeze({
   movie:{
     library:{path:'movie',methods:['GET','POST','PUT','DELETE']},
+    libraryFolder:{path:'movie',suffix:'folder',methods:['GET']},
     libraryEditor:{path:'movie/editor',methods:['PUT','DELETE']},
     lookup:{path:'movie/lookup',methods:['GET']},
     exclusions:{path:'exclusions',methods:['GET','POST','DELETE']},
@@ -55,6 +56,7 @@ const domainResources=Object.freeze({
   },
   tv:{
     library:{path:'series',methods:['GET','POST','PUT','DELETE']},
+    libraryFolder:{path:'series',suffix:'folder',methods:['GET']},
     libraryEditor:{path:'series/editor',methods:['PUT','DELETE']},
     lookup:{path:'series/lookup',methods:['GET']},
     episodes:{path:'episode',methods:['GET','PUT']},
@@ -81,7 +83,7 @@ export class EngineManagementService {
     if(!definition||!definition.methods.includes(method))throw new Error('This management operation is not available');
     const singleton=['naming','mediaManagement','downloadClientSettings','hostSettings','uiSettings','metadataSource','libraryEditor'];
     if((method==='PUT'||method==='DELETE')&&!id&&!singleton.includes(resource))throw new Error('A resource identifier is required');
-    const path=id?`${definition.path}/${encodeURIComponent(String(id))}`:definition.path;
+    const path=id?`${definition.path}/${encodeURIComponent(String(id))}${definition.suffix?`/${definition.suffix}`:''}`:definition.path;
     const client=this.registry.get(domain).client;
     if(!client)throw new Error('The connected engine does not support management');
     if(method==='GET')return client.get(path,cleanQuery(query));

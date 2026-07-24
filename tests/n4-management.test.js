@@ -18,6 +18,7 @@ test('management gateway exposes native capabilities and forwards only allowlist
   assert.equal(service.available('movie'),true);
   const catalog=service.catalog('movie');
   assert.ok(catalog.some((item)=>item.key==='library'&&item.methods.includes('PUT')));
+  assert.ok(catalog.some((item)=>item.key==='libraryFolder'&&item.methods.includes('GET')));
   assert.ok(catalog.some((item)=>item.key==='libraryEditor'&&item.methods.includes('DELETE')));
   assert.ok(catalog.some((item)=>item.key==='indexers'&&item.methods.includes('POST')));
   for(const key of ['calendar','wantedMissing','blocklist','releases','filesystem','remotePathMappings','indexerSchemas','downloadClientSettings','diskSpace','tasks','backups','updates','events'])assert.ok(catalog.some((item)=>item.key===key),key);
@@ -26,8 +27,9 @@ test('management gateway exposes native capabilities and forwards only allowlist
   await service.execute('movie','library','PUT',{id:7,payload:{id:7,monitored:true},query:{moveFiles:'true'}});
   await service.execute('movie','library','DELETE',{id:7});
   await service.execute('movie','libraryEditor','DELETE',{payload:{movieIds:[7],deleteFiles:false}});
+  await service.execute('movie','libraryFolder','GET',{id:7});
   assert.deepEqual(calls.map((call)=>call.slice(0,2)),[
-    ['GET','qualityprofile'],['POST','movie'],['PUT','movie/7'],['DELETE','movie/7'],['DELETE','movie/editor']
+    ['GET','qualityprofile'],['POST','movie'],['PUT','movie/7'],['DELETE','movie/7'],['DELETE','movie/editor'],['GET','movie/7/folder']
   ]);
   assert.deepEqual(calls[2][3],{moveFiles:'true'});
   assert.deepEqual(calls[4][2],{movieIds:[7],deleteFiles:false});
@@ -84,6 +86,7 @@ test('native interaction workflows replace an upstream-shaped generic shell',asy
   for(const workflow of ['reassignMediaFile','/api/media-files/reassign','filterExistingFiles:false',"name:'ManualImport'","importMode:'Auto'",'Choose movie file','episode-change-file','CHOOSE MEDIA FILE','This replaces its stale file association'])assert.ok(script.includes(workflow)||apiSource.includes(workflow),workflow);
   for(const workflow of ['queue-removing',"button.classList.add('activated')","button.textContent='Removing…'",'queue-select-all','queue-select-completed','queue-status-filter','queue-media-filter','queue-source-filter','removeQueueButton'])assert.ok(script.includes(workflow),workflow);
   for(const workflow of ['showCollectionsV2','collection-builder-layout','LIVE PREVIEW','titleContains','genres','decade','includedMovieIds','excludedMovieIds','Retained from earlier rule','remove-preview-movie','Edit rules & movies'])assert.ok(script.includes(workflow)||apiSource.includes(workflow),workflow);
+  for(const workflow of ['Rename & organize','Rename selected','/api/media-files/rename',"name:'RenameMovie'","name:'RenameSeries'",'moveFiles:true','libraryFolder'])assert.ok(script.includes(workflow)||apiSource.includes(workflow),workflow);
 });
 
 test('environment engine credentials auto-configure the private gateway once',async()=>{
