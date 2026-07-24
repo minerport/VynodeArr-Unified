@@ -10,7 +10,7 @@ export class ReadOnlyEngineClient {
     for(const [key,value] of Object.entries(query))if(value!=null)url.searchParams.set(key,value);
     return url;
   }
-  #request(url,{method='GET',payload}={}){
+  #request(url,{method='GET',payload,timeoutMs=this.config.timeoutMs}={}){
     return new Promise((resolve,reject)=>{
       const transport=url.protocol==='https:'?httpsRequest:httpRequest;
       const encoded=payload===undefined?null:Buffer.from(JSON.stringify(payload));
@@ -34,7 +34,7 @@ export class ReadOnlyEngineClient {
           try{resolve(JSON.parse(text));}catch{reject(engineError.invalid());}
         });
       });
-      req.setTimeout(this.config.timeoutMs,()=>req.destroy(engineError.timeout(this.domain)));
+      req.setTimeout(timeoutMs,()=>req.destroy(engineError.timeout(this.domain)));
       req.on('error',reject);if(encoded)req.write(encoded);req.end();
     });
   }
@@ -73,7 +73,8 @@ export class ReadOnlyEngineClient {
   }
   async mutate(method,path,payload,query){
     if(!this.config.enabled)throw engineError.unavailable(this.domain);
-    try{return await this.#request(this.buildUrl(path,query),{method,payload});}
+    const timeoutMs=Math.max(Number(this.config.timeoutMs)||0,method==='POST'&&String(path).replace(/^\/+/,'')==='release'?120_000:30_000);
+    try{return await this.#request(this.buildUrl(path,query),{method,payload,timeoutMs});}
     catch(error){if(error?.safeMessage)throw error;throw engineError.unavailable(this.domain);}
   }
   post(path,payload,query){return this.mutate('POST',path,payload,query);}
