@@ -11,7 +11,16 @@ button,[role="button"],a[class*="button"]{border-radius:10px!important}
 button[class*="primary"],a[class*="primary"],button[type="submit"]{background:linear-gradient(135deg,var(--vynodearr-violet),#9347ed)!important}
 input,select,textarea{border-radius:9px!important}
 nav,aside,header{backdrop-filter:blur(18px)}
+body.vynodearr-embedded img[src*="logo_full"],body.vynodearr-embedded img[alt="Seerr"],body.vynodearr-embedded a[href="/"]>img{display:none!important}
 </style>`;
+const vynodeArrBridge=`<script id="vynodearr-request-bridge">
+(()=>{if(window.self!==window.top)document.body?.classList.add('vynodearr-embedded');
+const rename=()=>{document.title='VynodeArr Requests';document.body?.classList.toggle('vynodearr-embedded',window.self!==window.top);
+const walker=document.createTreeWalker(document.body||document.documentElement,NodeFilter.SHOW_TEXT);let node;
+while(node=walker.nextNode()){if(node.parentElement?.closest('script,style'))continue;const value=node.nodeValue||'';
+if(/seerr/i.test(value))node.nodeValue=value.replace(/Welcome to Seerr/gi,'Welcome to VynodeArr Requests').replace(/Seerr/gi,'VynodeArr Requests');}}
+rename();new MutationObserver(rename).observe(document.documentElement,{subtree:true,childList:true});})();
+</script>`;
 
 function rewriteLocation(value,prefix){
   if(!value)return value;
@@ -47,7 +56,7 @@ function rewriteBody(value,prefix,contentType=''){
     .replace(/(["'(])\/(images|imageproxy|avatarproxy)\//g,`$1${prefix}/$2/`)
     .replace(/(["'(])\/(android-|apple-|favicon|logo_|site\.webmanifest)/g,`$1${prefix}/$2`);
   return contentType.includes('text/html')&&!rewritten.includes('vynodearr-request-theme')
-    ?(rewritten.includes('</head>')?rewritten.replace('</head>',`${vynodeArrTheme}</head>`):`${vynodeArrTheme}${rewritten}`)
+    ?(rewritten.includes('</head>')?rewritten.replace('</head>',`${vynodeArrTheme}${vynodeArrBridge}</head>`):`${vynodeArrTheme}${vynodeArrBridge}${rewritten}`)
     :rewritten;
 }
 
