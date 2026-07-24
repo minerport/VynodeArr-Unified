@@ -62,24 +62,25 @@ export function createApplication(options={}){
   };
   const eligibleRelease=(release)=>Boolean(release)&&release.rejected!==true&&release.approved!==false&&release.downloadAllowed!==false&&!(release.rejections||[]).length;
   const compareReleases=(left,right)=>qualityRank(right)-qualityRank(left)||Number(right.customFormatScore||0)-Number(left.customFormatScore||0)||Number(left.size||Number.MAX_SAFE_INTEGER)-Number(right.size||Number.MAX_SAFE_INTEGER);
-  const importPaceMs=Math.max(0,Math.min(2000,Number(env.VYNODEARR_IMPORT_PACE_MS||200)));
+  const importPaceMs=Math.max(0,Math.min(2000,Number(env.VYNODEARR_IMPORT_PACE_MS||25)));
   const pause=(milliseconds)=>new Promise(resolve=>setTimeout(resolve,milliseconds));
   function startImportJob(userId,input){
     const domain=input.domain,label=domain==='movie'?'Movies':'Television',items=Array.isArray(input.items)?input.items:[];
     if(!['movie','tv'].includes(domain)||!items.length||items.length>5000)throw new Error('Select between 1 and 5,000 titles to import');
-    const job={id:`import_${randomUUID()}`,userId,domain,label,status:'queued',total:items.length,completed:0,skipped:0,failed:0,currentTitle:null,errors:[],createdAt:new Date().toISOString(),finishedAt:null};
+    const job={id:`import_${randomUUID()}`,userId,domain,label,status:'queued',total:items.length,completed:0,skipped:0,failed:0,currentTitle:null,errors:[],createdAt:new Date().toISOString(),finishedAt:null,cancelRequested:false};
     importJobs.set(job.id,job);
     void(async()=>{
       job.status='running';const known=new Set();
       try{const existing=await management.execute(domain,'library','GET',{});for(const record of Array.isArray(existing)?existing:existing?.records||[])for(const key of importIdentityKeys(record))known.add(key);}catch{}
       for(const item of items){
+        if(job.cancelRequested)break;
         job.currentTitle=String(item.title||'Untitled');const keys=importIdentityKeys(item.payload),duplicate=keys.some(key=>known.has(key));
         if(duplicate){job.skipped+=1;continue;}
-        try{await management.execute(domain,'library','POST',{payload:item.payload});job.completed+=1;for(const key of keys)known.add(key);}
+        try{await management.execute(domain,'library','POST',{payload:item.payload});job.completed+=1;for(const key of keys)known.add(key);if(job.completed%50===0){sync.invalidate(domain);void sync.synchronize(domain).catch(()=>{});}}
         catch(error){const message=redact(error?.safeMessage||error?.message||'Import failed');if(duplicateImportError(message))job.skipped+=1;else{job.failed+=1;job.errors.push({title:job.currentTitle,message});}}
         if(importPaceMs)await pause(importPaceMs);
       }
-      job.currentTitle=null;job.status=job.failed===job.total?'failed':'completed';job.finishedAt=new Date().toISOString();sync.invalidate(domain);setTimeout(()=>sync.synchronize(domain).catch(()=>{}),10_000);setTimeout(()=>importJobs.delete(job.id),6*60*60*1000);
+      job.currentTitle=null;job.status=job.cancelRequested?'canceled':job.failed===job.total?'failed':'completed';job.finishedAt=new Date().toISOString();sync.invalidate(domain);setTimeout(()=>sync.synchronize(domain).catch(()=>{}),10_000);setTimeout(()=>importJobs.delete(job.id),6*60*60*1000);
     })();
     return publicImportJob(job);
   }
@@ -233,6 +234,8 @@ export function createApplication(options={}){
         const session=requireSession(req,res,auth);if(!session)return;const sessionId=cookies(req.headers.cookie).vynodearr_session;
         if(url.pathname==='/api/import-jobs'&&req.method==='GET')return json(res,200,{items:[...importJobs.values()].filter(job=>job.userId===session.user.id).map(publicImportJob)});
         if(url.pathname==='/api/import-jobs'&&req.method==='POST'){if(!requireCsrf(req,res,session))return;return json(res,202,{job:startImportJob(session.user.id,await body(req,25_000_000))});}
+        const importJobMatch=url.pathname.match(/^\/api\/import-jobs\/(import_[A-Za-z0-9-]+)$/);
+        if(importJobMatch&&req.method==='DELETE'){if(!requireCsrf(req,res,session))return;const job=importJobs.get(importJobMatch[1]);if(!job||job.userId!==session.user.id)return json(res,404,{error:{code:'not_found',message:'Import job was not found'}});if(['queued','running'].includes(job.status)){job.cancelRequested=true;job.status='canceling';job.currentTitle='Stopping after the current item';}return json(res,200,{job:publicImportJob(job)});}
         if(url.pathname==='/api/auth/logout'&&req.method==='POST'){if(!requireCsrf(req,res,session))return;await auth.logout(sessionId);return json(res,200,{authenticated:false},{'set-cookie':auth.cookie('',true)});}
         if(url.pathname==='/api/account'&&req.method==='GET')return json(res,200,{user:session.user});
         if(url.pathname==='/api/account'&&req.method==='PATCH'){if(!requireCsrf(req,res,session))return;return json(res,200,{user:await auth.updateAccount(session.user.id,await body(req),sessionId)});}
@@ -284,7 +287,7 @@ export function createApplication(options={}){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;const input=await body(req),result=await testEngine(engineSave[1],input);if(!result.validated)return json(res,422,{error:{code:'engine_validation_failed',message:result.connection.safeError||'Engine validation did not succeed.'}});
           await engineSettings.save(engineSave[1],input,input.apiCredential);await rebuildFromSettings();await sync.startup();return json(res,200,{saved:true,settings:engineSettings.public(),validation:result});
         }
-        if(url.pathname==='/api/system/application-update'&&req.method==='GET')return json(res,200,{application:'VynodeArr',installedVersion:String(env.VYNODEARR_VERSION||'1.0.10'),channel:String(env.VYNODEARR_UPDATE_CHANNEL||'develop'),mechanism:'Container image',repository:'https://github.com/minerport/VynodeArr-Unified',message:'Pull the newest VynodeArr container image, then recreate the application container. Engine updates are managed separately.'});
+        if(url.pathname==='/api/system/application-update'&&req.method==='GET')return json(res,200,{application:'VynodeArr',installedVersion:String(env.VYNODEARR_VERSION||'1.0.11'),channel:String(env.VYNODEARR_UPDATE_CHANNEL||'develop'),mechanism:'Container image',repository:'https://github.com/minerport/VynodeArr-Unified',message:'Pull the newest VynodeArr container image, then recreate the application container. Engine updates are managed separately.'});
         const backupRestore=url.pathname.match(/^\/api\/system\/backups\/(movie|tv)\/(\d+)\/restore$/);
         if(backupRestore&&req.method==='POST'){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;
@@ -344,6 +347,7 @@ export function createApplication(options={}){
             if(['library','libraryEditor'].includes(managementMatch[2]))await sync.synchronize(managementMatch[1]);
             else if(['episodes','episodeFiles'].includes(managementMatch[2]))await sync.synchronize('tv');
             else if(managementMatch[2]==='queue')await sync.synchronizeOperations();
+            else if(managementMatch[2]==='commands'&&/^Refresh(?:Movie|Series)$/.test(String(input.name||''))){sync.invalidate(managementMatch[1]);setTimeout(()=>sync.synchronize(managementMatch[1]).catch(()=>{}),5_000);}
           }
           return json(res,method==='POST'?201:200,{result});
         }
