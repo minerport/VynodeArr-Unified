@@ -21,6 +21,7 @@ services:
       TV_ENGINE_HOST: tv-engine
       TV_ENGINE_PORT: "8989"
       TV_ENGINE_API_CREDENTIAL_FILE: /run/secrets/tv-api-key
+      TMDB_API_READ_TOKEN: "${TMDB_API_READ_TOKEN:-}"
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4310/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 30s

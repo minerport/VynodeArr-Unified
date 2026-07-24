@@ -17,6 +17,7 @@ import { TvEngineAdapter } from '../../../packages/tv-domain/src/engine-adapter.
 import { MovieFixtureAdapter } from '../../../packages/movie-domain/src/fixture-adapter.js';
 import { TvFixtureAdapter } from '../../../packages/tv-domain/src/fixture-adapter.js';
 import { completedQueueItemHasArrived } from '../../../packages/contracts/src/mappers.js';
+import { TmdbDiscoveryService } from './tmdb-discovery.js';
 
 const webRoot=fileURLToPath(new URL('../../web/public/',import.meta.url));
 const mime={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.ico':'image/x-icon'};
@@ -74,6 +75,7 @@ export function createApplication(options={}){
   const projectionStore=options.projectionStore||new ProjectionStore(join(dataDir,'projections.json'));
   const auditStore=options.auditStore||new JsonStore(join(dataDir,'management-audit.json'),{version:1,entries:[]});
   const collectionStore=options.collectionStore||new JsonStore(join(dataDir,'collections.json'),{version:1,collections:[]});
+  const discovery=options.discovery||new TmdbDiscoveryService({token:env.TMDB_API_READ_TOKEN||env.TMDB_API_KEY});
   const artworkCache=new Map(),tvMetadataCache=new Map();let mode=baseConfig.dataMode;
   let movie=options.movie||(mode==='fixture'?new MovieFixtureAdapter(baseConfig.movie):new MovieEngineAdapter(baseConfig.movie));
   let tv=options.tv||(mode==='fixture'?new TvFixtureAdapter(baseConfig.tv):new TvEngineAdapter(baseConfig.tv));
@@ -479,6 +481,13 @@ export function createApplication(options={}){
         if(url.pathname==='/api/account'&&req.method==='GET')return json(res,200,{user:session.user});
         if(url.pathname==='/api/account'&&req.method==='PATCH'){if(!requireCsrf(req,res,session))return;return json(res,200,{user:await auth.updateAccount(session.user.id,await body(req),sessionId)});}
         if(url.pathname==='/api/account/sessions'&&req.method==='GET')return json(res,200,{items:await auth.listSessions(session.user.id,sessionId)});
+        if(url.pathname==='/api/discover/status'&&req.method==='GET')return json(res,200,{configured:discovery.configured()});
+        if(url.pathname==='/api/discover/feed'&&req.method==='GET')return json(res,200,await discovery.feed(url.searchParams.get('kind'),url.searchParams.get('page')));
+        if(url.pathname==='/api/discover/genres'&&req.method==='GET')return json(res,200,{items:await discovery.genres(url.searchParams.get('domain'))});
+        if(url.pathname==='/api/discover/categories'&&req.method==='GET')return json(res,200,{items:await discovery.categories(url.searchParams.get('type'))});
+        if(url.pathname==='/api/discover/browse'&&req.method==='GET')return json(res,200,await discovery.browse(Object.fromEntries(url.searchParams)));
+        const discoverDetails=url.pathname.match(/^\/api\/discover\/details\/(movie|tv)\/(\d+)$/);
+        if(discoverDetails&&req.method==='GET')return json(res,200,{item:await discovery.details(discoverDetails[1],discoverDetails[2])});
         if(url.pathname==='/api/account/sessions/others'&&req.method==='DELETE'){if(!requireCsrf(req,res,session))return;await auth.revokeOtherSessions(session.user.id,sessionId);return json(res,200,{revoked:true});}
         const sessionMatch=url.pathname.match(/^\/api\/account\/sessions\/([A-Za-z0-9_-]+)$/);
         if(sessionMatch&&req.method==='DELETE'){if(!requireCsrf(req,res,session))return;const current=await auth.revokeSession(session.user.id,sessionMatch[1],sessionId);return json(res,200,{revoked:true,current},current?{'set-cookie':auth.cookie('',true)}:{});}

@@ -28,5 +28,6 @@
   <Config Name="Downloads" Target="/downloads" Default="/mnt/user/downloads/complete" Mode="rw" Description="Completed download-client area shared with both media engines" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/downloads/complete</Config>
   <Config Name="Download client remote path" Target="VYNODEARR_DOWNLOAD_CLIENT_REMOTE_PATH" Default="/data/complete" Mode="" Description="Path reported by the download client; VynodeArr maps it to /downloads for both media engines" Type="Variable" Display="advanced" Required="true" Mask="false">/data/complete</Config>
   <Config Name="Timezone" Target="TZ" Default="America/New_York" Mode="" Description="IANA timezone" Type="Variable" Display="always" Required="true" Mask="false">America/New_York</Config>
+  <Config Name="TMDB read token" Target="TMDB_API_READ_TOKEN" Default="" Mode="" Description="TMDB API v4 read access token used by Discover" Type="Variable" Display="always" Required="true" Mask="true"></Config>
   <Config Name="HTTPS-only cookies" Target="VYNODEARR_SECURE_COOKIES" Default="false" Mode="" Description="Set true only when VynodeArr is always accessed through HTTPS" Type="Variable" Display="advanced" Required="true" Mask="false">false</Config>
 </Container>
