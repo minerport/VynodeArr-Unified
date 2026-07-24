@@ -199,20 +199,110 @@
 
 .movie-filter-panel {
   display: grid;
-  grid-template-columns: minmax(220px, 2fr) repeat(3, minmax(145px, 1fr)) auto;
-  gap: .9rem;
-  align-items: end;
-  margin: 1rem 0;
-  padding: 1rem;
+  gap: .8rem;
+  margin: .75rem 0;
+  padding: .85rem 1rem;
   background: #0e1626 !important;
 }
 
 .movie-filter-panel label {
   display: grid;
-  gap: .4rem;
+  min-width: 0;
+  gap: .3rem;
   color: #cbd5e6;
-  font-size: .82rem;
+  font-size: .76rem;
   font-weight: 700;
+}
+
+.library-filter-fields {
+  display: grid;
+  grid-template-columns: minmax(210px, 1.6fr) repeat(3, minmax(130px, 1fr)) auto;
+  gap: .75rem;
+  align-items: end;
+}
+
+.library-filter-fields input,
+.library-filter-fields select {
+  width: 100%;
+  height: 2.55rem;
+  padding: .55rem .7rem;
+  border: 1px solid #2c3953;
+  border-radius: .55rem;
+  outline: 0;
+  background: #080e19;
+  color: #f1f5fc;
+}
+
+.library-filter-fields input:focus,
+.library-filter-fields select:focus {
+  border-color: #7660e9;
+  box-shadow: 0 0 0 2px #7660e926;
+}
+
+.library-filter-fields .clear-library-filters {
+  height: 2.55rem;
+  white-space: nowrap;
+}
+
+.library-alpha-jump {
+  display: grid;
+  grid-template-columns: 2.25rem repeat(27, minmax(1.55rem, 1fr));
+  gap: .2rem;
+  margin: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.library-alpha-jump button {
+  min-width: 1.55rem;
+  height: 1.85rem;
+  padding: 0 .25rem;
+  border: 0;
+  border-radius: .35rem;
+  background: transparent;
+  color: #8998b1;
+  font-size: .72rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.library-alpha-jump button:hover:not(:disabled),
+.library-alpha-jump button.selected {
+  background: #4939aa;
+  color: #fff;
+}
+
+.library-alpha-jump button:disabled {
+  opacity: .25;
+  cursor: default;
+}
+
+.hero:has(+ .summary) {
+  margin-bottom: 1rem;
+}
+
+.hero:has(+ .summary) h1 {
+  font-size: 38px;
+}
+
+.hero:has(+ .summary) .lede {
+  margin: .55rem 0 0;
+}
+
+.hero + .summary {
+  margin-bottom: .75rem;
+}
+
+.hero + .summary div {
+  padding: .8rem 1.25rem;
+}
+
+.hero + .summary strong {
+  font-size: 1.5rem;
+}
+
+.library-filter-panel + .toolbar {
+  margin: .55rem 0 .7rem;
 }
 
 .collection-grid {
@@ -396,18 +486,25 @@
 }
 
 .collection-builder-dialog {
-  width: min(1180px, 94vw);
+  position: fixed;
+  inset: 50% auto auto 50%;
+  width: min(1180px, calc(100vw - 2rem));
+  height: min(860px, calc(100dvh - 2rem));
   max-width: none;
-  max-height: 94vh;
+  max-height: none;
+  margin: 0;
   padding: 0;
   overflow: hidden;
+  transform: translate(-50%, -50%);
+  box-sizing: border-box;
 }
 
 #collection-dialog .collection-builder {
   display: grid;
   width: 100%;
-  height: min(860px, 90vh);
-  max-height: 90vh;
+  height: 100%;
+  min-height: 0;
+  max-height: none;
   grid-template-rows: auto minmax(0, 1fr) auto;
   overflow: hidden;
 }
@@ -439,7 +536,7 @@
 .collection-builder-layout {
   display: grid;
   grid-template-columns: minmax(320px, .82fr) minmax(440px, 1.18fr);
-  height: 100%;
+  height: auto;
   min-height: 0;
   overflow: hidden;
 }
@@ -631,7 +728,7 @@
 }
 
 @media (max-width: 900px) {
-  .movie-filter-panel {
+  .library-filter-fields {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -640,23 +737,25 @@
   }
 
   .collection-builder-dialog {
-    width: min(720px, 96vw);
-    max-height: 94vh;
-    overflow-y: auto;
+    width: min(720px, calc(100vw - 1rem));
+    height: calc(100dvh - 1rem);
+    overflow: hidden;
   }
 
   #collection-dialog .collection-builder {
-    height: auto;
+    height: 100%;
     min-height: 0;
     max-height: none;
-    grid-template-rows: auto auto auto;
-    overflow-y: auto;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    overflow: hidden;
   }
 
   .collection-builder-layout {
+    display: block;
     grid-template-columns: 1fr;
-    height: auto;
+    height: 100%;
     overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   .collection-builder-controls {
@@ -679,6 +778,16 @@
   }
 
   .collection-preview-heading label {
+    width: 100%;
+  }
+}
+
+@media (max-width: 620px) {
+  .library-filter-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .library-filter-fields .clear-library-filters {
     width: 100%;
   }
 }
