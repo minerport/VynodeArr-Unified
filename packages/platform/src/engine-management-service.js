@@ -46,6 +46,7 @@ const sharedResources=Object.freeze({
 const domainResources=Object.freeze({
   movie:{
     library:{path:'movie',methods:['GET','POST','PUT','DELETE']},
+    libraryEditor:{path:'movie/editor',methods:['PUT','DELETE']},
     lookup:{path:'movie/lookup',methods:['GET']},
     exclusions:{path:'exclusions',methods:['GET','POST','DELETE']},
     collections:{path:'collection',methods:['GET','PUT']},
@@ -54,6 +55,7 @@ const domainResources=Object.freeze({
   },
   tv:{
     library:{path:'series',methods:['GET','POST','PUT','DELETE']},
+    libraryEditor:{path:'series/editor',methods:['PUT','DELETE']},
     lookup:{path:'series/lookup',methods:['GET']},
     episodes:{path:'episode',methods:['GET','PUT']},
     episodeFiles:{path:'episodefile',methods:['GET','DELETE']},
