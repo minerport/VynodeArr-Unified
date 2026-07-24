@@ -95,6 +95,8 @@ services:
       TV_ENGINE_API_CREDENTIAL: "${TV_ENGINE_API_CREDENTIAL:-vynodearr-local-tv-key-2026}"
       REQUEST_ENGINE_HOST: request-engine
       REQUEST_ENGINE_PORT: "5055"
+      REQUEST_ENGINE_CONFIG_PATH: /request-engine-config/settings.json
+      VYNODEARR_AUTO_CONFIGURE_REQUESTS: "true"
       VYNODEARR_BOOTSTRAP_ROOT_FOLDERS: "true"
       VYNODEARR_BUNDLED_ENGINES: "true"
     ports:
@@ -103,6 +105,7 @@ services:
       - vynodearr-data:/data
       - movie-engine-config:/engine-config/movie:ro
       - tv-engine-config:/engine-config/tv:ro
+      - request-engine-config:/request-engine-config:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:

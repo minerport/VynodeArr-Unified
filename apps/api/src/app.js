@@ -17,6 +17,7 @@ import { TvEngineAdapter } from '../../../packages/tv-domain/src/engine-adapter.
 import { MovieFixtureAdapter } from '../../../packages/movie-domain/src/fixture-adapter.js';
 import { TvFixtureAdapter } from '../../../packages/tv-domain/src/fixture-adapter.js';
 import { createRequestEngineProxy } from '../../../packages/request-domain/src/gateway-proxy.js';
+import { RequestEngineService } from '../../../packages/request-domain/src/engine-service.js';
 
 const webRoot=fileURLToPath(new URL('../../web/public/',import.meta.url));
 const mime={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.ico':'image/x-icon'};
@@ -51,6 +52,12 @@ export function createApplication(options={}){
     https:String(env.REQUEST_ENGINE_HTTPS||'false')==='true',
     tlsVerify:String(env.REQUEST_ENGINE_TLS_VERIFY||'true')==='true',
     prefix:'/requests'
+  });
+  const requestEngine=new RequestEngineService({
+    host:env.REQUEST_ENGINE_HOST||'request-engine',
+    port:Number(env.REQUEST_ENGINE_PORT||5055),
+    https:String(env.REQUEST_ENGINE_HTTPS||'false')==='true',
+    configPath:env.REQUEST_ENGINE_CONFIG_PATH||''
   });
   let initialized=false;
   function importIdentityKeys(value={}){
@@ -160,6 +167,18 @@ export function createApplication(options={}){
     }
     sync.startPolling();
     initialized=true;
+    if(String(env.VYNODEARR_AUTO_CONFIGURE_REQUESTS||'false')==='true'){
+      const reconcileRequests=async()=>{
+        const configured=await engineSettings.runtime();
+        await requestEngine.ensureMediaServices({
+          movie:{...(configured.movie||baseConfig.movie),apiKey:configured.movie?.apiCredential||baseConfig.movie.apiCredential},
+          tv:{...(configured.tv||baseConfig.tv),apiKey:configured.tv?.apiCredential||baseConfig.tv.apiCredential}
+        });
+      };
+      void reconcileRequests();
+      const requestReconciliation=setInterval(()=>void reconcileRequests(),60_000);
+      requestReconciliation.unref?.();
+    }
   }
   async function testEngine(domain,input){
     const config=engineSettings.normalize(domain,input);config.apiCredential=String(input.apiCredential||'');
@@ -427,7 +446,7 @@ export function createApplication(options={}){
           const [movies,tvItems,queue,history,calendar,health]=await Promise.all([sync.list('movie'),sync.list('tv'),sync.operations('queue'),sync.operations('history'),sync.operations('calendar'),sync.operations('health')]);
           return json(res,200,{metrics:{movies:movies.length,tv:tvItems.length,queue:queue.length,upcomingMovies:calendar.filter((item)=>item.domain==='movie').length,upcomingEpisodes:calendar.filter((item)=>item.domain==='tv').length,missing:movies.filter((item)=>item.state==='missing').length+tvItems.reduce((sum,item)=>sum+item.missingEpisodes,0),downloading:queue.filter((item)=>String(item.status).toLowerCase().includes('down')).length,health:health.length,storage:movies.filter((item)=>item.hasFile).length+tvItems.length},recentlyAdded:[...movies.slice(-3),...tvItems.slice(-3)].slice(0,6),recentActivity:history.slice(0,6),engines:{configured:engineSettings.configured(),mode,status:sync.snapshot()}});
         }
-        if(url.pathname==='/api/system/engines'){const [movieTest,tvTest,movieStatus,tvStatus]=await Promise.all([registry.movie().testConnection(),registry.tv().testConnection(),registry.movie().getSystemStatus().catch(()=>null),registry.tv().getSystemStatus().catch(()=>null)]);const publicSettings=engineSettings.public();return json(res,200,{mode,managed:String(env.VYNODEARR_BUNDLED_ENGINES||'false')==='true',configured:engineSettings.configured(),engines:[{domain:'movie',displayName:'Movies',configuration:publicSettings.movie||publicEngineConfiguration(baseConfig.movie),connection:movieTest,status:movieStatus,synchronization:sync.snapshot().movie},{domain:'tv',displayName:'TV',configuration:publicSettings.tv||publicEngineConfiguration(baseConfig.tv),connection:tvTest,status:tvStatus,synchronization:sync.snapshot().tv}]});}
+        if(url.pathname==='/api/system/engines'){const [movieTest,tvTest,movieStatus,tvStatus,requests]=await Promise.all([registry.movie().testConnection(),registry.tv().testConnection(),registry.movie().getSystemStatus().catch(()=>null),registry.tv().getSystemStatus().catch(()=>null),requestEngine.publicStatus()]);const publicSettings=engineSettings.public();return json(res,200,{mode,managed:String(env.VYNODEARR_BUNDLED_ENGINES||'false')==='true',configured:engineSettings.configured(),engines:[{domain:'movie',displayName:'Movies',configuration:publicSettings.movie||publicEngineConfiguration(baseConfig.movie),connection:movieTest,status:movieStatus,synchronization:sync.snapshot().movie},{domain:'tv',displayName:'TV',configuration:publicSettings.tv||publicEngineConfiguration(baseConfig.tv),connection:tvTest,status:tvStatus,synchronization:sync.snapshot().tv},{domain:'requests',displayName:'Requests',configuration:{credentialConfigured:true},connection:requests,status:requests.status,synchronization:{lastSuccessAt:null}}]});}
         return json(res,404,{error:{code:'not_found',message:'The requested VynodeArr resource was not found.'}});
       }
       const requested=url.pathname==='/'?'index.html':url.pathname.slice(1),safe=normalize(requested).replace(/^(\.\.[/\\])+/, '');

@@ -65,6 +65,8 @@ ENV NODE_ENV=production PORT=8686 VYNODEARR_DATA_DIR=/config/vynodearr \
     MOVIE_ENGINE_HOST=127.0.0.1 \
     MOVIE_ENGINE_PORT=7878 TV_ENGINE_HOST=127.0.0.1 TV_ENGINE_PORT=8989 \
     REQUEST_ENGINE_HOST=127.0.0.1 REQUEST_ENGINE_PORT=5055 \
+    REQUEST_ENGINE_CONFIG_PATH=/config/requests/settings.json \
+    VYNODEARR_AUTO_CONFIGURE_REQUESTS=true \
     MOVIE_ENGINE_CONFIG_PATH=/config/movies/config.xml \
     TV_ENGINE_CONFIG_PATH=/config/television/config.xml
 VOLUME ["/config", "/movies", "/tv", "/downloads"]

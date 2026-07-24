@@ -8,6 +8,7 @@ services:
     volumes:
       - /mnt/user/appdata/vynodearr:/data
       - /mnt/user/appdata/vynodearr/secrets:/run/secrets:ro
+      - /mnt/user/appdata/vynodearr/requests:/request-engine-config:ro
     environment:
       VYNODEARR_DATA_MODE: engine
       VYNODEARR_DATA_DIR: /data
@@ -23,6 +24,8 @@ services:
       TV_ENGINE_API_CREDENTIAL_FILE: /run/secrets/tv-api-key
       REQUEST_ENGINE_HOST: request-engine
       REQUEST_ENGINE_PORT: "5055"
+      REQUEST_ENGINE_CONFIG_PATH: /request-engine-config/settings.json
+      VYNODEARR_AUTO_CONFIGURE_REQUESTS: "true"
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4310/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 30s

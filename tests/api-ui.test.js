@@ -39,7 +39,7 @@ test('unified queue, history, calendar, health, and engine status',()=>fixtureSe
   for(const [path,min] of [['/api/activity/queue',2],['/api/activity/history',6],['/api/calendar',5],['/api/system/health',0]]){
     const response=await get(base,path,cookie);assert.equal(response.status,200);const value=await response.json();assert.ok(value.items.length>=min,path);
   }
-  const engines=await (await get(base,'/api/system/engines',cookie)).json();assert.equal(engines.engines.length,2);assert.equal(JSON.stringify(engines).includes('apiCredential'),false);
+  const engines=await (await get(base,'/api/system/engines',cookie)).json();assert.equal(engines.engines.length,3);assert.equal(engines.engines.at(-1).domain,'requests');assert.equal(JSON.stringify(engines).includes('apiCredential'),false);
 }));
 test('public errors and health are neutral',async()=>{
   const directory=await mkdtemp(join(tmpdir(),'vynodearr-error-'));const app=createApplication({env:{VYNODEARR_DATA_MODE:'fixture',VYNODEARR_DATA_DIR:directory}});

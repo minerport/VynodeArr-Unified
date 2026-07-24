@@ -3,6 +3,15 @@ import { request as httpsRequest } from 'node:https';
 
 const hopHeaders=new Set(['connection','keep-alive','proxy-authenticate','proxy-authorization','te','trailer','transfer-encoding','upgrade']);
 const textTypes=['text/html','text/css','text/javascript','application/javascript','application/json','application/manifest+json'];
+const vynodeArrTheme=`<style id="vynodearr-request-theme">
+:root{--vynodearr-cyan:#38d8d2;--vynodearr-violet:#7652ff}
+html{background:#070d19!important}
+body{background:radial-gradient(circle at 80% 0,rgba(83,73,190,.18),transparent 38%),#070d19!important}
+button,[role="button"],a[class*="button"]{border-radius:10px!important}
+button[class*="primary"],a[class*="primary"],button[type="submit"]{background:linear-gradient(135deg,var(--vynodearr-violet),#9347ed)!important}
+input,select,textarea{border-radius:9px!important}
+nav,aside,header{backdrop-filter:blur(18px)}
+</style>`;
 
 function rewriteLocation(value,prefix){
   if(!value)return value;
@@ -28,7 +37,7 @@ function rewriteBody(value,prefix,contentType=''){
       .replace(/(["'`])\/(images|imageproxy|avatarproxy)\//g,`$1${prefix}/$2/`)
       .replace(/(["'`])\/(android-|apple-|favicon|logo_|site\.webmanifest)/g,`$1${prefix}/$2`);
   }
-  return value
+  const rewritten=value
     .replaceAll('href="/"',`href="${prefix}/"`)
     .replaceAll('href="/login"',`href="${prefix}/login"`)
     .replaceAll('href:"/"',`href:"${prefix}/"`)
@@ -37,6 +46,9 @@ function rewriteBody(value,prefix,contentType=''){
     .replaceAll('/login/plex/loading',`${prefix}/login/plex/loading`)
     .replace(/(["'(])\/(images|imageproxy|avatarproxy)\//g,`$1${prefix}/$2/`)
     .replace(/(["'(])\/(android-|apple-|favicon|logo_|site\.webmanifest)/g,`$1${prefix}/$2`);
+  return contentType.includes('text/html')&&!rewritten.includes('vynodearr-request-theme')
+    ?(rewritten.includes('</head>')?rewritten.replace('</head>',`${vynodeArrTheme}</head>`):`${vynodeArrTheme}${rewritten}`)
+    :rewritten;
 }
 
 export function createRequestEngineProxy({
