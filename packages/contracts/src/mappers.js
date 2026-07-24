@@ -16,12 +16,12 @@ export const safeDate = (value) => value || null;
 
 export function movieSummary(record, context = {}) {
   if (!record || record.id == null || !record.title) throw new TypeError('Invalid movie record');
-  const hasFile = Boolean(record.hasFile || record.movieFile);
+  const hasFile = Boolean(record.hasFile || record.movieFile || Number(record.sizeOnDisk || 0) > 0);
   return assertModel('MovieSummary', {
     id: `movie_${record.id}`, title: record.title, year: Number(record.year || 0),
     artwork: { url:`/api/artwork/movie/movie_${record.id}/poster`,kind:'poster',width:0,height:0 }, status: record.status || 'announced',
     monitoring: monitoring(record.monitored), hasFile,
-    quality: qualityName(record.movieFile) || 'Not available',
+    quality: qualityName(record.movieFile) || (hasFile ? 'Detected media' : 'Not available'),
     qualityProfile: profile(record), rootFolder: record.rootFolderPath || record.path || null,
     collection: record.collection?.title || record.collectionTitle || null,
     tags: tags(record), state: !hasFile ? 'missing' : context.cutoffIds?.has(record.id) ? 'cutoff' : 'available',
@@ -41,7 +41,8 @@ export function movieDetails(record, context = {}) {
       cinemas: safeDate(record.inCinemas),
       digital: safeDate(record.digitalRelease),
       physical: safeDate(record.physicalRelease)
-    },
+    }, location: record.path || record.rootFolderPath || null,
+    fileLocation: record.movieFile?.path || (record.path && record.movieFile?.relativePath ? `${String(record.path).replace(/[\\/]+$/,'')}/${record.movieFile.relativePath}` : null),
     backdrop: { url:`/api/artwork/movie/movie_${record.id}/fanart`,kind:'backdrop',width:0,height:0 }
   };
 }
@@ -82,7 +83,7 @@ export function seriesDetails(record, episodes = [], context = {}) {
     };
   });
   return {
-    ...summary, overview: record.overview || '', genres: record.genres || [],
+    ...summary, overview: record.overview || '', genres: record.genres || [], location: record.path || record.rootFolderPath || null,
     backdrop: { url:`/api/artwork/tv/series_${record.id}/fanart`,kind:'backdrop',width:0,height:0 }, seriesType: record.seriesType || 'standard',
     seasons
   };

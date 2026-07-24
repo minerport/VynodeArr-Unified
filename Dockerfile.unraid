@@ -12,7 +12,7 @@ FROM node:24-alpine
 LABEL org.opencontainers.image.title="VynodeArr" \
       org.opencontainers.image.description="Unified movie and television management for Unraid" \
       org.opencontainers.image.source="https://github.com/minerport/VynodeArr-Unified" \
-      org.opencontainers.image.version="1.0.9" \
+      org.opencontainers.image.version="1.0.10" \
       org.opencontainers.image.licenses="Apache-2.0"
 RUN apk add --no-cache icu-libs sqlite-libs libgcc libstdc++ tzdata tini
 WORKDIR /app

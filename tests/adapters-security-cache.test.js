@@ -19,6 +19,11 @@ test('movie adapter maps records and all read-only operational surfaces',async()
   const client=new FakeClient({movie:[movieRecord],movieDetail:movieRecord,queue:{records:[]},'wanted/cutoff':{records:[]},history:{records:[]},calendar:[],health:[],'system/status':{version:'1.0'}});
   const adapter=new MovieEngineAdapter({enabled:true},client);assert.equal((await adapter.listMovies())[0].id,'movie_1');assert.equal((await adapter.getMovie('movie_1')).quality,'1080p');assert.equal((await adapter.testConnection()).reachable,true);
 });
+test('movie adapter recognizes scanned media when the engine reports disk usage before file metadata',async()=>{
+  const pendingFile={...movieRecord,hasFile:false,movieFile:null,sizeOnDisk:734003200,path:'/movies/Scanned Movie'};
+  const adapter=new MovieEngineAdapter({enabled:true},new FakeClient({movie:[pendingFile],queue:{records:[]},'wanted/cutoff':{records:[]}})),item=(await adapter.listMovies())[0];
+  assert.equal(item.hasFile,true);assert.equal(item.state,'available');assert.equal(item.quality,'Detected media');
+});
 test('TV adapter maps seasons, episodes, and operational surfaces',async()=>{
   const client=new FakeClient({series:[seriesRecord],seriesDetail:seriesRecord,episode:[{id:4,seasonNumber:1,episodeNumber:1,title:'Pilot',monitored:true,hasFile:true}],queue:{records:[]},history:{records:[]},calendar:[],health:[],'system/status':{version:'1.0'}});
   const adapter=new TvEngineAdapter({enabled:true},client);assert.equal((await adapter.listSeries())[0].id,'series_2');assert.equal((await adapter.getSeries('series_2')).seasons[0].episodes[0].title,'Pilot');

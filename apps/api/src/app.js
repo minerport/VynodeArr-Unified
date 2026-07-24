@@ -53,22 +53,33 @@ export function createApplication(options={}){
     return keys;
   }
   function publicImportJob(job){return{id:job.id,domain:job.domain,label:job.label,status:job.status,total:job.total,completed:job.completed,skipped:job.skipped,failed:job.failed,currentTitle:job.currentTitle,errors:job.errors.slice(-25),createdAt:job.createdAt,finishedAt:job.finishedAt};}
+  const duplicateImportError=(message)=>/(?:already|existing).*(?:add|exist|configur|use)|(?:path|tmdb|tvdb|title).*(?:already|exist|configur|use)|another (?:movie|series)/i.test(String(message||''));
+  const qualityRank=(release)=>{
+    const name=String(release?.quality?.quality?.name||release?.quality?.name||release?.title||'').toLowerCase();
+    const resolution=name.includes('2160')?4000:name.includes('1080')?3000:name.includes('720')?2000:name.includes('480')||name.includes('576')?1000:0;
+    const source=name.includes('remux')?900:name.includes('bluray')||name.includes('blu-ray')?800:name.includes('webdl')||name.includes('web-dl')?700:name.includes('webrip')||name.includes('web-rip')?650:name.includes('hdtv')?500:name.includes('dvd')?300:0;
+    return Number(release?.qualityWeight||0)||resolution+source;
+  };
+  const eligibleRelease=(release)=>Boolean(release)&&release.rejected!==true&&release.approved!==false&&release.downloadAllowed!==false&&!(release.rejections||[]).length;
+  const compareReleases=(left,right)=>qualityRank(right)-qualityRank(left)||Number(right.customFormatScore||0)-Number(left.customFormatScore||0)||Number(left.size||Number.MAX_SAFE_INTEGER)-Number(right.size||Number.MAX_SAFE_INTEGER);
+  const importPaceMs=Math.max(0,Math.min(2000,Number(env.VYNODEARR_IMPORT_PACE_MS||200)));
+  const pause=(milliseconds)=>new Promise(resolve=>setTimeout(resolve,milliseconds));
   function startImportJob(userId,input){
     const domain=input.domain,label=domain==='movie'?'Movies':'Television',items=Array.isArray(input.items)?input.items:[];
     if(!['movie','tv'].includes(domain)||!items.length||items.length>5000)throw new Error('Select between 1 and 5,000 titles to import');
     const job={id:`import_${randomUUID()}`,userId,domain,label,status:'queued',total:items.length,completed:0,skipped:0,failed:0,currentTitle:null,errors:[],createdAt:new Date().toISOString(),finishedAt:null};
     importJobs.set(job.id,job);
     void(async()=>{
-      job.status='running';const known=new Set(),createdIds=[];
+      job.status='running';const known=new Set();
       try{const existing=await management.execute(domain,'library','GET',{});for(const record of Array.isArray(existing)?existing:existing?.records||[])for(const key of importIdentityKeys(record))known.add(key);}catch{}
       for(const item of items){
         job.currentTitle=String(item.title||'Untitled');const keys=importIdentityKeys(item.payload),duplicate=keys.some(key=>known.has(key));
         if(duplicate){job.skipped+=1;continue;}
-        try{const created=await management.execute(domain,'library','POST',{payload:item.payload});job.completed+=1;if(created?.id)createdIds.push(Number(created.id));for(const key of keys)known.add(key);}
-        catch(error){const message=redact(error?.safeMessage||error?.message||'Import failed');if(/already (?:been )?(?:added|exists)|already exists/i.test(message))job.skipped+=1;else{job.failed+=1;job.errors.push({title:job.currentTitle,message});}}
+        try{await management.execute(domain,'library','POST',{payload:item.payload});job.completed+=1;for(const key of keys)known.add(key);}
+        catch(error){const message=redact(error?.safeMessage||error?.message||'Import failed');if(duplicateImportError(message))job.skipped+=1;else{job.failed+=1;job.errors.push({title:job.currentTitle,message});}}
+        if(importPaceMs)await pause(importPaceMs);
       }
-      if(createdIds.length){job.currentTitle='Scanning imported folders';try{if(domain==='movie')await management.execute('movie','commands','POST',{payload:{name:'RefreshMovie',movieIds:createdIds}});else for(const seriesId of createdIds)await management.execute('tv','commands','POST',{payload:{name:'RefreshSeries',seriesId}});}catch(error){job.errors.push({title:'Post-import folder scan',message:redact(error?.safeMessage||error?.message||'The folder scan could not be queued')});}}
-      job.currentTitle=null;job.status=job.failed===job.total?'failed':'completed';job.finishedAt=new Date().toISOString();await sync.synchronize(domain).catch(()=>{});setTimeout(()=>sync.synchronize(domain).catch(()=>{}),15_000);setTimeout(()=>importJobs.delete(job.id),6*60*60*1000);
+      job.currentTitle=null;job.status=job.failed===job.total?'failed':'completed';job.finishedAt=new Date().toISOString();sync.invalidate(domain);setTimeout(()=>sync.synchronize(domain).catch(()=>{}),10_000);setTimeout(()=>importJobs.delete(job.id),6*60*60*1000);
     })();
     return publicImportJob(job);
   }
@@ -273,7 +284,7 @@ export function createApplication(options={}){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;const input=await body(req),result=await testEngine(engineSave[1],input);if(!result.validated)return json(res,422,{error:{code:'engine_validation_failed',message:result.connection.safeError||'Engine validation did not succeed.'}});
           await engineSettings.save(engineSave[1],input,input.apiCredential);await rebuildFromSettings();await sync.startup();return json(res,200,{saved:true,settings:engineSettings.public(),validation:result});
         }
-        if(url.pathname==='/api/system/application-update'&&req.method==='GET')return json(res,200,{application:'VynodeArr',installedVersion:String(env.VYNODEARR_VERSION||'1.0.9'),channel:String(env.VYNODEARR_UPDATE_CHANNEL||'develop'),mechanism:'Container image',repository:'https://github.com/minerport/VynodeArr-Unified',message:'Pull the newest VynodeArr container image, then recreate the application container. Engine updates are managed separately.'});
+        if(url.pathname==='/api/system/application-update'&&req.method==='GET')return json(res,200,{application:'VynodeArr',installedVersion:String(env.VYNODEARR_VERSION||'1.0.10'),channel:String(env.VYNODEARR_UPDATE_CHANNEL||'develop'),mechanism:'Container image',repository:'https://github.com/minerport/VynodeArr-Unified',message:'Pull the newest VynodeArr container image, then recreate the application container. Engine updates are managed separately.'});
         const backupRestore=url.pathname.match(/^\/api\/system\/backups\/(movie|tv)\/(\d+)\/restore$/);
         if(backupRestore&&req.method==='POST'){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;
@@ -308,6 +319,17 @@ export function createApplication(options={}){
         if(url.pathname==='/api/system/sync'&&req.method==='POST'){if(!requireCsrf(req,res,session))return;const results=await sync.startup();return json(res,200,{synchronized:true,results:results.map((item)=>item.status),state:sync.snapshot()});}
         const catalogMatch=url.pathname.match(/^\/api\/manage\/(movie|tv)$/);
         if(catalogMatch&&req.method==='GET'){if(!administrator(res,session))return;return json(res,200,{domain:catalogMatch[1],available:management.available(catalogMatch[1]),resources:management.catalog(catalogMatch[1])});}
+        const automaticSearchMatch=url.pathname.match(/^\/api\/manage\/(movie|tv)\/automaticSearch$/);
+        if(automaticSearchMatch&&req.method==='POST'){
+          if(!administrator(res,session)||!requireCsrf(req,res,session))return;
+          const domain=automaticSearchMatch[1],input=await body(req),query=domain==='movie'?{movieId:Number(input.movieId)}:{episodeId:Number(input.episodeId)};
+          if(!Number.isFinite(query.movieId??query.episodeId))throw new Error(`Choose a ${domain==='movie'?'movie':'television episode'} to search`);
+          const releases=await management.execute(domain,'releases','GET',{query}),accepted=(Array.isArray(releases)?releases:[]).filter(eligibleRelease);
+          if(!accepted.length)throw new Error('No accepted releases matched the configured quality profile and restrictions');
+          accepted.sort(compareReleases);
+          const selected=accepted[0],result=await management.execute(domain,'releases','POST',{payload:selected});
+          return json(res,201,{result,selection:{title:selected.title,quality:selected.quality?.quality?.name||selected.quality?.name||'Unknown',size:Number(selected.size||0),acceptedCandidates:accepted.length}});
+        }
         const managementMatch=url.pathname.match(/^\/api\/manage\/(movie|tv)\/([A-Za-z][A-Za-z0-9]*)(?:\/([A-Za-z0-9_-]+))?$/);
         if(managementMatch){
           if(!administrator(res,session))return;

@@ -1,6 +1,6 @@
 services:
   vynodearr:
-    image: ghcr.io/minerport/vynodearr-unified:${VYNODEARR_VERSION:-1.0.9}
+    image: ghcr.io/minerport/vynodearr-unified:${VYNODEARR_VERSION:-1.0.10}
     container_name: vynodearr
     restart: unless-stopped
     ports:
