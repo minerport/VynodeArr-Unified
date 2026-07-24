@@ -1,6 +1,6 @@
 import { ReadOnlyEngineClient } from '../../platform/src/read-only-engine-client.js';
 import { engineError } from '../../platform/src/engine-errors.js';
-import { calendarItem, completedQueueItemHasArrived, historyItem, queueItem, seriesDetails, seriesSummary } from '../../contracts/src/mappers.js';
+import { calendarItem, completedQueueItemHasArrived, completedQueueItemIsTerminal, historyItem, queueItem, seriesDetails, seriesSummary } from '../../contracts/src/mappers.js';
 
 const records = (value) => Array.isArray(value) ? value : Array.isArray(value?.records) ? value.records : null;
 const numericId = (id) => Number(String(id).replace(/^series_/, ''));
@@ -8,8 +8,20 @@ const numericId = (id) => Number(String(id).replace(/^series_/, ''));
 export class TvEngineAdapter {
   constructor(config, client = new ReadOnlyEngineClient(config, 'TV')) { this.config = config; this.client = client; }
   async #context() {
-    const queue = await this.getQueue().catch(() => []);
-    return { queueById: new Map(queue.filter((item) => item.mediaId).map((item) => [numericId(item.mediaId), item])) };
+    const [queue, missing] = await Promise.all([
+      this.getQueue().catch(() => []),
+      this.client.get('wanted/missing', { page: 1, pageSize: 10000, monitored: true, includeSeries: false }).catch(() => null)
+    ]);
+    const monitoredMissingBySeriesId = new Map();
+    for (const episode of records(missing) || []) {
+      if (episode?.monitored === false) continue;
+      const seriesId = Number(episode?.seriesId || episode?.series?.id);
+      if (Number.isFinite(seriesId)) monitoredMissingBySeriesId.set(seriesId, (monitoredMissingBySeriesId.get(seriesId) || 0) + 1);
+    }
+    return {
+      queueById: new Map(queue.filter((item) => item.mediaId).map((item) => [numericId(item.mediaId), item])),
+      monitoredMissingBySeriesId
+    };
   }
   async listSeries({ limit = 5000 } = {}) {
     const value = await this.client.get('series');
@@ -26,13 +38,14 @@ export class TvEngineAdapter {
         this.#context()
       ]);
       if (!Array.isArray(episodes)) throw engineError.invalid();
+      context.monitoredMissingBySeriesId.set(engineId, record?.monitored === false ? 0 : episodes.filter((episode) => episode.monitored !== false && !episode.hasFile).length);
       return seriesDetails(record, episodes, context);
     } catch (error) { if (error.code) throw error; throw engineError.invalid(); }
   }
   async getQueue() {
     const value = await this.client.get('queue', { page: 1, pageSize: 1000, includeSeries: true, includeEpisode: true });
     const items = records(value); if (!items) throw engineError.invalid();
-    return items.filter((record) => !completedQueueItemHasArrived(record, 'tv')).map((record) => queueItem(record, 'tv'));
+    return items.filter((record) => !completedQueueItemIsTerminal(record) && !completedQueueItemHasArrived(record, 'tv')).map((record) => queueItem(record, 'tv'));
   }
   async getHistory({ mediaId, limit = 100 } = {}) {
     const value = await this.client.get('history', { page: 1, pageSize: limit, seriesId: mediaId, includeSeries: true });

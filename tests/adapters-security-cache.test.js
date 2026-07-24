@@ -10,6 +10,7 @@ import { ReadOnlyEngineClient } from '../packages/platform/src/read-only-engine-
 import { SynchronizationService } from '../packages/platform/src/synchronization-service.js';
 import { EncryptedCredentialVault } from '../packages/platform/src/credential-vault.js';
 import { MovieFixtureAdapter } from '../packages/movie-domain/src/fixture-adapter.js';
+import { completedQueueItemHasArrived, completedQueueItemIsTerminal } from '../packages/contracts/src/mappers.js';
 import { TvFixtureAdapter } from '../packages/tv-domain/src/fixture-adapter.js';
 
 class FakeClient{constructor(values){this.values=values;}async get(path){if(path in this.values)return structuredClone(this.values[path]);return path.startsWith('movie/')?this.values.movieDetail:path.startsWith('series/')?this.values.seriesDetail:[];}}
@@ -24,7 +25,7 @@ test('movie adapter recognizes scanned media when the engine reports disk usage 
   const adapter=new MovieEngineAdapter({enabled:true},new FakeClient({movie:[pendingFile],queue:{records:[]},'wanted/cutoff':{records:[]}})),item=(await adapter.listMovies())[0];
   assert.equal(item.hasFile,true);assert.equal(item.state,'available');assert.equal(item.quality,'Detected media');
 });
-test('completed queue records clear after their media file reaches the library',async()=>{
+test('completed queue records clear once they are no longer active in the download client',async()=>{
   const movie=new MovieEngineAdapter({enabled:true},new FakeClient({queue:{records:[
     {id:1,status:'completed',size:100,sizeleft:0,movie:{id:1,title:'Arrived',hasFile:true}},
     {id:2,status:'completed',size:100,sizeleft:0,movie:{id:2,title:'Needs import',hasFile:false}},
@@ -34,12 +35,28 @@ test('completed queue records clear after their media file reaches the library',
     {id:4,status:'completed',size:100,sizeleft:0,series:{id:2,title:'Arrived show'},episode:{id:9,seriesId:2,hasFile:true}},
     {id:5,status:'completed',size:100,sizeleft:0,series:{id:2,title:'Needs import'},episode:{id:10,seriesId:2,hasFile:false}}
   ]}}));
-  assert.deepEqual((await movie.getQueue()).map(item=>item.title),['Needs import','Active']);
-  assert.deepEqual((await tv.getQueue()).map(item=>item.title),['Needs import']);
+  assert.deepEqual((await movie.getQueue()).map(item=>item.title),['Active']);
+  assert.deepEqual((await tv.getQueue()).map(item=>item.title),[]);
+});
+test('completed queue cleanup can use the current library record',()=>{
+  assert.equal(completedQueueItemHasArrived({status:'completed',sizeleft:0,movieId:7},'movie',{id:7,hasFile:true}),true);
+  assert.equal(completedQueueItemHasArrived({status:'completed',sizeleft:0,movieId:7},'movie',{id:7,hasFile:false}),false);
+  assert.equal(completedQueueItemIsTerminal({status:'completed',sizeleft:0}),true);
+  assert.equal(completedQueueItemIsTerminal({status:'downloading',sizeleft:100}),false);
 });
 test('TV adapter maps seasons, episodes, and operational surfaces',async()=>{
   const client=new FakeClient({series:[seriesRecord],seriesDetail:seriesRecord,episode:[{id:4,seasonNumber:1,episodeNumber:1,title:'Pilot',monitored:true,hasFile:true}],queue:{records:[]},history:{records:[]},calendar:[],health:[],'system/status':{version:'1.0'}});
   const adapter=new TvEngineAdapter({enabled:true},client);assert.equal((await adapter.listSeries())[0].id,'series_2');assert.equal((await adapter.getSeries('series_2')).seasons[0].episodes[0].title,'Pilot');
+});
+test('TV attention counts only monitored missing episodes',async()=>{
+  const monitored={...seriesRecord,statistics:{episodeCount:4,episodeFileCount:1}};
+  const unmonitored={...monitored,id:3,title:'Unmonitored Series',monitored:false};
+  const client=new FakeClient({series:[monitored,unmonitored],queue:{records:[]},'wanted/missing':{records:[
+    {id:10,seriesId:2,monitored:true},{id:11,seriesId:2,monitored:false},{id:12,seriesId:3,monitored:true}
+  ]}});
+  const items=await new TvEngineAdapter({enabled:true},client).listSeries();
+  assert.equal(items[0].missingEpisodes,1);
+  assert.equal(items[1].missingEpisodes,0);
 });
 test('health adapters remove bundled engine product names from public messages',async()=>{
   const movie=new MovieEngineAdapter({enabled:true},new FakeClient({health:[{type:'warning',source:'Radarr.Core.Health',message:'Radarr will not grab releases'}]}));

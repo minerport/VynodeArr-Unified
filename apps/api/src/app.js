@@ -38,6 +38,7 @@ export function createApplication(options={}){
   const engineSettings=options.engineSettings||new EngineSettingsService({path:join(dataDir,'engine-settings.json'),vaultPath:join(dataDir,'credentials.enc'),masterKey:options.masterKey||loadSecret(env,'VYNODEARR_MASTER_KEY')||'local-development-key-change-me-2026',defaults:baseConfig});
   const projectionStore=options.projectionStore||new ProjectionStore(join(dataDir,'projections.json'));
   const auditStore=options.auditStore||new JsonStore(join(dataDir,'management-audit.json'),{version:1,entries:[]});
+  const collectionStore=options.collectionStore||new JsonStore(join(dataDir,'collections.json'),{version:1,collections:[]});
   const artworkCache=new Map(),tvMetadataCache=new Map();let mode=baseConfig.dataMode;
   let movie=options.movie||(mode==='fixture'?new MovieFixtureAdapter(baseConfig.movie):new MovieEngineAdapter(baseConfig.movie));
   let tv=options.tv||(mode==='fixture'?new TvFixtureAdapter(baseConfig.tv):new TvEngineAdapter(baseConfig.tv));
@@ -71,8 +72,10 @@ export function createApplication(options={}){
       .sort((left,right)=>Number(Boolean(left.hasFile))-Number(Boolean(right.hasFile))||new Date(right.airDateUtc||right.airDate||0)-new Date(left.airDateUtc||left.airDate||0));
     const releases=[],seen=new Set(),batchSize=4,limit=Math.min(candidates.length,40);
     for(let offset=0;offset<limit;offset+=batchSize){
-      const batch=await Promise.all(candidates.slice(offset,offset+batchSize).map(episode=>management.execute('tv','releases','GET',{query:{episodeId:Number(episode.id)}}).catch(()=>[])));
-      for(const result of batch)for(const release of Array.isArray(result)?result:[]){
+      const episodeBatch=candidates.slice(offset,offset+batchSize);
+      const batch=await Promise.all(episodeBatch.map(episode=>management.execute('tv','releases','GET',{query:{episodeId:Number(episode.id)}}).catch(()=>[])));
+      for(let batchIndex=0;batchIndex<batch.length;batchIndex++)for(const rawRelease of Array.isArray(batch[batchIndex])?batch[batchIndex]:[]){
+        const release={...rawRelease,episodeId:Number(rawRelease.episodeId||episodeBatch[batchIndex].id)};
         const key=String(release.guid||release.downloadUrl||release.title||'');
         if(!key||seen.has(key))continue;
         seen.add(key);releases.push(release);
@@ -82,10 +85,15 @@ export function createApplication(options={}){
     return releases.sort(compareReleases).slice(0,200);
   }
   async function reacquireRelease(domain,release){
-    if(domain!=='movie')return release;
-    const movieId=Number(release?.mappedMovieId||release?.movieId),guid=String(release?.guid||''),indexerId=Number(release?.indexerId);
-    if(!Number.isFinite(movieId)||!guid||!Number.isFinite(indexerId))throw new Error('This release is missing its movie or indexer identity. Search again before grabbing it.');
-    const current=await management.execute('movie','releases','GET',{query:{movieId}});
+    const movieId=Number(release?.mappedMovieId||release?.movieId);
+    const mappedEpisode=Array.isArray(release?.mappedEpisodeInfo)?release.mappedEpisodeInfo[0]:null;
+    const episodeId=Number(release?.episodeId||release?.mappedEpisodeId||mappedEpisode?.id);
+    const identity=domain==='movie'?movieId:episodeId;
+    const guid=String(release?.guid||''),indexerId=Number(release?.indexerId);
+    if(!Number.isFinite(identity)||!guid||!Number.isFinite(indexerId)){
+      throw new Error(`This release is missing its ${domain==='movie'?'movie':'television episode'} or indexer identity. Search again before grabbing it.`);
+    }
+    const current=await management.execute(domain,'releases','GET',{query:domain==='movie'?{movieId}:{episodeId}});
     const match=(Array.isArray(current)?current:[]).find(item=>Number(item.indexerId)===indexerId&&String(item.guid||'')===guid);
     if(!match)throw new Error('This release is no longer available from the search source. Search again and choose another result.');
     return match;
@@ -148,7 +156,7 @@ export function createApplication(options={}){
     void(async()=>{
       job.status='running';
       try{
-        const value=await management.execute(domain,'wantedMissing','GET',{query:{page:1,pageSize:10000,sortKey:'title',sortDirection:'ascending'}});
+        const value=await management.execute(domain,'wantedMissing','GET',{query:{page:1,pageSize:10000,sortKey:'title',sortDirection:'ascending',...(domain==='tv'?{monitored:true}:{})}});
         const items=Array.isArray(value)?value:value?.records||[];
         job.total=items.length;
         const batchSize=domain==='movie'?20:40;
@@ -292,8 +300,13 @@ export function createApplication(options={}){
         client.get(domain==='movie'?'movie':'series').catch(()=>[])
       ]);
       const records=Array.isArray(queueValue?.records)?queueValue.records:[],libraryById=new Map((Array.isArray(library)?library:[]).map(item=>[Number(item.id),item]));
-      return records.filter(item=>!completedQueueItemHasArrived(item,domain)).map(item=>{
-        const mediaId=Number(domain==='movie'?(item.movieId||item.movie?.id):(item.seriesId||item.series?.id||item.episode?.seriesId)),media=item[domain==='movie'?'movie':'series']||libraryById.get(mediaId)||null,size=Number(item.size||0),sizeLeft=Number(item.sizeleft||0),percentage=size>0?(size-sizeLeft)/size*100:null;
+      return records.filter(item=>{
+        const mediaId=Number(domain==='movie'?(item.movieId||item.movie?.id):(item.seriesId||item.series?.id||item.episode?.seriesId));
+        const status=String(item.status||item.trackedDownloadStatus||item.trackedDownloadState||'').toLowerCase(),sizeLeft=Number(item.sizeleft??item.sizeLeft??0);
+        const noLongerActive=(status==='completed'||status==='complete')&&sizeLeft<=0;
+        return !noLongerActive&&!completedQueueItemHasArrived(item,domain,libraryById.get(mediaId));
+      }).map(item=>{
+        const mediaId=Number(domain==='movie'?(item.movieId||item.movie?.id):(item.seriesId||item.series?.id||item.episode?.seriesId)),media=item[domain==='movie'?'movie':'series']||libraryById.get(mediaId)||null,size=Number(item.size||0),sizeLeft=Number(item.sizeleft??item.sizeLeft??0),percentage=size>0?(size-sizeLeft)/size*100:null;
         return{...item,domain,media,mediaId,clientStatus:item.status||item.trackedDownloadState||null,clientFilename:item.title||null,clientPercentage:Number.isFinite(percentage)?percentage:null,clientTimeLeft:item.timeleft||item.estimatedCompletionTime||null,clientSizeLeftMb:Number.isFinite(sizeLeft)?sizeLeft/1048576:null,clientSpeed:null};
       });
     }));
@@ -395,7 +408,7 @@ export function createApplication(options={}){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;const input=await body(req),result=await testEngine(engineSave[1],input);if(!result.validated)return json(res,422,{error:{code:'engine_validation_failed',message:result.connection.safeError||'Engine validation did not succeed.'}});
           await engineSettings.save(engineSave[1],input,input.apiCredential);await rebuildFromSettings();await sync.startup();return json(res,200,{saved:true,settings:engineSettings.public(),validation:result});
         }
-        if(url.pathname==='/api/system/application-update'&&req.method==='GET')return json(res,200,{application:'VynodeArr',installedVersion:String(env.VYNODEARR_VERSION||'1.0.15'),channel:String(env.VYNODEARR_UPDATE_CHANNEL||'develop'),mechanism:'Container image',repository:'https://github.com/minerport/VynodeArr-Unified',message:'Pull the newest VynodeArr container image, then recreate the application container. Engine updates are managed separately.'});
+        if(url.pathname==='/api/system/application-update'&&req.method==='GET')return json(res,200,{application:'VynodeArr',installedVersion:String(env.VYNODEARR_VERSION||'1.0.16'),channel:String(env.VYNODEARR_UPDATE_CHANNEL||'develop'),mechanism:'Container image',repository:'https://github.com/minerport/VynodeArr-Unified',message:'Pull the newest VynodeArr container image, then recreate the application container. Engine updates are managed separately.'});
         const backupRestore=url.pathname.match(/^\/api\/system\/backups\/(movie|tv)\/(\d+)\/restore$/);
         if(backupRestore&&req.method==='POST'){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;
@@ -428,6 +441,33 @@ export function createApplication(options={}){
           await client.post('command',{name:'Restart'});await completeEngineRestore(domain,before.startTime);return json(res,200,{restored:true,domain,uploaded:true});
         }
         if(url.pathname==='/api/system/sync'&&req.method==='POST'){if(!requireCsrf(req,res,session))return;const results=await sync.startup();return json(res,200,{synchronized:true,results:results.map((item)=>item.status),state:sync.snapshot()});}
+        if(url.pathname==='/api/collections'&&req.method==='GET'){
+          const stored=await collectionStore.read(),movies=await sync.list('movie'),collections=(stored.collections||[]).map(collection=>{
+            const needle=String(collection.titleContains||'').trim().toLowerCase();
+            const memberIds=collection.type==='smart'
+              ?movies.filter(movie=>needle&&movie.title.toLowerCase().includes(needle)).map(movie=>movie.id)
+              :(collection.movieIds||[]);
+            const members=memberIds.map(id=>movies.find(movie=>movie.id===id)).filter(Boolean);
+            return{...collection,movieIds:memberIds,members,count:members.length};
+          });
+          return json(res,200,{items:collections});
+        }
+        if(url.pathname==='/api/collections'&&req.method==='POST'){
+          if(!administrator(res,session)||!requireCsrf(req,res,session))return;
+          const input=await body(req),name=String(input.name||'').trim(),type=input.type==='smart'?'smart':'custom',titleContains=String(input.titleContains||'').trim();
+          if(!name)throw new Error('Collection name is required');
+          if(type==='smart'&&!titleContains)throw new Error('Smart collections require a movie-name rule');
+          const stored=await collectionStore.read(),collections=stored.collections||[];
+          if(collections.some(collection=>collection.name.toLowerCase()===name.toLowerCase()))throw new Error('A collection with this name already exists');
+          const collection={id:`collection_${randomUUID()}`,name,type,titleContains:type==='smart'?titleContains:'',movieIds:type==='custom'?[...new Set((input.movieIds||[]).map(String))]:[],createdAt:new Date().toISOString()};
+          collections.push(collection);await collectionStore.write({version:1,collections});return json(res,201,{item:collection});
+        }
+        const collectionMatch=url.pathname.match(/^\/api\/collections\/(collection_[A-Za-z0-9-]+)$/);
+        if(collectionMatch&&req.method==='DELETE'){
+          if(!administrator(res,session)||!requireCsrf(req,res,session))return;
+          const stored=await collectionStore.read(),collections=(stored.collections||[]).filter(collection=>collection.id!==collectionMatch[1]);
+          await collectionStore.write({version:1,collections});return json(res,200,{deleted:true});
+        }
         if(url.pathname==='/api/media-files/reassign'&&req.method==='POST'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;return json(res,200,{reassigned:true,result:await reassignMediaFile(await body(req))});}
         const catalogMatch=url.pathname.match(/^\/api\/manage\/(movie|tv)$/);
         if(catalogMatch&&req.method==='GET'){if(!administrator(res,session))return;return json(res,200,{domain:catalogMatch[1],available:management.available(catalogMatch[1]),resources:management.catalog(catalogMatch[1])});}
@@ -439,7 +479,7 @@ export function createApplication(options={}){
           const releases=await management.execute(domain,'releases','GET',{query}),accepted=(Array.isArray(releases)?releases:[]).filter(eligibleRelease);
           if(!accepted.length)throw new Error('No accepted releases matched the configured quality profile and restrictions');
           accepted.sort(compareReleases);
-          const selected=accepted[0],result=await management.execute(domain,'releases','POST',{payload:selected});
+          const selected=accepted[0],result=await management.execute(domain,'releases','POST',{payload:await reacquireRelease(domain,selected)});
           return json(res,201,{result,selection:{title:selected.title,quality:selected.quality?.quality?.name||selected.quality?.name||'Unknown',size:Number(selected.size||0),acceptedCandidates:accepted.length}});
         }
         const managementMatch=url.pathname.match(/^\/api\/manage\/(movie|tv)\/([A-Za-z][A-Za-z0-9]*)(?:\/([A-Za-z0-9_-]+))?$/);
@@ -460,7 +500,10 @@ export function createApplication(options={}){
             const audit=await auditStore.read(),entries=Array.isArray(audit.entries)?audit.entries:[];
             entries.unshift({id:`change_${randomUUID()}`,timestamp:new Date().toISOString(),userId:session.user.id,username:session.user.username,domain:managementMatch[1],resource:managementMatch[2],method,resourceId:managementMatch[3]||null});
             await auditStore.write({version:1,entries:entries.slice(0,1000)});
-            if(['library','libraryEditor'].includes(managementMatch[2]))await sync.synchronize(managementMatch[1]);
+            if(['library','libraryEditor'].includes(managementMatch[2])){
+              sync.invalidate(managementMatch[1]);
+              await sync.synchronize(managementMatch[1]);
+            }
             else if(['episodes','episodeFiles'].includes(managementMatch[2]))await sync.synchronize('tv');
             else if(managementMatch[2]==='queue')await sync.synchronizeOperations();
             else if(managementMatch[2]==='downloadClients')setTimeout(()=>ensureBundledDownloadPathMappings().catch(()=>{}),500);

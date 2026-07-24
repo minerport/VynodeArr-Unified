@@ -13,12 +13,15 @@ export const qualityName = (file) => file?.quality?.quality?.name || file?.quali
 export const profile = (record) => record?.qualityProfile?.name || record?.qualityProfileId || null;
 export const tags = (record) => Array.isArray(record?.tags) ? record.tags.map(String) : [];
 export const safeDate = (value) => value || null;
-export const completedQueueItemHasArrived = (record, domain) => {
-  const status = String(record?.status || record?.trackedDownloadStatus || '').toLowerCase();
-  const completed = status === 'completed' || status === 'complete';
-  if (!completed || Number(record?.sizeleft ?? record?.sizeLeft ?? 0) > 0) return false;
+export const completedQueueItemIsTerminal = (record) => {
+  const status = String(record?.status || record?.trackedDownloadStatus || record?.trackedDownloadState || '').toLowerCase();
+  return (status === 'completed' || status === 'complete') && Number(record?.sizeleft ?? record?.sizeLeft ?? 0) <= 0;
+};
+export const completedQueueItemHasArrived = (record, domain, libraryRecord = null) => {
+  if (!completedQueueItemIsTerminal(record)) return false;
   if (domain === 'movie') {
-    return Boolean(record?.movie?.hasFile || record?.movieFileId || record?.movie?.movieFile?.id || Number(record?.movie?.sizeOnDisk || 0) > 0);
+    const movie = libraryRecord || record?.movie;
+    return Boolean(movie?.hasFile || record?.movieFileId || movie?.movieFile?.id || Number(movie?.sizeOnDisk || 0) > 0);
   }
   return Boolean(record?.episode?.hasFile || record?.episodeFileId || record?.episode?.episodeFile?.id);
 };
@@ -27,7 +30,7 @@ export function movieSummary(record, context = {}) {
   if (!record || record.id == null || !record.title) throw new TypeError('Invalid movie record');
   const hasFile = Boolean(record.hasFile || record.movieFile || Number(record.sizeOnDisk || 0) > 0);
   return assertModel('MovieSummary', {
-    id: `movie_${record.id}`, title: record.title, year: Number(record.year || 0),
+    id: `movie_${record.id}`, title: record.title, year: Number(record.year || 0), genres: record.genres || [],
     artwork: { url:`/api/artwork/movie/movie_${record.id}/poster`,kind:'poster',width:0,height:0 }, status: record.status || 'announced',
     monitoring: monitoring(record.monitored), hasFile,
     quality: qualityName(record.movieFile) || (hasFile ? 'Detected media' : 'Not available'),
@@ -61,12 +64,13 @@ export function seriesSummary(record, context = {}) {
   const statistics = record.statistics || {};
   const episodeCount = Number(statistics.episodeCount || 0);
   const fileCount = Number(statistics.episodeFileCount || 0);
+  const monitoredMissing = record.monitored === false ? 0 : context.monitoredMissingBySeriesId?.get(Number(record.id));
   return assertModel('SeriesSummary', {
     id: `series_${record.id}`, title: record.title, year: Number(record.year || 0),
     network: record.network || 'Unknown network', artwork: { url:`/api/artwork/tv/series_${record.id}/poster`,kind:'poster',width:0,height:0 },
     status: record.status || 'unknown', monitoring: monitoring(record.monitored),
     seasonProgress: `${(record.seasons || []).filter((season) => season.monitored).length} / ${(record.seasons || []).length}`,
-    episodeProgress: `${fileCount} / ${episodeCount}`, missingEpisodes: Math.max(0, Number(statistics.episodeCount || 0) - Number(statistics.episodeFileCount || 0)),
+    episodeProgress: `${fileCount} / ${episodeCount}`, missingEpisodes: monitoredMissing ?? Math.max(0, episodeCount - fileCount),
     cutoffUnmetEpisodes: Number(statistics.cutoffNotMetCount || 0),
     nextEpisode: record.nextAiring ? { title: 'Next episode', airDateUtc: record.nextAiring } : null,
     qualityProfile: profile(record), rootFolder: record.rootFolderPath || record.path || null,

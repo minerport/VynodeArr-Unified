@@ -1,0 +1,42 @@
+.queue-toolbar {
+  display: flex;
+  align-items: end;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.queue-toolbar label {
+  min-width: 10rem;
+}
+
+.queue-selection-actions {
+  display: flex;
+  gap: .6rem;
+  margin-left: auto;
+}
+
+.queue-table:has(.queue-select) .queue-header,
+.queue-table:has(.queue-select) .queue-row {
+  grid-template-columns: 2rem 4.5rem minmax(17rem, 2fr) 6rem minmax(8rem, 1fr) minmax(8rem, 1fr) 6rem minmax(9rem, 1fr) 8rem auto;
+}
+
+.queue-table:has(.queue-select) {
+  min-width: 80rem;
+}
+
+.queue-select {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+@media (max-width: 900px) {
+  .queue-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .queue-selection-actions {
+    margin-left: 0;
+    flex-wrap: wrap;
+  }
+}

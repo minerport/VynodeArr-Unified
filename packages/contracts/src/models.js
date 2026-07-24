@@ -5,7 +5,7 @@ export const MonitoringStatus = values('MonitoringStatus', ['all', 'future', 'mi
 
 export const modelSchemas = Object.freeze({
   MediaArtwork: ['url', 'kind', 'width', 'height'],
-  MovieSummary: ['id', 'title', 'year', 'artwork', 'status', 'monitoring', 'hasFile', 'quality', 'qualityProfile', 'rootFolder', 'collection', 'tags', 'state', 'queue'],
+  MovieSummary: ['id', 'title', 'year', 'genres', 'artwork', 'status', 'monitoring', 'hasFile', 'quality', 'qualityProfile', 'rootFolder', 'collection', 'tags', 'state', 'queue'],
   MovieDetails: ['id', 'title', 'year', 'overview', 'runtimeMinutes', 'minimumAvailability', 'artwork', 'status', 'monitoring', 'hasFile', 'quality'],
   SeriesSummary: ['id', 'title', 'year', 'network', 'artwork', 'status', 'monitoring', 'seasonProgress', 'episodeProgress', 'missingEpisodes', 'cutoffUnmetEpisodes', 'nextEpisode', 'qualityProfile', 'rootFolder', 'tags', 'queue'],
   SeriesDetails: ['id', 'title', 'year', 'overview', 'network', 'seriesType', 'artwork', 'status', 'monitoring', 'seasons'],
