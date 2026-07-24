@@ -1,6 +1,7 @@
 export class SynchronizationService {
   constructor({movie,tv,maxItems=5000,pollIntervalMs=300000,projectionStore=null}) {
     this.engines={movie,tv};this.maxItems=maxItems;this.pollIntervalMs=pollIntervalMs;this.projectionStore=projectionStore;
+    this.domainRuns=new Map();this.startupRun=null;
     this.cache=new Map();this.state={
       movie:{status:'idle',lastSuccess:null,lastFailure:null,durationMs:null,itemCount:0,itemsUpdated:0},
       tv:{status:'idle',lastSuccess:null,lastFailure:null,durationMs:null,itemCount:0,itemsUpdated:0}
@@ -12,6 +13,11 @@ export class SynchronizationService {
     for(const domain of ['movie','tv']){const items=await this.projectionStore.domain(domain);if(items.length)this.cache.set(domain,{items,cachedAt:new Date().toISOString(),durable:true});}
   }
   async synchronize(domain){
+    if(this.domainRuns.has(domain))return this.domainRuns.get(domain);
+    const run=this.runDomainSynchronization(domain);this.domainRuns.set(domain,run);
+    try{return await run;}finally{if(this.domainRuns.get(domain)===run)this.domainRuns.delete(domain);}
+  }
+  async runDomainSynchronization(domain){
     const started=Date.now();this.state[domain].status='synchronizing';
     try{
       const items=domain==='movie'?await this.engines.movie.listMovies({limit:this.maxItems}):await this.engines.tv.listSeries({limit:this.maxItems});
@@ -41,7 +47,11 @@ export class SynchronizationService {
   async list(domain,{refresh=false}={}){if(!refresh&&this.cache.has(domain))return this.cache.get(domain).items;return this.synchronize(domain);}
   invalidate(domain){if(domain)this.cache.delete(domain);else this.cache.clear();}
   snapshot(){return structuredClone(this.state);}
-  async startup(){await this.hydrate();const result=await Promise.allSettled(['movie','tv'].map((domain)=>this.synchronize(domain)));await this.synchronizeOperations().catch(()=>{});return result;}
+  async startup(){
+    if(this.startupRun)return this.startupRun;
+    this.startupRun=(async()=>{await this.hydrate();const result=await Promise.allSettled(['movie','tv'].map((domain)=>this.synchronize(domain)));await this.synchronizeOperations().catch(()=>{});return result;})();
+    try{return await this.startupRun;}finally{this.startupRun=null;}
+  }
   startPolling(){this.stopPolling();this.timer=setInterval(()=>this.startup(),this.pollIntervalMs);this.timer.unref?.();}
   stopPolling(){if(this.timer)clearInterval(this.timer);}
 }

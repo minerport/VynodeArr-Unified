@@ -33,7 +33,7 @@ export function loadEngineConfiguration(env = process.env) {
   return Object.freeze({
     movie: domainConfig(env, 'MOVIE_ENGINE', 'Movies', fixtureMode),
     tv: domainConfig(env, 'TV_ENGINE', 'TV', fixtureMode),
-    pollIntervalMs: integer(env.VYNODEARR_SYNC_INTERVAL_MS, 300000, 15000, 86400000),
+    pollIntervalMs: integer(env.VYNODEARR_SYNC_INTERVAL_MS||env.VYNODENEW_SYNC_INTERVAL_MS, 900000, 60000, 86400000),
     cacheMaxItems: integer(env.VYNODEARR_CACHE_MAX_ITEMS, 5000, 10, 100000),
     dataMode: fixtureMode ? 'fixture' : 'engine'
   });

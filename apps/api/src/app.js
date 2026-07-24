@@ -68,7 +68,7 @@ export function createApplication(options={}){
         catch(error){const message=redact(error?.safeMessage||error?.message||'Import failed');if(/already (?:been )?(?:added|exists)|already exists/i.test(message))job.skipped+=1;else{job.failed+=1;job.errors.push({title:job.currentTitle,message});}}
       }
       if(createdIds.length){job.currentTitle='Scanning imported folders';try{if(domain==='movie')await management.execute('movie','commands','POST',{payload:{name:'RefreshMovie',movieIds:createdIds}});else for(const seriesId of createdIds)await management.execute('tv','commands','POST',{payload:{name:'RefreshSeries',seriesId}});}catch(error){job.errors.push({title:'Post-import folder scan',message:redact(error?.safeMessage||error?.message||'The folder scan could not be queued')});}}
-      job.currentTitle=null;job.status=job.failed===job.total?'failed':'completed';job.finishedAt=new Date().toISOString();await sync.startup().catch(()=>{});setTimeout(()=>sync.startup().catch(()=>{}),15_000);setTimeout(()=>importJobs.delete(job.id),6*60*60*1000);
+      job.currentTitle=null;job.status=job.failed===job.total?'failed':'completed';job.finishedAt=new Date().toISOString();await sync.synchronize(domain).catch(()=>{});setTimeout(()=>sync.synchronize(domain).catch(()=>{}),15_000);setTimeout(()=>importJobs.delete(job.id),6*60*60*1000);
     })();
     return publicImportJob(job);
   }
@@ -273,7 +273,7 @@ export function createApplication(options={}){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;const input=await body(req),result=await testEngine(engineSave[1],input);if(!result.validated)return json(res,422,{error:{code:'engine_validation_failed',message:result.connection.safeError||'Engine validation did not succeed.'}});
           await engineSettings.save(engineSave[1],input,input.apiCredential);await rebuildFromSettings();await sync.startup();return json(res,200,{saved:true,settings:engineSettings.public(),validation:result});
         }
-        if(url.pathname==='/api/system/application-update'&&req.method==='GET')return json(res,200,{application:'VynodeArr',installedVersion:String(env.VYNODEARR_VERSION||'1.0.7'),channel:String(env.VYNODEARR_UPDATE_CHANNEL||'develop'),mechanism:'Container image',repository:'https://github.com/minerport/VynodeArr-Unified',message:'Pull the newest VynodeArr container image, then recreate the application container. Engine updates are managed separately.'});
+        if(url.pathname==='/api/system/application-update'&&req.method==='GET')return json(res,200,{application:'VynodeArr',installedVersion:String(env.VYNODEARR_VERSION||'1.0.8'),channel:String(env.VYNODEARR_UPDATE_CHANNEL||'develop'),mechanism:'Container image',repository:'https://github.com/minerport/VynodeArr-Unified',message:'Pull the newest VynodeArr container image, then recreate the application container. Engine updates are managed separately.'});
         const backupRestore=url.pathname.match(/^\/api\/system\/backups\/(movie|tv)\/(\d+)\/restore$/);
         if(backupRestore&&req.method==='POST'){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;
@@ -319,7 +319,9 @@ export function createApplication(options={}){
             const audit=await auditStore.read(),entries=Array.isArray(audit.entries)?audit.entries:[];
             entries.unshift({id:`change_${randomUUID()}`,timestamp:new Date().toISOString(),userId:session.user.id,username:session.user.username,domain:managementMatch[1],resource:managementMatch[2],method,resourceId:managementMatch[3]||null});
             await auditStore.write({version:1,entries:entries.slice(0,1000)});
-            if(['library','episodes','episodeFiles','queue'].includes(managementMatch[2]))await sync.startup();
+            if(['library','libraryEditor'].includes(managementMatch[2]))await sync.synchronize(managementMatch[1]);
+            else if(['episodes','episodeFiles'].includes(managementMatch[2]))await sync.synchronize('tv');
+            else if(managementMatch[2]==='queue')await sync.synchronizeOperations();
           }
           return json(res,method==='POST'?201:200,{result});
         }

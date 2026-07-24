@@ -12,22 +12,25 @@ test('management gateway exposes native capabilities and forwards only allowlist
     get:async(path,query)=>{calls.push(['GET',path,query]);return[{id:1,name:'Profile'}];},
     post:async(path,payload)=>{calls.push(['POST',path,payload]);return{id:2,...payload};},
     put:async(path,payload,query)=>{calls.push(['PUT',path,payload,query]);return payload;},
-    delete:async(path)=>{calls.push(['DELETE',path]);return null;}
+    delete:async(path,query,payload)=>{calls.push(['DELETE',path,payload,query]);return null;}
   };
   const service=new EngineManagementService({get:()=>({client})});
   assert.equal(service.available('movie'),true);
   const catalog=service.catalog('movie');
   assert.ok(catalog.some((item)=>item.key==='library'&&item.methods.includes('PUT')));
+  assert.ok(catalog.some((item)=>item.key==='libraryEditor'&&item.methods.includes('DELETE')));
   assert.ok(catalog.some((item)=>item.key==='indexers'&&item.methods.includes('POST')));
   for(const key of ['calendar','wantedMissing','blocklist','releases','filesystem','remotePathMappings','indexerSchemas','downloadClientSettings','diskSpace','tasks','backups','updates','events'])assert.ok(catalog.some((item)=>item.key===key),key);
   await service.execute('movie','profiles','GET');
   await service.execute('movie','library','POST',{payload:{title:'New movie'}});
   await service.execute('movie','library','PUT',{id:7,payload:{id:7,monitored:true},query:{moveFiles:'true'}});
   await service.execute('movie','library','DELETE',{id:7});
+  await service.execute('movie','libraryEditor','DELETE',{payload:{movieIds:[7],deleteFiles:false}});
   assert.deepEqual(calls.map((call)=>call.slice(0,2)),[
-    ['GET','qualityprofile'],['POST','movie'],['PUT','movie/7'],['DELETE','movie/7']
+    ['GET','qualityprofile'],['POST','movie'],['PUT','movie/7'],['DELETE','movie/7'],['DELETE','movie/editor']
   ]);
   assert.deepEqual(calls[2][3],{moveFiles:'true'});
+  assert.deepEqual(calls[4][2],{movieIds:[7],deleteFiles:false});
   await assert.rejects(()=>service.execute('movie','system/status','DELETE',{id:1}),/not available/);
   await assert.rejects(()=>service.execute('movie','library','DELETE'),/identifier/);
 });

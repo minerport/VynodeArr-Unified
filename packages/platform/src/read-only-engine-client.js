@@ -78,7 +78,7 @@ export class ReadOnlyEngineClient {
   }
   post(path,payload,query){return this.mutate('POST',path,payload,query);}
   put(path,payload,query){return this.mutate('PUT',path,payload,query);}
-  delete(path,query){return this.mutate('DELETE',path,undefined,query);}
+  delete(path,query,payload){return this.mutate('DELETE',path,payload,query);}
   async getArtwork(mediaId,type){
     if(!this.config.enabled)throw engineError.unavailable(this.domain);
     const prefix=this.config.urlBase?`/${this.config.urlBase}`:'';

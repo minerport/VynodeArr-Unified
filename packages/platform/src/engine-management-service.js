@@ -79,7 +79,7 @@ export class EngineManagementService {
   async execute(domain,resource,method,{id,query,payload}={}){
     const definition={...sharedResources,...domainResources[domain]}[resource];
     if(!definition||!definition.methods.includes(method))throw new Error('This management operation is not available');
-    const singleton=['naming','mediaManagement','downloadClientSettings','hostSettings','uiSettings','metadataSource'];
+    const singleton=['naming','mediaManagement','downloadClientSettings','hostSettings','uiSettings','metadataSource','libraryEditor'];
     if((method==='PUT'||method==='DELETE')&&!id&&!singleton.includes(resource))throw new Error('A resource identifier is required');
     const path=id?`${definition.path}/${encodeURIComponent(String(id))}`:definition.path;
     const client=this.registry.get(domain).client;
@@ -87,6 +87,6 @@ export class EngineManagementService {
     if(method==='GET')return client.get(path,cleanQuery(query));
     if(method==='POST')return client.post(path,payload,cleanQuery(query));
     if(method==='PUT')return client.put(path,payload,cleanQuery(query));
-    return client.delete(path,cleanQuery(query));
+    return client.delete(path,cleanQuery(query),payload);
   }
 }
