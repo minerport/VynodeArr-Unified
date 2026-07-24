@@ -93,6 +93,8 @@ services:
       TV_ENGINE_HOST: tv-engine
       TV_ENGINE_PORT: "8989"
       TV_ENGINE_API_CREDENTIAL: "${TV_ENGINE_API_CREDENTIAL:-vynodearr-local-tv-key-2026}"
+      REQUEST_ENGINE_HOST: request-engine
+      REQUEST_ENGINE_PORT: "5055"
       VYNODEARR_BOOTSTRAP_ROOT_FOLDERS: "true"
       VYNODEARR_BUNDLED_ENGINES: "true"
     ports:
@@ -108,6 +110,8 @@ services:
         condition: service_healthy
       tv-engine:
         condition: service_healthy
+      request-engine:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4310/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 30s
@@ -117,6 +121,27 @@ services:
     networks:
       - vynodearr-private
 
+  request-engine:
+    build:
+      context: https://github.com/minerport/VynodeSeerr.git#develop
+    image: vynodearr-request-engine:review
+    container_name: vynodearr-request-engine
+    restart: unless-stopped
+    init: true
+    environment:
+      PORT: "5055"
+      CONFIG_DIRECTORY: /app/config
+      TZ: "${TZ:-America/New_York}"
+    volumes:
+      - request-engine-config:/app/config
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5055/api/v1/status').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 45s
+    networks: [vynodearr-private]
+
 volumes:
   vynodearr-data:
   movie-engine-config:
@@ -124,6 +149,7 @@ volumes:
   movie-library:
   tv-library:
   shared-downloads:
+  request-engine-config:
 
 networks:
   vynodearr-private:

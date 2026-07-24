@@ -16,6 +16,7 @@ import { MovieEngineAdapter } from '../../../packages/movie-domain/src/engine-ad
 import { TvEngineAdapter } from '../../../packages/tv-domain/src/engine-adapter.js';
 import { MovieFixtureAdapter } from '../../../packages/movie-domain/src/fixture-adapter.js';
 import { TvFixtureAdapter } from '../../../packages/tv-domain/src/fixture-adapter.js';
+import { createRequestEngineProxy } from '../../../packages/request-domain/src/gateway-proxy.js';
 
 const webRoot=fileURLToPath(new URL('../../web/public/',import.meta.url));
 const mime={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.ico':'image/x-icon'};
@@ -44,6 +45,13 @@ export function createApplication(options={}){
   const sync=options.sync||new SynchronizationService({movie,tv,maxItems:baseConfig.cacheMaxItems,pollIntervalMs:baseConfig.pollIntervalMs,projectionStore});
   const management=new EngineManagementService(registry);
   const importJobs=new Map();
+  const requestEngineProxy=createRequestEngineProxy({
+    host:env.REQUEST_ENGINE_HOST||'request-engine',
+    port:Number(env.REQUEST_ENGINE_PORT||5055),
+    https:String(env.REQUEST_ENGINE_HTTPS||'false')==='true',
+    tlsVerify:String(env.REQUEST_ENGINE_TLS_VERIFY||'true')==='true',
+    prefix:'/requests'
+  });
   let initialized=false;
   function importIdentityKeys(value={}){
     const keys=[],title=String(value.title||value.name||'').trim().toLowerCase(),year=Number(value.year||0);
@@ -253,6 +261,7 @@ export function createApplication(options={}){
       if(req.method==='GET'&&url.pathname==='/healthz')return json(res,200,{status:'ready',service:'VynodeArr'});
       if(url.pathname==='/movies'||url.pathname.startsWith('/movies/'))return proxyCompatibilityApi(req,res,url,'movie','/movies');
       if(url.pathname==='/tv'||url.pathname.startsWith('/tv/'))return proxyCompatibilityApi(req,res,url,'tv','/tv');
+      if(url.pathname==='/requests'||url.pathname.startsWith('/requests/'))return requestEngineProxy(req,res,url);
       if(url.pathname==='/api/auth/status'&&req.method==='GET'){const session=sessionFor(req,auth);return json(res,200,{setupRequired:await auth.setupRequired(),authenticated:Boolean(session),user:session?.user||null,csrf:session?.csrf||null,enginesConfigured:engineSettings.configured()});}
       if(url.pathname==='/api/auth/setup'&&req.method==='POST'){
         const input=await body(req),user=await auth.createInitialAdministrator(input),result=await auth.createSession(user,{ip:req.socket.remoteAddress,userAgent:req.headers['user-agent'],remember:true});
