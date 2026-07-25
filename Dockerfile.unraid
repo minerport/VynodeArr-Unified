@@ -13,20 +13,24 @@ WORKDIR /app
 COPY package.json ./
 RUN npm install --include=dev --no-audit --no-fund
 COPY apps/web/client ./apps/web/client
-RUN npm run typecheck:web && npm run build:web
+COPY apps/api ./apps/api
+COPY packages ./packages
+COPY tsconfig.server.json ./
+RUN npm run typecheck:web && npm run build:web && npm run build:server
 
 FROM node:24-alpine
 LABEL org.opencontainers.image.title="VynodeArr" \
       org.opencontainers.image.description="Unified movie and television management for Unraid" \
       org.opencontainers.image.source="https://github.com/minerport/VynodeArr-Unified" \
-      org.opencontainers.image.version="1.0.15" \
+      org.opencontainers.image.version="1.0.51" \
       org.opencontainers.image.licenses="Apache-2.0"
 RUN apk add --no-cache icu-libs sqlite-libs libgcc libstdc++ tzdata tini
 WORKDIR /app
 COPY package.json ./
 COPY apps ./apps
 COPY --from=web-build /app/apps/web/public/react ./apps/web/public/react
-COPY packages ./packages
+COPY --from=web-build /app/.server-build/apps/api ./apps/api
+COPY --from=web-build /app/.server-build/packages ./packages
 COPY OPEN_SOURCE_NOTICES LICENSE THIRD_PARTY_NOTICES ./
 COPY --from=engines /opt/engines/Radarr /opt/vynodearr/movies
 COPY --from=engines /opt/engines/Sonarr /opt/vynodearr/television

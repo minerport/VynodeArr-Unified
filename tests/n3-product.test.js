@@ -9,7 +9,7 @@ import { ProjectionStore } from '../packages/platform/src/projection-store.js';
 import { SynchronizationService } from '../packages/platform/src/synchronization-service.js';
 import { MovieFixtureAdapter } from '../packages/movie-domain/src/fixture-adapter.js';
 import { TvFixtureAdapter } from '../packages/tv-domain/src/fixture-adapter.js';
-import { createApplication } from '../apps/api/src/app.js';
+import { createApplication } from '../.server-build/apps/api/src/app.js';
 
 async function tempAuth(run){
   const directory=await mkdtemp(join(tmpdir(),'vynodearr-n3-auth-'));

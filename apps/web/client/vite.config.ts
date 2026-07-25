@@ -13,9 +13,12 @@ export default defineConfig({
     outDir:fileURLToPath(new URL('../public/react/',import.meta.url)),
     emptyOutDir:true,
     lib:{
-      entry:fileURLToPath(new URL('./src/react-islands.tsx',import.meta.url)),
+      entry:{
+        'vynodearr-react':fileURLToPath(new URL('./src/react-islands.tsx',import.meta.url)),
+        'vynodearr-app':fileURLToPath(new URL('./src/app-shell.ts',import.meta.url))
+      },
       formats:['es'],
-      fileName:()=> 'vynodearr-react.js'
+      fileName:(_format,entryName)=>`${entryName}.js`
     },
     rollupOptions:{
       output:{

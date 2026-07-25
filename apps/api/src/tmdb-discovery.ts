@@ -1,4 +1,9 @@
 const IMAGE_ROOT='https://image.tmdb.org/t/p/';
+type MediaDomain='movie'|'tv';
+type JsonRecord=Record<string,any>;
+type CacheEntry={expires:number,value:any};
+type BrowseOptions={domain:MediaDomain;genre?:number|string;company?:number|string;network?:number|string;page?:number;query?:string};
+type DiscoveryOptions={token?:string;fetcher?:typeof fetch;language?:string};
 
 export const studios=[
   {id:2,name:'Disney'},{id:127928,name:'20th Century Studios'},{id:34,name:'Sony Pictures'},
@@ -21,12 +26,18 @@ const yearOf=value=>Number(String(value||'').slice(0,4))||null;
 const image=(path,size)=>path?`${IMAGE_ROOT}${size}${path}`:null;
 
 export class TmdbDiscoveryService{
-  constructor({token,fetcher=fetch,language='en-US'}={}){
+  token:string;
+  fetcher:typeof fetch;
+  language:string;
+  cache:Map<string,CacheEntry>;
+  inFlight:Map<string,Promise<any>>;
+
+  constructor({token,fetcher=fetch,language='en-US'}:DiscoveryOptions={}){
     this.token=String(token||'').trim();this.fetcher=fetcher;this.language=language;this.cache=new Map();this.inFlight=new Map();
   }
   configured(){return Boolean(this.token);}
-  setToken(token){this.token=String(token||'').trim();this.cache.clear();return this.configured();}
-  async request(path,params={}){
+  setToken(token:string){this.token=String(token||'').trim();this.cache.clear();return this.configured();}
+  async request(path:string,params:JsonRecord={}){
     if(!this.configured())throw new Error('TMDB discovery is not configured');
     const url=new URL(`https://api.themoviedb.org/3${path}`);
     url.searchParams.set('language',this.language);
@@ -43,16 +54,16 @@ export class TmdbDiscoveryService{
     this.inFlight.set(key,load);
     try{return await load;}finally{this.inFlight.delete(key);}
   }
-  media(item,domain){
+  media(item:JsonRecord,domain?:MediaDomain){
     const resolved=domain||(item.media_type==='tv'?'tv':'movie'),title=resolved==='tv'?item.name:item.title,date=resolved==='tv'?item.first_air_date:item.release_date;
     return{id:`tmdb-${resolved}-${item.id}`,tmdbId:Number(item.id),domain:resolved,title:title||'Untitled',year:yearOf(date),overview:item.overview||'',rating:Number(item.vote_average||0),poster:image(item.poster_path,'w500'),backdrop:image(item.backdrop_path,'w1280'),genreIds:item.genre_ids||[]};
   }
-  page(value,domain){
+  page(value:JsonRecord,domain?:MediaDomain){
     const results=(value.results||[]).filter(item=>item.media_type!=='person').map(item=>this.media(item,domain)).filter(item=>item.title);
     return{page:Number(value.page||1),totalPages:Number(value.total_pages||1),totalResults:Number(value.total_results||results.length),results};
   }
-  async feed(kind,page=1){
-    const routes={
+  async feed(kind:string,page=1){
+    const routes:Record<string,[string,JsonRecord,MediaDomain|null]>={
       trending:['/trending/all/day',{},null],
       popular_movies:['/discover/movie',{sort_by:'popularity.desc',include_adult:false,include_video:false},'movie'],
       popular_tv:['/discover/tv',{sort_by:'popularity.desc',include_adult:false},'tv'],
@@ -62,19 +73,19 @@ export class TmdbDiscoveryService{
     const route=routes[kind];if(!route)throw new Error('Unknown discovery feed');
     return this.page(await this.request(route[0],{...route[1],page:asPage(page)}),route[2]);
   }
-  async browse({domain,genre,company,network,page=1,query}){
+  async browse({domain,genre,company,network,page=1,query}:BrowseOptions){
     if(!['movie','tv'].includes(domain))throw new Error('Choose movies or television');
     if(query){
       const path=domain==='movie'?'/search/movie':'/search/tv';
       return this.page(await this.request(path,{query,page:asPage(page),include_adult:false}),domain);
     }
-    const params={page:asPage(page),sort_by:'popularity.desc',include_adult:false};
+    const params:JsonRecord={page:asPage(page),sort_by:'popularity.desc',include_adult:false};
     if(genre)params.with_genres=genre;
     if(company&&domain==='movie')params.with_companies=company;
     if(network&&domain==='tv')params.with_networks=network;
     return this.page(await this.request(`/discover/${domain}`,params),domain);
   }
-  async genres(domain){
+  async genres(domain:MediaDomain){
     if(!['movie','tv'].includes(domain))throw new Error('Choose movies or television');
     const cacheKey=`genres:${domain}`,cached=this.cache.get(cacheKey);
     if(cached&&cached.expires>Date.now())return cached.value;
@@ -87,7 +98,7 @@ export class TmdbDiscoveryService{
     values.sort((left,right)=>left.name.localeCompare(right.name));
     this.cache.set(cacheKey,{expires:Date.now()+6*60*60*1000,value:values});return values;
   }
-  async categories(type){
+  async categories(type:'studios'|'networks'){
     const source=type==='studios'?studios:type==='networks'?networks:null;
     if(!source)throw new Error('Unknown discovery category');
     const domain=type==='studios'?'movie':'tv',key=type==='studios'?'company':'network';
@@ -98,7 +109,7 @@ export class TmdbDiscoveryService{
     }));
     return values;
   }
-  async details(domain,id){
+  async details(domain:MediaDomain,id:number|string){
     if(!['movie','tv'].includes(domain)||!Number.isFinite(Number(id)))throw new Error('Invalid title');
     const item=await this.request(`/${domain}/${Number(id)}`,{append_to_response:'content_ratings,release_dates,credits,videos,external_ids'});
     const base=this.media(item,domain),certification=domain==='movie'
@@ -108,7 +119,7 @@ export class TmdbDiscoveryService{
     const imdbId=item.external_ids?.imdb_id||item.imdb_id||null,tvdbId=item.external_ids?.tvdb_id||null;
     return{...base,imdbId,tvdbId,genres:(item.genres||[]).map(value=>value.name),genre:(item.genres||[])[0]?.name||'Uncategorized',studio:item.production_companies?.[0]?.name||null,productionCompanies:(item.production_companies||[]).map(value=>value.name),network:item.networks?.[0]?.name||null,runtime:domain==='movie'?Number(item.runtime||0)||null:Number(item.episode_run_time?.[0]||item.last_episode_to_air?.runtime||0)||null,status:item.status||null,certification:certification||null,tagline:item.tagline||null,originalTitle:domain==='movie'?item.original_title:item.original_name,originalLanguage:item.original_language||null,countries:(item.production_countries||item.origin_country||[]).map(value=>value.name||value),budget:Number(item.budget||0)||null,revenue:Number(item.revenue||0)||null,cast:(item.credits?.cast||[]).slice(0,14).map(value=>({id:Number(value.id),name:value.name,character:value.character||null,photo:image(value.profile_path,'w185')})),trailer:trailer?{name:trailer.name||'Official trailer',url:`https://www.youtube.com/watch?v=${encodeURIComponent(trailer.key)}`} :null,externalLinks:[{label:'TMDB',url:`https://www.themoviedb.org/${domain}/${Number(id)}`},...(imdbId?[{label:'IMDb',url:`https://www.imdb.com/title/${imdbId}/`}]:[]),...(tvdbId?[{label:'TVDB',url:`https://thetvdb.com/dereferrer/series/${tvdbId}`}]:[])],seasons:domain==='tv'?(item.seasons||[]).map(value=>({seasonNumber:Number(value.season_number),name:value.name,episodeCount:Number(value.episode_count||0),airDate:value.air_date||null,poster:image(value.poster_path,'w342')})):[]};
   }
-  async enrich(domain,{title,year}={}){
+  async enrich(domain:MediaDomain,{title,year}:{title?:string;year?:number|string}={}){
     if(!['movie','tv'].includes(domain)||!String(title||'').trim())throw new Error('Invalid title');
     const page=await this.browse({domain,query:String(title).trim(),page:1}),normalized=String(title).trim().toLowerCase();
     const candidates=page.results.map(item=>({...item,score:(item.title.toLowerCase()===normalized?100:0)+(Number(year)&&item.year===Number(year)?25:0)})).sort((left,right)=>right.score-left.score);

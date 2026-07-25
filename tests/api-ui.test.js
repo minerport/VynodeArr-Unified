@@ -4,7 +4,7 @@ import { createServer } from 'node:http';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createApplication } from '../apps/api/src/app.js';
+import { createApplication } from '../.server-build/apps/api/src/app.js';
 import { AuthService } from '../packages/platform/src/auth-service.js';
 import { MovieFixtureAdapter } from '../packages/movie-domain/src/fixture-adapter.js';
 import { TvFixtureAdapter } from '../packages/tv-domain/src/fixture-adapter.js';
@@ -52,9 +52,10 @@ test('public errors and health are neutral',async()=>{
   finally{await new Promise((resolve)=>server.close(resolve));await rm(directory,{recursive:true,force:true});}
 });
 test('UI exposes login, dashboard, media, operations, settings, and responsive shell',async()=>{
-  const html=await readFile(new URL('../apps/web/public/index.html',import.meta.url),'utf8');const script=await readFile(new URL('../apps/web/public/app.js',import.meta.url),'utf8');const css=await readFile(new URL('../apps/web/public/styles.css',import.meta.url),'utf8');
+  const html=await readFile(new URL('../apps/web/public/index.html',import.meta.url),'utf8');const script=await readFile(new URL('../apps/web/client/src/app-shell.ts',import.meta.url),'utf8');const loader=await readFile(new URL('../apps/web/public/app.js',import.meta.url),'utf8');const css=await readFile(new URL('../apps/web/public/styles.css',import.meta.url),'utf8');
   for(const value of ['Create Administrator','Sign in','Username or email','Remember me','Forgot password','Discover','Movies','TV','Queue','History','Calendar','Settings','System','Read-only mode'])assert.match(html,new RegExp(value));
   for(const value of ['showDashboard','showDiscover','showDiscoverSettings','Configure Discover','/api/settings/discover','TMDB_API_READ_TOKEN','renderDiscoverRows','resolveDiscoverItem','openDiscoverDetails','addDiscoverToEngine','markLiveDiscoverRequested','scrollPositions','discoverLibraryKey','discover-taxonomy','discover-request-title','showHealthReact','mountHealth','showMedia','showDetail','showOperational','showSettings','showEngineSetup','showAccountSettings','showSessions','showUsers'])assert.match(script,new RegExp(value));
   assert.doesNotMatch(script,/requested and sent[^;]+;location\.hash/);
+  assert.match(loader,/\/react\/vynodearr-app\.js/);
   assert.match(css,/@media\(max-width:760px\)/);
 });

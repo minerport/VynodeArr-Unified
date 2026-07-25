@@ -1,5 +1,6 @@
 node_modules/
 dist/
+.server-build/
 apps/web/public/react/
 data/
 .env

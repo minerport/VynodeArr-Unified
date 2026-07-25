@@ -8,7 +8,7 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   const [packageJson,index,app,entry,dashboard,analytics,library,libraryCss,libraryTypes,history,queue,wanted,calendar,movieDetail,tvDetail,collections,collectionTypes,addMedia,addMediaTypes,health,healthTypes,account,accountTypes,system,systemTypes,selectionRules,selectionRuleTypes,bundleBudget,unraidDockerfile]=await Promise.all([
     read('package.json'),
     read('apps/web/public/index.html'),
-    read('apps/web/public/app.js'),
+    read('apps/web/client/src/app-shell.ts'),
     read('apps/web/client/src/react-islands.tsx'),
     read('apps/web/client/src/dashboard.tsx'),
     read('apps/web/client/src/dashboard-analytics.tsx'),
@@ -41,6 +41,7 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(manifest.scripts['build:web'],/vite build/);
   assert.equal(manifest.dependencies.react,'19.2.8');
   assert.match(index,/\/react\/vynodearr-react\.js/);
+  assert.match(index,/\/react\/vynodearr-app\.js/);
   assert.match(app,/mountDashboard/);
   assert.match(app,/dashboard-react/);
   assert.match(app,/mountLibrary/);
@@ -200,7 +201,7 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(app,/showHealthReact/);
   assert.doesNotMatch(app,/function healthFix/);
   assert.match(manifest.scripts.verify,/check:web-bundle/);
-  assert.match(bundleBudget,/limits=\{entry:300_000,route:45_000,css:50_000\}/);
+  assert.match(bundleBudget,/limits=\{entry:300_000,shell:100_000,route:45_000,css:50_000\}/);
   assert.match(unraidDockerfile,/FROM node:24-alpine AS web-build/);
   assert.match(unraidDockerfile,/apps\/web\/public\/react/);
 });
@@ -212,8 +213,26 @@ test('dashboard resolves television quality profile names and reports real stora
   assert.match(api,/analytics\.library\.movie\.sizeOnDisk\+analytics\.library\.tv\.sizeOnDisk/);
 });
 
+test('the Node API has a compiled TypeScript migration boundary',async()=>{
+  const [manifest,config,tmdb,build,image]=await Promise.all([
+    read('package.json'),
+    read('tsconfig.server.json'),
+    read('apps/api/src/tmdb-discovery.ts'),
+    read('scripts/build.mjs'),
+    read('Dockerfile.unraid')
+  ]);
+  assert.match(JSON.parse(manifest).scripts['build:server'],/tsc --project tsconfig\.server\.json/);
+  assert.match(config,/"module": "NodeNext"/);
+  assert.match(config,/"allowJs": true/);
+  assert.match(tmdb,/type DiscoveryOptions=/);
+  assert.match(tmdb,/class TmdbDiscoveryService/);
+  assert.match(build,/\.server-build\/apps\/api/);
+  assert.match(image,/npm run build:server/);
+  assert.match(image,/\.server-build\/apps\/api/);
+});
+
 test('library navigation preserves mounted views and safely reuses short-lived reads',async()=>{
-  const legacy=await read('apps/web/public/app.js');
+  const legacy=await read('apps/web/client/src/app-shell.ts');
   assert.match(legacy,/const responseCache=new Map\(\),responseInflight=new Map\(\)/);
   assert.match(legacy,/const cacheLifetime=path=>/);
   assert.match(legacy,/responseInflight\.has\(path\)/);
@@ -237,7 +256,7 @@ test('Discover progressively loads through a typed React route',async()=>{
   const [discover,islands,legacy]=await Promise.all([
     read('apps/web/client/src/discover.tsx'),
     read('apps/web/client/src/react-islands.tsx'),
-    read('apps/web/public/app.js')
+    read('apps/web/client/src/app-shell.ts')
   ]);
   assert.match(discover,/export function DiscoverView/);
   assert.match(discover,/loadFeed/);
@@ -252,7 +271,7 @@ test('global import progress uses a typed React monitor with the legacy path ret
     read('apps/web/client/src/import-monitor.tsx'),
     read('apps/web/client/src/import-monitor-types.ts'),
     read('apps/web/client/src/react-islands.tsx'),
-    read('apps/web/public/app.js')
+    read('apps/web/client/src/app-shell.ts')
   ]);
   assert.match(monitor,/export function ImportMonitor/);
   assert.match(monitor,/window\.setInterval/);
@@ -270,7 +289,7 @@ test('advanced engine resources use a typed schema-driven React editor',async()=
     read('apps/web/client/src/management.tsx'),
     read('apps/web/client/src/management-types.ts'),
     read('apps/web/client/src/react-islands.tsx'),
-    read('apps/web/public/app.js')
+    read('apps/web/client/src/app-shell.ts')
   ]);
   assert.match(management,/export function ManagementView/);
   assert.match(management,/indexerSchemas/);
@@ -288,7 +307,7 @@ test('media naming and importing settings use a typed React route without flatte
     read('apps/web/client/src/media-management.tsx'),
     read('apps/web/client/src/media-management-types.ts'),
     read('apps/web/client/src/react-islands.tsx'),
-    read('apps/web/public/app.js')
+    read('apps/web/client/src/app-shell.ts')
   ]);
   assert.match(view,/export function MediaManagementView/);
   assert.match(view,/const flatten=/);
@@ -306,7 +325,7 @@ test('storage folders use a typed React route while retaining the existing impor
     read('apps/web/client/src/root-folders.tsx'),
     read('apps/web/client/src/root-folders-types.ts'),
     read('apps/web/client/src/react-islands.tsx'),
-    read('apps/web/public/app.js')
+    read('apps/web/client/src/app-shell.ts')
   ]);
   assert.match(view,/export function RootFoldersView/);
   assert.match(view,/\/api\/settings\/download-folders/);
@@ -325,7 +344,7 @@ test('indexers and download clients use a typed native provider editor with conn
     read('apps/web/client/src/provider-settings.tsx'),
     read('apps/web/client/src/provider-settings-types.ts'),
     read('apps/web/client/src/react-islands.tsx'),
-    read('apps/web/public/app.js'),
+    read('apps/web/client/src/app-shell.ts'),
     read('packages/platform/src/engine-management-service.js')
   ]);
   assert.match(view,/export function ProviderSettingsView/);

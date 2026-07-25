@@ -51,7 +51,7 @@ test('management gateway exposes native capabilities and forwards only allowlist
 test('native interaction workflows replace an upstream-shaped generic shell',async()=>{
   const [html,script,apiSource,clientSource]=await Promise.all([
     readFile(new URL('../apps/web/public/index.html',import.meta.url),'utf8'),
-    readFile(new URL('../apps/web/public/app.js',import.meta.url),'utf8'),
+    readFile(new URL('../apps/web/client/src/app-shell.ts',import.meta.url),'utf8'),
     readFile(new URL('../apps/api/src/app.js',import.meta.url),'utf8'),
     readFile(new URL('../packages/platform/src/read-only-engine-client.js',import.meta.url),'utf8')
   ]);

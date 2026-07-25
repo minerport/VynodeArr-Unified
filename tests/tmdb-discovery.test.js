@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { TmdbDiscoveryService,networks,studios } from '../apps/api/src/tmdb-discovery.js';
+import { TmdbDiscoveryService,networks,studios } from '../.server-build/apps/api/src/tmdb-discovery.js';
 
 const response=value=>({ok:true,json:async()=>value});
 

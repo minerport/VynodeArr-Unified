@@ -3,7 +3,6 @@ import { randomUUID } from 'node:crypto';
 import { request as httpRequest } from 'node:http';
 import { request as httpsRequest } from 'node:https';
 import { extname,join,normalize,resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { MediaEngineRegistry } from '../../../packages/platform/src/engine-registry.js';
 import { loadEngineConfiguration,loadSecret,publicEngineConfiguration } from '../../../packages/platform/src/engine-config.js';
 import { SynchronizationService } from '../../../packages/platform/src/synchronization-service.js';
@@ -19,8 +18,8 @@ import { TvFixtureAdapter } from '../../../packages/tv-domain/src/fixture-adapte
 import { completedQueueItemHasArrived } from '../../../packages/contracts/src/mappers.js';
 import { TmdbDiscoveryService } from './tmdb-discovery.js';
 
-const applicationVersion=JSON.parse(await readFile(new URL('../../../package.json',import.meta.url),'utf8')).version;
-const webRoot=fileURLToPath(new URL('../../web/public/',import.meta.url));
+const applicationVersion=JSON.parse(await readFile(resolve(process.cwd(),'package.json'),'utf8')).version;
+const webRoot=resolve(process.cwd(),'apps/web/public');
 const mime={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.ico':'image/x-icon'};
 const cookies=(header='')=>Object.fromEntries(header.split(';').map((part)=>part.trim().split('=').map(decodeURIComponent)).filter(([key])=>key));
 const redact=(value)=>String(value||'').replace(/https?:\/\/\S+/gi,'[internal service]').replace(/\b\d{1,3}(?:\.\d{1,3}){3}\b/g,'[internal host]').replace(/[A-Za-z0-9_-]{24,}/g,'[redacted]');
@@ -71,7 +70,7 @@ function dashboardAnalytics(movies=[],series=[],history=[],days=30,qualityProfil
 export function createApplication(options={}){
   const env=options.env||process.env,baseConfig=options.config||loadEngineConfiguration(env);
   let dashboardSnapshot=null,dashboardSnapshotExpires=0,dashboardSnapshotRun=null;
-  const dataDir=resolve(env.VYNODEARR_DATA_DIR||fileURLToPath(new URL('../../../data/',import.meta.url)));
+  const dataDir=resolve(env.VYNODEARR_DATA_DIR||resolve(process.cwd(),'data'));
   const auth=options.auth||new AuthService({userFile:join(dataDir,'users.json'),sessionFile:join(dataDir,'sessions.json'),secureCookies:String(env.VYNODEARR_SECURE_COOKIES||env.NODE_ENV==='production')==='true'});
   const engineSettings=options.engineSettings||new EngineSettingsService({path:join(dataDir,'engine-settings.json'),vaultPath:join(dataDir,'credentials.enc'),masterKey:options.masterKey||loadSecret(env,'VYNODEARR_MASTER_KEY')||'local-development-key-change-me-2026',defaults:baseConfig});
   const projectionStore=options.projectionStore||new ProjectionStore(join(dataDir,'projections.json'));
