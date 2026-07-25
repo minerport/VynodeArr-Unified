@@ -51,3 +51,8 @@
 .enrichment-facts{gap:.55rem;margin:.55rem 0 .75rem}
 .cast-row article{flex-basis:5.2rem}.cast-row img,.cast-fallback{width:5.2rem;height:6.3rem;border-radius:.55rem}
 @media(max-width:720px){.vynode-detail-surface>.detail-backdrop{height:17rem}.vynode-detail-surface>.detail-hero{min-height:17rem;grid-template-columns:5.2rem 1fr;padding:5.8rem .8rem .8rem}.vynode-detail-surface .detail-art{width:5.2rem}.vynode-detail-surface .detail-copy{padding:.7rem}.vynode-detail-surface .detail-copy h1{font-size:1.35rem}.vynode-detail-surface>.fact-grid,.vynode-detail-surface>.panel{margin-right:.8rem;margin-left:.8rem}.vynode-detail-surface>.fact-grid{grid-template-columns:repeat(2,1fr)}}
+
+/* Keep the identity content visually attached to the artwork rather than boxed over it. */
+.vynode-detail-surface .detail-copy{padding:.65rem 0;border:0;border-radius:0;background:transparent;box-shadow:none;backdrop-filter:none;text-shadow:0 2px 12px #000,0 1px 2px #000}
+.vynode-detail-surface .detail-copy .lede{max-width:52rem;color:#e0e7f2;text-shadow:0 2px 10px #000}
+.vynode-detail-surface>.detail-hero:after{content:"";position:absolute;z-index:-1;inset:35% 0 0;background:linear-gradient(0deg,rgba(5,9,16,.96),rgba(5,9,16,.72) 58%,transparent);pointer-events:none}

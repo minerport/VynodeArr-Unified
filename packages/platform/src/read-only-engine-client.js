@@ -90,6 +90,7 @@ export class ReadOnlyEngineClient {
         const remote=await this.#requestRemoteArtwork(new URL(image.remoteUrl));
         if(remote)return remote;
       }
+      if(safeType==='fanart'&&!image)return null;
     }catch{}
     const url=new URL(`${this.config.https?'https':'http'}://${this.config.host}:${this.config.port}${prefix}/MediaCover/${engineId}/${safeType}.jpg`);
     return this.#requestBuffer(url);
