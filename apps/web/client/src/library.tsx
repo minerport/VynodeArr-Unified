@@ -34,8 +34,18 @@ function LibraryCard({item,kind,view,onMonitor,onPrefetch}:{item:LibraryItem;kin
   return <article className={`card react-library-card ${view}`} data-library-letter={titleLetter(item.title)} onPointerEnter={prefetch} onFocus={prefetch}>
     <a className="poster" href={href}>
       {item.artwork?.url?<img src={item.artwork.url} alt="" loading="lazy"/>:<span className="art-fallback">{movie?'M':'TV'}</span>}
-      {view==='poster'?<span className="react-poster-title"><LibraryStatusBadges item={item} movie={movie}/><strong>{item.title}</strong><span>{[item.year,context].filter(Boolean).join(' · ')||quality}</span>{item.rating?<em aria-label={`Rating ${item.rating.toFixed(1)} out of 10`}>★ {item.rating.toFixed(1)}</em>:null}</span>:null}
     </a>
+    {view==='poster'?<div className="react-poster-title">
+      <LibraryStatusBadges item={item} movie={movie}/>
+      <strong><a href={href}>{item.title}</a></strong>
+      <span>{[item.year,context].filter(Boolean).join(' · ')||quality}</span>
+      {item.rating?<em aria-label={`Rating ${item.rating.toFixed(1)} out of 10`}>★ {item.rating.toFixed(1)}</em>:null}
+      <div className="react-poster-quick-actions">
+        <span className="react-poster-quality" title={quality}>{quality}</span>
+        <a href={href} aria-label={`View details for ${item.title}`}>Details</a>
+        <button type="button" onClick={()=>void onMonitor(item)}>{item.monitoring==='none'?'Monitor':'Unmonitor'}</button>
+      </div>
+    </div>:null}
     <div className="card-body">
       <div className="react-library-heading"><div><h2><a href={href}>{item.title}</a></h2><p>{[item.year,context].filter(Boolean).join(' · ')}</p></div>{view!=='poster'?<LibraryStatusBadges item={item} movie={movie}/>:null}</div>
       <div className="progress"><span style={{width:movie?(item.hasFile?'100%':'0%'):`${Math.min(100,episodePercent)}%`}}/></div>
@@ -52,7 +62,9 @@ export function LibraryView({options}:{options:LibraryMountOptions}){
   const storageKey=`vynodearr.libraryState.${kind}`,saved=useMemo(()=>{try{return JSON.parse(sessionStorage.getItem(storageKey)||'{}') as {filter?:string;sort?:string;query?:string;scrollY?:number};}catch{return{};}},[storageKey]);
   const [items,setItems]=useState(options.items),[filter,setFilter]=useState(saved.filter||'all'),[sort,setSort]=useState(saved.sort||'title'),[query,setQuery]=useState(saved.query||''),[debouncedQuery,setDebouncedQuery]=useState(saved.query||''),[view,setView]=useState(options.initialView),[limit,setLimit]=useState(120),[searching,setSearching]=useState(false);
   const loadMoreRef=useRef<HTMLDivElement|null>(null);
+  const gridRef=useRef<HTMLDivElement|null>(null);
   const alphabetRef=useRef<HTMLElement|null>(null);
+  const [railTop,setRailTop]=useState(120);
   const [activeLetter,setActiveLetter]=useState('#');
   useEffect(()=>{const timer=window.setTimeout(()=>setDebouncedQuery(query),200);return()=>window.clearTimeout(timer);},[query]);
   useEffect(()=>{setLimit(120);},[filter,sort,debouncedQuery,view]);
@@ -82,6 +94,15 @@ export function LibraryView({options}:{options:LibraryMountOptions}){
     const letter=alphabet[index];if(availableLetters.has(letter))jumpToLetter(letter);
   },[availableLetters,jumpToLetter]);
   useEffect(()=>{const node=loadMoreRef.current;if(!node||limit>=visible.length||!('IntersectionObserver'in window))return;const observer=new IntersectionObserver(entries=>{if(entries.some(entry=>entry.isIntersecting))setLimit(value=>value+120);},{rootMargin:'600px'});observer.observe(node);return()=>observer.disconnect();},[limit,visible.length]);
+  useEffect(()=>{
+    const alignRail=()=>setRailTop(Math.max(120,Math.round(gridRef.current?.getBoundingClientRect().top||120)));
+    alignRail();
+    window.addEventListener('scroll',alignRail,{passive:true});
+    window.addEventListener('resize',alignRail);
+    const observer='ResizeObserver'in window&&gridRef.current?new ResizeObserver(alignRail):null;
+    if(observer&&gridRef.current)observer.observe(gridRef.current);
+    return()=>{window.removeEventListener('scroll',alignRail);window.removeEventListener('resize',alignRail);observer?.disconnect();};
+  },[view,filter,debouncedQuery]);
   const monitored=items.filter(item=>item.monitoring!=='none'),missing=monitored.filter(item=>movie?item.state==='missing':Number(item.missingEpisodes||0)>0).length,cutoff=monitored.filter(item=>movie?item.state==='cutoff':Number(item.cutoffUnmetEpisodes||0)>0).length,coverage=Math.round(items.filter(item=>movie?item.hasFile:Number(item.missingEpisodes||0)===0).length/Math.max(items.length,1)*100);
   async function monitor(item:LibraryItem){
     const domain=movie?'movie':'tv',engineId=item.id.replace(movie?'movie_':'series_','');
@@ -101,8 +122,8 @@ export function LibraryView({options}:{options:LibraryMountOptions}){
     <div className="hero"><div><span className="eyebrow">YOUR LIBRARY</span><h1>{movie?'Movies':'TV'}</h1><p className="lede">{movie?'Every story, presented through one secure gateway.':'Every season and episode, normalized in one library.'}</p></div><span className="read-only">Connected library</span></div>
     <div className="summary"><div><strong>{items.length}</strong><span>Titles</span></div><div><strong>{monitored.length}</strong><span>Monitored</span></div><div><strong>{missing+cutoff}</strong><span>Need attention</span><small>{movie?`${missing} missing · ${cutoff} below cutoff`:`${missing} missing episodes · ${cutoff} below cutoff`}</small></div><div><strong>{coverage}%</strong><span>Library coverage</span></div></div>
     <div className="toolbar react-library-toolbar"><div className="filters">{['all','monitored','unmonitored','missing','cutoff'].map(value=><button key={value} type="button" className={`chip ${filter===value?'selected':''}`} onClick={()=>setFilter(value)}>{value==='cutoff'?'Cutoff unmet':value[0].toUpperCase()+value.slice(1)}</button>)}</div>{movie&&filter==='missing'?<button className="primary react-library-search-missing" disabled={searching||!visible.length} onClick={()=>void searchAllMissing()}>{searching?'Queuing searches…':`Search all missing (${visible.length})`}</button>:null}<label className="react-library-search">Filter titles<input value={query} onChange={event=>setQuery(event.target.value)} placeholder={`Search ${movie?'movies':'television'}`}/></label><div><select className="sort" aria-label="Sort media" value={sort} onChange={event=>setSort(event.target.value)}><option value="title">Title</option><option value="year">Year</option><option value="attention">Attention</option></select>{views.map(value=><button key={value} type="button" className={`icon-button ${view===value?'selected':''}`} title={viewLabels[value]} onClick={()=>chooseView(value)}>{value==='poster'?'▦':value==='cards'?'▥':value==='compact'?'▤':'☷'}</button>)}</div></div>
-    <div className={`grid view-${view}`}>{visible.slice(0,limit).map(item=><LibraryCard key={item.id} item={item} kind={kind} view={view} onMonitor={monitor} onPrefetch={prefetch}/>)}</div>
-    <nav className="library-alphabet-rail" ref={alphabetRef} aria-label={`Jump through ${movie?'movies':'television'} alphabetically`} onPointerDown={event=>{event.currentTarget.setPointerCapture(event.pointerId);selectFromPointer(event);}} onPointerMove={event=>{if(event.currentTarget.hasPointerCapture(event.pointerId))selectFromPointer(event);}}>
+    <div ref={gridRef} className={`grid view-${view}`}>{visible.slice(0,limit).map(item=><LibraryCard key={item.id} item={item} kind={kind} view={view} onMonitor={monitor} onPrefetch={prefetch}/>)}</div>
+    <nav className="library-alphabet-rail" style={{top:`${railTop}px`}} ref={alphabetRef} aria-label={`Jump through ${movie?'movies':'television'} alphabetically`} onPointerDown={event=>{event.currentTarget.setPointerCapture(event.pointerId);selectFromPointer(event);}} onPointerMove={event=>{if(event.currentTarget.hasPointerCapture(event.pointerId))selectFromPointer(event);}}>
       <span className="library-alphabet-slider" style={{top:`${(alphabet.indexOf(activeLetter)+.5)/alphabet.length*100}%`}} aria-hidden="true"/>
       {alphabet.map(letter=><button key={letter} type="button" className={activeLetter===letter?'active':''} disabled={!availableLetters.has(letter)} onClick={()=>jumpToLetter(letter)} aria-label={`Jump to ${letter==='#'?'numbers and symbols':letter}`}>{letter}</button>)}
     </nav>
