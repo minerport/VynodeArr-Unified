@@ -158,6 +158,28 @@ export function createApplication(options={}){
     if(!enabled.length)throw new Error('No television indexer is enabled for interactive search. Open Service Settings, choose Television, and configure an indexer.');
     return result;
   }
+  async function rematchMedia(input){
+    const domain=String(input.domain||''),mediaId=Number(input.mediaId),tmdbId=Number(input.tmdbId);
+    if(!['movie','tv'].includes(domain)||!Number.isFinite(mediaId)||!Number.isFinite(tmdbId))throw new Error('Choose a valid TMDB match');
+    if(!discovery.configured())throw new Error('Add a TMDB key in Service Settings before fixing library matches.');
+    const current=await management.execute(domain,'library','GET',{id:mediaId}),metadata=await discovery.details(domain,tmdbId);
+    const lookupTerms=[`tmdb:${tmdbId}`,metadata.title].filter(Boolean);let matches=[];
+    for(const term of lookupTerms){matches=await management.execute(domain,'lookup','GET',{query:{term}});if(Array.isArray(matches)&&matches.length)break;}
+    const normalized=String(metadata.title||'').toLowerCase(),match=(Array.isArray(matches)?matches:[]).find(value=>Number(value.tmdbId)===tmdbId||(metadata.tvdbId&&Number(value.tvdbId)===Number(metadata.tvdbId)))||(Array.isArray(matches)?matches:[]).find(value=>String(value.title||'').toLowerCase()===normalized&&(!metadata.year||!value.year||Number(value.year)===Number(metadata.year)));
+    if(!match)throw new Error(`The ${domain==='movie'?'movie':'television'} engine could not resolve that TMDB title. Try another match.`);
+    const library=await management.execute(domain,'library','GET'),records=Array.isArray(library)?library:library?.records||[],duplicate=records.find(value=>Number(value.id)!==mediaId&&(Number(value.tmdbId)===tmdbId||(metadata.tvdbId&&Number(value.tvdbId)===Number(metadata.tvdbId))));
+    if(duplicate)throw new Error(`${match.title} is already matched elsewhere in this library.`);
+    const currentPath=String(current.path||'').replace(/[\\/]+$/,''),rootFolderPath=current.rootFolderPath||currentPath.replace(/[\\/][^\\/]+$/,'');
+    const replacement={...match,path:current.path,rootFolderPath,qualityProfileId:current.qualityProfileId,monitored:current.monitored,tags:current.tags||[],...(domain==='movie'?{minimumAvailability:current.minimumAvailability,addOptions:{searchForMovie:false}}:{seriesType:current.seriesType,seasonFolder:current.seasonFolder,addOptions:{monitor:current.monitored?'all':'none',searchForMissingEpisodes:false,searchForCutoffUnmetEpisodes:false}})};
+    const rollback={...current};for(const key of ['id','movieFile','statistics','sizeOnDisk','added'])delete rollback[key];
+    await management.execute(domain,'library','DELETE',{id:mediaId,query:domain==='movie'?{deleteFiles:false,addImportExclusion:false}:{deleteFiles:false,addImportListExclusion:false}});
+    let result;
+    try{result=await management.execute(domain,'library','POST',{payload:replacement});}
+    catch(error){await management.execute(domain,'library','POST',{payload:rollback}).catch(()=>{});throw new Error(`The engine could not apply the new match. The original match was restored when possible. ${error.message}`);}
+    await management.execute(domain,'commands','POST',{payload:{name:domain==='movie'?'RefreshMovie':'RefreshSeries',...(domain==='movie'?{movieIds:[Number(result.id)]}:{seriesId:Number(result.id)})}}).catch(()=>{});
+    sync.invalidate(domain);await sync.synchronize(domain);
+    return{domain,id:Number(result.id),title:result.title||metadata.title,tmdbId};
+  }
   async function reassignMediaFile(input){
     const domain=String(input.domain||''),selectedPath=String(input.path||'').trim().replaceAll('\\','/');
     if(!['movie','tv'].includes(domain)||!selectedPath||!/\.(?:avi|mkv|mp4|m4v|mov|wmv|mpg|mpeg|ts|m2ts|webm)$/i.test(selectedPath))throw new Error('Choose a supported video file');
@@ -720,6 +742,7 @@ export function createApplication(options={}){
           await collectionStore.write({version:1,collections});return json(res,200,{deleted:true});
         }
         if(url.pathname==='/api/media-files/reassign'&&req.method==='POST'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;return json(res,200,{reassigned:true,result:await reassignMediaFile(await body(req))});}
+        if(url.pathname==='/api/media-match'&&req.method==='POST'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;return json(res,200,{matched:true,result:await rematchMedia(await body(req))});}
         if(url.pathname==='/api/media-files/rename'&&req.method==='GET'){if(!administrator(res,session))return;return json(res,200,{preview:await renameMediaPreview(Object.fromEntries(url.searchParams))});}
         if(url.pathname==='/api/media-files/rename'&&req.method==='POST'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;return json(res,202,{queued:true,result:await renameMedia(await body(req))});}
         const catalogMatch=url.pathname.match(/^\/api\/manage\/(movie|tv)$/);
@@ -729,8 +752,9 @@ export function createApplication(options={}){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;
           const domain=automaticSearchMatch[1],input=await body(req),query=domain==='movie'?{movieId:Number(input.movieId)}:{episodeId:Number(input.episodeId)};
           if(!Number.isFinite(query.movieId??query.episodeId))throw new Error(`Choose a ${domain==='movie'?'movie':'television episode'} to search`);
-          const releases=await management.execute(domain,'releases','GET',{query}),accepted=(Array.isArray(releases)?releases:[]).filter(eligibleRelease);
-          if(!accepted.length)throw new Error('No accepted releases matched the configured quality profile and restrictions');
+          const releases=await management.execute(domain,'releases','GET',{query}),candidates=Array.isArray(releases)?releases:[],accepted=candidates.filter(eligibleRelease);
+          if(!candidates.length)throw new Error('No releases were returned by the configured indexers.');
+          if(!accepted.length)throw new Error('Only rejected releases were returned. Use Interactive Search to review and grab one anyway if you choose.');
           accepted.sort(compareReleases);
           const selected=accepted[0],result=await management.execute(domain,'releases','POST',{payload:await reacquireRelease(domain,selected)});
           clearReleaseCache(domain);

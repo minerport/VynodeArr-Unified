@@ -1,0 +1,12 @@
+import { useEffect,useState,type FormEvent } from 'react';
+
+export interface MatchCandidate {tmdbId:number;title:string;year?:number;overview?:string;poster?:string}
+interface Props {domain:'movie'|'tv';title:string;busy:boolean;request:<T=unknown>(path:string,options?:RequestInit)=>Promise<T>;onClose:()=>void;onApply:(candidate:MatchCandidate)=>void}
+const message=(reason:unknown)=>reason instanceof Error?reason.message:'TMDB search failed.';
+
+export function MatchBrowser({domain,title,busy,request,onClose,onApply}:Props){
+  const [term,setTerm]=useState(title),[items,setItems]=useState<MatchCandidate[]>([]),[loading,setLoading]=useState(false),[error,setError]=useState('');
+  const search=async(event?:FormEvent)=>{event?.preventDefault();if(!term.trim())return;setLoading(true);setError('');try{const value=await request<{results:MatchCandidate[]}>(`/api/discover/browse?domain=${domain}&query=${encodeURIComponent(term.trim())}&page=1`);setItems((value.results||[]).slice(0,20));}catch(reason){setError(message(reason));}finally{setLoading(false);}};
+  useEffect(()=>{void search();},[]);
+  return <dialog open className="react-detail-dialog match-browser"><div className="panel-heading"><div><span className="eyebrow">FIX TMDB MATCH</span><h2>Correct {title}</h2><p className="muted">Choose the correct title. Existing files and library settings will be retained while the engine identity is updated.</p></div><button className="secondary" onClick={onClose}>Close</button></div><form className="match-search" onSubmit={event=>void search(event)}><input value={term} onChange={event=>setTerm(event.target.value)} aria-label="Search TMDB"/><button className="primary" disabled={loading||busy}>{loading?'Searching…':'Search TMDB'}</button></form>{error?<p className="form-error">{error}</p>:null}<div className="match-results">{!loading&&!items.length?<div className="empty compact"><p>No TMDB matches found.</p></div>:items.map(candidate=><article className="match-result" key={candidate.tmdbId}>{candidate.poster?<img src={candidate.poster} alt="" loading="lazy"/>:<span className="art-fallback">TMDB</span>}<div><h3>{candidate.title} {candidate.year?<small>{candidate.year}</small>:null}</h3><p>{candidate.overview||'No overview available.'}</p><small>TMDB {candidate.tmdbId}</small></div><button className="secondary" disabled={busy} onClick={()=>onApply(candidate)}>{busy?'Updating engine…':'Use this match'}</button></article>)}</div></dialog>;
+}

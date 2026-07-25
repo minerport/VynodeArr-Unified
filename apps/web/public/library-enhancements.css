@@ -326,8 +326,8 @@
 .quality-size-heading,
 .quality-size-row {
   display: grid;
-  grid-template-columns: minmax(180px, 1.5fr) repeat(3, minmax(120px, 1fr));
-  gap: .75rem;
+  grid-template-columns: minmax(150px, .7fr) minmax(360px, 1.7fr) minmax(280px, 1fr);
+  gap: 1rem;
   align-items: center;
 }
 
@@ -339,8 +339,118 @@
 }
 
 .quality-size-row {
-  padding: .55rem 0;
+  padding: .8rem 0;
   border-top: 1px solid #24304a;
+}
+
+.quality-range-editor {
+  min-width: 0;
+}
+
+.quality-range-track {
+  position: relative;
+  height: 2rem;
+  margin: 0 .5rem;
+}
+
+.quality-range-track::before {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: .3rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #7047ff, #41c9e2);
+  content: "";
+  transform: translateY(-50%);
+}
+
+.quality-range-track input[type="range"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  margin: 0;
+  appearance: none;
+  background: transparent;
+  pointer-events: none;
+}
+
+.quality-range-track input[type="range"]:focus {
+  z-index: 5;
+  outline: none;
+}
+
+.quality-range-track input[type="range"]::-webkit-slider-thumb {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid #dce7ff;
+  border-radius: 50%;
+  appearance: none;
+  background: #744cff;
+  box-shadow: 0 0 0 3px rgb(116 76 255 / 20%);
+  cursor: grab;
+  pointer-events: auto;
+}
+
+.quality-range-track input[type="range"]::-moz-range-thumb {
+  width: .8rem;
+  height: .8rem;
+  border: 2px solid #dce7ff;
+  border-radius: 50%;
+  background: #744cff;
+  box-shadow: 0 0 0 3px rgb(116 76 255 / 20%);
+  cursor: grab;
+  pointer-events: auto;
+}
+
+.quality-estimates {
+  display: flex;
+  justify-content: space-between;
+  gap: .4rem;
+  font-size: .68rem;
+}
+
+.quality-estimates span {
+  padding: .2rem .35rem;
+  border: 1px solid #2d3d5e;
+  border-radius: .35rem;
+  color: #c7d4eb;
+  background: #121d31;
+  white-space: nowrap;
+}
+
+.quality-runtime-estimate {
+  display: block;
+  margin-top: .45rem;
+  color: #8292ad;
+}
+
+.quality-number-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(75px, 1fr));
+  gap: .45rem;
+}
+
+.quality-number-fields label {
+  color: #8f9db5;
+  font-size: .68rem;
+  font-weight: 700;
+}
+
+.quality-number-fields input {
+  width: 100%;
+  margin-top: .25rem;
+}
+
+@media (max-width: 1050px) {
+  .quality-size-heading {
+    display: none;
+  }
+
+  .quality-size-row {
+    grid-template-columns: 1fr;
+    gap: .65rem;
+  }
 }
 
 .upgrade-toggle {

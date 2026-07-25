@@ -1,4 +1,4 @@
-import { useCallback,useEffect,useMemo,useState } from 'react';
+import { useCallback,useEffect,useMemo,useRef,useState } from 'react';
 import type { QueueItem,QueueMountOptions } from './queue-types';
 import './react-queue.css';
 type SortKey='title'|'media'|'source'|'quality'|'size'|'progress'|'status';
@@ -15,8 +15,16 @@ export function QueueView({options}:{options:QueueMountOptions}){
   const [items,setItems]=useState<QueueItem[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState('');
   const [statusFilter,setStatusFilter]=useState(''),[mediaFilter,setMediaFilter]=useState(''),[sourceFilter,setSourceFilter]=useState('');
   const [sortKey,setSortKey]=useState<SortKey>('title'),[direction,setDirection]=useState(1),[selected,setSelected]=useState<Set<string>>(new Set()),[busy,setBusy]=useState<Set<string>>(new Set());
-  const load=useCallback(async(quiet=false)=>{if(!quiet)setLoading(true);try{const result=await options.request<{items:QueueItem[]}>('/api/activity/queue/live');setItems(result.items||[]);setSelected(old=>new Set([...old].filter(value=>(result.items||[]).some(item=>key(item)===value))));setError('');}catch(reason){setError(reason instanceof Error?reason.message:'Queue could not be loaded.');}finally{setLoading(false);}},[options]);
-  useEffect(()=>{void load();const timer=window.setInterval(()=>void load(true),4000);return()=>window.clearInterval(timer);},[load]);
+  const requestSequence=useRef(0),requestPending=useRef(false);
+  const load=useCallback(async(quiet=false)=>{if(quiet&&requestPending.current)return;const sequence=++requestSequence.current;requestPending.current=true;if(!quiet)setLoading(true);try{const result=await options.request<{items:QueueItem[]}>('/api/activity/queue/live');if(sequence!==requestSequence.current)return;setItems(result.items||[]);setSelected(old=>new Set([...old].filter(value=>(result.items||[]).some(item=>key(item)===value))));setError('');}catch(reason){if(sequence===requestSequence.current)setError(reason instanceof Error?reason.message:'Queue could not be loaded.');}finally{if(sequence===requestSequence.current){requestPending.current=false;setLoading(false);}}},[options]);
+  useEffect(()=>{
+    void load();
+    const startupRetries=[window.setTimeout(()=>void load(true),1200),window.setTimeout(()=>void load(true),3500)];
+    const timer=window.setInterval(()=>void load(true),5000);
+    const resume=()=>{if(document.visibilityState==='visible')void load(true);};
+    window.addEventListener('focus',resume);document.addEventListener('visibilitychange',resume);
+    return()=>{requestSequence.current++;requestPending.current=false;startupRetries.forEach(window.clearTimeout);window.clearInterval(timer);window.removeEventListener('focus',resume);document.removeEventListener('visibilitychange',resume);};
+  },[load]);
   const statuses=useMemo(()=>[...new Set(items.map(status))].sort(),[items]),sources=useMemo(()=>[...new Set(items.map(source))].sort(),[items]);
   const visible=useMemo(()=>items.filter(item=>(!statusFilter||status(item)===statusFilter)&&(!mediaFilter||item.domain===mediaFilter)&&(!sourceFilter||source(item)===sourceFilter)).sort((a,b)=>{const value=(item:QueueItem)=>sortKey==='title'?title(item):sortKey==='media'?item.domain:sortKey==='source'?source(item):sortKey==='quality'?quality(item):sortKey==='size'?Number(item.size||0):sortKey==='progress'?progress(item):status(item);const left=value(a),right=value(b);return direction*(typeof left==='number'&&typeof right==='number'?left-right:String(left).localeCompare(String(right),undefined,{numeric:true,sensitivity:'base'}));}),[items,statusFilter,mediaFilter,sourceFilter,sortKey,direction]);
   const sort=(next:SortKey)=>{if(next===sortKey)setDirection(value=>-value);else{setSortKey(next);setDirection(1);}};

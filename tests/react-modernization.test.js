@@ -69,12 +69,15 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(queue,/Select all completed/);
   assert.match(queue,/\/api\/activity\/queue\/live/);
   assert.match(queue,/setInterval/);
+  assert.match(queue,/requestSequence/);
+  assert.match(queue,/visibilitychange/);
   assert.match(wanted,/Search all missing/);
   assert.match(wanted,/Interactive search/);
   assert.match(wanted,/SeriesSearch/);
   assert.match(calendar,/Previous month/);
   assert.match(calendar,/includeSeries=true/);
   assert.match(movieDetail,/Automatic search/);
+  assert.match(movieDetail,/MatchBrowser/);
   assert.match(movieDetail,/ReleaseBrowser/);
   assert.match(movieDetail,/RenamePreview/);
   assert.match(movieDetail,/is-working/);
@@ -83,6 +86,7 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(movieDetail,/enrichmentLoading/);
   assert.match(movieDetail,/method:'POST'/);
   assert.match(tvDetail,/interactive\(`seriesId=\$\{engineId\}`/);
+  assert.match(tvDetail,/MatchBrowser/);
   assert.match(tvDetail,/seasonNumber=\$\{season\.seasonNumber\}/);
   assert.match(tvDetail,/RenamePreview/);
   assert.match(tvDetail,/busy==='SeriesSearch'/);
