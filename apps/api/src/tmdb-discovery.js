@@ -92,10 +92,19 @@ export class TmdbDiscoveryService{
   }
   async details(domain,id){
     if(!['movie','tv'].includes(domain)||!Number.isFinite(Number(id)))throw new Error('Invalid title');
-    const item=await this.request(`/${domain}/${Number(id)}`,{append_to_response:'content_ratings,release_dates'});
+    const item=await this.request(`/${domain}/${Number(id)}`,{append_to_response:'content_ratings,release_dates,credits,videos,external_ids'});
     const base=this.media(item,domain),certification=domain==='movie'
       ?item.release_dates?.results?.find(value=>value.iso_3166_1==='US')?.release_dates?.find(value=>value.certification)?.certification
       :item.content_ratings?.results?.find(value=>value.iso_3166_1==='US')?.rating;
-    return{...base,genres:(item.genres||[]).map(value=>value.name),genre:(item.genres||[])[0]?.name||'Uncategorized',studio:item.production_companies?.[0]?.name||null,network:item.networks?.[0]?.name||null,runtime:domain==='movie'?Number(item.runtime||0)||null:Number(item.episode_run_time?.[0]||item.last_episode_to_air?.runtime||0)||null,status:item.status||null,certification:certification||null};
+    const videos=item.videos?.results||[],trailer=videos.find(value=>value.site==='YouTube'&&value.type==='Trailer'&&value.official)||videos.find(value=>value.site==='YouTube'&&value.type==='Trailer')||videos.find(value=>value.site==='YouTube');
+    const imdbId=item.external_ids?.imdb_id||item.imdb_id||null,tvdbId=item.external_ids?.tvdb_id||null;
+    return{...base,genres:(item.genres||[]).map(value=>value.name),genre:(item.genres||[])[0]?.name||'Uncategorized',studio:item.production_companies?.[0]?.name||null,productionCompanies:(item.production_companies||[]).map(value=>value.name),network:item.networks?.[0]?.name||null,runtime:domain==='movie'?Number(item.runtime||0)||null:Number(item.episode_run_time?.[0]||item.last_episode_to_air?.runtime||0)||null,status:item.status||null,certification:certification||null,tagline:item.tagline||null,originalTitle:domain==='movie'?item.original_title:item.original_name,originalLanguage:item.original_language||null,countries:(item.production_countries||item.origin_country||[]).map(value=>value.name||value),budget:Number(item.budget||0)||null,revenue:Number(item.revenue||0)||null,cast:(item.credits?.cast||[]).slice(0,14).map(value=>({id:Number(value.id),name:value.name,character:value.character||null,photo:image(value.profile_path,'w185')})),trailer:trailer?{name:trailer.name||'Official trailer',url:`https://www.youtube.com/watch?v=${encodeURIComponent(trailer.key)}`} :null,externalLinks:[{label:'TMDB',url:`https://www.themoviedb.org/${domain}/${Number(id)}`},...(imdbId?[{label:'IMDb',url:`https://www.imdb.com/title/${imdbId}/`}]:[]),...(tvdbId?[{label:'TVDB',url:`https://thetvdb.com/dereferrer/series/${tvdbId}`}]:[])],seasons:domain==='tv'?(item.seasons||[]).map(value=>({seasonNumber:Number(value.season_number),name:value.name,episodeCount:Number(value.episode_count||0),airDate:value.air_date||null,poster:image(value.poster_path,'w342')})):[]};
+  }
+  async enrich(domain,{title,year}={}){
+    if(!['movie','tv'].includes(domain)||!String(title||'').trim())throw new Error('Invalid title');
+    const page=await this.browse({domain,query:String(title).trim(),page:1}),normalized=String(title).trim().toLowerCase();
+    const candidates=page.results.map(item=>({...item,score:(item.title.toLowerCase()===normalized?100:0)+(Number(year)&&item.year===Number(year)?25:0)})).sort((left,right)=>right.score-left.score);
+    const match=candidates[0];if(!match||match.score<25)return null;
+    return this.details(domain,match.tmdbId);
   }
 }

@@ -558,6 +558,10 @@ export function createApplication(options={}){
         if(url.pathname==='/api/discover/genres'&&req.method==='GET')return json(res,200,{items:await discovery.genres(url.searchParams.get('domain'))});
         if(url.pathname==='/api/discover/categories'&&req.method==='GET')return json(res,200,{items:await discovery.categories(url.searchParams.get('type'))});
         if(url.pathname==='/api/discover/browse'&&req.method==='GET')return json(res,200,await discovery.browse(Object.fromEntries(url.searchParams)));
+        if(url.pathname==='/api/discover/enrich'&&req.method==='GET'){
+          if(!discovery.configured())return json(res,200,{configured:false,item:null});
+          return json(res,200,{configured:true,item:await discovery.enrich(url.searchParams.get('domain'),{title:url.searchParams.get('title'),year:url.searchParams.get('year')})});
+        }
         const discoverDetails=url.pathname.match(/^\/api\/discover\/details\/(movie|tv)\/(\d+)$/);
         if(discoverDetails&&req.method==='GET')return json(res,200,{item:await discovery.details(discoverDetails[1],discoverDetails[2])});
         if(url.pathname==='/api/account/sessions/others'&&req.method==='DELETE'){if(!requireCsrf(req,res,session))return;await auth.revokeOtherSessions(session.user.id,sessionId);return json(res,200,{revoked:true});}

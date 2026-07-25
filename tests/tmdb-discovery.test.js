@@ -25,3 +25,13 @@ test('TMDB browse uses category parameters and fixed Seerr category counts',asyn
   assert.equal(page.totalResults,41);assert.match(requested,/with_genres=28/);assert.match(requested,/with_companies=420/);
   assert.equal(studios.length,11);assert.equal(networks.length,22);
 });
+
+test('TMDB enrichment resolves a library title and maps credits, trailers, and external links',async()=>{
+  const service=new TmdbDiscoveryService({token:'test-token',fetcher:async url=>{
+    const path=new URL(url).pathname;
+    if(path.endsWith('/search/movie'))return response({page:1,total_pages:1,total_results:1,results:[{id:10,title:'Film',release_date:'2026-01-02'}]});
+    return response({id:10,title:'Film',release_date:'2026-01-02',genres:[{name:'Drama'}],credits:{cast:[{id:5,name:'Actor',character:'Lead',profile_path:'/actor.jpg'}]},videos:{results:[{site:'YouTube',type:'Trailer',official:true,key:'abc',name:'Trailer'}]},external_ids:{imdb_id:'tt123'},production_companies:[{name:'Studio'}]});
+  }});
+  const item=await service.enrich('movie',{title:'Film',year:2026});
+  assert.equal(item.cast[0].name,'Actor');assert.match(item.trailer.url,/youtube\.com/);assert.equal(item.externalLinks[1].label,'IMDb');
+});
