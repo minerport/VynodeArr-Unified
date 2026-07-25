@@ -1,8 +1,16 @@
+FROM node:24-alpine AS web-build
+WORKDIR /app
+COPY package.json ./
+RUN npm install --include=dev --no-audit --no-fund
+COPY apps/web/client ./apps/web/client
+RUN npm run typecheck:web && npm run build:web
+
 FROM node:24-alpine
 ENV NODE_ENV=production
 WORKDIR /app
 COPY package.json ./
 COPY apps ./apps
+COPY --from=web-build /app/apps/web/public/react ./apps/web/public/react
 COPY packages ./packages
 COPY OPEN_SOURCE_NOTICES LICENSE THIRD_PARTY_NOTICES ./
 RUN addgroup -S vynodearr && adduser -S -G vynodearr -u 10001 vynodearr \

@@ -1,0 +1,73 @@
+.react-analytics-section {
+  isolation: isolate;
+}
+
+.react-analytics-section .analytics-card-heading h2 {
+  text-wrap: balance;
+}
+
+.react-analytics-section .analytics-chart svg {
+  overflow: visible;
+}
+
+.react-dashboard {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.react-dashboard-hero {
+  margin-bottom: 0;
+}
+
+.react-metric-grid .metric-card {
+  min-width: 0;
+}
+
+.react-metric-grid .metric-card strong {
+  display: block;
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+}
+
+.react-metric-grid .metric-card span {
+  color: var(--muted);
+}
+
+.react-dashboard-feeds {
+  margin-top: 0;
+}
+
+.react-panel-heading {
+  margin-bottom: 1rem;
+}
+
+.react-panel-heading h2 {
+  margin: .25rem 0 0;
+}
+
+.react-feed {
+  display: grid;
+}
+
+.react-feed-row {
+  align-items: center;
+  border-top: 1px solid var(--line);
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  padding: .85rem 0;
+}
+
+.react-feed-row:first-child {
+  border-top: 0;
+}
+
+.react-feed-row div {
+  display: grid;
+  gap: .25rem;
+}
+
+.react-feed-row span,
+.react-feed-row time {
+  color: var(--muted);
+  font-size: .86rem;
+}

@@ -11,6 +11,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+      - run: npm install --include=dev --no-audit --no-fund
       - run: npm run verify
       - name: Prepare review environment
         run: cp .env.example .env

@@ -19,6 +19,7 @@ import { TvFixtureAdapter } from '../../../packages/tv-domain/src/fixture-adapte
 import { completedQueueItemHasArrived } from '../../../packages/contracts/src/mappers.js';
 import { TmdbDiscoveryService } from './tmdb-discovery.js';
 
+const applicationVersion=JSON.parse(await readFile(new URL('../../../package.json',import.meta.url),'utf8')).version;
 const webRoot=fileURLToPath(new URL('../../web/public/',import.meta.url));
 const mime={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.ico':'image/x-icon'};
 const cookies=(header='')=>Object.fromEntries(header.split(';').map((part)=>part.trim().split('=').map(decodeURIComponent)).filter(([key])=>key));
@@ -75,6 +76,9 @@ export function createApplication(options={}){
   const projectionStore=options.projectionStore||new ProjectionStore(join(dataDir,'projections.json'));
   const auditStore=options.auditStore||new JsonStore(join(dataDir,'management-audit.json'),{version:1,entries:[]});
   const collectionStore=options.collectionStore||new JsonStore(join(dataDir,'collections.json'),{version:1,collections:[]});
+  const defaultDownloadFolder=domain=>String(env[domain==='movie'?'VYNODEARR_MOVIE_DOWNLOADS_PATH':'VYNODEARR_TV_DOWNLOADS_PATH']||env.VYNODEARR_DOWNLOADS_PATH||'/downloads').replace(/\/+$/,'')||'/downloads';
+  const downloadClientRemotePath=domain=>String(env[domain==='movie'?'VYNODEARR_MOVIE_DOWNLOAD_CLIENT_REMOTE_PATH':'VYNODEARR_TV_DOWNLOAD_CLIENT_REMOTE_PATH']||env.VYNODEARR_DOWNLOAD_CLIENT_REMOTE_PATH||'/data/complete').replace(/\/+$/,'')||'/data/complete';
+  const downloadFolderStore=options.downloadFolderStore||new JsonStore(join(dataDir,'download-folders.json'),{version:1,movie:{path:defaultDownloadFolder('movie')},tv:{path:defaultDownloadFolder('tv')},updatedAt:null});
   const discovery=options.discovery||new TmdbDiscoveryService({token:env.TMDB_API_READ_TOKEN||env.TMDB_API_KEY});
   const artworkCache=new Map(),tvMetadataCache=new Map();let mode=baseConfig.dataMode;
   let movie=options.movie||(mode==='fixture'?new MovieFixtureAdapter(baseConfig.movie):new MovieEngineAdapter(baseConfig.movie));
@@ -293,21 +297,26 @@ export function createApplication(options={}){
       if(Array.isArray(roots)&&roots.length===0)await client.post('rootfolder',{path});
     }
   }
-  async function ensureBundledDownloadPathMappings(){
+  async function ensureBundledDownloadPathMappings(selectedDomain=null){
     if(String(env.VYNODEARR_BUNDLED_ENGINES||'false')!=='true'||mode!=='engine')return;
-    const remotePath=String(env.VYNODEARR_DOWNLOAD_CLIENT_REMOTE_PATH||'/data/complete').replace(/\/+$/,'')||'/data/complete';
-    const localPath=String(env.VYNODEARR_DOWNLOADS_PATH||'/downloads').replace(/\/+$/,'')||'/downloads';
-    for(const domain of ['movie','tv']){
+    const saved=await downloadFolderStore.read();
+    const results=[];
+    for(const domain of selectedDomain?[selectedDomain]:['movie','tv']){
       try{
-        const client=registry.get(domain).client,[clients,mappings]=await Promise.all([client.get('downloadclient'),client.get('remotepathmapping')]),configured=new Set((Array.isArray(mappings)?mappings:[]).map(mapping=>`${String(mapping.host).toLowerCase()}|${String(mapping.remotePath).replace(/\/+$/,'')}`));
+        const remotePath=downloadClientRemotePath(domain),localPath=String(saved?.[domain]?.path||defaultDownloadFolder(domain)).replace(/\/+$/,'')||defaultDownloadFolder(domain);
+        const client=registry.get(domain).client,[clients,mappings]=await Promise.all([client.get('downloadclient'),client.get('remotepathmapping')]);
         for(const provider of Array.isArray(clients)?clients:[]){
           if(provider.enable===false)continue;
-          const host=String((provider.fields||[]).find(field=>String(field.name).toLowerCase()==='host')?.value||provider.host||'').trim(),key=`${host.toLowerCase()}|${remotePath}`;
-          if(!host||configured.has(key))continue;
-          await client.post('remotepathmapping',{host,remotePath,localPath});configured.add(key);
+          const host=String((provider.fields||[]).find(field=>String(field.name).toLowerCase()==='host')?.value||provider.host||'').trim();
+          if(!host)continue;
+          const existing=(Array.isArray(mappings)?mappings:[]).find(mapping=>String(mapping.host).toLowerCase()===host.toLowerCase()&&String(mapping.remotePath).replace(/\/+$/,'')===remotePath);
+          if(existing&&String(existing.localPath).replace(/\/+$/,'')!==localPath)await client.put(`remotepathmapping/${existing.id}`,{...existing,host,remotePath,localPath});
+          else if(!existing)await client.post('remotepathmapping',{host,remotePath,localPath});
+          results.push({domain,host,remotePath,localPath,configured:true});
         }
-      }catch(error){console.warn(`${domain} download path mapping deferred:`,redact(error?.safeMessage||error?.message||'engine unavailable'));}
+      }catch(error){const message=redact(error?.safeMessage||error?.message||'engine unavailable');console.warn(`${domain} download path mapping deferred:`,message);results.push({domain,configured:false,error:message});}
     }
+    return results;
   }
   async function restoreBundledCredentials(){
     if(String(env.VYNODEARR_BUNDLED_ENGINES||'false')!=='true')return false;
@@ -502,6 +511,28 @@ export function createApplication(options={}){
           await engineSettings.removeDiscoveryCredential();discovery.setToken('');
           return json(res,200,{configured:false,provider:'TMDB'});
         }
+        if(url.pathname==='/api/settings/download-folders'&&req.method==='GET'){
+          if(!administrator(res,session))return;
+          const saved=await downloadFolderStore.read();
+          return json(res,200,{
+            movie:{path:saved.movie?.path||defaultDownloadFolder('movie'),remotePath:downloadClientRemotePath('movie')},
+            tv:{path:saved.tv?.path||defaultDownloadFolder('tv'),remotePath:downloadClientRemotePath('tv')}
+          });
+        }
+        if(url.pathname==='/api/settings/download-folders'&&req.method==='PUT'){
+          if(!administrator(res,session)||!requireCsrf(req,res,session))return;
+          const input=await body(req),domain=String(input.domain||''),path=String(input.path||'').trim().replaceAll('\\','/').replace(/\/+$/,'')||'/';
+          if(!['movie','tv'].includes(domain)||!path.startsWith('/'))throw new Error('Choose an absolute download folder');
+          const client=registry.get(domain).client;
+          const listing=await client.get('filesystem',{path,includeFiles:false,allowFoldersWithoutTrailingSlashes:true});
+          if(listing?.exists===false)throw new Error('The selected download folder is not accessible to this engine');
+          const current=await downloadFolderStore.read(),next={...current,[domain]:{path},updatedAt:new Date().toISOString()};
+          await downloadFolderStore.write(next);
+          const mappings=await ensureBundledDownloadPathMappings(domain);
+          const failed=mappings?.find(item=>item.configured===false);
+          if(failed)throw new Error(`Download folder saved, but the engine mapping could not be applied: ${failed.error}`);
+          return json(res,200,{saved:true,domain,path,mappings:mappings||[]});
+        }
         if(url.pathname==='/api/discover/feed'&&req.method==='GET')return json(res,200,await discovery.feed(url.searchParams.get('kind'),url.searchParams.get('page')));
         if(url.pathname==='/api/discover/genres'&&req.method==='GET')return json(res,200,{items:await discovery.genres(url.searchParams.get('domain'))});
         if(url.pathname==='/api/discover/categories'&&req.method==='GET')return json(res,200,{items:await discovery.categories(url.searchParams.get('type'))});
@@ -555,7 +586,7 @@ export function createApplication(options={}){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;const input=await body(req),result=await testEngine(engineSave[1],input);if(!result.validated)return json(res,422,{error:{code:'engine_validation_failed',message:result.connection.safeError||'Engine validation did not succeed.'}});
           await engineSettings.save(engineSave[1],input,input.apiCredential);await rebuildFromSettings();await sync.startup();return json(res,200,{saved:true,settings:engineSettings.public(),validation:result});
         }
-        if(url.pathname==='/api/system/application-update'&&req.method==='GET')return json(res,200,{application:'VynodeArr',installedVersion:String(env.VYNODEARR_VERSION||'1.0.22'),channel:String(env.VYNODEARR_UPDATE_CHANNEL||'develop'),mechanism:'Container image',repository:'https://github.com/minerport/VynodeArr-Unified',message:'Pull the newest VynodeArr container image, then recreate the application container. Engine updates are managed separately.'});
+        if(url.pathname==='/api/system/application-update'&&req.method==='GET')return json(res,200,{application:'VynodeArr',installedVersion:String(env.VYNODEARR_VERSION||applicationVersion),channel:String(env.VYNODEARR_UPDATE_CHANNEL||'develop'),mechanism:'Container image',repository:'https://github.com/minerport/VynodeArr-Unified',message:'Pull the newest VynodeArr container image, then recreate the application container. Engine updates are managed separately.'});
         const backupRestore=url.pathname.match(/^\/api\/system\/backups\/(movie|tv)\/(\d+)\/restore$/);
         if(backupRestore&&req.method==='POST'){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;

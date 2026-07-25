@@ -1,5 +1,6 @@
 node_modules/
 dist/
+apps/web/public/react/
 data/
 .env
 *.log

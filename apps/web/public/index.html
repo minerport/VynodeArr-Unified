@@ -37,6 +37,8 @@
   <template id="media-page"><div class="hero"><div><span class="eyebrow">YOUR LIBRARY</span><h1></h1><p class="lede"></p></div><span class="read-only">Read-only mode</span></div><div class="summary"><div><strong class="count">—</strong><span>Titles</span></div><div><strong class="monitored">—</strong><span>Monitored</span></div><div><strong class="attention">—</strong><span>Need attention</span></div><div><strong class="coverage">—</strong><span>Library coverage</span></div></div><div class="toolbar"><div class="filters"><button data-filter="all" class="chip selected">All</button><button data-filter="monitored" class="chip">Monitored</button><button data-filter="missing" class="chip">Missing</button></div><div><select class="sort" aria-label="Sort media"><option value="title">Title</option><option value="year">Year</option><option value="attention">Attention</option></select><button data-view="poster" class="icon-button selected" title="Poster grid">▦</button><button data-view="cards" class="icon-button" title="Information cards">▥</button><button data-view="compact" class="icon-button" title="Compact grid">▤</button><button data-view="list" class="icon-button" title="Detailed list">☷</button></div></div><div class="grid skeleton-grid"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div></template>
   <aside id="import-progress" class="import-progress" hidden aria-live="polite"></aside>
   <div id="toast" class="toast" hidden></div>
+  <link rel="stylesheet" href="/react/vynodearr-react.css">
+  <script type="module" src="/react/vynodearr-react.js"></script>
   <script type="module" src="/app.js"></script>
 </body>
 </html>
