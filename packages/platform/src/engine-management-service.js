@@ -56,7 +56,8 @@ const domainResources=Object.freeze({
     exclusions:{path:'exclusions',methods:['GET','POST','DELETE']},
     collections:{path:'collection',methods:['GET','PUT']},
     movieFiles:{path:'moviefile',methods:['GET','PUT','DELETE']},
-    importExclusions:{path:'importlistexclusion',methods:['GET','POST','PUT','DELETE']}
+    importExclusions:{path:'importlistexclusion',methods:['GET','POST','PUT','DELETE']},
+    releaseProfiles:{path:'releaseprofile',methods:['GET','POST','PUT','DELETE']}
   },
   tv:{
     library:{path:'series',methods:['GET','POST','PUT','DELETE']},

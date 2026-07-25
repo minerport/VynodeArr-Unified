@@ -792,7 +792,7 @@ export function createApplication(options={}){
             result=await management.execute(managementMatch[1],managementMatch[2],method,{id:managementMatch[3],query,payload});
           }
           if(method!=='GET'){
-            if(['releases','indexers','profiles','customFormats','delayProfiles','restrictions'].includes(managementMatch[2]))clearReleaseCache(managementMatch[1]);
+            if(['releases','indexers','profiles','customFormats','delayProfiles','restrictions','releaseProfiles'].includes(managementMatch[2]))clearReleaseCache(managementMatch[1]);
             const audit=await auditStore.read(),entries=Array.isArray(audit.entries)?audit.entries:[];
             entries.unshift({id:`change_${randomUUID()}`,timestamp:new Date().toISOString(),userId:session.user.id,username:session.user.username,domain:managementMatch[1],resource:managementMatch[2],method,resourceId:managementMatch[3]||null});
             await auditStore.write({version:1,entries:entries.slice(0,1000)});

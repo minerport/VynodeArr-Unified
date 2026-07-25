@@ -91,8 +91,8 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(selectionRules,/minFormatScore/);
   assert.match(selectionRules,/cutoffFormatScore/);
   assert.match(selectionRules,/minUpgradeFormatScore/);
-  assert.match(selectionRules,/restrictions/);
   assert.match(selectionRules,/releaseProfiles/);
+  assert.doesNotMatch(selectionRules,/domain==='movie'\?'restrictions'/);
   assert.match(selectionRules,/airDateRestriction/);
   assert.match(selectionRules,/airDateGracePeriod/);
   assert.match(selectionRules,/allowSeasonPackWithoutAllEpisodesAired/);
