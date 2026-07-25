@@ -80,7 +80,7 @@ export function createApplication(options={}){
   const downloadClientRemotePath=domain=>String(env[domain==='movie'?'VYNODEARR_MOVIE_DOWNLOAD_CLIENT_REMOTE_PATH':'VYNODEARR_TV_DOWNLOAD_CLIENT_REMOTE_PATH']||env.VYNODEARR_DOWNLOAD_CLIENT_REMOTE_PATH||'/data/complete').replace(/\/+$/,'')||'/data/complete';
   const downloadFolderStore=options.downloadFolderStore||new JsonStore(join(dataDir,'download-folders.json'),{version:1,movie:{path:defaultDownloadFolder('movie')},tv:{path:defaultDownloadFolder('tv')},updatedAt:null});
   const discovery=options.discovery||new TmdbDiscoveryService({token:env.TMDB_API_READ_TOKEN||env.TMDB_API_KEY});
-  const artworkCache=new Map(),tvMetadataCache=new Map();let mode=baseConfig.dataMode;
+  const artworkCache=new Map(),artworkRuns=new Map(),tvMetadataCache=new Map();let mode=baseConfig.dataMode;
   let movie=options.movie||(mode==='fixture'?new MovieFixtureAdapter(baseConfig.movie):new MovieEngineAdapter(baseConfig.movie));
   let tv=options.tv||(mode==='fixture'?new TvFixtureAdapter(baseConfig.tv):new TvEngineAdapter(baseConfig.tv));
   const registry=options.registry||new MediaEngineRegistry().register('movie',movie).register('tv',tv);
@@ -817,8 +817,16 @@ export function createApplication(options={}){
         const artworkMatch=url.pathname.match(/^\/api\/artwork\/(movie|tv)\/((?:movie|series)_[A-Za-z0-9_-]+)\/(poster|fanart|logo|banner|episode|season)$/);
         if(artworkMatch){
           const key=artworkMatch.slice(1).join(':');let value=artworkCache.get(key);
-          if(!value){value=await registry.get(artworkMatch[1]).getArtwork(artworkMatch[2],artworkMatch[3]);if(!value){res.writeHead(204,{'cache-control':'private, max-age=60'});return res.end();}artworkCache.set(key,{...value,cachedAt:Date.now()});}
-          res.writeHead(200,{'content-type':value.contentType,'cache-control':'private, max-age=3600','x-content-type-options':'nosniff'});return res.end(value.body);
+          if(!value){
+            let run=artworkRuns.get(key);
+            if(!run){
+              run=registry.get(artworkMatch[1]).getArtwork(artworkMatch[2],artworkMatch[3]).then(result=>{if(result)artworkCache.set(key,{...result,cachedAt:Date.now()});return result;}).finally(()=>artworkRuns.delete(key));
+              artworkRuns.set(key,run);
+            }
+            value=await run;
+            if(!value){res.writeHead(204,{'cache-control':'private, max-age=300'});return res.end();}
+          }
+          res.writeHead(200,{'content-type':value.contentType,'cache-control':'private, max-age=86400, stale-while-revalidate=604800','x-content-type-options':'nosniff'});return res.end(value.body);
         }
         if(url.pathname==='/api/media/movies')return json(res,200,{items:await sync.list('movie',{refresh:url.searchParams.get('refresh')==='true'}),mode,sync:sync.snapshot().movie});
         const movieMatch=url.pathname.match(/^\/api\/media\/movies\/(movie_[A-Za-z0-9_-]+)$/);if(movieMatch){const item=await registry.movie().getMovie(movieMatch[1]);return item?json(res,200,{item,mode}):json(res,404,{error:{code:'not_found',message:'Movie was not found.'}});}

@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { assertContract, movieOperations, tvOperations } from '../packages/contracts/src/domains.js';
-import { modelSchemas } from '../packages/contracts/src/models.js';
-import { MovieFixtureAdapter } from '../packages/movie-domain/src/fixture-adapter.js';
-import { TvFixtureAdapter } from '../packages/tv-domain/src/fixture-adapter.js';
-import { MediaEngineRegistry } from '../packages/platform/src/engine-registry.js';
+import { assertContract, movieOperations, tvOperations } from '../.server-build/packages/contracts/src/domains.js';
+import { modelSchemas } from '../.server-build/packages/contracts/src/models.js';
+import { MovieFixtureAdapter } from '../.server-build/packages/movie-domain/src/fixture-adapter.js';
+import { TvFixtureAdapter } from '../.server-build/packages/tv-domain/src/fixture-adapter.js';
+import { MediaEngineRegistry } from '../.server-build/packages/platform/src/engine-registry.js';
 
 test('normalized models include the N2 public surface',()=>{
   for(const name of ['MovieSummary','MovieDetails','SeriesSummary','SeriesDetails','SeasonSummary','EpisodeSummary','MediaArtwork','QueueItem','HistoryItem','CalendarItem','HealthItem'])assert.ok(modelSchemas[name],name);

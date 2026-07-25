@@ -4,11 +4,11 @@ import { createServer } from 'node:http';
 import { mkdtemp,rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { AuthService } from '../packages/platform/src/auth-service.js';
-import { ProjectionStore } from '../packages/platform/src/projection-store.js';
-import { SynchronizationService } from '../packages/platform/src/synchronization-service.js';
-import { MovieFixtureAdapter } from '../packages/movie-domain/src/fixture-adapter.js';
-import { TvFixtureAdapter } from '../packages/tv-domain/src/fixture-adapter.js';
+import { AuthService } from '../.server-build/packages/platform/src/auth-service.js';
+import { ProjectionStore } from '../.server-build/packages/platform/src/projection-store.js';
+import { SynchronizationService } from '../.server-build/packages/platform/src/synchronization-service.js';
+import { MovieFixtureAdapter } from '../.server-build/packages/movie-domain/src/fixture-adapter.js';
+import { TvFixtureAdapter } from '../.server-build/packages/tv-domain/src/fixture-adapter.js';
 import { createApplication } from '../.server-build/apps/api/src/app.js';
 
 async function tempAuth(run){

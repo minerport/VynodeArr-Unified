@@ -5,9 +5,9 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createApplication } from '../.server-build/apps/api/src/app.js';
-import { AuthService } from '../packages/platform/src/auth-service.js';
-import { MovieFixtureAdapter } from '../packages/movie-domain/src/fixture-adapter.js';
-import { TvFixtureAdapter } from '../packages/tv-domain/src/fixture-adapter.js';
+import { AuthService } from '../.server-build/packages/platform/src/auth-service.js';
+import { MovieFixtureAdapter } from '../.server-build/packages/movie-domain/src/fixture-adapter.js';
+import { TvFixtureAdapter } from '../.server-build/packages/tv-domain/src/fixture-adapter.js';
 
 async function fixtureServer(run){
   const directory=await mkdtemp(join(tmpdir(),'vynodearr-api-'));

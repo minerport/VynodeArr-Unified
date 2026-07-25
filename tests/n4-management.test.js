@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { EngineManagementService } from '../packages/platform/src/engine-management-service.js';
-import { EngineSettingsService } from '../packages/platform/src/engine-settings-service.js';
+import { EngineManagementService } from '../.server-build/packages/platform/src/engine-management-service.js';
+import { EngineSettingsService } from '../.server-build/packages/platform/src/engine-settings-service.js';
 
 test('management gateway exposes native capabilities and forwards only allowlisted operations',async()=>{
   const calls=[];
@@ -53,7 +53,7 @@ test('native interaction workflows replace an upstream-shaped generic shell',asy
     readFile(new URL('../apps/web/public/index.html',import.meta.url),'utf8'),
     readFile(new URL('../apps/web/client/src/app-shell.ts',import.meta.url),'utf8'),
     readFile(new URL('../apps/api/src/app.js',import.meta.url),'utf8'),
-    readFile(new URL('../packages/platform/src/read-only-engine-client.js',import.meta.url),'utf8')
+    readFile(new URL('../packages/platform/src/read-only-engine-client.ts',import.meta.url),'utf8')
   ]);
   for(const route of ['#add','#wanted','#queue','#service/root-folders','#system'])assert.match(html,new RegExp(route));
   for(const workflow of ['wanted-series-search','wanted-season-search','SeriesSearch','SeasonSearch','Search entire show','Search entire season'])assert.match(script,new RegExp(workflow));

@@ -4,14 +4,14 @@ import { createServer } from 'node:http';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { MovieEngineAdapter } from '../packages/movie-domain/src/engine-adapter.js';
-import { TvEngineAdapter } from '../packages/tv-domain/src/engine-adapter.js';
-import { ReadOnlyEngineClient } from '../packages/platform/src/read-only-engine-client.js';
-import { SynchronizationService } from '../packages/platform/src/synchronization-service.js';
-import { EncryptedCredentialVault } from '../packages/platform/src/credential-vault.js';
-import { MovieFixtureAdapter } from '../packages/movie-domain/src/fixture-adapter.js';
-import { completedQueueItemHasArrived, completedQueueItemIsTerminal } from '../packages/contracts/src/mappers.js';
-import { TvFixtureAdapter } from '../packages/tv-domain/src/fixture-adapter.js';
+import { MovieEngineAdapter } from '../.server-build/packages/movie-domain/src/engine-adapter.js';
+import { TvEngineAdapter } from '../.server-build/packages/tv-domain/src/engine-adapter.js';
+import { ReadOnlyEngineClient } from '../.server-build/packages/platform/src/read-only-engine-client.js';
+import { SynchronizationService } from '../.server-build/packages/platform/src/synchronization-service.js';
+import { EncryptedCredentialVault } from '../.server-build/packages/platform/src/credential-vault.js';
+import { MovieFixtureAdapter } from '../.server-build/packages/movie-domain/src/fixture-adapter.js';
+import { completedQueueItemHasArrived, completedQueueItemIsTerminal } from '../.server-build/packages/contracts/src/mappers.js';
+import { TvFixtureAdapter } from '../.server-build/packages/tv-domain/src/fixture-adapter.js';
 
 class FakeClient{constructor(values){this.values=values;}async get(path){if(path in this.values)return structuredClone(this.values[path]);return path.startsWith('movie/')?this.values.movieDetail:path.startsWith('series/')?this.values.seriesDetail:[];}}
 const movieRecord={id:1,title:'Mapped Movie',year:2025,monitored:true,status:'released',hasFile:true,movieFile:{quality:{quality:{name:'1080p'}}},qualityProfileId:2,path:'/media',tags:[],images:[]};

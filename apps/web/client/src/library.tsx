@@ -23,7 +23,7 @@ function LibraryStatusBadges({item,movie,className=''}:{item:LibraryItem;movie:b
   </span>;
 }
 
-function LibraryCard({item,kind,view,onMonitor,onPrefetch}:{item:LibraryItem;kind:LibraryMountOptions['kind'];view:LibraryView;onMonitor:(item:LibraryItem)=>Promise<void>;onPrefetch:(item:LibraryItem)=>void}){
+function LibraryCard({item,kind,view,priority,onMonitor,onPrefetch}:{item:LibraryItem;kind:LibraryMountOptions['kind'];view:LibraryView;priority:boolean;onMonitor:(item:LibraryItem)=>Promise<void>;onPrefetch:(item:LibraryItem)=>void}){
   const movie=kind==='movies',href=`#${movie?'movie':'series'}/${item.id}`;
   const context=movie?item.collection:item.network,quality=movie?(item.quality||item.qualityProfile||'Quality unknown'):(item.episodeProgress||'Episode count unknown');
   const episodeCounts=String(item.episodeProgress||'').match(/(\d+)\s*\/\s*(\d+)/),episodePercent=episodeCounts&&Number(episodeCounts[2])>0?Number(episodeCounts[1])/Number(episodeCounts[2])*100:Math.max(0,100-Number(item.missingEpisodes||0)*5);
@@ -31,9 +31,9 @@ function LibraryCard({item,kind,view,onMonitor,onPrefetch}:{item:LibraryItem;kin
     ?[['Quality',item.quality||item.qualityProfile||'Not reported'],['Collection',item.collection||'None'],['Rating',item.rating?`${item.rating.toFixed(1)} / 10`:'Not rated'],['Genres',item.genres?.slice(0,3).join(', ')||'Not specified']]
     :[['Episodes',item.episodeProgress||'Not reported'],['Seasons',item.seasonProgress||'Not reported'],['Network',item.network||'Not specified'],['Genres',item.genres?.slice(0,3).join(', ')||'Not specified']];
   const prefetch=()=>{window.VynodeArrReact?.preloadRoute?.(movie?'movie':'series');onPrefetch(item);};
-  return <article className={`card react-library-card ${view}`} data-library-letter={titleLetter(item.title)} onPointerEnter={prefetch} onFocus={prefetch}>
+  return <article className={`card react-library-card ${view}`} data-library-id={item.id} data-library-letter={titleLetter(item.title)} onPointerEnter={prefetch} onFocus={prefetch}>
     <a className="poster" href={href}>
-      {item.artwork?.url?<img src={item.artwork.url} alt="" loading="lazy"/>:<span className="art-fallback">{movie?'M':'TV'}</span>}
+      {item.artwork?.url?<img src={item.artwork.url} alt="" loading={priority?'eager':'lazy'} fetchPriority={priority?'high':'auto'} decoding="async"/>:<span className="art-fallback">{movie?'M':'TV'}</span>}
     </a>
     {view==='poster'?<div className="react-poster-title">
       <LibraryStatusBadges item={item} movie={movie}/>
@@ -60,7 +60,7 @@ function LibraryCard({item,kind,view,onMonitor,onPrefetch}:{item:LibraryItem;kin
 export function LibraryView({options}:{options:LibraryMountOptions}){
   const {kind,request,notify}=options,movie=kind==='movies';
   const storageKey=`vynodearr.libraryState.${kind}`,saved=useMemo(()=>{try{return JSON.parse(sessionStorage.getItem(storageKey)||'{}') as {filter?:string;sort?:string;query?:string;scrollY?:number};}catch{return{};}},[storageKey]);
-  const [items,setItems]=useState(options.items),[filter,setFilter]=useState(saved.filter||'all'),[sort,setSort]=useState(saved.sort||'title'),[query,setQuery]=useState(saved.query||''),[debouncedQuery,setDebouncedQuery]=useState(saved.query||''),[view,setView]=useState(options.initialView),[limit,setLimit]=useState(120),[searching,setSearching]=useState(false);
+  const [items,setItems]=useState(options.items),[filter,setFilter]=useState(saved.filter||'all'),[sort,setSort]=useState(saved.sort||'title'),[query,setQuery]=useState(saved.query||''),[debouncedQuery,setDebouncedQuery]=useState(saved.query||''),[view,setView]=useState(options.initialView),[limit,setLimit]=useState(120),[searching,setSearching]=useState(false),[priorityIds,setPriorityIds]=useState<Set<string>>(()=>new Set());
   const loadMoreRef=useRef<HTMLDivElement|null>(null);
   const gridRef=useRef<HTMLDivElement|null>(null);
   const alphabetRef=useRef<HTMLElement|null>(null);
@@ -83,10 +83,18 @@ export function LibraryView({options}:{options:LibraryMountOptions}){
     const alphabetical=[...visible].sort((a,b)=>a.title.localeCompare(b.title));
     const index=alphabetical.findIndex(item=>titleLetter(item.title)===letter);
     if(index<0)return;
+    const destination=alphabetical.slice(index,index+24),target=alphabetical[index];
+    setPriorityIds(new Set(destination.map(item=>item.id)));
+    for(const item of destination){
+      if(!item.artwork?.url)continue;
+      const image=new Image();
+      image.decoding='async';
+      image.src=item.artwork.url;
+    }
     setSort('title');
     setActiveLetter(letter);
-    setLimit(current=>Math.max(current,index+1));
-    requestAnimationFrame(()=>requestAnimationFrame(()=>document.querySelector<HTMLElement>(`[data-library-letter="${letter}"]`)?.scrollIntoView({behavior:'smooth',block:'start'})));
+    setLimit(current=>Math.max(current,index+destination.length));
+    requestAnimationFrame(()=>requestAnimationFrame(()=>document.querySelector<HTMLElement>(`[data-library-id="${target.id}"]`)?.scrollIntoView({behavior:'auto',block:'start'})));
   },[visible]);
   const selectFromPointer=useCallback((event:ReactPointerEvent<HTMLElement>)=>{
     const bounds=alphabetRef.current?.getBoundingClientRect();if(!bounds)return;
@@ -148,7 +156,7 @@ export function LibraryView({options}:{options:LibraryMountOptions}){
     <div className="hero"><div><span className="eyebrow">YOUR LIBRARY</span><h1>{movie?'Movies':'TV'}</h1><p className="lede">{movie?'Every story, presented through one secure gateway.':'Every season and episode, normalized in one library.'}</p></div><span className="read-only">Connected library</span></div>
     <div className="summary"><div><strong>{items.length}</strong><span>Titles</span></div><div><strong>{monitored.length}</strong><span>Monitored</span></div><div><strong>{missing+cutoff}</strong><span>Need attention</span><small>{movie?`${missing} missing · ${cutoff} below cutoff`:`${missing} missing episodes · ${cutoff} below cutoff`}</small></div><div><strong>{coverage}%</strong><span>Library coverage</span></div></div>
     <div className="toolbar react-library-toolbar"><div className="filters">{['all','monitored','unmonitored','missing','cutoff'].map(value=><button key={value} type="button" className={`chip ${filter===value?'selected':''}`} onClick={()=>setFilter(value)}>{value==='cutoff'?'Cutoff unmet':value[0].toUpperCase()+value.slice(1)}</button>)}</div>{movie&&filter==='missing'?<button className="primary react-library-search-missing" disabled={searching||!visible.length} onClick={()=>void searchAllMissing()}>{searching?'Queuing searches…':`Search all missing (${visible.length})`}</button>:null}<label className="react-library-search">Filter titles<input value={query} onChange={event=>setQuery(event.target.value)} placeholder={`Search ${movie?'movies':'television'}`}/></label><div><select className="sort" aria-label="Sort media" value={sort} onChange={event=>setSort(event.target.value)}><option value="title">Title</option><option value="year">Year</option><option value="attention">Attention</option></select>{views.map(value=><button key={value} type="button" className={`icon-button ${view===value?'selected':''}`} title={viewLabels[value]} onClick={()=>chooseView(value)}>{value==='poster'?'▦':value==='cards'?'▥':value==='compact'?'▤':'☷'}</button>)}</div></div>
-    <div ref={gridRef} className={`grid view-${view} library-results-grid`}>{visible.slice(0,limit).map(item=><LibraryCard key={item.id} item={item} kind={kind} view={view} onMonitor={monitor} onPrefetch={prefetch}/>)}</div>
+    <div ref={gridRef} className={`grid view-${view} library-results-grid`}>{visible.slice(0,limit).map(item=><LibraryCard key={item.id} item={item} kind={kind} view={view} priority={priorityIds.has(item.id)} onMonitor={monitor} onPrefetch={prefetch}/>)}</div>
     <nav className="library-alphabet-rail" style={{top:`${railTop}px`}} ref={alphabetRef} aria-label={`Jump through ${movie?'movies':'television'} alphabetically`} onPointerDown={event=>{event.currentTarget.setPointerCapture(event.pointerId);selectFromPointer(event);}} onPointerMove={event=>{if(event.currentTarget.hasPointerCapture(event.pointerId))selectFromPointer(event);}}>
       <span className="library-alphabet-slider" style={{top:`${(alphabet.indexOf(activeLetter)+.5)/alphabet.length*100}%`}} aria-hidden="true"/>
       {alphabet.map(letter=><button key={letter} type="button" className={activeLetter===letter?'active':''} disabled={!availableLetters.has(letter)} onClick={()=>jumpToLetter(letter)} aria-label={`Jump to ${letter==='#'?'numbers and symbols':letter}`}>{letter}</button>)}
