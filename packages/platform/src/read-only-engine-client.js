@@ -14,7 +14,7 @@ export class ReadOnlyEngineClient {
     return new Promise((resolve,reject)=>{
       const transport=url.protocol==='https:'?httpsRequest:httpRequest;
       const encoded=payload===undefined?null:Buffer.from(JSON.stringify(payload));
-      const req=transport(url,{method,headers:{accept:'application/json','content-type':'application/json','x-api-key':this.config.apiCredential,...(encoded?{'content-length':encoded.length}:{})},rejectUnauthorized:this.config.tlsVerify},(res)=>{
+      const req=transport(url,{method,headers:{accept:'application/json','x-api-key':this.config.apiCredential,...(encoded?{'content-type':'application/json','content-length':encoded.length}:{})},rejectUnauthorized:this.config.tlsVerify},(res)=>{
         const chunks=[];let size=0;
         res.on('data',(chunk)=>{size+=chunk.length;if(size>32*1024*1024){req.destroy(engineError.invalid());return;}chunks.push(chunk);});
         res.on('end',()=>{
@@ -83,12 +83,15 @@ export class ReadOnlyEngineClient {
   async getArtwork(mediaId,type){
     if(!this.config.enabled)throw engineError.unavailable(this.domain);
     const prefix=this.config.urlBase?`/${this.config.urlBase}`:'';
-    const safeType=['poster','fanart','banner','logo','headshot','season','episode'].includes(type)?type:'poster';
-    const engineId=Number(mediaId),url=new URL(`${this.config.https?'https':'http'}://${this.config.host}:${this.config.port}${prefix}/MediaCover/${engineId}/${safeType}.jpg`),local=await this.#requestBuffer(url);
-    if(local)return local;
+    const safeType=['poster','fanart','banner','logo','headshot','season','episode'].includes(type)?type:'poster',engineId=Number(mediaId);
     try{
       const record=await this.get(`${this.domain==='Movie'?'movie':'series'}/${engineId}`),image=(record?.images||[]).find((item)=>String(item.coverType||'').toLowerCase()===safeType);
-      return image?.remoteUrl?await this.#requestRemoteArtwork(new URL(image.remoteUrl)):null;
-    }catch{return null;}
+      if(image?.remoteUrl){
+        const remote=await this.#requestRemoteArtwork(new URL(image.remoteUrl));
+        if(remote)return remote;
+      }
+    }catch{}
+    const url=new URL(`${this.config.https?'https':'http'}://${this.config.host}:${this.config.port}${prefix}/MediaCover/${engineId}/${safeType}.jpg`);
+    return this.#requestBuffer(url);
   }
 }

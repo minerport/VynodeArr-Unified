@@ -86,7 +86,7 @@ export function createApplication(options={}){
   const registry=options.registry||new MediaEngineRegistry().register('movie',movie).register('tv',tv);
   const sync=options.sync||new SynchronizationService({movie,tv,maxItems:baseConfig.cacheMaxItems,pollIntervalMs:baseConfig.pollIntervalMs,projectionStore});
   const management=new EngineManagementService(registry);
-  const importJobs=new Map(),searchJobs=new Map(),completedQueueRefreshes=new Map();
+  const importJobs=new Map(),searchJobs=new Map(),completedQueueRefreshes=new Map(),completedQueueCleanups=new Map();
   let initialized=false,queueCompletionTimer=null;
   function importIdentityKeys(value={}){
     const keys=[],title=String(value.title||value.name||'').trim().toLowerCase(),year=Number(value.year||0);
@@ -415,14 +415,28 @@ export function createApplication(options={}){
   async function liveQueue(){
     const results=await Promise.all(['movie','tv'].map(async domain=>{
       const client=registry.get(domain).client;
-      const [queueValue,library]=await Promise.all([
+      const [queueValue,library,historyValue]=await Promise.all([
         client.get('queue',{page:1,pageSize:500,includeUnknownMovieItems:true,includeUnknownSeriesItems:true,includeMovie:true,includeSeries:true,includeEpisode:true}),
-        client.get(domain==='movie'?'movie':'series').catch(()=>[])
+        client.get(domain==='movie'?'movie':'series').catch(()=>[]),
+        client.get('history',{page:1,pageSize:500,sortKey:'date',sortDirection:'descending'}).catch(()=>({records:[]}))
       ]);
       const records=Array.isArray(queueValue?.records)?queueValue.records:[],libraryById=new Map((Array.isArray(library)?library:[]).map(item=>[Number(item.id),item]));
+      const importedHistory=(Array.isArray(historyValue?.records)?historyValue.records:[]).filter(event=>String(event.eventType).toLowerCase()==='downloadfolderimported');
+      const importedDownloadIds=new Set(importedHistory.map(event=>String(event.downloadId||event.data?.downloadId||'')).filter(Boolean));
+      const importedSourceTitles=new Set(importedHistory.map(event=>String(event.sourceTitle||'').toLowerCase()).filter(Boolean));
       for(const item of records){
-        const status=String(item.status||item.trackedDownloadStatus||item.trackedDownloadState||'').toLowerCase(),sizeLeft=Number(item.sizeleft??item.sizeLeft??0);
-        if((status==='completed'||status==='complete')&&sizeLeft<=0)scheduleCompletedMediaRefresh(domain,item);
+        const mediaId=Number(domain==='movie'?(item.movieId||item.movie?.id):(item.seriesId||item.series?.id||item.episode?.seriesId));
+        const status=String(item.status||item.trackedDownloadStatus||item.trackedDownloadState||'').toLowerCase(),sizeLeft=Number(item.sizeleft??item.sizeLeft??0),terminal=(status==='completed'||status==='complete')&&sizeLeft<=0;
+        if(!terminal)continue;
+        const downloadId=String(item.downloadId||item.downloadClientId||''),sourceTitle=String(item.title||'').toLowerCase();
+        const confirmedImported=downloadId?importedDownloadIds.has(downloadId):Boolean(sourceTitle&&importedSourceTitles.has(sourceTitle));
+        if(confirmedImported){
+          const key=queueRecordKey(domain,item),last=completedQueueCleanups.get(key)||0,now=Date.now();
+          if(item.id!=null&&now-last>30*60*1000){
+            completedQueueCleanups.set(key,now);
+            void client.delete(`queue/${encodeURIComponent(String(item.id))}`,{removeFromClient:true,blocklist:false}).then(()=>sync.invalidate(domain)).catch(()=>{});
+          }
+        }else scheduleCompletedMediaRefresh(domain,item);
       }
       return records.filter(item=>{
         const mediaId=Number(domain==='movie'?(item.movieId||item.movie?.id):(item.seriesId||item.series?.id||item.episode?.seriesId));
@@ -453,6 +467,7 @@ export function createApplication(options={}){
     const transport=config.https?httpsRequest:httpRequest,headers={};
     for(const[name,value]of Object.entries(req.headers))if(!hopHeaders.has(name)&&name!=='host'&&value!==undefined)headers[name]=value;
     headers.host=`${config.host}:${config.port}`;
+    if(/^\/api\//i.test(relative))headers.accept='application/json';
     const upstream=transport({protocol:config.https?'https:':'http:',hostname:config.host,port:config.port,method:req.method,path:`${upstreamBase}${relative}${url.search}`,headers,rejectUnauthorized:config.tlsVerify},response=>{
       const responseHeaders={};
       for(const[name,value]of Object.entries(response.headers))if(!hopHeaders.has(name)&&value!==undefined)responseHeaders[name]=value;

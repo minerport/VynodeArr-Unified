@@ -7,6 +7,7 @@ const clientRoot=fileURLToPath(new URL('.',import.meta.url));
 export default defineConfig({
   root:clientRoot,
   plugins:[react()],
+  define:{'process.env.NODE_ENV':JSON.stringify('production')},
   build:{
     minify:'oxc',
     outDir:fileURLToPath(new URL('../public/react/',import.meta.url)),

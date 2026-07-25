@@ -5,13 +5,15 @@ import test from 'node:test';
 const read=(path)=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
 test('the complete dashboard has a React view with a legacy-safe bridge',async()=>{
-  const [packageJson,index,app,entry,dashboard,analytics]=await Promise.all([
+  const [packageJson,index,app,entry,dashboard,analytics,library,libraryTypes]=await Promise.all([
     read('package.json'),
     read('apps/web/public/index.html'),
     read('apps/web/public/app.js'),
     read('apps/web/client/src/react-islands.tsx'),
     read('apps/web/client/src/dashboard.tsx'),
-    read('apps/web/client/src/dashboard-analytics.tsx')
+    read('apps/web/client/src/dashboard-analytics.tsx'),
+    read('apps/web/client/src/library.tsx'),
+    read('apps/web/client/src/library-types.ts')
   ]);
   const manifest=JSON.parse(packageJson);
 
@@ -20,10 +22,16 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(index,/\/react\/vynodearr-react\.js/);
   assert.match(app,/mountDashboard/);
   assert.match(app,/dashboard-react/);
+  assert.match(app,/mountLibrary/);
   assert.match(app,/content\.replaceChildren/);
   assert.match(entry,/createRoot/);
   assert.match(entry,/DashboardView/);
+  assert.match(entry,/LibraryView/);
+  assert.match(entry,/unmountLibrary/);
   assert.match(dashboard,/Recently added/);
   assert.match(dashboard,/Recent events/);
   assert.match(analytics,/DashboardAnalyticsView/);
+  assert.match(library,/Filter titles/);
+  assert.match(library,/onMonitor/);
+  assert.match(libraryTypes,/LibraryMountOptions/);
 });

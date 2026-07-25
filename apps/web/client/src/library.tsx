@@ -1,0 +1,37 @@
+import { useMemo,useState } from 'react';
+import type { LibraryItem,LibraryMountOptions,LibraryView } from './library-types';
+import './react-library.css';
+
+const views:LibraryView[]=['poster','cards','compact','list'];
+const viewLabels:Record<LibraryView,string>={poster:'Poster grid',cards:'Information cards',compact:'Compact grid',list:'Detailed list'};
+
+function LibraryCard({item,kind,view,onMonitor}:{item:LibraryItem;kind:LibraryMountOptions['kind'];view:LibraryView;onMonitor:(item:LibraryItem)=>Promise<void>}){
+  const movie=kind==='movies',href=`#${movie?'movie':'series'}/${item.id}`,attention=movie?item.state!=='available':item.monitoring!=='none'&&Number(item.missingEpisodes||0)>0;
+  const status=movie?(item.state==='available'?'Available':item.state||'Unknown'):item.status||'Unknown';
+  return <article className={`card react-library-card ${view}`}>
+    <a className="poster" href={href}>{item.artwork?.url?<img src={item.artwork.url} alt="" loading="lazy"/>:<span className="art-fallback">{movie?'M':'TV'}</span>}<span className="poster-badges"><span className={`badge ${item.monitoring==='none'?'':'green'}`}>{item.monitoring==='none'?'Unmonitored':'Monitored'}</span><span className={`badge ${attention?'warm':''}`}>{status}</span></span></a>
+    <div className="card-body"><h2><a href={href}>{item.title}</a></h2><p>{[item.year,movie?item.collection:item.network].filter(Boolean).join(' · ')}</p>
+      <div className="progress"><span style={{width:movie?(item.hasFile?'100%':'0%'):`${Math.max(0,100-Number(item.missingEpisodes||0)*5)}%`}}/></div>
+      <div className="detail-row"><span>{movie?(item.quality||item.qualityProfile||'No quality reported'):(item.episodeProgress||'No episode data')}</span><span>{movie?(item.hasFile?'On disk':'Missing'):`${Number(item.missingEpisodes||0)} missing`}</span></div>
+      {view==='cards'?<p className="react-library-overview">{item.overview||'No summary is available yet.'}</p>:null}
+      <footer className="react-library-card-actions"><a className="text-button" href={href}>View details</a><button className="secondary" type="button" onClick={()=>void onMonitor(item)}>{item.monitoring==='none'?'Monitor':'Unmonitor'}</button></footer>
+    </div>
+  </article>;
+}
+
+export function LibraryView({options}:{options:LibraryMountOptions}){
+  const {kind,request,notify}=options,movie=kind==='movies';
+  const [items,setItems]=useState(options.items),[filter,setFilter]=useState('all'),[sort,setSort]=useState('title'),[query,setQuery]=useState(''),[view,setView]=useState(options.initialView),[limit,setLimit]=useState(240);
+  const visible=useMemo(()=>items.filter(item=>item.title.toLowerCase().includes(query.toLowerCase())).filter(item=>filter==='all'||filter==='monitored'&&item.monitoring!=='none'||filter==='missing'&&item.monitoring!=='none'&&(movie?item.state==='missing':Number(item.missingEpisodes||0)>0)).sort((a,b)=>sort==='year'?Number(b.year||0)-Number(a.year||0):sort==='attention'?(movie?Number(a.state==='available')-Number(b.state==='available'):Number(b.missingEpisodes||0)-Number(a.missingEpisodes||0)):a.title.localeCompare(b.title)),[items,filter,sort,query,movie]);
+  const monitored=items.filter(item=>item.monitoring!=='none'),missing=monitored.filter(item=>movie?item.state==='missing':Number(item.missingEpisodes||0)>0).length,cutoff=movie?monitored.filter(item=>item.state==='cutoff').length:0,coverage=Math.round(items.filter(item=>movie?item.hasFile:Number(item.missingEpisodes||0)===0).length/Math.max(items.length,1)*100);
+  async function monitor(item:LibraryItem){const domain=movie?'movie':'tv',engineId=item.id.replace(movie?'movie_':'series_','');try{const value=await request<{result:Record<string,unknown>}>(`/api/manage/${domain}/library/${engineId}`),raw=value.result;raw.monitored=!raw.monitored;await request(`/api/manage/${domain}/library/${engineId}`,{method:'PUT',body:JSON.stringify(raw)});setItems(current=>current.map(value=>value.id===item.id?{...value,monitoring:raw.monitored?(movie?'monitored':'all'):'none'}:value));notify(raw.monitored?`${movie?'Movie':'Series'} monitored.`:`${movie?'Movie':'Series'} unmonitored.`);}catch(error){notify(error instanceof Error?error.message:'The monitoring change failed.','error');}}
+  function chooseView(next:LibraryView){setView(next);options.onViewChange(next);}
+  return <div className="react-library">
+    <div className="hero"><div><span className="eyebrow">YOUR LIBRARY</span><h1>{movie?'Movies':'TV'}</h1><p className="lede">{movie?'Every story, presented through one secure gateway.':'Every season and episode, normalized in one library.'}</p></div><span className="read-only">Connected library</span></div>
+    <div className="summary"><div><strong>{items.length}</strong><span>Titles</span></div><div><strong>{monitored.length}</strong><span>Monitored</span></div><div><strong>{missing+cutoff}</strong><span>Need attention</span><small>{movie?`${missing} missing · ${cutoff} below cutoff`:`${missing} series missing episodes`}</small></div><div><strong>{coverage}%</strong><span>Library coverage</span></div></div>
+    <div className="toolbar react-library-toolbar"><div className="filters">{['all','monitored','missing'].map(value=><button key={value} type="button" className={`chip ${filter===value?'selected':''}`} onClick={()=>setFilter(value)}>{value[0].toUpperCase()+value.slice(1)}</button>)}</div><label className="react-library-search">Filter titles<input value={query} onChange={event=>setQuery(event.target.value)} placeholder={`Search ${movie?'movies':'television'}`}/></label><div><select className="sort" aria-label="Sort media" value={sort} onChange={event=>setSort(event.target.value)}><option value="title">Title</option><option value="year">Year</option><option value="attention">Attention</option></select>{views.map(value=><button key={value} type="button" className={`icon-button ${view===value?'selected':''}`} title={viewLabels[value]} onClick={()=>chooseView(value)}>{value==='poster'?'▦':value==='cards'?'▥':value==='compact'?'▤':'☷'}</button>)}</div></div>
+    <div className={`grid view-${view}`}>{visible.slice(0,limit).map(item=><LibraryCard key={item.id} item={item} kind={kind} view={view} onMonitor={monitor}/>)}</div>
+    {!visible.length?<div className="empty"><h2>No titles match</h2><p>Change the search or library filter.</p></div>:null}
+    {limit<visible.length?<div className="library-load-more"><p>Showing {limit.toLocaleString()} of {visible.length.toLocaleString()}</p><button className="secondary" type="button" onClick={()=>setLimit(value=>value+240)}>Load more</button></div>:null}
+  </div>;
+}
