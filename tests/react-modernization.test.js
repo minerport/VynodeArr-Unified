@@ -5,7 +5,7 @@ import test from 'node:test';
 const read=(path)=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
 test('the complete dashboard has a React view with a legacy-safe bridge',async()=>{
-  const [packageJson,index,app,entry,dashboard,analytics,library,libraryTypes,history,queue,wanted,unraidDockerfile]=await Promise.all([
+  const [packageJson,index,app,entry,dashboard,analytics,library,libraryTypes,history,queue,wanted,calendar,movieDetail,unraidDockerfile]=await Promise.all([
     read('package.json'),
     read('apps/web/public/index.html'),
     read('apps/web/public/app.js'),
@@ -17,6 +17,8 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
     read('apps/web/client/src/history.tsx'),
     read('apps/web/client/src/queue.tsx'),
     read('apps/web/client/src/wanted.tsx'),
+    read('apps/web/client/src/calendar.tsx'),
+    read('apps/web/client/src/movie-detail.tsx'),
     read('Dockerfile.unraid')
   ]);
   const manifest=JSON.parse(packageJson);
@@ -39,11 +41,18 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(entry,/unmountQueue/);
   assert.match(entry,/WantedView/);
   assert.match(entry,/unmountWanted/);
+  assert.match(entry,/CalendarView/);
+  assert.match(entry,/unmountCalendar/);
+  assert.match(entry,/MovieDetailView/);
+  assert.match(entry,/unmountMovieDetail/);
   assert.match(dashboard,/Recently added/);
   assert.match(dashboard,/Recent events/);
   assert.match(analytics,/DashboardAnalyticsView/);
   assert.match(library,/Filter titles/);
   assert.match(library,/onMonitor/);
+  assert.match(library,/Search all missing/);
+  assert.match(library,/MoviesSearch/);
+  assert.match(library,/Cutoff unmet/);
   assert.match(libraryTypes,/LibraryMountOptions/);
   assert.match(history,/Retry organize/);
   assert.match(history,/Find activity/);
@@ -53,6 +62,10 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(wanted,/Search all missing/);
   assert.match(wanted,/Interactive search/);
   assert.match(wanted,/SeriesSearch/);
+  assert.match(calendar,/Previous month/);
+  assert.match(calendar,/includeSeries=true/);
+  assert.match(movieDetail,/Automatic search/);
+  assert.match(movieDetail,/Rename & organize/);
   assert.match(unraidDockerfile,/FROM node:24-alpine AS web-build/);
   assert.match(unraidDockerfile,/apps\/web\/public\/react/);
 });

@@ -10,6 +10,10 @@ import { QueueView } from './queue';
 import type { QueueMountOptions } from './queue-types';
 import { WantedView } from './wanted';
 import type { WantedMountOptions } from './wanted-types';
+import { CalendarView } from './calendar';
+import type { CalendarMountOptions } from './calendar-types';
+import { MovieDetailView } from './movie-detail';
+import type { MovieDetailMountOptions } from './movie-detail-types';
 
 let dashboardRoot:Root|null=null;
 let dashboardElement:HTMLElement|null=null;
@@ -18,6 +22,8 @@ let libraryRoot:Root|null=null;
 let historyRoot:Root|null=null;
 let queueRoot:Root|null=null;
 let wantedRoot:Root|null=null;
+let calendarRoot:Root|null=null;
+let movieDetailRoot:Root|null=null;
 
 function unmountDashboardAnalytics(){
   dashboardRoot?.unmount();
@@ -68,6 +74,18 @@ function mountWanted(element:HTMLElement,options:WantedMountOptions){
   wantedRoot=createRoot(element);
   wantedRoot.render(<WantedView options={options}/>);
 }
+function unmountCalendar(){calendarRoot?.unmount();calendarRoot=null;}
+function mountCalendar(element:HTMLElement,options:CalendarMountOptions){
+  unmountCalendar();
+  calendarRoot=createRoot(element);
+  calendarRoot.render(<CalendarView options={options}/>);
+}
+function unmountMovieDetail(){movieDetailRoot?.unmount();movieDetailRoot=null;}
+function mountMovieDetail(element:HTMLElement,options:MovieDetailMountOptions){
+  unmountMovieDetail();
+  movieDetailRoot=createRoot(element);
+  movieDetailRoot.render(<MovieDetailView options={options}/>);
+}
 
 declare global {
   interface Window {
@@ -84,8 +102,12 @@ declare global {
       unmountQueue:()=>void;
       mountWanted:(element:HTMLElement,options:WantedMountOptions)=>void;
       unmountWanted:()=>void;
+      mountCalendar:(element:HTMLElement,options:CalendarMountOptions)=>void;
+      unmountCalendar:()=>void;
+      mountMovieDetail:(element:HTMLElement,options:MovieDetailMountOptions)=>void;
+      unmountMovieDetail:()=>void;
     };
   }
 }
 
-window.VynodeArrReact={mountDashboard,unmountDashboard,mountDashboardAnalytics,unmountDashboardAnalytics,mountLibrary,unmountLibrary,mountHistory,unmountHistory,mountQueue,unmountQueue,mountWanted,unmountWanted};
+window.VynodeArrReact={mountDashboard,unmountDashboard,mountDashboardAnalytics,unmountDashboardAnalytics,mountLibrary,unmountLibrary,mountHistory,unmountHistory,mountQueue,unmountQueue,mountWanted,unmountWanted,mountCalendar,unmountCalendar,mountMovieDetail,unmountMovieDetail};

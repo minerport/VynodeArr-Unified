@@ -415,12 +415,18 @@ export function createApplication(options={}){
   async function liveQueue(){
     const results=await Promise.all(['movie','tv'].map(async domain=>{
       const client=registry.get(domain).client;
+      const queueQuery=domain==='movie'
+        ?{page:1,pageSize:500,includeUnknownMovieItems:false,includeMovie:true}
+        :{page:1,pageSize:500,includeUnknownSeriesItems:false,includeSeries:true,includeEpisode:true};
       const [queueValue,library,historyValue]=await Promise.all([
-        client.get('queue',{page:1,pageSize:500,includeUnknownMovieItems:true,includeUnknownSeriesItems:true,includeMovie:true,includeSeries:true,includeEpisode:true}),
+        client.get('queue',queueQuery),
         client.get(domain==='movie'?'movie':'series').catch(()=>[]),
         client.get('history',{page:1,pageSize:500,sortKey:'date',sortDirection:'descending'}).catch(()=>({records:[]}))
       ]);
-      const records=Array.isArray(queueValue?.records)?queueValue.records:[],libraryById=new Map((Array.isArray(library)?library:[]).map(item=>[Number(item.id),item]));
+      const engineRecords=Array.isArray(queueValue?.records)?queueValue.records:[],records=engineRecords.filter(item=>{
+        const linkedId=Number(domain==='movie'?(item.movieId||item.movie?.id):(item.seriesId||item.series?.id||item.episode?.seriesId));
+        return Number.isFinite(linkedId)&&linkedId>0;
+      }),libraryById=new Map((Array.isArray(library)?library:[]).map(item=>[Number(item.id),item]));
       const importedHistory=(Array.isArray(historyValue?.records)?historyValue.records:[]).filter(event=>String(event.eventType).toLowerCase()==='downloadfolderimported');
       const importedDownloadIds=new Set(importedHistory.map(event=>String(event.downloadId||event.data?.downloadId||'')).filter(Boolean));
       const importedSourceTitles=new Set(importedHistory.map(event=>String(event.sourceTitle||'').toLowerCase()).filter(Boolean));

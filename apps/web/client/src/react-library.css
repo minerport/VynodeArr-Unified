@@ -1,1 +1,27 @@
-.react-library-toolbar{flex-wrap:wrap}.react-library-search{display:flex;align-items:center;gap:.55rem;color:var(--muted);font-size:.75rem;font-weight:700}.react-library-search input{width:min(18rem,40vw);padding:.55rem .7rem;border:1px solid var(--line);border-radius:.5rem;background:#080e19;color:var(--text)}.react-library-card-actions{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-top:.8rem}.react-library-card-actions .text-button{color:#b8c4dd;text-decoration:none}.react-library-overview{display:-webkit-box;overflow:hidden;-webkit-box-orient:vertical;-webkit-line-clamp:3;min-height:3.2rem}.view-cards{grid-template-columns:repeat(auto-fill,minmax(25rem,1fr))}.view-cards .react-library-card{display:grid;grid-template-columns:9rem minmax(0,1fr)}.view-cards .poster{aspect-ratio:2/3}.view-list .react-library-card{display:grid;grid-template-columns:5rem minmax(0,1fr);margin-bottom:.55rem}.view-list .poster{aspect-ratio:2/3}.view-compact .react-library-card{display:grid;grid-template-columns:6rem minmax(0,1fr)}.summary small{display:block;margin-top:.25rem;color:var(--muted);font-size:.68rem}@media(max-width:760px){.react-library-search{order:3;width:100%}.react-library-search input{flex:1;width:auto}.view-cards{grid-template-columns:1fr}.view-cards .react-library-card{grid-template-columns:6rem 1fr}}
+.react-library-toolbar{flex-wrap:wrap}
+.react-library-search{display:flex;align-items:center;gap:.55rem;color:var(--muted);font-size:.75rem;font-weight:700}
+.react-library-search input{width:min(18rem,40vw);padding:.55rem .7rem;border:1px solid var(--line);border-radius:.5rem;background:#080e19;color:var(--text)}
+.react-library .react-library-card .card-body{position:static;z-index:auto;min-width:0}
+.react-library-card-actions{position:relative;z-index:2;display:flex;align-items:center;justify-content:flex-end;gap:.5rem;margin-top:.8rem}
+.react-library-card-actions .secondary{padding:.55rem .75rem}
+.react-library-details{color:#dce5f6;text-decoration:none}
+.react-library-overview{display:-webkit-box;overflow:hidden;-webkit-box-orient:vertical;-webkit-line-clamp:3;min-height:3.2rem}
+.react-library-list-details{display:none;margin:0}
+.view-cards{grid-template-columns:repeat(auto-fill,minmax(25rem,1fr))}
+.view-cards .react-library-card{display:grid;grid-template-columns:9rem minmax(0,1fr)}
+.view-cards .poster{aspect-ratio:2/3}
+.view-list .react-library-card{display:grid;grid-template-columns:6.5rem minmax(0,1fr);min-height:10rem;margin-bottom:.65rem}
+.view-list .poster{aspect-ratio:2/3}
+.react-library .view-list .react-library-card .card-body{display:grid;grid-template-columns:minmax(14rem,1.1fr) minmax(20rem,1.6fr) auto;gap:1.25rem;align-items:center;padding:1rem 1.15rem}
+.view-list .react-library-list-details{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem 1.25rem}
+.react-library-list-details div{min-width:0}
+.react-library-list-details dt{color:var(--muted);font-size:.65rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.react-library-list-details dd{overflow:hidden;margin:.15rem 0 0;color:#e4ebf8;font-size:.78rem;overflow-wrap:anywhere}
+.view-list .react-library-card-actions{margin:0;flex-direction:column;align-items:stretch}
+.view-list .react-library-card-actions .secondary{min-width:6.5rem;text-align:center}
+.view-compact .react-library-card{display:grid;grid-template-columns:6rem minmax(0,1fr)}
+.summary small{display:block;margin-top:.25rem;color:var(--muted);font-size:.68rem}
+.react-library-search-missing{margin-left:auto;white-space:nowrap}
+@media(max-width:1050px){.react-library .view-list .react-library-card .card-body{grid-template-columns:minmax(12rem,1fr) minmax(16rem,1.2fr)}.view-list .react-library-card-actions{grid-column:1/-1;flex-direction:row;justify-content:flex-end}}
+@media(max-width:900px){.react-library-search-missing{margin-left:0}}
+@media(max-width:760px){.react-library-search{order:3;width:100%}.react-library-search input{flex:1;width:auto}.view-cards{grid-template-columns:1fr}.view-cards .react-library-card{grid-template-columns:6rem 1fr}.react-library .view-list .react-library-card .card-body{display:block}.view-list .react-library-list-details{margin-top:.9rem}.view-list .react-library-card-actions{margin-top:.9rem}}

@@ -54,6 +54,9 @@ test('native interaction workflows replace an upstream-shaped generic shell',asy
   for(const workflow of ['wantedImage','wanted-art','wanted-movie-row','wanted-episode-row','/api/artwork/movie/movie_${item.id}/poster','/api/artwork/tv/series_${seriesId}/fanart','/api/artwork/tv-metadata/${tvdbId}','season?season=${season}','episode?season=${season}&episode=${item.episodeNumber}'])assert.ok(script.includes(workflow));
   for(const workflow of ['queuePoll','load({quiet:true})','queue-poster','tone=item','clientFilename','clientTimeLeft','/api/activity/queue/live','showMediaManagement','media-management','mediaSettingOptions','flattenMediaSettings','mediaManagement','Naming and folders','Importing and file management'])assert.ok(script.includes(workflow));
   for(const workflow of ['liveQueue','includeMovie:true','includeSeries:true','includeEpisode:true','trackedDownloadState','clientStatus','clientFilename','/api/activity/queue/live'])assert.ok(apiSource.includes(workflow));
+  assert.ok(apiSource.includes('includeUnknownMovieItems:false'));
+  assert.ok(apiSource.includes('includeUnknownSeriesItems:false'));
+  assert.ok(apiSource.includes('Number.isFinite(linkedId)&&linkedId>0'),'live queue must exclude download-client jobs that are not linked to engine media');
   assert.ok(!apiSource.includes("apikey:apiKey"),'live queue must rely on the engines authenticated client polling, not masked provider credentials');
   for(const workflow of ['tvMetadataArtwork','api.tvmaze.com/lookup/shows','api.tvmaze.com/shows/${show.id}/seasons','episodebynumber','static.tvmaze.com'])assert.ok(apiSource.includes(workflow));
   for(const workflow of ['showEngineManagement','Repair automatic connections','external-engine-settings','Engine keys are created once during installation','Changing this key affects external applications','Seerr and every other connected application','/api/settings/engines/repair'])assert.ok(script.includes(workflow));
