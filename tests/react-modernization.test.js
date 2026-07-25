@@ -45,6 +45,8 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(entry,/unmountCalendar/);
   assert.match(entry,/MovieDetailView/);
   assert.match(entry,/unmountMovieDetail/);
+  assert.match(entry,/mountTvDetail/);
+  assert.match(entry,/unmountTvDetail/);
   assert.match(dashboard,/Recently added/);
   assert.match(dashboard,/Recent events/);
   assert.match(analytics,/DashboardAnalyticsView/);

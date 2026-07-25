@@ -10,15 +10,17 @@
 .view-cards{grid-template-columns:repeat(auto-fill,minmax(25rem,1fr))}
 .view-cards .react-library-card{display:grid;grid-template-columns:9rem minmax(0,1fr)}
 .view-cards .poster{aspect-ratio:2/3}
-.view-list .react-library-card{display:grid;grid-template-columns:6.5rem minmax(0,1fr);min-height:10rem;margin-bottom:.65rem}
+.view-list .react-library-card{display:grid;grid-template-columns:4.25rem minmax(0,1fr);min-height:6.4rem;margin-bottom:.45rem}
 .view-list .poster{aspect-ratio:2/3}
-.react-library .view-list .react-library-card .card-body{display:grid;grid-template-columns:minmax(14rem,1.1fr) minmax(20rem,1.6fr) auto;gap:1.25rem;align-items:center;padding:1rem 1.15rem}
-.view-list .react-library-list-details{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem 1.25rem}
+.react-library .view-list .react-library-card .card-body{display:grid;grid-template-columns:minmax(12rem,1fr) minmax(28rem,2fr) auto;gap:.85rem;align-items:center;padding:.6rem .8rem}
+.view-list .react-library-list-details{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.4rem .8rem}
 .react-library-list-details div{min-width:0}
 .react-library-list-details dt{color:var(--muted);font-size:.65rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
 .react-library-list-details dd{overflow:hidden;margin:.15rem 0 0;color:#e4ebf8;font-size:.78rem;overflow-wrap:anywhere}
 .view-list .react-library-card-actions{margin:0;flex-direction:column;align-items:stretch}
-.view-list .react-library-card-actions .secondary{min-width:6.5rem;text-align:center}
+.view-list .react-library-card-actions .secondary{min-width:5.7rem;padding:.4rem .55rem;text-align:center;font-size:.75rem}
+.view-list .react-library-card-summary>p{margin-bottom:.35rem}
+.view-list .react-library-card-summary .detail-row{margin-top:.3rem}
 .view-compact .react-library-card{display:grid;grid-template-columns:6rem minmax(0,1fr)}
 .summary small{display:block;margin-top:.25rem;color:var(--muted);font-size:.68rem}
 .react-library-search-missing{margin-left:auto;white-space:nowrap}

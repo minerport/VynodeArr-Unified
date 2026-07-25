@@ -1,0 +1,14 @@
+.react-tv-dialog{position:fixed;inset:5vh 5vw;width:90vw;max-width:80rem;max-height:90vh;margin:auto;padding:1.25rem;border:1px solid var(--line);border-radius:.9rem;background:#080e19;color:var(--text);overflow:auto;z-index:120}.react-tv-editor{max-width:38rem}.react-tv-editor form{display:grid;gap:1rem}.react-tv-editor label:not(.check){display:grid;gap:.45rem;color:var(--muted)}.react-tv-editor select{width:100%;padding:.8rem;border:1px solid var(--line);border-radius:.55rem;background:var(--panel);color:var(--text)}
+.react-tv-detail .season-panel{padding:1.25rem;background:linear-gradient(145deg,#0c1422,#0a101b)}
+.react-tv-detail .season-panel>.panel-heading{margin-bottom:.5rem}
+.react-tv-detail .series-season{margin-top:.65rem;border:1px solid #202c41;border-radius:.75rem;background:#080e18;overflow:hidden}
+.react-tv-detail .series-season[open]{border-color:#354460}
+.react-tv-detail .series-season>summary{display:grid;grid-template-columns:minmax(10rem,1fr) auto auto;gap:.75rem;align-items:center;padding:.8rem 1rem;list-style:none}
+.react-tv-detail .series-season>summary>strong{grid-column:1}
+.react-tv-detail .series-season>summary:after{content:"";grid-column:1/-1;height:.35rem;border-radius:1rem;background:linear-gradient(90deg,var(--cyan) var(--season-progress,0%),#1b2536 var(--season-progress,0%))}
+.react-tv-detail .season-episodes{padding:0 .85rem .75rem}
+.react-tv-detail .episode{align-items:center;padding:.75rem .25rem}
+.react-tv-detail .episode small{display:block;color:var(--muted)}
+.react-tv-detail .episode-actions{display:flex;gap:.45rem}
+.react-tv-detail .episode-actions button{padding:.45rem .6rem;font-size:.72rem}
+@media(max-width:700px){.react-tv-dialog{inset:2vh 2vw;width:96vw}.react-tv-detail .series-season>summary{grid-template-columns:1fr auto}.react-tv-detail .episode{display:grid}.react-tv-detail .episode-actions{margin-top:.55rem;flex-wrap:wrap}}

@@ -14,6 +14,8 @@ import { CalendarView } from './calendar';
 import type { CalendarMountOptions } from './calendar-types';
 import { MovieDetailView } from './movie-detail';
 import type { MovieDetailMountOptions } from './movie-detail-types';
+import { TvDetailView } from './tv-detail';
+import type { TvDetailMountOptions } from './tv-detail-types';
 
 let dashboardRoot:Root|null=null;
 let dashboardElement:HTMLElement|null=null;
@@ -24,6 +26,7 @@ let queueRoot:Root|null=null;
 let wantedRoot:Root|null=null;
 let calendarRoot:Root|null=null;
 let movieDetailRoot:Root|null=null;
+let tvDetailRoot:Root|null=null;
 
 function unmountDashboardAnalytics(){
   dashboardRoot?.unmount();
@@ -86,6 +89,12 @@ function mountMovieDetail(element:HTMLElement,options:MovieDetailMountOptions){
   movieDetailRoot=createRoot(element);
   movieDetailRoot.render(<MovieDetailView options={options}/>);
 }
+function unmountTvDetail(){tvDetailRoot?.unmount();tvDetailRoot=null;}
+function mountTvDetail(element:HTMLElement,options:TvDetailMountOptions){
+  unmountTvDetail();
+  tvDetailRoot=createRoot(element);
+  tvDetailRoot.render(<TvDetailView options={options}/>);
+}
 
 declare global {
   interface Window {
@@ -106,8 +115,10 @@ declare global {
       unmountCalendar:()=>void;
       mountMovieDetail:(element:HTMLElement,options:MovieDetailMountOptions)=>void;
       unmountMovieDetail:()=>void;
+      mountTvDetail:(element:HTMLElement,options:TvDetailMountOptions)=>void;
+      unmountTvDetail:()=>void;
     };
   }
 }
 
-window.VynodeArrReact={mountDashboard,unmountDashboard,mountDashboardAnalytics,unmountDashboardAnalytics,mountLibrary,unmountLibrary,mountHistory,unmountHistory,mountQueue,unmountQueue,mountWanted,unmountWanted,mountCalendar,unmountCalendar,mountMovieDetail,unmountMovieDetail};
+window.VynodeArrReact={mountDashboard,unmountDashboard,mountDashboardAnalytics,unmountDashboardAnalytics,mountLibrary,unmountLibrary,mountHistory,unmountHistory,mountQueue,unmountQueue,mountWanted,unmountWanted,mountCalendar,unmountCalendar,mountMovieDetail,unmountMovieDetail,mountTvDetail,unmountTvDetail};
