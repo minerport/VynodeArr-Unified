@@ -1,0 +1,34 @@
+export type AccountSection='account'|'sessions'|'users';
+
+export interface AccountUser {
+  id:string;
+  name:string;
+  username:string;
+  email:string;
+  role:'administrator'|'viewer';
+  enabled?:boolean;
+  profileImage?:string;
+  timeZone?:string;
+  dateTimeFormat?:string;
+  theme?:string;
+  language?:string;
+}
+
+export interface AccountSession {
+  id:string;
+  browser:string;
+  os:string;
+  ipMasked:string;
+  lastActivity:string;
+  createdAt:string;
+  current:boolean;
+}
+
+export interface AccountMountOptions {
+  section:AccountSection;
+  administrator:boolean;
+  request:<T=unknown>(path:string,options?:RequestInit)=>Promise<T>;
+  notify:(message:string,type?:string)=>void;
+  onUserUpdated:(user:AccountUser)=>void;
+  onCurrentSessionRevoked:()=>void;
+}

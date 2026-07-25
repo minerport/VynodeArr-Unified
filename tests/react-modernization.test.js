@@ -5,7 +5,7 @@ import test from 'node:test';
 const read=(path)=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
 test('the complete dashboard has a React view with a legacy-safe bridge',async()=>{
-  const [packageJson,index,app,entry,dashboard,analytics,library,libraryCss,libraryTypes,history,queue,wanted,calendar,movieDetail,tvDetail,collections,collectionTypes,addMedia,addMediaTypes,health,healthTypes,bundleBudget,unraidDockerfile]=await Promise.all([
+  const [packageJson,index,app,entry,dashboard,analytics,library,libraryCss,libraryTypes,history,queue,wanted,calendar,movieDetail,tvDetail,collections,collectionTypes,addMedia,addMediaTypes,health,healthTypes,account,accountTypes,system,systemTypes,bundleBudget,unraidDockerfile]=await Promise.all([
     read('package.json'),
     read('apps/web/public/index.html'),
     read('apps/web/public/app.js'),
@@ -27,6 +27,10 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
     read('apps/web/client/src/add-media-types.ts'),
     read('apps/web/client/src/health.tsx'),
     read('apps/web/client/src/health-types.ts'),
+    read('apps/web/client/src/account.tsx'),
+    read('apps/web/client/src/account-types.ts'),
+    read('apps/web/client/src/system.tsx'),
+    read('apps/web/client/src/system-types.ts'),
     read('scripts/check-web-bundle.mjs'),
     read('Dockerfile.unraid')
   ]);
@@ -67,10 +71,29 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(entry,/mountHealth/);
   assert.match(entry,/unmountHealth/);
   assert.match(entry,/import\('\.\/health'\)/);
+  assert.match(entry,/mountAccount/);
+  assert.match(entry,/unmountAccount/);
+  assert.match(entry,/import\('\.\/account'\)/);
+  assert.match(entry,/mountSystem/);
+  assert.match(entry,/unmountSystem/);
+  assert.match(entry,/import\('\.\/system'\)/);
   assert.match(dashboard,/Recently imported/);
   assert.match(dashboard,/Recent engine events/);
   assert.match(dashboard,/dashboard-attention-grid/);
   assert.match(analytics,/DashboardAnalyticsView/);
+  assert.match(account,/AccountView/);
+  assert.match(account,/Active Sessions/);
+  assert.match(account,/Create user/);
+  assert.match(accountTypes,/AccountMountOptions/);
+  assert.match(app,/showAccountReact/);
+  assert.match(system,/SystemView/);
+  assert.match(system,/Create both backups/);
+  assert.match(system,/Automatic schedules are active/);
+  assert.match(system,/Find events/);
+  assert.match(system,/storageSize/);
+  assert.match(system,/TB/);
+  assert.match(systemTypes,/SystemMountOptions/);
+  assert.match(app,/showSystemReact/);
   assert.match(library,/Filter titles/);
   assert.match(library,/onMonitor/);
   assert.match(library,/Search all missing/);
@@ -162,6 +185,14 @@ test('library navigation preserves mounted views and safely reuses short-lived r
   assert.match(legacy,/if\(preserveLibrary&&!state\.libraryStale\[key\]\)return/);
   assert.match(legacy,/if\(!document\.querySelector\('#movies-react'\)\)await showMedia\('movies'\)/);
   assert.match(legacy,/if\(!document\.querySelector\('#tv-react'\)\)await showMedia\('tv'\)/);
+});
+
+test('poster library cards expose engine metadata without eager TMDB requests',async()=>{
+  const library=await read('apps/web/client/src/library.tsx');
+  assert.match(library,/className="react-poster-title"/);
+  assert.match(library,/item\.rating/);
+  assert.match(library,/episodeCounts/);
+  assert.doesNotMatch(library,/Promise\.all\(.*tmdb/is);
 });
 
 test('Discover progressively loads through a typed React route',async()=>{

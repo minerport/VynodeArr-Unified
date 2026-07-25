@@ -4,6 +4,19 @@
 .react-library .react-library-card .card-body{position:static;z-index:auto;min-width:0}
 .react-library-card{content-visibility:auto;contain-intrinsic-size:auto 360px}
 .view-poster .react-library-card{contain-intrinsic-size:auto 430px}.view-list .react-library-card{contain-intrinsic-size:auto 104px}
+.react-poster-title{position:absolute;z-index:2;right:0;bottom:0;left:0;display:grid;gap:.2rem;padding:5rem .85rem .78rem;background:linear-gradient(180deg,transparent 0%,rgba(4,8,16,.72) 48%,rgba(4,8,16,.97) 100%);color:#fff;text-align:left}
+.react-poster-title strong{padding-right:3.3rem;font-size:1rem;line-height:1.18;overflow-wrap:anywhere;text-shadow:0 1px 8px #000}
+.react-poster-title>span{overflow:hidden;color:#c8d2e4;font-size:.72rem;line-height:1.25;text-overflow:ellipsis;white-space:nowrap}
+.react-poster-title em{position:absolute;right:.75rem;bottom:.72rem;padding:.2rem .38rem;border:1px solid rgba(255,210,83,.25);border-radius:999px;background:rgba(9,13,22,.82);color:#ffd253;font-size:.68rem;font-style:normal;font-weight:800}
+.view-poster .react-library-card .poster-badges{z-index:3}
+.react-library .view-poster .react-library-card .card-body{padding:.68rem .75rem .78rem}
+.view-poster .card-body>h2,.view-poster .card-body>p{display:none}
+.view-poster .card-body .progress{margin-top:0}
+.view-poster .detail-row{gap:.55rem;font-size:.69rem}
+.view-poster .detail-row span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.view-poster .detail-row span:last-child{flex:0 0 auto}
+.view-poster .react-library-card-actions{justify-content:space-between;margin-top:.65rem}
+.view-poster .react-library-card-actions>*{flex:1;text-align:center}
 .react-library-card-actions{position:relative;z-index:2;display:flex;align-items:center;justify-content:flex-end;gap:.5rem;margin-top:.8rem}
 .react-library-card-actions .secondary{padding:.55rem .75rem}
 .react-library-details{color:#dce5f6;text-decoration:none}

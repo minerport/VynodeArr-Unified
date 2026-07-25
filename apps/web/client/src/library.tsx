@@ -8,15 +8,17 @@ const viewLabels:Record<LibraryView,string>={poster:'Poster grid',cards:'Informa
 function LibraryCard({item,kind,view,onMonitor,onPrefetch}:{item:LibraryItem;kind:LibraryMountOptions['kind'];view:LibraryView;onMonitor:(item:LibraryItem)=>Promise<void>;onPrefetch:(item:LibraryItem)=>void}){
   const movie=kind==='movies',href=`#${movie?'movie':'series'}/${item.id}`,attention=movie?item.state!=='available':item.monitoring!=='none'&&Number(item.missingEpisodes||0)>0;
   const status=movie?(item.state==='available'?'Available':item.state||'Unknown'):item.status||'Unknown';
+  const context=movie?item.collection:item.network,quality=movie?(item.quality||item.qualityProfile||'Quality unknown'):(item.episodeProgress||'Episode count unknown');
+  const episodeCounts=String(item.episodeProgress||'').match(/(\d+)\s*\/\s*(\d+)/),episodePercent=episodeCounts&&Number(episodeCounts[2])>0?Number(episodeCounts[1])/Number(episodeCounts[2])*100:Math.max(0,100-Number(item.missingEpisodes||0)*5);
   const details=movie
     ?[['Quality',item.quality||item.qualityProfile||'Not reported'],['Collection',item.collection||'None'],['Rating',item.rating?`${item.rating.toFixed(1)} / 10`:'Not rated'],['Genres',item.genres?.slice(0,3).join(', ')||'Not specified']]
     :[['Episodes',item.episodeProgress||'Not reported'],['Seasons',item.seasonProgress||'Not reported'],['Network',item.network||'Not specified'],['Genres',item.genres?.slice(0,3).join(', ')||'Not specified']];
   const prefetch=()=>{window.VynodeArrReact?.preloadRoute?.(movie?'movie':'series');onPrefetch(item);};
   return <article className={`card react-library-card ${view}`} onPointerEnter={prefetch} onFocus={prefetch}>
-    <a className="poster" href={href}>{item.artwork?.url?<img src={item.artwork.url} alt="" loading="lazy"/>:<span className="art-fallback">{movie?'M':'TV'}</span>}<span className="poster-badges"><span className={`badge ${item.monitoring==='none'?'':'green'}`}>{item.monitoring==='none'?'Unmonitored':'Monitored'}</span><span className={`badge ${attention?'warm':''}`}>{status}</span></span></a>
-    <div className="card-body"><h2><a href={href}>{item.title}</a></h2><p>{[item.year,movie?item.collection:item.network].filter(Boolean).join(' · ')}</p>
-      <div className="progress"><span style={{width:movie?(item.hasFile?'100%':'0%'):`${Math.max(0,100-Number(item.missingEpisodes||0)*5)}%`}}/></div>
-      <div className="detail-row"><span>{movie?(item.quality||item.qualityProfile||'No quality reported'):(item.episodeProgress||'No episode data')}</span><span>{movie?(item.hasFile?'On disk':'Missing'):`${Number(item.missingEpisodes||0)} missing`}</span></div>
+    <a className="poster" href={href}>{item.artwork?.url?<img src={item.artwork.url} alt="" loading="lazy"/>:<span className="art-fallback">{movie?'M':'TV'}</span>}<span className="poster-badges"><span className={`badge ${item.monitoring==='none'?'':'green'}`}>{item.monitoring==='none'?'Unmonitored':'Monitored'}</span><span className={`badge ${attention?'warm':''}`}>{status}</span></span>{view==='poster'?<span className="react-poster-title"><strong>{item.title}</strong><span>{[item.year,context].filter(Boolean).join(' · ')||quality}</span>{item.rating?<em aria-label={`Rating ${item.rating.toFixed(1)} out of 10`}>★ {item.rating.toFixed(1)}</em>:null}</span>:null}</a>
+    <div className="card-body"><h2><a href={href}>{item.title}</a></h2><p>{[item.year,context].filter(Boolean).join(' · ')}</p>
+      <div className="progress"><span style={{width:movie?(item.hasFile?'100%':'0%'):`${Math.min(100,episodePercent)}%`}}/></div>
+      <div className="detail-row"><span>{quality}</span><span>{movie?(item.hasFile?'On disk':'Missing'):`${Number(item.missingEpisodes||0)} missing`}</span></div>
       {view==='cards'?<p className="react-library-overview">{item.overview||'No summary is available yet.'}</p>:null}
       <dl className="react-library-list-details">{details.map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
       <footer className="react-library-card-actions"><a className="secondary react-library-details" href={href}>Details</a><button className="secondary" type="button" onClick={()=>void onMonitor(item)}>{item.monitoring==='none'?'Monitor':'Unmonitor'}</button></footer>
