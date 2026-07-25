@@ -1,18 +1,19 @@
 {
   "name": "vynodearr",
-  "version": "1.0.40",
+  "version": "1.0.41",
   "private": true,
   "type": "module",
   "engines": { "node": ">=20" },
   "scripts": {
     "build:web": "vite build --config apps/web/client/vite.config.ts",
     "typecheck:web": "tsc --project apps/web/client/tsconfig.json --noEmit",
+    "check:web-bundle": "node scripts/check-web-bundle.mjs",
     "start": "node apps/api/src/server.js",
     "test": "node --test tests/*.test.js",
     "check:branding": "node scripts/check-branding.mjs",
     "build": "npm run build:web && node scripts/build.mjs",
     "validate:deployment": "node scripts/validate-deployment.mjs",
-    "verify": "npm run test && npm run typecheck:web && npm run build && npm run check:branding && npm run validate:deployment"
+    "verify": "npm run test && npm run typecheck:web && npm run build && npm run check:web-bundle && npm run check:branding && npm run validate:deployment"
   },
   "dependencies": {
     "react": "19.2.8",

@@ -323,6 +323,22 @@
   padding: 0 1.25rem 1.25rem;
 }
 
+.quality-size-panel form > .form-actions {
+  position: sticky;
+  z-index: 8;
+  bottom: 0;
+  margin: 0 -1.25rem -1.25rem;
+  padding: .9rem 1.25rem;
+  border-top: 1px solid #2a3853;
+  background: rgba(10, 17, 30, .96);
+  box-shadow: 0 -12px 28px rgba(2, 6, 14, .35);
+  backdrop-filter: blur(10px);
+}
+
+.quality-size-panel form.has-changes > .form-actions .primary {
+  box-shadow: 0 0 0 3px rgba(116, 76, 255, .18);
+}
+
 .quality-size-heading,
 .quality-size-row {
   display: grid;

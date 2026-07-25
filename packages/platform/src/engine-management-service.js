@@ -12,6 +12,7 @@ const sharedResources=Object.freeze({
   mediaManagement:{path:'config/mediamanagement',methods:['GET','PUT']},
   downloadClientSettings:{path:'config/downloadclient',methods:['GET','PUT']},
   qualityDefinitions:{path:'qualitydefinition',methods:['GET','PUT']},
+  qualityDefinitionLimits:{path:'qualitydefinition/limits',methods:['GET']},
   delayProfiles:{path:'delayprofile',methods:['GET','POST','PUT','DELETE']},
   restrictions:{path:'restriction',methods:['GET','POST','PUT','DELETE']},
   commands:{path:'command',methods:['GET','POST']},

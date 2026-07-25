@@ -9,9 +9,11 @@ import type { CalendarMountOptions } from './calendar-types';
 import type { MovieDetailMountOptions } from './movie-detail-types';
 import type { TvDetailMountOptions } from './tv-detail-types';
 import type { DiscoverMountOptions } from './discover-types';
+import type { CollectionsMountOptions } from './collection-types';
+import type { AddMediaMountOptions } from './add-media-types';
 import { RouteErrorBoundary } from './error-boundary';
 
-let dashboardRoot:Root|null=null,dashboardElement:HTMLElement|null=null,fullDashboardRoot:Root|null=null,libraryRoot:Root|null=null,historyRoot:Root|null=null,queueRoot:Root|null=null,wantedRoot:Root|null=null,calendarRoot:Root|null=null,movieDetailRoot:Root|null=null,tvDetailRoot:Root|null=null,discoverRoot:Root|null=null;
+let dashboardRoot:Root|null=null,dashboardElement:HTMLElement|null=null,fullDashboardRoot:Root|null=null,libraryRoot:Root|null=null,historyRoot:Root|null=null,queueRoot:Root|null=null,wantedRoot:Root|null=null,calendarRoot:Root|null=null,movieDetailRoot:Root|null=null,tvDetailRoot:Root|null=null,discoverRoot:Root|null=null,collectionsRoot:Root|null=null,addMediaRoot:Root|null=null;
 const loading=(label:string)=><div className="panel skeleton react-route-loading">Loading {label}…</div>;
 
 const guarded=(children:ReactNode)=><RouteErrorBoundary>{children}</RouteErrorBoundary>;
@@ -65,8 +67,18 @@ function mountDiscover(element:HTMLElement,options:DiscoverMountOptions){
   unmountDiscover();const root=createRoot(element);discoverRoot=root;root.render(loading('discover'));
   void import('./discover').then(({DiscoverView})=>{if(discoverRoot===root)root.render(guarded(<DiscoverView options={options}/>));});
 }
+function unmountCollections(){collectionsRoot?.unmount();collectionsRoot=null;}
+function mountCollections(element:HTMLElement,options:CollectionsMountOptions){
+  unmountCollections();const root=createRoot(element);collectionsRoot=root;root.render(loading('collections'));
+  void import('./collections').then(({CollectionsView})=>{if(collectionsRoot===root)root.render(guarded(<CollectionsView options={options}/>));});
+}
+function unmountAddMedia(){addMediaRoot?.unmount();addMediaRoot=null;}
+function mountAddMedia(element:HTMLElement,options:AddMediaMountOptions){
+  unmountAddMedia();const root=createRoot(element);addMediaRoot=root;root.render(loading('media search'));
+  void import('./add-media').then(({AddMediaView})=>{if(addMediaRoot===root)root.render(guarded(<AddMediaView options={options}/>));});
+}
 const routeImports:Record<string,()=>Promise<unknown>>={
-  dashboard:()=>import('./dashboard'),discover:()=>import('./discover'),movies:()=>import('./library'),tv:()=>import('./library'),
+  dashboard:()=>import('./dashboard'),discover:()=>import('./discover'),collections:()=>import('./collections'),add:()=>import('./add-media'),movies:()=>import('./library'),tv:()=>import('./library'),
   queue:()=>import('./queue'),history:()=>import('./history'),wanted:()=>import('./wanted'),calendar:()=>import('./calendar'),
   movie:()=>import('./movie-detail'),series:()=>import('./tv-detail'),
 };
@@ -84,7 +96,9 @@ declare global {
     mountMovieDetail:(element:HTMLElement,options:MovieDetailMountOptions)=>void;unmountMovieDetail:()=>void;
     mountTvDetail:(element:HTMLElement,options:TvDetailMountOptions)=>void;unmountTvDetail:()=>void;
     mountDiscover:(element:HTMLElement,options:DiscoverMountOptions)=>void;unmountDiscover:()=>void;
+    mountCollections:(element:HTMLElement,options:CollectionsMountOptions)=>void;unmountCollections:()=>void;
+    mountAddMedia:(element:HTMLElement,options:AddMediaMountOptions)=>void;unmountAddMedia:()=>void;
     preloadRoute:(route:string)=>void;
   }}
 }
-window.VynodeArrReact={mountDashboard,unmountDashboard,mountDashboardAnalytics,unmountDashboardAnalytics,mountLibrary,unmountLibrary,mountHistory,unmountHistory,mountQueue,unmountQueue,mountWanted,unmountWanted,mountCalendar,unmountCalendar,mountMovieDetail,unmountMovieDetail,mountTvDetail,unmountTvDetail,mountDiscover,unmountDiscover,preloadRoute};
+window.VynodeArrReact={mountDashboard,unmountDashboard,mountDashboardAnalytics,unmountDashboardAnalytics,mountLibrary,unmountLibrary,mountHistory,unmountHistory,mountQueue,unmountQueue,mountWanted,unmountWanted,mountCalendar,unmountCalendar,mountMovieDetail,unmountMovieDetail,mountTvDetail,unmountTvDetail,mountDiscover,unmountDiscover,mountCollections,unmountCollections,mountAddMedia,unmountAddMedia,preloadRoute};
