@@ -19,7 +19,7 @@ export default defineConfig({
     },
     rollupOptions:{
       output:{
-        assetFileNames:(asset)=>asset.names?.some((name)=>name.endsWith('.css'))
+        assetFileNames:(asset)=>asset.names.some((name)=>name.endsWith('.css'))
           ?'vynodearr-react.css'
           :'assets/[name]-[hash][extname]'
       }

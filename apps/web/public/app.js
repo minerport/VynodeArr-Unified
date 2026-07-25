@@ -461,6 +461,12 @@ async function openLiveDiscoverDetails(item){
   dialog.querySelectorAll('.discover-detail-close,.discover-detail-cancel').forEach(button=>button.addEventListener('click',()=>dialog.close()));if(inLibrary)dialog.querySelector('.discover-view-library').addEventListener('click',()=>{dialog.close();location.hash=`#${item.domain==='movie'?'movie':'series'}/${libraryItem.id}`;});else dialog.querySelector('.discover-request-title').addEventListener('click',()=>{dialog.close();addDiscoverToEngine(item);});
 }
 async function showDiscoverV2(){
+  if(window.VynodeArrReact?.mountDiscover){
+    const host=document.createElement('div');host.id='discover-react';content.replaceChildren(host);
+    window.VynodeArrReact.mountDiscover(host,{request:api,notify,administrator:state.user.role==='administrator'});
+    void Promise.all([api('/api/media/movies'),api('/api/media/tv')]).then(([movies,tv])=>{const library=[...(movies.items||[]).map(item=>({...item,domain:'movie'})),...(tv.items||[]).map(item=>({...item,domain:'tv'}))];discoverLibraryItems=new Map(library.map(item=>[discoverLibraryKey(item),item]));discoverLibraryKeys=new Set(discoverLibraryItems.keys());}).catch(()=>{});
+    return;
+  }
   content.innerHTML='<div class="hero"><div><span class="eyebrow">DISCOVER</span><h1>Loading TMDB discovery</h1><p class="lede">Fetching independent trending, genre, studio, and network feeds.</p></div></div><div class="grid skeleton-grid"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>';
   try{const[movies,tv]=await Promise.all([api('/api/media/movies'),api('/api/media/tv')]),library=[...(movies.items||[]).map(item=>({...item,domain:'movie'})),...(tv.items||[]).map(item=>({...item,domain:'tv'}))];discoverLibraryItems=new Map(library.map(item=>[discoverLibraryKey(item),item]));discoverLibraryKeys=new Set(discoverLibraryItems.keys());}catch{discoverLibraryItems=new Map();discoverLibraryKeys=new Set();}
   try{
@@ -497,9 +503,11 @@ function analyticsPanel(domain,analytics){
 async function showDashboard(){
   window.VynodeArrReact?.unmountDashboard?.();
   window.VynodeArrReact?.unmountDashboardAnalytics?.();
+  window.VynodeArrReact?.preloadRoute?.('dashboard');
   content.innerHTML='<div class="hero"><div><span class="eyebrow">GOOD TO SEE YOU</span><h1>Dashboard</h1><p class="lede">Your media horizon at a glance.</p></div></div><div class="dashboard-grid skeleton">Loading dashboard…</div>';
   try{
-    const value=await api('/api/dashboard'),m=value.metrics,metrics=[['Movies',m.movies,'#movies'],['TV series',m.tv,'#tv'],['Queue',m.queue,'#queue'],['Upcoming releases',m.upcomingMovies,'#calendar'],['Upcoming episodes',m.upcomingEpisodes,'#calendar'],['Missing media',m.missing,'#movies'],['Downloading',m.downloading,'#queue'],['Health',m.health,'#health'],['Library storage',m.storage,'#system']];
+    try{const cached=JSON.parse(sessionStorage.getItem('vynodearr.dashboardSnapshot')||'null');if(cached&&window.VynodeArrReact?.mountDashboard){const cachedHost=document.createElement('div');cachedHost.id='dashboard-react';content.replaceChildren(cachedHost);window.VynodeArrReact.mountDashboard(cachedHost,cached);}}catch{}
+    const value=await api('/api/dashboard');sessionStorage.setItem('vynodearr.dashboardSnapshot',JSON.stringify(value));const m=value.metrics,metrics=[['Movies',m.movies,'#movies'],['TV series',m.tv,'#tv'],['Queue',m.queue,'#queue'],['Upcoming releases',m.upcomingMovies,'#calendar'],['Upcoming episodes',m.upcomingEpisodes,'#calendar'],['Missing media',m.missing,'#movies'],['Downloading',m.downloading,'#queue'],['Health',m.health,'#health'],['Library storage',m.storage,'#system']];
     if(window.VynodeArrReact?.mountDashboard){
       const dashboardHost=document.createElement('div');
       dashboardHost.id='dashboard-react';
@@ -756,4 +764,8 @@ async function showCollectionsV2(){
   }
   content.querySelector('#new-collection')?.addEventListener('click',()=>openBuilder());await load();
 }
-addEventListener('hashchange',route);bootstrap();
+addEventListener('vynodearr:discover-details',event=>openLiveDiscoverDetails(event.detail));
+addEventListener('hashchange',()=>{window.VynodeArrReact?.unmountDiscover?.();route();});
+document.querySelectorAll('a[href^="#"]').forEach(link=>{const preload=()=>window.VynodeArrReact?.preloadRoute?.(link.hash.slice(1).split('/')[0]);link.addEventListener('pointerenter',preload,{passive:true});link.addEventListener('focus',preload);});
+if('requestIdleCallback'in window)window.requestIdleCallback(()=>{window.VynodeArrReact?.preloadRoute?.('dashboard');window.VynodeArrReact?.preloadRoute?.('discover');});
+bootstrap();

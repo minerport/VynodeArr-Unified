@@ -1,11 +1,11 @@
 {
   "name": "vynodearr",
-  "version": "1.0.38",
+  "version": "1.0.39",
   "private": true,
   "type": "module",
   "engines": { "node": ">=20" },
   "scripts": {
-    "build:web": "vite build --config apps/web/client/vite.config.js",
+    "build:web": "vite build --config apps/web/client/vite.config.ts",
     "typecheck:web": "tsc --project apps/web/client/tsconfig.json --noEmit",
     "start": "node apps/api/src/server.js",
     "test": "node --test tests/*.test.js",

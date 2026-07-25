@@ -35,3 +35,14 @@ test('TMDB enrichment resolves a library title and maps credits, trailers, and e
   const item=await service.enrich('movie',{title:'Film',year:2026});
   assert.equal(item.cast[0].name,'Actor');assert.match(item.trailer.url,/youtube\.com/);assert.equal(item.externalLinks[1].label,'IMDb');
 });
+
+test('TMDB requests reuse fresh responses and deduplicate concurrent work',async()=>{
+  let calls=0;
+  const fetcher=async()=>{calls++;await new Promise(resolve=>setTimeout(resolve,5));return{ok:true,json:async()=>({page:1,total_pages:1,total_results:1,results:[{id:7,title:'Cached title',release_date:'2026-01-01'}]})};};
+  const service=new TmdbDiscoveryService({token:'read-token',fetcher});
+  const [first,second]=await Promise.all([service.feed('popular_movies',1),service.feed('popular_movies',1)]);
+  const third=await service.feed('popular_movies',1);
+  assert.equal(calls,1);
+  assert.equal(first.results[0].title,'Cached title');
+  assert.deepEqual(second,third);
+});

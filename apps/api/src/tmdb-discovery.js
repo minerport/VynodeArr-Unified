@@ -22,7 +22,7 @@ const image=(path,size)=>path?`${IMAGE_ROOT}${size}${path}`:null;
 
 export class TmdbDiscoveryService{
   constructor({token,fetcher=fetch,language='en-US'}={}){
-    this.token=String(token||'').trim();this.fetcher=fetcher;this.language=language;this.cache=new Map();
+    this.token=String(token||'').trim();this.fetcher=fetcher;this.language=language;this.cache=new Map();this.inFlight=new Map();
   }
   configured(){return Boolean(this.token);}
   setToken(token){this.token=String(token||'').trim();this.cache.clear();return this.configured();}
@@ -31,9 +31,17 @@ export class TmdbDiscoveryService{
     const url=new URL(`https://api.themoviedb.org/3${path}`);
     url.searchParams.set('language',this.language);
     for(const[key,value]of Object.entries(params))if(value!==undefined&&value!==null&&value!=='')url.searchParams.set(key,String(value));
-    const response=await this.fetcher(url,{headers:{accept:'application/json',authorization:`Bearer ${this.token}`},signal:AbortSignal.timeout(12000)});
-    if(!response.ok)throw new Error(response.status===401?'TMDB rejected the configured read token':'TMDB discovery is temporarily unavailable');
-    return response.json();
+    const key=url.toString(),cached=this.cache.get(key);
+    if(cached&&cached.expires>Date.now())return cached.value;
+    if(this.inFlight.has(key))return this.inFlight.get(key);
+    const load=(async()=>{
+      const response=await this.fetcher(url,{headers:{accept:'application/json',authorization:`Bearer ${this.token}`},signal:AbortSignal.timeout(12000)});
+      if(!response.ok)throw new Error(response.status===401?'TMDB rejected the configured read token':'TMDB discovery is temporarily unavailable');
+      const value=await response.json(),ttl=/\/search\//.test(path)?60_000:/\/(trending|discover|upcoming|on_the_air)\//.test(path)?5*60_000:30*60_000;
+      this.cache.set(key,{expires:Date.now()+ttl,value});return value;
+    })();
+    this.inFlight.set(key,load);
+    try{return await load;}finally{this.inFlight.delete(key);}
   }
   media(item,domain){
     const resolved=domain||(item.media_type==='tv'?'tv':'movie'),title=resolved==='tv'?item.name:item.title,date=resolved==='tv'?item.first_air_date:item.release_date;

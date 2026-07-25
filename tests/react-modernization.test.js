@@ -91,3 +91,17 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(unraidDockerfile,/FROM node:24-alpine AS web-build/);
   assert.match(unraidDockerfile,/apps\/web\/public\/react/);
 });
+
+test('Discover progressively loads through a typed React route',async()=>{
+  const [discover,islands,legacy]=await Promise.all([
+    read('apps/web/client/src/discover.tsx'),
+    read('apps/web/client/src/react-islands.tsx'),
+    read('apps/web/public/app.js')
+  ]);
+  assert.match(discover,/export function DiscoverView/);
+  assert.match(discover,/loadFeed/);
+  assert.match(discover,/cachedRequest/);
+  assert.match(islands,/mountDiscover/);
+  assert.match(islands,/preloadRoute/);
+  assert.match(legacy,/vynodearr\.dashboardSnapshot/);
+});

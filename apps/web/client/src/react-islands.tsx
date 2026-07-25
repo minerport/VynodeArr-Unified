@@ -1,4 +1,5 @@
 import { createRoot,type Root } from 'react-dom/client';
+import type { ReactNode } from 'react';
 import type { DashboardAnalytics,DashboardData } from './dashboard-types';
 import type { LibraryMountOptions } from './library-types';
 import type { HistoryMountOptions } from './history-types';
@@ -7,10 +8,13 @@ import type { WantedMountOptions } from './wanted-types';
 import type { CalendarMountOptions } from './calendar-types';
 import type { MovieDetailMountOptions } from './movie-detail-types';
 import type { TvDetailMountOptions } from './tv-detail-types';
+import type { DiscoverMountOptions } from './discover-types';
+import { RouteErrorBoundary } from './error-boundary';
 
-let dashboardRoot:Root|null=null,dashboardElement:HTMLElement|null=null,fullDashboardRoot:Root|null=null,libraryRoot:Root|null=null,historyRoot:Root|null=null,queueRoot:Root|null=null,wantedRoot:Root|null=null,calendarRoot:Root|null=null,movieDetailRoot:Root|null=null,tvDetailRoot:Root|null=null;
+let dashboardRoot:Root|null=null,dashboardElement:HTMLElement|null=null,fullDashboardRoot:Root|null=null,libraryRoot:Root|null=null,historyRoot:Root|null=null,queueRoot:Root|null=null,wantedRoot:Root|null=null,calendarRoot:Root|null=null,movieDetailRoot:Root|null=null,tvDetailRoot:Root|null=null,discoverRoot:Root|null=null;
 const loading=(label:string)=><div className="panel skeleton react-route-loading">Loading {label}…</div>;
 
+const guarded=(children:ReactNode)=><RouteErrorBoundary>{children}</RouteErrorBoundary>;
 function unmountDashboardAnalytics(){dashboardRoot?.unmount();dashboardRoot=null;dashboardElement=null;}
 function mountDashboardAnalytics(element:HTMLElement,analytics:DashboardAnalytics){
   unmountDashboardAnalytics();dashboardElement=element;const root=createRoot(element);dashboardRoot=root;root.render(loading('analytics'));
@@ -19,7 +23,7 @@ function mountDashboardAnalytics(element:HTMLElement,analytics:DashboardAnalytic
 function unmountDashboard(){fullDashboardRoot?.unmount();fullDashboardRoot=null;}
 function mountDashboard(element:HTMLElement,data:DashboardData){
   unmountDashboard();unmountDashboardAnalytics();const root=createRoot(element);fullDashboardRoot=root;root.render(loading('dashboard'));
-  void import('./dashboard').then(({DashboardView})=>{if(fullDashboardRoot===root)root.render(<DashboardView data={data}/>);});
+  void import('./dashboard').then(({DashboardView})=>{if(fullDashboardRoot===root)root.render(guarded(<DashboardView data={data}/>));});
 }
 function unmountLibrary(){libraryRoot?.unmount();libraryRoot=null;}
 function mountLibrary(element:HTMLElement,options:LibraryMountOptions){
@@ -56,6 +60,17 @@ function mountTvDetail(element:HTMLElement,options:TvDetailMountOptions){
   unmountTvDetail();const root=createRoot(element);tvDetailRoot=root;root.render(loading('television details'));
   void import('./tv-detail').then(({TvDetailView})=>{if(tvDetailRoot===root)root.render(<TvDetailView options={options}/>);});
 }
+function unmountDiscover(){discoverRoot?.unmount();discoverRoot=null;}
+function mountDiscover(element:HTMLElement,options:DiscoverMountOptions){
+  unmountDiscover();const root=createRoot(element);discoverRoot=root;root.render(loading('discover'));
+  void import('./discover').then(({DiscoverView})=>{if(discoverRoot===root)root.render(guarded(<DiscoverView options={options}/>));});
+}
+const routeImports:Record<string,()=>Promise<unknown>>={
+  dashboard:()=>import('./dashboard'),discover:()=>import('./discover'),movies:()=>import('./library'),tv:()=>import('./library'),
+  queue:()=>import('./queue'),history:()=>import('./history'),wanted:()=>import('./wanted'),calendar:()=>import('./calendar'),
+  movie:()=>import('./movie-detail'),series:()=>import('./tv-detail'),
+};
+function preloadRoute(route:string){void routeImports[route]?.();}
 
 declare global {
   interface Window {VynodeArrReact?:{
@@ -68,6 +83,8 @@ declare global {
     mountCalendar:(element:HTMLElement,options:CalendarMountOptions)=>void;unmountCalendar:()=>void;
     mountMovieDetail:(element:HTMLElement,options:MovieDetailMountOptions)=>void;unmountMovieDetail:()=>void;
     mountTvDetail:(element:HTMLElement,options:TvDetailMountOptions)=>void;unmountTvDetail:()=>void;
+    mountDiscover:(element:HTMLElement,options:DiscoverMountOptions)=>void;unmountDiscover:()=>void;
+    preloadRoute:(route:string)=>void;
   }}
 }
-window.VynodeArrReact={mountDashboard,unmountDashboard,mountDashboardAnalytics,unmountDashboardAnalytics,mountLibrary,unmountLibrary,mountHistory,unmountHistory,mountQueue,unmountQueue,mountWanted,unmountWanted,mountCalendar,unmountCalendar,mountMovieDetail,unmountMovieDetail,mountTvDetail,unmountTvDetail};
+window.VynodeArrReact={mountDashboard,unmountDashboard,mountDashboardAnalytics,unmountDashboardAnalytics,mountLibrary,unmountLibrary,mountHistory,unmountHistory,mountQueue,unmountQueue,mountWanted,unmountWanted,mountCalendar,unmountCalendar,mountMovieDetail,unmountMovieDetail,mountTvDetail,unmountTvDetail,mountDiscover,unmountDiscover,preloadRoute};
