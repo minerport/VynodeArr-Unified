@@ -28,3 +28,26 @@
 .react-movie-detail.enrichment-pending .tmdb-unavailable{display:none}
 .react-movie-detail .tmdb-enrichment-loading{display:flex;align-items:center;gap:18px;min-height:96px}
 .react-movie-detail .tmdb-enrichment-loading .skeleton{width:64px;height:64px;flex:0 0 64px;border-radius:14px}
+
+/* Compact cinematic detail composition shared by movie and television modals. */
+.react-movie-detail,.react-tv-detail{width:min(76rem,100%)}
+.vynode-detail-surface>.detail-backdrop{height:19rem;background:radial-gradient(circle at 50% 35%,#18243a,#050912 72%)}
+.vynode-detail-surface>.detail-backdrop img{object-fit:contain;object-position:center;opacity:.82}
+.vynode-detail-surface>.detail-backdrop:after{background:linear-gradient(90deg,rgba(5,9,16,.56),transparent 38%,transparent 68%,rgba(5,9,16,.36)),linear-gradient(0deg,#0b111d 0,transparent 58%)}
+.vynode-detail-surface>.detail-hero{min-height:19rem;padding:5.4rem 1.5rem 1rem;grid-template-columns:7.5rem minmax(0,1fr);gap:1rem}
+.vynode-detail-surface .detail-art{width:7.5rem;border-color:#52617a;border-radius:.7rem;box-shadow:0 14px 38px #000c}
+.vynode-detail-surface .detail-copy{padding:.85rem 1rem;border-color:rgba(111,132,168,.38);border-radius:.85rem;background:linear-gradient(110deg,rgba(7,12,21,.88),rgba(10,16,28,.68));box-shadow:0 14px 38px #0007;backdrop-filter:blur(14px) saturate(1.2)}
+.vynode-detail-surface .detail-copy h1{margin:.15rem 0 .35rem;font-size:1.85rem}
+.vynode-detail-surface .detail-copy .lede{margin:.4rem 0;-webkit-line-clamp:2}
+.vynode-detail-surface .detail-actions{gap:.38rem;margin-top:.65rem}
+.vynode-detail-surface .detail-actions button{padding:.45rem .62rem;font-size:.7rem}
+.vynode-detail-surface>.fact-grid,.vynode-detail-surface>.panel{margin:0 1.5rem .8rem}
+.vynode-detail-surface>.fact-grid{grid-template-columns:repeat(6,1fr);background:rgba(8,14,25,.88);backdrop-filter:blur(12px)}
+.vynode-detail-surface>.fact-grid div{padding:.72rem .8rem;border-bottom:0}
+.vynode-detail-surface>.fact-grid div:nth-child(3n){border-right:1px solid var(--line)}
+.vynode-detail-surface>.fact-grid div:last-child{border-right:0}
+.vynode-detail-surface>.movie-information,.tmdb-enrichment{padding:.9rem 1rem}
+.vynode-detail-surface>.movie-information h2{margin:.1rem 0 .65rem;font-size:1.05rem}
+.enrichment-facts{gap:.55rem;margin:.55rem 0 .75rem}
+.cast-row article{flex-basis:5.2rem}.cast-row img,.cast-fallback{width:5.2rem;height:6.3rem;border-radius:.55rem}
+@media(max-width:720px){.vynode-detail-surface>.detail-backdrop{height:17rem}.vynode-detail-surface>.detail-hero{min-height:17rem;grid-template-columns:5.2rem 1fr;padding:5.8rem .8rem .8rem}.vynode-detail-surface .detail-art{width:5.2rem}.vynode-detail-surface .detail-copy{padding:.7rem}.vynode-detail-surface .detail-copy h1{font-size:1.35rem}.vynode-detail-surface>.fact-grid,.vynode-detail-surface>.panel{margin-right:.8rem;margin-left:.8rem}.vynode-detail-surface>.fact-grid{grid-template-columns:repeat(2,1fr)}}

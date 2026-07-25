@@ -16,3 +16,7 @@
 .react-tv-detail.enrichment-pending .tmdb-unavailable{display:none}
 .react-tv-detail .tmdb-enrichment-loading{display:flex;align-items:center;gap:18px;min-height:96px}
 .react-tv-detail .tmdb-enrichment-loading .skeleton{width:64px;height:64px;flex:0 0 64px;border-radius:14px}
+.react-tv-detail .season-panel{max-height:25rem;padding:.9rem 1rem;overflow:auto;scrollbar-width:thin}
+.react-tv-detail .series-season>summary{gap:.6rem;padding:.62rem .8rem}
+.react-tv-detail .season-episodes{padding:0 .7rem .55rem}
+.react-tv-detail .episode{padding:.58rem .2rem}
