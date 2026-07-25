@@ -15,9 +15,14 @@ import type { HealthMountOptions } from './health-types';
 import type { AccountMountOptions } from './account-types';
 import type { SystemMountOptions } from './system-types';
 import type { SelectionRulesMountOptions } from './selection-rules-types';
+import type { ImportMonitorOptions } from './import-monitor-types';
+import type { ManagementMountOptions } from './management-types';
+import type { MediaManagementMountOptions } from './media-management-types';
+import type { RootFoldersMountOptions } from './root-folders-types';
+import type { ProviderSettingsMountOptions } from './provider-settings-types';
 import { RouteErrorBoundary } from './error-boundary';
 
-let dashboardRoot:Root|null=null,dashboardElement:HTMLElement|null=null,fullDashboardRoot:Root|null=null,libraryRoot:Root|null=null,historyRoot:Root|null=null,queueRoot:Root|null=null,wantedRoot:Root|null=null,calendarRoot:Root|null=null,movieDetailRoot:Root|null=null,tvDetailRoot:Root|null=null,discoverRoot:Root|null=null,collectionsRoot:Root|null=null,addMediaRoot:Root|null=null,healthRoot:Root|null=null,accountRoot:Root|null=null,systemRoot:Root|null=null,selectionRulesRoot:Root|null=null;
+let dashboardRoot:Root|null=null,dashboardElement:HTMLElement|null=null,fullDashboardRoot:Root|null=null,libraryRoot:Root|null=null,historyRoot:Root|null=null,queueRoot:Root|null=null,wantedRoot:Root|null=null,calendarRoot:Root|null=null,movieDetailRoot:Root|null=null,tvDetailRoot:Root|null=null,discoverRoot:Root|null=null,collectionsRoot:Root|null=null,addMediaRoot:Root|null=null,healthRoot:Root|null=null,accountRoot:Root|null=null,systemRoot:Root|null=null,selectionRulesRoot:Root|null=null,importMonitorRoot:Root|null=null,managementRoot:Root|null=null,mediaManagementRoot:Root|null=null,rootFoldersRoot:Root|null=null,providerSettingsRoot:Root|null=null;
 const loading=(label:string)=><div className="panel skeleton react-route-loading">Loading {label}…</div>;
 
 const guarded=(children:ReactNode)=><RouteErrorBoundary>{children}</RouteErrorBoundary>;
@@ -101,10 +106,35 @@ function mountSelectionRules(element:HTMLElement,options:SelectionRulesMountOpti
   unmountSelectionRules();const root=createRoot(element);selectionRulesRoot=root;root.render(loading('selection rules'));
   void import('./selection-rules').then(({SelectionRulesView})=>{if(selectionRulesRoot===root)root.render(guarded(<SelectionRulesView options={options}/>));});
 }
+function unmountImportMonitor(){importMonitorRoot?.unmount();importMonitorRoot=null;}
+function mountImportMonitor(element:HTMLElement,options:ImportMonitorOptions){
+  unmountImportMonitor();const root=createRoot(element);importMonitorRoot=root;
+  void import('./import-monitor').then(({ImportMonitor})=>{if(importMonitorRoot===root)root.render(guarded(<ImportMonitor options={options}/>));});
+}
+function unmountManagement(){managementRoot?.unmount();managementRoot=null;}
+function mountManagement(element:HTMLElement,options:ManagementMountOptions){
+  unmountManagement();const root=createRoot(element);managementRoot=root;root.render(loading('advanced settings'));
+  void import('./management').then(({ManagementView})=>{if(managementRoot===root)root.render(guarded(<ManagementView options={options}/>));});
+}
+function unmountMediaManagement(){mediaManagementRoot?.unmount();mediaManagementRoot=null;}
+function mountMediaManagement(element:HTMLElement,options:MediaManagementMountOptions){
+  unmountMediaManagement();const root=createRoot(element);mediaManagementRoot=root;root.render(loading('media management'));
+  void import('./media-management').then(({MediaManagementView})=>{if(mediaManagementRoot===root)root.render(guarded(<MediaManagementView options={options}/>));});
+}
+function unmountRootFolders(){rootFoldersRoot?.unmount();rootFoldersRoot=null;}
+function mountRootFolders(element:HTMLElement,options:RootFoldersMountOptions){
+  unmountRootFolders();const root=createRoot(element);rootFoldersRoot=root;root.render(loading('storage folders'));
+  void import('./root-folders').then(({RootFoldersView})=>{if(rootFoldersRoot===root)root.render(guarded(<RootFoldersView options={options}/>));});
+}
+function unmountProviderSettings(){providerSettingsRoot?.unmount();providerSettingsRoot=null;}
+function mountProviderSettings(element:HTMLElement,options:ProviderSettingsMountOptions){
+  unmountProviderSettings();const root=createRoot(element);providerSettingsRoot=root;root.render(loading(options.kind==='indexers'?'indexers':'download clients'));
+  void import('./provider-settings').then(({ProviderSettingsView})=>{if(providerSettingsRoot===root)root.render(guarded(<ProviderSettingsView options={options}/>));});
+}
 const routeImports:Record<string,()=>Promise<unknown>>={
   dashboard:()=>import('./dashboard'),discover:()=>import('./discover'),collections:()=>import('./collections'),add:()=>import('./add-media'),movies:()=>import('./library'),tv:()=>import('./library'),
   queue:()=>import('./queue'),history:()=>import('./history'),wanted:()=>import('./wanted'),calendar:()=>import('./calendar'),health:()=>import('./health'),
-  movie:()=>import('./movie-detail'),series:()=>import('./tv-detail'),settings:()=>import('./account'),system:()=>import('./system'),service:()=>import('./selection-rules'),
+  movie:()=>import('./movie-detail'),series:()=>import('./tv-detail'),settings:()=>import('./account'),system:()=>import('./system'),service:()=>Promise.all([import('./selection-rules'),import('./media-management'),import('./root-folders'),import('./provider-settings')]),management:()=>import('./management'),
 };
 function preloadRoute(route:string){void routeImports[route]?.();}
 
@@ -126,7 +156,12 @@ declare global {
     mountAccount:(element:HTMLElement,options:AccountMountOptions)=>void;unmountAccount:()=>void;
     mountSystem:(element:HTMLElement,options:SystemMountOptions)=>void;unmountSystem:()=>void;
     mountSelectionRules:(element:HTMLElement,options:SelectionRulesMountOptions)=>void;unmountSelectionRules:()=>void;
+    mountImportMonitor:(element:HTMLElement,options:ImportMonitorOptions)=>void;unmountImportMonitor:()=>void;
+    mountManagement:(element:HTMLElement,options:ManagementMountOptions)=>void;unmountManagement:()=>void;
+    mountMediaManagement:(element:HTMLElement,options:MediaManagementMountOptions)=>void;unmountMediaManagement:()=>void;
+    mountRootFolders:(element:HTMLElement,options:RootFoldersMountOptions)=>void;unmountRootFolders:()=>void;
+    mountProviderSettings:(element:HTMLElement,options:ProviderSettingsMountOptions)=>void;unmountProviderSettings:()=>void;
     preloadRoute:(route:string)=>void;
   }}
 }
-window.VynodeArrReact={mountDashboard,unmountDashboard,mountDashboardAnalytics,unmountDashboardAnalytics,mountLibrary,unmountLibrary,mountHistory,unmountHistory,mountQueue,unmountQueue,mountWanted,unmountWanted,mountCalendar,unmountCalendar,mountMovieDetail,unmountMovieDetail,mountTvDetail,unmountTvDetail,mountDiscover,unmountDiscover,mountCollections,unmountCollections,mountAddMedia,unmountAddMedia,mountHealth,unmountHealth,mountAccount,unmountAccount,mountSystem,unmountSystem,mountSelectionRules,unmountSelectionRules,preloadRoute};
+window.VynodeArrReact={mountDashboard,unmountDashboard,mountDashboardAnalytics,unmountDashboardAnalytics,mountLibrary,unmountLibrary,mountHistory,unmountHistory,mountQueue,unmountQueue,mountWanted,unmountWanted,mountCalendar,unmountCalendar,mountMovieDetail,unmountMovieDetail,mountTvDetail,unmountTvDetail,mountDiscover,unmountDiscover,mountCollections,unmountCollections,mountAddMedia,unmountAddMedia,mountHealth,unmountHealth,mountAccount,unmountAccount,mountSystem,unmountSystem,mountSelectionRules,unmountSelectionRules,mountImportMonitor,unmountImportMonitor,mountManagement,unmountManagement,mountMediaManagement,unmountMediaManagement,mountRootFolders,unmountRootFolders,mountProviderSettings,unmountProviderSettings,preloadRoute};

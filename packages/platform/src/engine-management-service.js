@@ -34,6 +34,8 @@ const sharedResources=Object.freeze({
   uiSettings:{path:'config/ui',methods:['GET','PUT']},
   indexerSchemas:{path:'indexer/schema',methods:['GET']},
   downloadClientSchemas:{path:'downloadclient/schema',methods:['GET']},
+  indexerTest:{path:'indexer/test',methods:['POST']},
+  downloadClientTest:{path:'downloadclient/test',methods:['POST']},
   notificationSchemas:{path:'notification/schema',methods:['GET']},
   importListSchemas:{path:'importlist/schema',methods:['GET']},
   metadataSchemas:{path:'metadata/schema',methods:['GET']},

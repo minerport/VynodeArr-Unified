@@ -1,0 +1,45 @@
+import {useCallback,useEffect,useMemo,useState} from 'react';
+import type {AuditEntry,ManagementDomain,ManagementField,ManagementMountOptions,ManagementRecord,ManagementResource} from './management-types';
+
+const schemaFor:Record<string,string>={indexers:'indexerSchemas',downloadClients:'downloadClientSchemas',notifications:'notificationSchemas',importLists:'importListSchemas',metadata:'metadataSchemas'};
+const title=(record:ManagementRecord,index=0)=>String(record.title||record.name||record.label||`Record ${record.id??index+1}`);
+const message=(reason:unknown)=>reason instanceof Error?reason.message:'The engine settings could not be updated.';
+const inputValue=(field:ManagementField)=>Array.isArray(field.value)?field.value.join(', '):String(field.value??'');
+
+function Field({field,onChange}:{field:ManagementField;onChange:(value:unknown)=>void}){
+  if(field.type==='boolean')return <label className="management-check"><input type="checkbox" checked={Boolean(field.value)} onChange={event=>onChange(event.target.checked)}/><span>{field.label||field.name}</span>{field.helpText?<small>{field.helpText}</small>:null}</label>;
+  return <label>{field.label||field.name}{field.helpText?<small>{field.helpText}</small>:null}<input type={field.privacy==='password'?'password':field.type==='number'?'number':'text'} value={inputValue(field)} onChange={event=>onChange(field.type==='number'?Number(event.target.value):Array.isArray(field.value)?event.target.value.split(',').map(value=>value.trim()).filter(Boolean):event.target.value)}/></label>;
+}
+
+export function ManagementView({options}:{options:ManagementMountOptions}){
+  const [domain,setDomain]=useState<ManagementDomain>('movie'),[resources,setResources]=useState<ManagementResource[]>([]),[resource,setResource]=useState(''),[records,setRecords]=useState<ManagementRecord[]>([]),[selected,setSelected]=useState<ManagementRecord|null>(null),[schemas,setSchemas]=useState<ManagementRecord[]>([]),[schemaIndex,setSchemaIndex]=useState(0),[audit,setAudit]=useState<AuditEntry[]>([]),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState('');
+  const methods=useMemo(()=>resources.find(item=>item.key===resource)?.methods||[],[resources,resource]);
+  const loadAudit=useCallback(async()=>{try{const value=await options.request<{items:AuditEntry[]}>('/api/manage/audit');setAudit(value.items||[]);}catch{setAudit([]);}},[options]);
+  const loadRecords=useCallback(async(nextResource=resource)=>{
+    if(!nextResource)return;setLoading(true);setError('');setSelected(null);
+    try{const value=await options.request<{result:unknown}>(`/api/manage/${domain}/${nextResource}`),result=value.result;setRecords(Array.isArray(result)?result:Array.isArray((result as {records?:unknown[]})?.records)?(result as {records:ManagementRecord[]}).records:result?[result as ManagementRecord]:[]);}
+    catch(reason){setRecords([]);setError(message(reason));}finally{setLoading(false);}
+    await loadAudit();
+  },[domain,resource,options,loadAudit]);
+  const loadCatalog=useCallback(async()=>{
+    setLoading(true);setError('');try{const value=await options.request<{resources:ManagementResource[];available:boolean}>(`/api/manage/${domain}`),items=value.resources||[];setResources(items);const next=items.some(item=>item.key===resource)?resource:items[0]?.key||'';setResource(next);if(value.available&&next)await loadRecords(next);else{setRecords([]);setLoading(false);}}
+    catch(reason){setError(message(reason));setLoading(false);}
+  },[domain,resource,options,loadRecords]);
+  useEffect(()=>{void loadCatalog();},[domain]);
+  useEffect(()=>{if(resource)void loadRecords(resource);},[resource]);
+  const updateField=(index:number,value:unknown)=>setSelected(current=>current?{...current,fields:(current.fields||[]).map((field,i)=>i===index?{...field,value}:field)}:current);
+  const beginCreate=async()=>{
+    const schema=schemaFor[resource];if(!schema){setSelected({});return;}
+    try{const value=await options.request<{result:ManagementRecord[]}>(`/api/manage/${domain}/${schema}`);setSchemas(value.result||[]);setSchemaIndex(0);setSelected(structuredClone(value.result?.[0]||{}));}catch(reason){options.notify(message(reason),'error');}
+  };
+  const chooseSchema=(index:number)=>{setSchemaIndex(index);setSelected(structuredClone(schemas[index]||{}));};
+  const save=async()=>{if(!selected)return;const exists=selected.id!==undefined,method=exists?'PUT':'POST',path=`/api/manage/${domain}/${resource}${exists?`/${selected.id}`:''}`;setBusy(true);try{await options.request(path,{method,body:JSON.stringify(selected)});options.notify(exists?'Changes saved.':'Record created.');await loadRecords();}catch(reason){options.notify(message(reason),'error');}finally{setBusy(false);}};
+  const remove=async()=>{if(selected?.id===undefined||!confirm('Delete this record from the connected media service?'))return;setBusy(true);try{await options.request(`/api/manage/${domain}/${resource}/${selected.id}`,{method:'DELETE'});options.notify('Record deleted.');await loadRecords();}catch(reason){options.notify(message(reason),'error');}finally{setBusy(false);}};
+  return <div className="management-react-route">
+    <div className="hero"><div><span className="eyebrow">CONTROL CENTER</span><h1>Advanced service settings</h1><p className="lede">Review and edit every native resource exposed by the connected engines.</p></div></div>
+    <div className="management-toolbar"><label>Library<select value={domain} onChange={event=>setDomain(event.target.value as ManagementDomain)}><option value="movie">Movies</option><option value="tv">Television</option></select></label><label>Setting or resource<select value={resource} onChange={event=>setResource(event.target.value)}>{resources.map(item=><option key={item.key} value={item.key}>{item.key.replace(/([A-Z])/g,' $1')}</option>)}</select></label><button className="secondary" onClick={()=>void loadRecords()}>Reload</button>{methods.includes('POST')?<button className="primary" onClick={()=>void beginCreate()}>Add</button>:null}</div>
+    {error?<section className="panel error-state"><h2>Resource unavailable</h2><p>{error}</p></section>:<div className="management-layout"><section className="panel"><div className="panel-heading"><h2>Configured records</h2><span className="badge">{records.length}</span></div>{loading?<p className="muted">Loading…</p>:<div className="management-records">{records.map((record,index)=><button className={selected===record?'management-record selected':'management-record'} key={String(record.id??index)} onClick={()=>{setSchemas([]);setSelected(structuredClone(record));}}><strong>{title(record,index)}</strong><small>ID {String(record.id??'configuration')}</small></button>)}{!records.length?<p className="muted">No records returned.</p>:null}</div>}</section>
+    <section className="panel editor-panel">{selected?<><div className="panel-heading"><div><span className="eyebrow">{selected.id===undefined?'NEW RECORD':'NATIVE RECORD'}</span><h2>{title(selected)}</h2></div></div>{schemas.length?<label>Provider type<select value={schemaIndex} onChange={event=>chooseSchema(Number(event.target.value))}>{schemas.map((schema,index)=><option value={index} key={`${title(schema,index)}-${index}`}>{title(schema,index)}</option>)}</select></label>:null}<label>Name<input value={String(selected.name||'')} onChange={event=>setSelected({...selected,name:event.target.value})}/></label><div className="management-native-fields">{(selected.fields||[]).map((field,index)=>({field,index})).filter(({field})=>!field.hidden||field.advanced).map(({field,index})=><Field field={field} onChange={value=>updateField(index,value)} key={`${field.name}-${index}`}/>)}</div><details><summary>Advanced JSON</summary><textarea key={JSON.stringify(selected)} rows={14} defaultValue={JSON.stringify(selected,null,2)} onBlur={event=>{try{setSelected(JSON.parse(event.target.value));}catch{options.notify('Advanced JSON must be valid before it can be applied.','error');}}}/></details><div className="form-actions">{selected.id!==undefined&&methods.includes('DELETE')?<button className="danger" disabled={busy} onClick={()=>void remove()}>Delete</button>:null}<button className="primary" disabled={busy} onClick={()=>void save()}>{busy?'Saving…':'Save changes'}</button></div></>:<div className="empty"><h2>Select a record</h2><p>Choose a configured record or add a new provider.</p></div>}</section></div>}
+    <section className="panel"><h2>Recent changes</h2>{audit.slice(0,10).map((entry,index)=><div className="data-row" key={`${entry.timestamp}-${index}`}><span><strong>{entry.method} {entry.domain} {entry.resource}</strong><small>{entry.username}</small></span><time>{new Date(entry.timestamp).toLocaleString()}</time></div>)}</section>
+  </div>;
+}

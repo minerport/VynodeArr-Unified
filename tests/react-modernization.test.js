@@ -130,6 +130,9 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(library,/At cutoff/);
   assert.match(library,/cutoffUnmetEpisodes/);
   assert.match(library,/LibraryStatusBadges/);
+  assert.match(library,/library-alphabet-rail/);
+  assert.match(library,/selectFromPointer/);
+  assert.match(library,/scrollIntoView/);
   assert.match(library,/IntersectionObserver/);
   assert.match(library,/setDebouncedQuery/);
   assert.match(library,/sessionStorage/);
@@ -138,7 +141,8 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(library,/\/api\/media\/movies\/\$\{encodeURIComponent\(item\.id\)\}/);
   assert.match(library,/\/api\/media\/tv\/\$\{encodeURIComponent\(item\.id\)\}/);
   assert.match(libraryCss,/content-visibility:auto/);
-  assert.match(libraryCss,/bottom:auto/);
+  assert.match(libraryCss,/react-poster-title \.library-status-badges/);
+  assert.match(libraryCss,/aspect-ratio:auto/);
   assert.match(libraryTypes,/LibraryMountOptions/);
   assert.match(history,/Organize again/);
   assert.match(history,/Imported into library/);
@@ -241,4 +245,99 @@ test('Discover progressively loads through a typed React route',async()=>{
   assert.match(islands,/mountDiscover/);
   assert.match(islands,/preloadRoute/);
   assert.match(legacy,/vynodearr\.dashboardSnapshot/);
+});
+
+test('global import progress uses a typed React monitor with the legacy path retained as fallback',async()=>{
+  const [monitor,types,islands,legacy]=await Promise.all([
+    read('apps/web/client/src/import-monitor.tsx'),
+    read('apps/web/client/src/import-monitor-types.ts'),
+    read('apps/web/client/src/react-islands.tsx'),
+    read('apps/web/public/app.js')
+  ]);
+  assert.match(monitor,/export function ImportMonitor/);
+  assert.match(monitor,/window\.setInterval/);
+  assert.match(monitor,/\/api\/import-jobs/);
+  assert.match(monitor,/Canceling…/);
+  assert.match(types,/interface ImportMonitorOptions/);
+  assert.match(types,/ImportJobStatus/);
+  assert.match(islands,/mountImportMonitor/);
+  assert.match(legacy,/window\.VynodeArrReact\?\.mountImportMonitor/);
+  assert.match(legacy,/if\(importPollTimer!=='react'\)renderImportJobs/);
+});
+
+test('advanced engine resources use a typed schema-driven React editor',async()=>{
+  const [management,types,islands,legacy]=await Promise.all([
+    read('apps/web/client/src/management.tsx'),
+    read('apps/web/client/src/management-types.ts'),
+    read('apps/web/client/src/react-islands.tsx'),
+    read('apps/web/public/app.js')
+  ]);
+  assert.match(management,/export function ManagementView/);
+  assert.match(management,/indexerSchemas/);
+  assert.match(management,/downloadClientSchemas/);
+  assert.match(management,/management-native-fields/);
+  assert.match(management,/Advanced JSON/);
+  assert.match(types,/interface ManagementField/);
+  assert.match(islands,/mountManagement/);
+  assert.match(legacy,/showManagementReact/);
+  assert.match(legacy,/unmountManagement/);
+});
+
+test('media naming and importing settings use a typed React route without flattening away native fields',async()=>{
+  const [view,types,islands,legacy]=await Promise.all([
+    read('apps/web/client/src/media-management.tsx'),
+    read('apps/web/client/src/media-management-types.ts'),
+    read('apps/web/client/src/react-islands.tsx'),
+    read('apps/web/public/app.js')
+  ]);
+  assert.match(view,/export function MediaManagementView/);
+  assert.match(view,/const flatten=/);
+  assert.match(view,/const setPath=/);
+  assert.match(view,/\/naming/);
+  assert.match(view,/\/mediaManagement/);
+  assert.match(view,/copyUsingHardlinks/);
+  assert.match(types,/type MediaSettings=Record<string,unknown>/);
+  assert.match(islands,/mountMediaManagement/);
+  assert.match(legacy,/showMediaManagementReact/);
+});
+
+test('storage folders use a typed React route while retaining the existing import review workflow',async()=>{
+  const [view,types,islands,legacy]=await Promise.all([
+    read('apps/web/client/src/root-folders.tsx'),
+    read('apps/web/client/src/root-folders-types.ts'),
+    read('apps/web/client/src/react-islands.tsx'),
+    read('apps/web/public/app.js')
+  ]);
+  assert.match(view,/export function RootFoldersView/);
+  assert.match(view,/\/api\/settings\/download-folders/);
+  assert.match(view,/\/rootFolders/);
+  assert.match(view,/\/filesystem\?/);
+  assert.match(view,/Download and library paths match/);
+  assert.match(view,/options\.onScan\(domain,root\)/);
+  assert.match(types,/interface RootFoldersMountOptions/);
+  assert.match(islands,/mountRootFolders/);
+  assert.match(legacy,/showRootFoldersReact/);
+  assert.match(legacy,/reviewLibraryImport\(domain,root,showRootFoldersReact\)/);
+});
+
+test('indexers and download clients use a typed native provider editor with connection testing',async()=>{
+  const [view,types,islands,legacy,gateway]=await Promise.all([
+    read('apps/web/client/src/provider-settings.tsx'),
+    read('apps/web/client/src/provider-settings-types.ts'),
+    read('apps/web/client/src/react-islands.tsx'),
+    read('apps/web/public/app.js'),
+    read('packages/platform/src/engine-management-service.js')
+  ]);
+  assert.match(view,/export function ProviderSettingsView/);
+  assert.match(view,/indexerSchemas/);
+  assert.match(view,/downloadClientSchemas/);
+  assert.match(view,/Test connection/);
+  assert.match(view,/Show advanced/);
+  assert.match(view,/selectOptions/);
+  assert.match(view,/downloadClientSettings/);
+  assert.match(types,/interface ProviderSettingsMountOptions/);
+  assert.match(islands,/mountProviderSettings/);
+  assert.match(legacy,/showProviderSettingsReact/);
+  assert.match(gateway,/indexerTest:\{path:'indexer\/test'/);
+  assert.match(gateway,/downloadClientTest:\{path:'downloadclient\/test'/);
 });

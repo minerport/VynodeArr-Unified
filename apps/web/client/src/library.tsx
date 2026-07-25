@@ -1,9 +1,11 @@
-import { useEffect,useMemo,useRef,useState } from 'react';
+import { useCallback,useEffect,useMemo,useRef,useState,type PointerEvent as ReactPointerEvent } from 'react';
 import type { LibraryItem,LibraryMountOptions,LibraryView } from './library-types';
 import './react-library.css';
 
 const views:LibraryView[]=['poster','cards','compact','list'];
 const viewLabels:Record<LibraryView,string>={poster:'Poster grid',cards:'Information cards',compact:'Compact grid',list:'Detailed list'};
+const alphabet=['#',...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'];
+const titleLetter=(title:string)=>{const letter=title.trim()[0]?.toUpperCase()||'#';return /^[A-Z]$/.test(letter)?letter:'#';};
 
 function libraryState(item:LibraryItem,movie:boolean){
   const monitored=item.monitoring!=='none';
@@ -29,11 +31,10 @@ function LibraryCard({item,kind,view,onMonitor,onPrefetch}:{item:LibraryItem;kin
     ?[['Quality',item.quality||item.qualityProfile||'Not reported'],['Collection',item.collection||'None'],['Rating',item.rating?`${item.rating.toFixed(1)} / 10`:'Not rated'],['Genres',item.genres?.slice(0,3).join(', ')||'Not specified']]
     :[['Episodes',item.episodeProgress||'Not reported'],['Seasons',item.seasonProgress||'Not reported'],['Network',item.network||'Not specified'],['Genres',item.genres?.slice(0,3).join(', ')||'Not specified']];
   const prefetch=()=>{window.VynodeArrReact?.preloadRoute?.(movie?'movie':'series');onPrefetch(item);};
-  return <article className={`card react-library-card ${view}`} onPointerEnter={prefetch} onFocus={prefetch}>
+  return <article className={`card react-library-card ${view}`} data-library-letter={titleLetter(item.title)} onPointerEnter={prefetch} onFocus={prefetch}>
     <a className="poster" href={href}>
       {item.artwork?.url?<img src={item.artwork.url} alt="" loading="lazy"/>:<span className="art-fallback">{movie?'M':'TV'}</span>}
-      {view==='poster'?<LibraryStatusBadges item={item} movie={movie} className="poster-badges"/>:null}
-      {view==='poster'?<span className="react-poster-title"><strong>{item.title}</strong><span>{[item.year,context].filter(Boolean).join(' · ')||quality}</span>{item.rating?<em aria-label={`Rating ${item.rating.toFixed(1)} out of 10`}>★ {item.rating.toFixed(1)}</em>:null}</span>:null}
+      {view==='poster'?<span className="react-poster-title"><LibraryStatusBadges item={item} movie={movie}/><strong>{item.title}</strong><span>{[item.year,context].filter(Boolean).join(' · ')||quality}</span>{item.rating?<em aria-label={`Rating ${item.rating.toFixed(1)} out of 10`}>★ {item.rating.toFixed(1)}</em>:null}</span>:null}
     </a>
     <div className="card-body">
       <div className="react-library-heading"><div><h2><a href={href}>{item.title}</a></h2><p>{[item.year,context].filter(Boolean).join(' · ')}</p></div>{view!=='poster'?<LibraryStatusBadges item={item} movie={movie}/>:null}</div>
@@ -51,6 +52,8 @@ export function LibraryView({options}:{options:LibraryMountOptions}){
   const storageKey=`vynodearr.libraryState.${kind}`,saved=useMemo(()=>{try{return JSON.parse(sessionStorage.getItem(storageKey)||'{}') as {filter?:string;sort?:string;query?:string;scrollY?:number};}catch{return{};}},[storageKey]);
   const [items,setItems]=useState(options.items),[filter,setFilter]=useState(saved.filter||'all'),[sort,setSort]=useState(saved.sort||'title'),[query,setQuery]=useState(saved.query||''),[debouncedQuery,setDebouncedQuery]=useState(saved.query||''),[view,setView]=useState(options.initialView),[limit,setLimit]=useState(120),[searching,setSearching]=useState(false);
   const loadMoreRef=useRef<HTMLDivElement|null>(null);
+  const alphabetRef=useRef<HTMLElement|null>(null);
+  const [activeLetter,setActiveLetter]=useState('#');
   useEffect(()=>{const timer=window.setTimeout(()=>setDebouncedQuery(query),200);return()=>window.clearTimeout(timer);},[query]);
   useEffect(()=>{setLimit(120);},[filter,sort,debouncedQuery,view]);
   useEffect(()=>{const persist=()=>sessionStorage.setItem(storageKey,JSON.stringify({filter,sort,query,scrollY:window.scrollY}));persist();window.addEventListener('scroll',persist,{passive:true});return()=>{persist();window.removeEventListener('scroll',persist);};},[storageKey,filter,sort,query]);
@@ -63,6 +66,21 @@ export function LibraryView({options}:{options:LibraryMountOptions}){
       ||filter==='missing'&&item.monitoring!=='none'&&(movie?item.state==='missing':Number(item.missingEpisodes||0)>0)
       ||filter==='cutoff'&&item.monitoring!=='none'&&(movie?item.state==='cutoff':Number(item.cutoffUnmetEpisodes||0)>0))
     .sort((a,b)=>sort==='year'?Number(b.year||0)-Number(a.year||0):sort==='attention'?(movie?Number(a.state==='available')-Number(b.state==='available'):Number(b.missingEpisodes||0)-Number(a.missingEpisodes||0)):a.title.localeCompare(b.title)),[items,filter,sort,debouncedQuery,movie]);
+  const availableLetters=useMemo(()=>new Set(visible.map(item=>titleLetter(item.title))),[visible]);
+  const jumpToLetter=useCallback((letter:string)=>{
+    const alphabetical=[...visible].sort((a,b)=>a.title.localeCompare(b.title));
+    const index=alphabetical.findIndex(item=>titleLetter(item.title)===letter);
+    if(index<0)return;
+    setSort('title');
+    setActiveLetter(letter);
+    setLimit(current=>Math.max(current,index+1));
+    requestAnimationFrame(()=>requestAnimationFrame(()=>document.querySelector<HTMLElement>(`[data-library-letter="${letter}"]`)?.scrollIntoView({behavior:'smooth',block:'start'})));
+  },[visible]);
+  const selectFromPointer=useCallback((event:ReactPointerEvent<HTMLElement>)=>{
+    const bounds=alphabetRef.current?.getBoundingClientRect();if(!bounds)return;
+    const index=Math.max(0,Math.min(alphabet.length-1,Math.floor((event.clientY-bounds.top)/bounds.height*alphabet.length)));
+    const letter=alphabet[index];if(availableLetters.has(letter))jumpToLetter(letter);
+  },[availableLetters,jumpToLetter]);
   useEffect(()=>{const node=loadMoreRef.current;if(!node||limit>=visible.length||!('IntersectionObserver'in window))return;const observer=new IntersectionObserver(entries=>{if(entries.some(entry=>entry.isIntersecting))setLimit(value=>value+120);},{rootMargin:'600px'});observer.observe(node);return()=>observer.disconnect();},[limit,visible.length]);
   const monitored=items.filter(item=>item.monitoring!=='none'),missing=monitored.filter(item=>movie?item.state==='missing':Number(item.missingEpisodes||0)>0).length,cutoff=monitored.filter(item=>movie?item.state==='cutoff':Number(item.cutoffUnmetEpisodes||0)>0).length,coverage=Math.round(items.filter(item=>movie?item.hasFile:Number(item.missingEpisodes||0)===0).length/Math.max(items.length,1)*100);
   async function monitor(item:LibraryItem){
@@ -84,6 +102,10 @@ export function LibraryView({options}:{options:LibraryMountOptions}){
     <div className="summary"><div><strong>{items.length}</strong><span>Titles</span></div><div><strong>{monitored.length}</strong><span>Monitored</span></div><div><strong>{missing+cutoff}</strong><span>Need attention</span><small>{movie?`${missing} missing · ${cutoff} below cutoff`:`${missing} missing episodes · ${cutoff} below cutoff`}</small></div><div><strong>{coverage}%</strong><span>Library coverage</span></div></div>
     <div className="toolbar react-library-toolbar"><div className="filters">{['all','monitored','unmonitored','missing','cutoff'].map(value=><button key={value} type="button" className={`chip ${filter===value?'selected':''}`} onClick={()=>setFilter(value)}>{value==='cutoff'?'Cutoff unmet':value[0].toUpperCase()+value.slice(1)}</button>)}</div>{movie&&filter==='missing'?<button className="primary react-library-search-missing" disabled={searching||!visible.length} onClick={()=>void searchAllMissing()}>{searching?'Queuing searches…':`Search all missing (${visible.length})`}</button>:null}<label className="react-library-search">Filter titles<input value={query} onChange={event=>setQuery(event.target.value)} placeholder={`Search ${movie?'movies':'television'}`}/></label><div><select className="sort" aria-label="Sort media" value={sort} onChange={event=>setSort(event.target.value)}><option value="title">Title</option><option value="year">Year</option><option value="attention">Attention</option></select>{views.map(value=><button key={value} type="button" className={`icon-button ${view===value?'selected':''}`} title={viewLabels[value]} onClick={()=>chooseView(value)}>{value==='poster'?'▦':value==='cards'?'▥':value==='compact'?'▤':'☷'}</button>)}</div></div>
     <div className={`grid view-${view}`}>{visible.slice(0,limit).map(item=><LibraryCard key={item.id} item={item} kind={kind} view={view} onMonitor={monitor} onPrefetch={prefetch}/>)}</div>
+    <nav className="library-alphabet-rail" ref={alphabetRef} aria-label={`Jump through ${movie?'movies':'television'} alphabetically`} onPointerDown={event=>{event.currentTarget.setPointerCapture(event.pointerId);selectFromPointer(event);}} onPointerMove={event=>{if(event.currentTarget.hasPointerCapture(event.pointerId))selectFromPointer(event);}}>
+      <span className="library-alphabet-slider" style={{top:`${(alphabet.indexOf(activeLetter)+.5)/alphabet.length*100}%`}} aria-hidden="true"/>
+      {alphabet.map(letter=><button key={letter} type="button" className={activeLetter===letter?'active':''} disabled={!availableLetters.has(letter)} onClick={()=>jumpToLetter(letter)} aria-label={`Jump to ${letter==='#'?'numbers and symbols':letter}`}>{letter}</button>)}
+    </nav>
     {!visible.length?<div className="empty"><h2>No titles match</h2><p>Change the search or library filter.</p></div>:null}
     {limit<visible.length?<div className="library-load-more" ref={loadMoreRef}><p>Showing {limit.toLocaleString()} of {visible.length.toLocaleString()}</p><button className="secondary" type="button" onClick={()=>setLimit(value=>value+120)}>Load more</button></div>:null}
   </div>;

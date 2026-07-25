@@ -4,18 +4,18 @@
 .react-library .react-library-card .card-body{position:static;z-index:auto;min-width:0}
 .react-library-card{content-visibility:auto;contain-intrinsic-size:auto 360px}
 .view-poster .react-library-card{contain-intrinsic-size:auto 430px}.view-list .react-library-card{contain-intrinsic-size:auto 104px}
-.react-poster-title{position:absolute;z-index:2;right:0;bottom:0;left:0;display:grid;gap:.2rem;padding:5rem .85rem .78rem;background:linear-gradient(180deg,transparent 0%,rgba(4,8,16,.72) 48%,rgba(4,8,16,.97) 100%);color:#fff;text-align:left}
-.react-poster-title strong{padding-right:3.3rem;font-size:1rem;line-height:1.18;overflow-wrap:anywhere;text-shadow:0 1px 8px #000}
+.react-poster-title{position:absolute;z-index:2;right:0;bottom:0;left:0;display:grid;gap:.28rem;padding:5rem .85rem .78rem;background:linear-gradient(180deg,transparent 0%,rgba(4,8,16,.76) 42%,rgba(4,8,16,.98) 100%);color:#fff;text-align:left}
+.react-poster-title .library-status-badges{margin-bottom:.12rem}
+.react-poster-title .library-status-badges .badge{min-height:1.15rem;padding:.18rem .36rem;font-size:.58rem}
+.react-poster-title strong{display:-webkit-box;padding-right:3.3rem;overflow:hidden;font-size:1rem;line-height:1.18;overflow-wrap:anywhere;text-shadow:0 1px 8px #000;-webkit-box-orient:vertical;-webkit-line-clamp:2}
 .react-poster-title>span{overflow:hidden;color:#c8d2e4;font-size:.72rem;line-height:1.25;text-overflow:ellipsis;white-space:nowrap}
 .react-poster-title em{position:absolute;right:.75rem;bottom:.72rem;padding:.2rem .38rem;border:1px solid rgba(255,210,83,.25);border-radius:999px;background:rgba(9,13,22,.82);color:#ffd253;font-size:.68rem;font-style:normal;font-weight:800}
-.view-poster .react-library-card .poster-badges{z-index:3}
 .react-library .view-poster .react-library-card .card-body{padding:.68rem .75rem .78rem}
 .library-status-badges{display:flex;flex-wrap:wrap;align-items:center;gap:.32rem}
 .library-status-badges .badge{display:inline-flex;align-items:center;min-height:1.35rem;padding:.22rem .46rem;line-height:1}
 .library-status-badges .badge.muted{border-color:#536078;background:#30394b;color:#d1d8e6}
 .library-status-badges .cutoff-status.green{border-color:#247d59;background:#153f31;color:#7be4ae}
 .library-status-badges .cutoff-status.warm{border-color:#936b2e;background:#4b371d;color:#ffc96f}
-.view-poster .library-status-badges.poster-badges{position:absolute;top:.55rem;bottom:auto;left:.55rem;right:.55rem;z-index:4;align-items:flex-start}
 .react-library-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem;min-width:0}
 .react-library-heading>div:first-child{min-width:0}
 .react-library-heading h2,.react-library-heading p{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -26,7 +26,7 @@
 .view-poster .detail-row span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .view-poster .detail-row span:last-child{flex:0 0 auto}
 .view-poster .react-library-card-actions{justify-content:space-between;margin-top:.65rem}
-.view-poster .react-library-card-actions>*{flex:1;text-align:center}
+.view-poster .react-library-card-actions>*{min-width:0;flex:1 1 0;padding-right:.45rem;padding-left:.45rem;text-align:center;white-space:nowrap}
 .react-library-card-actions{position:relative;z-index:2;display:flex;align-items:center;justify-content:flex-end;gap:.5rem;margin-top:.8rem}
 .react-library-card-actions .secondary{padding:.55rem .75rem}
 .react-library-details{color:#dce5f6;text-decoration:none}
@@ -34,9 +34,9 @@
 .react-library-list-details{display:none;margin:0}
 .view-cards{grid-template-columns:repeat(auto-fill,minmax(25rem,1fr))}
 .view-cards .react-library-card{display:grid;grid-template-columns:9rem minmax(0,1fr)}
-.view-cards .poster{aspect-ratio:2/3}
+.view-cards .poster{width:100%;height:100%;min-width:0;aspect-ratio:auto}
 .view-list .react-library-card{display:grid;grid-template-columns:4.25rem minmax(0,1fr);min-height:6.4rem;margin-bottom:.45rem}
-.view-list .poster{aspect-ratio:2/3}
+.view-list .poster{width:100%;height:100%;min-width:0;aspect-ratio:auto}
 .react-library .view-list .react-library-card .card-body{display:grid;grid-template-columns:minmax(12rem,1fr) minmax(28rem,2fr) auto;gap:.85rem;align-items:center;padding:.6rem .8rem}
 .view-list .react-library-list-details{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.4rem .8rem}
 .react-library-list-details div{min-width:0}
@@ -48,9 +48,16 @@
 .view-list .react-library-card-summary .detail-row{margin-top:.3rem}
 .view-list .react-library-heading{display:grid;grid-template-columns:minmax(9rem,1fr) auto}
 .view-list .react-library-heading .library-status-badges{grid-column:1/-1;justify-content:flex-start;margin-top:.35rem}
-.view-compact .react-library-card{display:grid;grid-template-columns:6rem minmax(0,1fr)}
+.view-compact .react-library-card{display:grid;grid-template-columns:6rem minmax(0,1fr);min-height:14rem}
+.view-compact .poster{width:100%;height:100%;min-width:0;aspect-ratio:auto}
+.view-cards .poster img,.view-compact .poster img,.view-list .poster img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.view-cards .card-body,.view-compact .card-body,.view-list .card-body{overflow:hidden}
 .summary small{display:block;margin-top:.25rem;color:var(--muted);font-size:.68rem}
 .react-library-search-missing{margin-left:auto;white-space:nowrap}
+.library-alphabet-rail{position:fixed;z-index:4;top:7.5rem;right:max(.45rem,calc((100vw - 1600px)/2 + .45rem));bottom:2rem;display:grid;grid-template-rows:repeat(27,minmax(0,1fr));width:2rem;padding:.3rem .22rem;border:1px solid rgba(68,82,112,.72);border-radius:999px;background:rgba(8,13,24,.9);box-shadow:0 12px 35px rgba(0,0,0,.35);backdrop-filter:blur(12px);touch-action:none;user-select:none}
+.library-alphabet-rail button{position:relative;z-index:2;display:grid;min-width:0;min-height:0;padding:0;border:0;border-radius:50%;background:transparent;color:#8e9ab0;font-size:.58rem;font-weight:800;line-height:1;place-items:center;cursor:pointer}
+.library-alphabet-rail button:hover,.library-alphabet-rail button.active{color:#fff}.library-alphabet-rail button:disabled{opacity:.2;cursor:default}
+.library-alphabet-slider{position:absolute;z-index:1;right:.16rem;left:.16rem;height:1.05rem;border:1px solid rgba(94,228,208,.7);border-radius:999px;background:linear-gradient(135deg,rgba(124,92,255,.9),rgba(49,214,199,.78));box-shadow:0 0 14px rgba(49,214,199,.38);transform:translateY(-50%);transition:top .16s ease}
 @media(max-width:1050px){.react-library .view-list .react-library-card .card-body{grid-template-columns:minmax(12rem,1fr) minmax(16rem,1.2fr)}.view-list .react-library-card-actions{grid-column:1/-1;flex-direction:row;justify-content:flex-end}}
 @media(max-width:900px){.react-library-search-missing{margin-left:0}}
-@media(max-width:760px){.react-library-search{order:3;width:100%}.react-library-search input{flex:1;width:auto}.view-cards{grid-template-columns:1fr}.view-cards .react-library-card{grid-template-columns:6rem 1fr}.react-library .view-list .react-library-card .card-body{display:block}.view-list .react-library-list-details{margin-top:.9rem}.view-list .react-library-card-actions{margin-top:.9rem}.react-library-heading{display:block}.react-library-heading .library-status-badges{justify-content:flex-start;margin-top:.4rem}}
+@media(max-width:760px){.react-library-search{order:3;width:100%}.react-library-search input{flex:1;width:auto}.view-cards{grid-template-columns:1fr}.view-cards .react-library-card{grid-template-columns:6rem 1fr}.react-library .view-list .react-library-card .card-body{display:block}.view-list .react-library-list-details{margin-top:.9rem}.view-list .react-library-card-actions{margin-top:.9rem}.react-library-heading{display:block}.react-library-heading .library-status-badges{justify-content:flex-start;margin-top:.4rem}.library-alphabet-rail{display:none}}

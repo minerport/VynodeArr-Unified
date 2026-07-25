@@ -1,5 +1,5 @@
 import { useCallback,useEffect,useMemo,useRef,useState,type CSSProperties } from 'react';
-import type { DiscoverCategory,DiscoverDomain,DiscoverItem,DiscoverMountOptions,DiscoverPage,LibraryItem } from './discover-types';
+import type { DiscoverCategory,DiscoverDomain,DiscoverItem,DiscoverLibraryStatus,DiscoverMountOptions,DiscoverPage,LibraryItem } from './discover-types';
 import { cachedRequest } from './query-client';
 
 const feeds=[
@@ -11,24 +11,29 @@ const feeds=[
 ] as const;
 const normalize=(value:string)=>value.toLowerCase().replace(/[^a-z0-9]+/g,'').trim();
 const libraryKey=(domain:DiscoverDomain,title:string,year?:number|null)=>`${domain}:${normalize(title)}:${Number(year||0)}`;
+const libraryStatus=(domain:DiscoverDomain,item:LibraryItem):DiscoverLibraryStatus=>{
+  if(domain==='movie')return item.hasFile||Number(item.sizeOnDisk||0)>0?'available':'pending';
+  return Number.parseInt(item.episodeProgress||'0',10)>0||Number(item.sizeOnDisk||0)>0?'available':'pending';
+};
 
-function Card({item,inLibrary,onOpen}:{item:DiscoverItem;inLibrary:boolean;onOpen:(item:DiscoverItem)=>void}){
+function Card({item,status,onOpen}:{item:DiscoverItem;status?:DiscoverLibraryStatus;onOpen:(item:DiscoverItem)=>void}){
+  const tracked=Boolean(status);
   return <article className="discover-card" role="button" tabIndex={0} onClick={()=>onOpen(item)} onKeyDown={event=>{if(event.key==='Enter'||event.key===' ')onOpen(item);}}>
     <div className="discover-poster">{item.poster?<img src={item.poster} alt={`${item.title} poster`} loading="lazy"/>:<span className="discover-poster-fallback">{item.title[0]}</span>}
       {item.rating?<span className="discover-score">★ {item.rating.toFixed(1)}</span>:null}
-      {inLibrary?<span className="discover-library-tag">In library</span>:null}
-      <button className={`discover-action${inLibrary?' is-library':''}`} type="button" disabled={inLibrary} onClick={event=>{event.stopPropagation();onOpen(item);}}>{inLibrary?'✓':'+'}</button>
+      {status?<span className={`discover-library-tag${status==='pending'?' pending':''}`}>{status==='available'?'In library':'Pending'}</span>:null}
+      <button className={`discover-action${tracked?' is-library':''}`} type="button" disabled={tracked} onClick={event=>{event.stopPropagation();onOpen(item);}}>{status==='available'?'✓':status==='pending'?'…':'+'}</button>
     </div>
     <div className="discover-card-copy"><h3>{item.title}</h3><p><span>{item.year||'TBA'}</span><span>{item.domain==='movie'?'Movie':'TV'}</span></p></div>
   </article>;
 }
 
-function Row({title,subtitle,items,library,onOpen,onMore}:{title:string;subtitle:string;items:DiscoverItem[];library:Set<string>;onOpen:(item:DiscoverItem)=>void;onMore?:()=>void}){
+function Row({title,subtitle,items,library,onOpen,onMore}:{title:string;subtitle:string;items:DiscoverItem[];library:Map<string,DiscoverLibraryStatus>;onOpen:(item:DiscoverItem)=>void;onMore?:()=>void}){
   const strip=useRef<HTMLDivElement>(null);
   return <section className="discover-row"><div className="discover-row-heading"><div><h2>{title}</h2><p>{subtitle}</p></div><div className="discover-row-controls">
     <button type="button" onClick={()=>strip.current?.scrollBy({left:-strip.current.clientWidth*.8,behavior:'smooth'})}>←</button>
     <button type="button" onClick={()=>{strip.current?.scrollBy({left:strip.current.clientWidth*.8,behavior:'smooth'});onMore?.();}}>→</button>
-  </div></div><div className="discover-strip" ref={strip}>{items.map(item=><Card key={item.id} item={item} inLibrary={library.has(libraryKey(item.domain,item.title,item.year))} onOpen={onOpen}/>)}</div></section>;
+  </div></div><div className="discover-strip" ref={strip}>{items.map(item=><Card key={item.id} item={item} status={library.get(libraryKey(item.domain,item.title,item.year))} onOpen={onOpen}/>)}</div></section>;
 }
 
 function Taxonomy({title,kind,items,onSelect}:{title:string;kind:'genre'|'studio'|'network';items:DiscoverCategory[];onSelect:(item:DiscoverCategory&{taxonomy:'genre'|'studio'|'network'})=>void}){
@@ -42,7 +47,7 @@ function Taxonomy({title,kind,items,onSelect}:{title:string;kind:'genre'|'studio
 export function DiscoverView({options}:{options:DiscoverMountOptions}){
   const [rows,setRows]=useState<Record<string,DiscoverItem[]>>({});
   const [pages,setPages]=useState<Record<string,number>>({});
-  const [library,setLibrary]=useState(new Set<string>());
+  const [library,setLibrary]=useState(new Map<string,DiscoverLibraryStatus>());
   const [taxonomies,setTaxonomies]=useState<{movie:DiscoverCategory[];tv:DiscoverCategory[];studios:DiscoverCategory[];networks:DiscoverCategory[]}>({movie:[],tv:[],studios:[],networks:[]});
   const [domain,setDomain]=useState<'all'|DiscoverDomain>('all');
   const [query,setQuery]=useState('');
@@ -55,12 +60,25 @@ export function DiscoverView({options}:{options:DiscoverMountOptions}){
     setRows(current=>({...current,[kind]:page===1?value.results:[...(current[kind]||[]),...value.results.filter(item=>!(current[kind]||[]).some(existing=>existing.id===item.id))]}));
     setPages(current=>({...current,[kind]:value.page}));
   },[options]);
+  const refreshLibrary=useCallback(async()=>{
+    const [movies,tv]=await Promise.all([options.request<{items:LibraryItem[]}>('/api/media/movies'),options.request<{items:LibraryItem[]}>('/api/media/tv')]);
+    setLibrary(new Map([
+      ...movies.items.map(item=>[libraryKey('movie',item.title,item.year),libraryStatus('movie',item)] as const),
+      ...tv.items.map(item=>[libraryKey('tv',item.title,item.year),libraryStatus('tv',item)] as const),
+    ]));
+  },[options]);
 
   useEffect(()=>{
     let active=true;
-    void Promise.all([options.request<{items:LibraryItem[]}>('/api/media/movies'),options.request<{items:LibraryItem[]}>('/api/media/tv')]).then(([movies,tv])=>{
-      if(active)setLibrary(new Set([...movies.items.map(item=>libraryKey('movie',item.title,item.year)),...tv.items.map(item=>libraryKey('tv',item.title,item.year))]));
-    }).catch(()=>{});
+    void refreshLibrary().catch(()=>{});
+    const requested=(event:Event)=>{
+      const item=(event as CustomEvent<{domain:DiscoverDomain;title:string;year?:number|null}>).detail;
+      if(item)setLibrary(current=>new Map(current).set(libraryKey(item.domain,item.title,item.year),'pending'));
+    };
+    const focused=()=>void refreshLibrary().catch(()=>{});
+    window.addEventListener('vynodearr:discover-requested',requested);
+    window.addEventListener('focus',focused);
+    const timer=window.setInterval(()=>{if(document.visibilityState==='visible')void refreshLibrary().catch(()=>{});},30_000);
     feeds.forEach(([kind])=>void loadFeed(kind).catch(reason=>setError(reason instanceof Error?reason.message:'Discover unavailable.')));
     void Promise.all([
       cachedRequest('discover:genres:movie',()=>options.request<{items:DiscoverCategory[]}>('/api/discover/genres?domain=movie'),6*60*60_000),
@@ -68,8 +86,8 @@ export function DiscoverView({options}:{options:DiscoverMountOptions}){
       cachedRequest('discover:studios',()=>options.request<{items:DiscoverCategory[]}>('/api/discover/categories?type=studios'),6*60*60_000),
       cachedRequest('discover:networks',()=>options.request<{items:DiscoverCategory[]}>('/api/discover/categories?type=networks'),6*60*60_000),
     ]).then(([movie,tv,studios,networks])=>{if(active)setTaxonomies({movie:movie.items,tv:tv.items,studios:studios.items,networks:networks.items});}).catch(()=>{});
-    return()=>{active=false;};
-  },[loadFeed,options]);
+    return()=>{active=false;window.clearInterval(timer);window.removeEventListener('focus',focused);window.removeEventListener('vynodearr:discover-requested',requested);};
+  },[loadFeed,options,refreshLibrary]);
 
   useEffect(()=>{
     const term=query.trim();if(!term){setSearchResults(null);setResultTitle('');return;}
