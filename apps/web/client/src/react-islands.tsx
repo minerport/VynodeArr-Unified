@@ -14,9 +14,10 @@ import type { AddMediaMountOptions } from './add-media-types';
 import type { HealthMountOptions } from './health-types';
 import type { AccountMountOptions } from './account-types';
 import type { SystemMountOptions } from './system-types';
+import type { SelectionRulesMountOptions } from './selection-rules-types';
 import { RouteErrorBoundary } from './error-boundary';
 
-let dashboardRoot:Root|null=null,dashboardElement:HTMLElement|null=null,fullDashboardRoot:Root|null=null,libraryRoot:Root|null=null,historyRoot:Root|null=null,queueRoot:Root|null=null,wantedRoot:Root|null=null,calendarRoot:Root|null=null,movieDetailRoot:Root|null=null,tvDetailRoot:Root|null=null,discoverRoot:Root|null=null,collectionsRoot:Root|null=null,addMediaRoot:Root|null=null,healthRoot:Root|null=null,accountRoot:Root|null=null,systemRoot:Root|null=null;
+let dashboardRoot:Root|null=null,dashboardElement:HTMLElement|null=null,fullDashboardRoot:Root|null=null,libraryRoot:Root|null=null,historyRoot:Root|null=null,queueRoot:Root|null=null,wantedRoot:Root|null=null,calendarRoot:Root|null=null,movieDetailRoot:Root|null=null,tvDetailRoot:Root|null=null,discoverRoot:Root|null=null,collectionsRoot:Root|null=null,addMediaRoot:Root|null=null,healthRoot:Root|null=null,accountRoot:Root|null=null,systemRoot:Root|null=null,selectionRulesRoot:Root|null=null;
 const loading=(label:string)=><div className="panel skeleton react-route-loading">Loading {label}…</div>;
 
 const guarded=(children:ReactNode)=><RouteErrorBoundary>{children}</RouteErrorBoundary>;
@@ -95,10 +96,15 @@ function mountSystem(element:HTMLElement,options:SystemMountOptions){
   unmountSystem();const root=createRoot(element);systemRoot=root;root.render(loading('system'));
   void import('./system').then(({SystemView})=>{if(systemRoot===root)root.render(guarded(<SystemView options={options}/>));});
 }
+function unmountSelectionRules(){selectionRulesRoot?.unmount();selectionRulesRoot=null;}
+function mountSelectionRules(element:HTMLElement,options:SelectionRulesMountOptions){
+  unmountSelectionRules();const root=createRoot(element);selectionRulesRoot=root;root.render(loading('selection rules'));
+  void import('./selection-rules').then(({SelectionRulesView})=>{if(selectionRulesRoot===root)root.render(guarded(<SelectionRulesView options={options}/>));});
+}
 const routeImports:Record<string,()=>Promise<unknown>>={
   dashboard:()=>import('./dashboard'),discover:()=>import('./discover'),collections:()=>import('./collections'),add:()=>import('./add-media'),movies:()=>import('./library'),tv:()=>import('./library'),
   queue:()=>import('./queue'),history:()=>import('./history'),wanted:()=>import('./wanted'),calendar:()=>import('./calendar'),health:()=>import('./health'),
-  movie:()=>import('./movie-detail'),series:()=>import('./tv-detail'),settings:()=>import('./account'),system:()=>import('./system'),
+  movie:()=>import('./movie-detail'),series:()=>import('./tv-detail'),settings:()=>import('./account'),system:()=>import('./system'),service:()=>import('./selection-rules'),
 };
 function preloadRoute(route:string){void routeImports[route]?.();}
 
@@ -119,7 +125,8 @@ declare global {
     mountHealth:(element:HTMLElement,options:HealthMountOptions)=>void;unmountHealth:()=>void;
     mountAccount:(element:HTMLElement,options:AccountMountOptions)=>void;unmountAccount:()=>void;
     mountSystem:(element:HTMLElement,options:SystemMountOptions)=>void;unmountSystem:()=>void;
+    mountSelectionRules:(element:HTMLElement,options:SelectionRulesMountOptions)=>void;unmountSelectionRules:()=>void;
     preloadRoute:(route:string)=>void;
   }}
 }
-window.VynodeArrReact={mountDashboard,unmountDashboard,mountDashboardAnalytics,unmountDashboardAnalytics,mountLibrary,unmountLibrary,mountHistory,unmountHistory,mountQueue,unmountQueue,mountWanted,unmountWanted,mountCalendar,unmountCalendar,mountMovieDetail,unmountMovieDetail,mountTvDetail,unmountTvDetail,mountDiscover,unmountDiscover,mountCollections,unmountCollections,mountAddMedia,unmountAddMedia,mountHealth,unmountHealth,mountAccount,unmountAccount,mountSystem,unmountSystem,preloadRoute};
+window.VynodeArrReact={mountDashboard,unmountDashboard,mountDashboardAnalytics,unmountDashboardAnalytics,mountLibrary,unmountLibrary,mountHistory,unmountHistory,mountQueue,unmountQueue,mountWanted,unmountWanted,mountCalendar,unmountCalendar,mountMovieDetail,unmountMovieDetail,mountTvDetail,unmountTvDetail,mountDiscover,unmountDiscover,mountCollections,unmountCollections,mountAddMedia,unmountAddMedia,mountHealth,unmountHealth,mountAccount,unmountAccount,mountSystem,unmountSystem,mountSelectionRules,unmountSelectionRules,preloadRoute};

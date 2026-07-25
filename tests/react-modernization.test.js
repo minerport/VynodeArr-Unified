@@ -5,7 +5,7 @@ import test from 'node:test';
 const read=(path)=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
 test('the complete dashboard has a React view with a legacy-safe bridge',async()=>{
-  const [packageJson,index,app,entry,dashboard,analytics,library,libraryCss,libraryTypes,history,queue,wanted,calendar,movieDetail,tvDetail,collections,collectionTypes,addMedia,addMediaTypes,health,healthTypes,account,accountTypes,system,systemTypes,bundleBudget,unraidDockerfile]=await Promise.all([
+  const [packageJson,index,app,entry,dashboard,analytics,library,libraryCss,libraryTypes,history,queue,wanted,calendar,movieDetail,tvDetail,collections,collectionTypes,addMedia,addMediaTypes,health,healthTypes,account,accountTypes,system,systemTypes,selectionRules,selectionRuleTypes,bundleBudget,unraidDockerfile]=await Promise.all([
     read('package.json'),
     read('apps/web/public/index.html'),
     read('apps/web/public/app.js'),
@@ -31,6 +31,8 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
     read('apps/web/client/src/account-types.ts'),
     read('apps/web/client/src/system.tsx'),
     read('apps/web/client/src/system-types.ts'),
+    read('apps/web/client/src/selection-rules.tsx'),
+    read('apps/web/client/src/selection-rules-types.ts'),
     read('scripts/check-web-bundle.mjs'),
     read('Dockerfile.unraid')
   ]);
@@ -77,6 +79,16 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(entry,/mountSystem/);
   assert.match(entry,/unmountSystem/);
   assert.match(entry,/import\('\.\/system'\)/);
+  assert.match(entry,/mountSelectionRules/);
+  assert.match(entry,/import\('\.\/selection-rules'\)/);
+  assert.match(app,/service\/custom-formats/);
+  assert.match(app,/service\/release-profiles/);
+  assert.match(selectionRules,/LanguageSpecification/);
+  assert.match(selectionRules,/minFormatScore/);
+  assert.match(selectionRules,/-10000/);
+  assert.match(selectionRules,/restrictions/);
+  assert.match(selectionRules,/releaseProfiles/);
+  assert.match(selectionRuleTypes,/SelectionRulesMountOptions/);
   assert.match(dashboard,/Recently imported/);
   assert.match(dashboard,/Recent engine events/);
   assert.match(dashboard,/dashboard-attention-grid/);
@@ -99,6 +111,10 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(library,/Search all missing/);
   assert.match(library,/MoviesSearch/);
   assert.match(library,/Cutoff unmet/);
+  assert.match(library,/Unmonitored/);
+  assert.match(library,/At cutoff/);
+  assert.match(library,/cutoffUnmetEpisodes/);
+  assert.match(library,/LibraryStatusBadges/);
   assert.match(library,/IntersectionObserver/);
   assert.match(library,/setDebouncedQuery/);
   assert.match(library,/sessionStorage/);

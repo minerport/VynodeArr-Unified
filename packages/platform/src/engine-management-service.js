@@ -4,6 +4,7 @@ const sharedResources=Object.freeze({
   rootFolders:{path:'rootfolder',methods:['GET','POST','DELETE']},
   tags:{path:'tag',methods:['GET','POST','PUT','DELETE']},
   customFormats:{path:'customformat',methods:['GET','POST','PUT','DELETE']},
+  customFormatSchemas:{path:'customformat/schema',methods:['GET']},
   indexers:{path:'indexer',methods:['GET','POST','PUT','DELETE']},
   downloadClients:{path:'downloadclient',methods:['GET','POST','PUT','DELETE']},
   notifications:{path:'notification',methods:['GET','POST','PUT','DELETE']},

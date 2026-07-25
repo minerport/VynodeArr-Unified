@@ -15,6 +15,7 @@ export interface LibraryItem {
   status?:string;
   hasFile?:boolean;
   missingEpisodes?:number;
+  cutoffUnmetEpisodes?:number;
   episodeProgress?:string;
   seasonProgress?:string;
   quality?:string;

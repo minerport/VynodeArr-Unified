@@ -10,6 +10,16 @@
 .react-poster-title em{position:absolute;right:.75rem;bottom:.72rem;padding:.2rem .38rem;border:1px solid rgba(255,210,83,.25);border-radius:999px;background:rgba(9,13,22,.82);color:#ffd253;font-size:.68rem;font-style:normal;font-weight:800}
 .view-poster .react-library-card .poster-badges{z-index:3}
 .react-library .view-poster .react-library-card .card-body{padding:.68rem .75rem .78rem}
+.library-status-badges{display:flex;flex-wrap:wrap;align-items:center;gap:.32rem}
+.library-status-badges .badge{display:inline-flex;align-items:center;min-height:1.35rem;padding:.22rem .46rem;line-height:1}
+.library-status-badges .badge.muted{border-color:#536078;background:#30394b;color:#d1d8e6}
+.library-status-badges .cutoff-status.green{border-color:#247d59;background:#153f31;color:#7be4ae}
+.library-status-badges .cutoff-status.warm{border-color:#936b2e;background:#4b371d;color:#ffc96f}
+.view-poster .library-status-badges.poster-badges{position:absolute;top:.55rem;left:.55rem;right:.55rem;z-index:4}
+.react-library-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem;min-width:0}
+.react-library-heading>div:first-child{min-width:0}
+.react-library-heading h2,.react-library-heading p{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.react-library-heading .library-status-badges{justify-content:flex-end;flex:0 1 auto}
 .view-poster .card-body>h2,.view-poster .card-body>p{display:none}
 .view-poster .card-body .progress{margin-top:0}
 .view-poster .detail-row{gap:.55rem;font-size:.69rem}
@@ -36,9 +46,11 @@
 .view-list .react-library-card-actions .secondary{min-width:5.7rem;padding:.4rem .55rem;text-align:center;font-size:.75rem}
 .view-list .react-library-card-summary>p{margin-bottom:.35rem}
 .view-list .react-library-card-summary .detail-row{margin-top:.3rem}
+.view-list .react-library-heading{display:grid;grid-template-columns:minmax(9rem,1fr) auto}
+.view-list .react-library-heading .library-status-badges{grid-column:1/-1;justify-content:flex-start;margin-top:.35rem}
 .view-compact .react-library-card{display:grid;grid-template-columns:6rem minmax(0,1fr)}
 .summary small{display:block;margin-top:.25rem;color:var(--muted);font-size:.68rem}
 .react-library-search-missing{margin-left:auto;white-space:nowrap}
 @media(max-width:1050px){.react-library .view-list .react-library-card .card-body{grid-template-columns:minmax(12rem,1fr) minmax(16rem,1.2fr)}.view-list .react-library-card-actions{grid-column:1/-1;flex-direction:row;justify-content:flex-end}}
 @media(max-width:900px){.react-library-search-missing{margin-left:0}}
-@media(max-width:760px){.react-library-search{order:3;width:100%}.react-library-search input{flex:1;width:auto}.view-cards{grid-template-columns:1fr}.view-cards .react-library-card{grid-template-columns:6rem 1fr}.react-library .view-list .react-library-card .card-body{display:block}.view-list .react-library-list-details{margin-top:.9rem}.view-list .react-library-card-actions{margin-top:.9rem}}
+@media(max-width:760px){.react-library-search{order:3;width:100%}.react-library-search input{flex:1;width:auto}.view-cards{grid-template-columns:1fr}.view-cards .react-library-card{grid-template-columns:6rem 1fr}.react-library .view-list .react-library-card .card-body{display:block}.view-list .react-library-list-details{margin-top:.9rem}.view-list .react-library-card-actions{margin-top:.9rem}.react-library-heading{display:block}.react-library-heading .library-status-badges{justify-content:flex-start;margin-top:.4rem}}

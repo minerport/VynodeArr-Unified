@@ -21,6 +21,10 @@ test('management gateway exposes native capabilities and forwards only allowlist
   assert.ok(catalog.some((item)=>item.key==='libraryFolder'&&item.methods.includes('GET')));
   assert.ok(catalog.some((item)=>item.key==='libraryEditor'&&item.methods.includes('DELETE')));
   assert.ok(catalog.some((item)=>item.key==='indexers'&&item.methods.includes('POST')));
+  assert.ok(catalog.some((item)=>item.key==='customFormats'&&item.methods.includes('PUT')));
+  assert.ok(catalog.some((item)=>item.key==='customFormatSchemas'&&item.methods.length===1&&item.methods[0]==='GET'));
+  assert.ok(catalog.some((item)=>item.key==='restrictions'&&item.methods.includes('POST')));
+  assert.ok(service.catalog('tv').some((item)=>item.key==='releaseProfiles'&&item.methods.includes('PUT')));
   for(const key of ['calendar','wantedMissing','blocklist','releases','filesystem','remotePathMappings','indexerSchemas','downloadClientSettings','diskSpace','tasks','backups','updates','events'])assert.ok(catalog.some((item)=>item.key===key),key);
   await service.execute('movie','profiles','GET');
   await service.execute('movie','library','POST',{payload:{title:'New movie'}});
@@ -33,6 +37,12 @@ test('management gateway exposes native capabilities and forwards only allowlist
   ]);
   assert.deepEqual(calls[2][3],{moveFiles:'true'});
   assert.deepEqual(calls[4][2],{movieIds:[7],deleteFiles:false});
+  await service.execute('movie','customFormatSchemas','GET');
+  await service.execute('movie','restrictions','POST',{payload:{name:'No Italian',ignored:['ITA','ITALIAN']}});
+  await service.execute('tv','releaseProfiles','PUT',{id:9,payload:{id:9,name:'No Italian'}});
+  assert.deepEqual(calls.slice(-3).map((call)=>call.slice(0,2)),[
+    ['GET','customformat/schema'],['POST','restriction'],['PUT','releaseprofile/9']
+  ]);
   await assert.rejects(()=>service.execute('movie','system/status','DELETE',{id:1}),/not available/);
   await assert.rejects(()=>service.execute('movie','library','DELETE'),/identifier/);
 });
