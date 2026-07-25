@@ -37,6 +37,13 @@ against the following interaction groups.
   allowed quality groups, custom-format scores, and protected deletion.
 - Movie/series edit, search, refresh/scan, and safe library removal actions.
 - Missing and cutoff-unmet views with per-item searches.
+- Interactive release search and grab for movies, series, seasons, and episodes,
+  including source, quality, size, age, peers, custom-format score, and engine
+  rejection explanations. Repeated searches use a short-lived cache while grabs
+  are always revalidated live; series aggregation prioritizes missing episodes
+  and uses bounded parallel indexer requests.
+- Rename previews for movie and television library folders and files, with an
+  explicit apply step before the engine moves or renames media.
 - Queue progress, warnings, retry, and removal.
 - Guided schema-driven provider creation plus the complete advanced field
   representation returned by the service.
@@ -49,8 +56,7 @@ against the following interaction groups.
 
 The following still requires purpose-built interaction screens rather than only
 advanced gateway access: bulk library editing, folder import, discovery
-recommendations, interactive release search/grab with rejection explanations,
-manual import mapping, file rename preview/apply, collection management,
+recommendations, manual import mapping, collection management,
 season/episode bulk monitoring, blocklist/history actions, calendar display
 options, custom-format scoring designers, provider test/test-all actions,
 backup restore/download/delete, log-file download, and safe service restart.

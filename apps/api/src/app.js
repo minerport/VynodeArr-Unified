@@ -86,7 +86,7 @@ export function createApplication(options={}){
   const registry=options.registry||new MediaEngineRegistry().register('movie',movie).register('tv',tv);
   const sync=options.sync||new SynchronizationService({movie,tv,maxItems:baseConfig.cacheMaxItems,pollIntervalMs:baseConfig.pollIntervalMs,projectionStore});
   const management=new EngineManagementService(registry);
-  const importJobs=new Map(),searchJobs=new Map(),completedQueueRefreshes=new Map(),completedQueueCleanups=new Map();
+  const importJobs=new Map(),searchJobs=new Map(),completedQueueRefreshes=new Map(),completedQueueCleanups=new Map(),interactiveReleaseCache=new Map(),renamePlans=new Map();
   let initialized=false,queueCompletionTimer=null;
   function importIdentityKeys(value={}){
     const keys=[],title=String(value.title||value.name||'').trim().toLowerCase(),year=Number(value.year||0);
@@ -106,15 +106,26 @@ export function createApplication(options={}){
   };
   const eligibleRelease=(release)=>Boolean(release)&&release.rejected!==true&&release.approved!==false&&release.downloadAllowed!==false&&!(release.rejections||[]).length;
   const compareReleases=(left,right)=>qualityRank(right)-qualityRank(left)||Number(right.customFormatScore||0)-Number(left.customFormatScore||0)||Number(left.size||Number.MAX_SAFE_INTEGER)-Number(right.size||Number.MAX_SAFE_INTEGER);
-  async function televisionSeriesReleases(seriesId){
+  const releaseCacheTtlMs=45_000;
+  const releaseCacheKey=(domain,query)=>`${domain}:${Object.entries(query||{}).filter(([key,value])=>key!=='force'&&value!==undefined&&value!=='').sort(([left],[right])=>left.localeCompare(right)).map(([key,value])=>`${key}=${value}`).join('&')}`;
+  const clearReleaseCache=domain=>{for(const key of interactiveReleaseCache.keys())if(!domain||key.startsWith(`${domain}:`))interactiveReleaseCache.delete(key);};
+  async function cachedInteractiveReleases(domain,query,loader){
+    const key=releaseCacheKey(domain,query),now=Date.now(),cached=interactiveReleaseCache.get(key),force=String(query?.force||'')==='true';
+    if(!force&&cached&&cached.expiresAt>now)return cached.promise;
+    const promise=Promise.resolve().then(loader).then(result=>Array.isArray(result)?result:[]).catch(error=>{interactiveReleaseCache.delete(key);throw error;});
+    interactiveReleaseCache.set(key,{expiresAt:now+releaseCacheTtlMs,promise});
+    return promise;
+  }
+  async function televisionSeriesReleases(seriesId,seasonNumber){
     const episodes=await management.execute('tv','episodes','GET',{query:{seriesId:Number(seriesId),includeEpisodeFile:true}});
     const candidates=(Array.isArray(episodes)?episodes:[])
+      .filter(episode=>seasonNumber===undefined||seasonNumber===''||Number(episode.seasonNumber)===Number(seasonNumber))
       .filter(episode=>episode.monitored!==false)
       .sort((left,right)=>Number(Boolean(left.hasFile))-Number(Boolean(right.hasFile))||new Date(right.airDateUtc||right.airDate||0)-new Date(left.airDateUtc||left.airDate||0));
-    const releases=[],seen=new Set(),batchSize=4,limit=Math.min(candidates.length,40);
+    const releases=[],seen=new Set(),batchSize=8,limit=Math.min(candidates.length,40);
     for(let offset=0;offset<limit;offset+=batchSize){
       const episodeBatch=candidates.slice(offset,offset+batchSize);
-      const batch=await Promise.all(episodeBatch.map(episode=>management.execute('tv','releases','GET',{query:{episodeId:Number(episode.id)}}).catch(()=>[])));
+      const batch=await Promise.all(episodeBatch.map(episode=>{const query={episodeId:Number(episode.id)};return cachedInteractiveReleases('tv',query,()=>management.execute('tv','releases','GET',{query})).catch(()=>[]);}));
       for(let batchIndex=0;batchIndex<batch.length;batchIndex++)for(const rawRelease of Array.isArray(batch[batchIndex])?batch[batchIndex]:[]){
         const release={...rawRelease,episodeId:Number(rawRelease.episodeId||episodeBatch[batchIndex].id)};
         const key=String(release.guid||release.downloadUrl||release.title||'');
@@ -183,6 +194,18 @@ export function createApplication(options={}){
     const separator=String(root||'').includes('\\')?'\\':'/';
     return `${String(root||'').replace(/[\\/]+$/,'')}${separator}${String(folder||'').replace(/^[\\/]+/,'')}`;
   };
+  const renameMediaSignature=record=>JSON.stringify({
+    id:record.id,path:normalizeMediaPath(record.path),sizeOnDisk:Number(record.sizeOnDisk||record.statistics?.sizeOnDisk||0),
+    movieFile:record.movieFile?{id:record.movieFile.id,relativePath:record.movieFile.relativePath,size:record.movieFile.size,dateAdded:record.movieFile.dateAdded}:null,
+    statistics:record.statistics?{episodeFileCount:record.statistics.episodeFileCount,episodeCount:record.statistics.episodeCount,sizeOnDisk:record.statistics.sizeOnDisk}:null,
+    seasons:Array.isArray(record.seasons)?record.seasons.map(season=>({seasonNumber:season.seasonNumber,statistics:season.statistics?{episodeFileCount:season.statistics.episodeFileCount,sizeOnDisk:season.statistics.sizeOnDisk}:null})):null
+  });
+  function saveRenamePlan(preview,record){
+    const previewId=randomUUID(),now=Date.now();
+    renamePlans.set(previewId,{preview,signature:renameMediaSignature(record),expiresAt:now+2*60*1000});
+    if(renamePlans.size>500)for(const[id,plan]of renamePlans)if(plan.expiresAt<=now)renamePlans.delete(id);
+    return{...preview,previewId,expiresAt:new Date(now+2*60*1000).toISOString()};
+  }
   async function renameMediaPreview(input){
     const domain=String(input.domain||''),mediaId=Number(input.mediaId);
     if(!['movie','tv'].includes(domain)||!Number.isFinite(mediaId))throw new Error('Choose a movie or television series to organize');
@@ -193,7 +216,7 @@ export function createApplication(options={}){
     const rootFolderPath=String(record.rootFolderPath||parentMediaPath(record.path));
     const destinationPath=joinMediaPath(rootFolderPath,folder);
     const renameItems=await management.execute(domain,'renamePreview','GET',{query:domain==='movie'?{movieId:mediaId}:{seriesId:mediaId}});
-    return{
+    const preview={
       domain,mediaId,title:record.title,currentPath:record.path,rootFolderPath,destinationPath,folderChange:normalizeMediaPath(record.path)!==normalizeMediaPath(destinationPath),
       files:(Array.isArray(renameItems)?renameItems:[]).map(item=>({
         id:item.movieFileId??item.episodeFileId??item.id,
@@ -201,11 +224,20 @@ export function createApplication(options={}){
         newPath:item.newPath||''
       }))
     };
+    return input.storePlan===false?preview:saveRenamePlan(preview,record);
   }
   async function renameMedia(input){
-    const preview=await renameMediaPreview(input),domain=preview.domain,mediaId=preview.mediaId;
+    let preview,record;
+    if(input.previewId){
+      const previewId=String(input.previewId),plan=renamePlans.get(previewId);renamePlans.delete(previewId);
+      if(!plan||plan.expiresAt<=Date.now())throw new Error('This rename preview expired. Generate a fresh preview before applying changes.');
+      preview=plan.preview;record=await management.execute(preview.domain,'library','GET',{id:preview.mediaId});
+      if((input.domain&&input.domain!==preview.domain)||(input.mediaId&&Number(input.mediaId)!==preview.mediaId))throw new Error('This rename preview does not match the selected media.');
+      if(renameMediaSignature(record)!==plan.signature)throw new Error('This media changed after the rename preview was created. Generate a fresh preview before applying changes.');
+    }else preview=await renameMediaPreview({...input,storePlan:false});
+    const domain=preview.domain,mediaId=preview.mediaId;
     if(preview.folderChange){
-      const record=await management.execute(domain,'library','GET',{id:mediaId});
+      record||=await management.execute(domain,'library','GET',{id:mediaId});
       await management.execute(domain,'library','PUT',{id:mediaId,query:{moveFiles:true},payload:{...record,path:preview.destinationPath,rootFolderPath:preview.rootFolderPath}});
     }
     const command=await management.execute(domain,'commands','POST',{payload:domain==='movie'?{name:'RenameMovie',movieIds:[mediaId]}:{name:'RenameSeries',seriesIds:[mediaId]}});
@@ -700,6 +732,7 @@ export function createApplication(options={}){
           if(!accepted.length)throw new Error('No accepted releases matched the configured quality profile and restrictions');
           accepted.sort(compareReleases);
           const selected=accepted[0],result=await management.execute(domain,'releases','POST',{payload:await reacquireRelease(domain,selected)});
+          clearReleaseCache(domain);
           return json(res,201,{result,selection:{title:selected.title,quality:selected.quality?.quality?.name||selected.quality?.name||'Unknown',size:Number(selected.size||0),acceptedCandidates:accepted.length}});
         }
         const managementMatch=url.pathname.match(/^\/api\/manage\/(movie|tv)\/([A-Za-z][A-Za-z0-9]*)(?:\/([A-Za-z0-9_-]+))?$/);
@@ -710,13 +743,17 @@ export function createApplication(options={}){
           const input=method==='GET'?{}:await body(req);
           const query=Object.fromEntries(url.searchParams);
           let result;
-          if(managementMatch[1]==='tv'&&managementMatch[2]==='releases'&&method==='GET'&&query.seriesId)result=await televisionSeriesReleases(query.seriesId);
+          if(managementMatch[2]==='releases'&&method==='GET'){
+            const domain=managementMatch[1],load=()=>domain==='tv'&&query.seriesId?televisionSeriesReleases(query.seriesId,query.seasonNumber):management.execute(domain,'releases','GET',{query:Object.fromEntries(Object.entries(query).filter(([key])=>key!=='force'))});
+            result=await cachedInteractiveReleases(domain,query,load);
+            if(domain==='tv'&&!query.seriesId)result=await explainEmptyTelevisionSearch(query,result);
+          }
           else{
             const payload=managementMatch[2]==='releases'&&method==='POST'?await reacquireRelease(managementMatch[1],input):input;
             result=await management.execute(managementMatch[1],managementMatch[2],method,{id:managementMatch[3],query,payload});
-            if(managementMatch[1]==='tv'&&managementMatch[2]==='releases'&&method==='GET')result=await explainEmptyTelevisionSearch(query,result);
           }
           if(method!=='GET'){
+            if(['releases','indexers','profiles','customFormats','delayProfiles','restrictions'].includes(managementMatch[2]))clearReleaseCache(managementMatch[1]);
             const audit=await auditStore.read(),entries=Array.isArray(audit.entries)?audit.entries:[];
             entries.unshift({id:`change_${randomUUID()}`,timestamp:new Date().toISOString(),userId:session.user.id,username:session.user.username,domain:managementMatch[1],resource:managementMatch[2],method,resourceId:managementMatch[3]||null});
             await auditStore.write({version:1,entries:entries.slice(0,1000)});

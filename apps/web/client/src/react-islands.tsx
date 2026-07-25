@@ -1,124 +1,73 @@
 import { createRoot,type Root } from 'react-dom/client';
-import { DashboardAnalyticsView } from './dashboard-analytics';
-import { DashboardView } from './dashboard';
 import type { DashboardAnalytics,DashboardData } from './dashboard-types';
-import { LibraryView } from './library';
 import type { LibraryMountOptions } from './library-types';
-import { HistoryView } from './history';
 import type { HistoryMountOptions } from './history-types';
-import { QueueView } from './queue';
 import type { QueueMountOptions } from './queue-types';
-import { WantedView } from './wanted';
 import type { WantedMountOptions } from './wanted-types';
-import { CalendarView } from './calendar';
 import type { CalendarMountOptions } from './calendar-types';
-import { MovieDetailView } from './movie-detail';
 import type { MovieDetailMountOptions } from './movie-detail-types';
-import { TvDetailView } from './tv-detail';
 import type { TvDetailMountOptions } from './tv-detail-types';
 
-let dashboardRoot:Root|null=null;
-let dashboardElement:HTMLElement|null=null;
-let fullDashboardRoot:Root|null=null;
-let libraryRoot:Root|null=null;
-let historyRoot:Root|null=null;
-let queueRoot:Root|null=null;
-let wantedRoot:Root|null=null;
-let calendarRoot:Root|null=null;
-let movieDetailRoot:Root|null=null;
-let tvDetailRoot:Root|null=null;
+let dashboardRoot:Root|null=null,dashboardElement:HTMLElement|null=null,fullDashboardRoot:Root|null=null,libraryRoot:Root|null=null,historyRoot:Root|null=null,queueRoot:Root|null=null,wantedRoot:Root|null=null,calendarRoot:Root|null=null,movieDetailRoot:Root|null=null,tvDetailRoot:Root|null=null;
+const loading=(label:string)=><div className="panel skeleton react-route-loading">Loading {label}…</div>;
 
-function unmountDashboardAnalytics(){
-  dashboardRoot?.unmount();
-  dashboardRoot=null;
-  dashboardElement=null;
-}
-
+function unmountDashboardAnalytics(){dashboardRoot?.unmount();dashboardRoot=null;dashboardElement=null;}
 function mountDashboardAnalytics(element:HTMLElement,analytics:DashboardAnalytics){
-  unmountDashboardAnalytics();
-  dashboardElement=element;
-  dashboardRoot=createRoot(element);
-  dashboardRoot.render(<DashboardAnalyticsView analytics={analytics}/>);
+  unmountDashboardAnalytics();dashboardElement=element;const root=createRoot(element);dashboardRoot=root;root.render(loading('analytics'));
+  void import('./dashboard-analytics').then(({DashboardAnalyticsView})=>{if(dashboardRoot===root)root.render(<DashboardAnalyticsView analytics={analytics}/>);});
 }
-
-function unmountDashboard(){
-  fullDashboardRoot?.unmount();
-  fullDashboardRoot=null;
-}
-
+function unmountDashboard(){fullDashboardRoot?.unmount();fullDashboardRoot=null;}
 function mountDashboard(element:HTMLElement,data:DashboardData){
-  unmountDashboard();
-  unmountDashboardAnalytics();
-  fullDashboardRoot=createRoot(element);
-  fullDashboardRoot.render(<DashboardView data={data}/>);
+  unmountDashboard();unmountDashboardAnalytics();const root=createRoot(element);fullDashboardRoot=root;root.render(loading('dashboard'));
+  void import('./dashboard').then(({DashboardView})=>{if(fullDashboardRoot===root)root.render(<DashboardView data={data}/>);});
 }
-
 function unmountLibrary(){libraryRoot?.unmount();libraryRoot=null;}
 function mountLibrary(element:HTMLElement,options:LibraryMountOptions){
-  unmountLibrary();
-  libraryRoot=createRoot(element);
-  libraryRoot.render(<LibraryView options={options}/>);
+  unmountLibrary();const root=createRoot(element);libraryRoot=root;root.render(loading(options.kind==='movies'?'movies':'television'));
+  void import('./library').then(({LibraryView})=>{if(libraryRoot===root)root.render(<LibraryView options={options}/>);});
 }
 function unmountHistory(){historyRoot?.unmount();historyRoot=null;}
 function mountHistory(element:HTMLElement,options:HistoryMountOptions){
-  unmountHistory();
-  historyRoot=createRoot(element);
-  historyRoot.render(<HistoryView options={options}/>);
+  unmountHistory();const root=createRoot(element);historyRoot=root;root.render(loading('history'));
+  void import('./history').then(({HistoryView})=>{if(historyRoot===root)root.render(<HistoryView options={options}/>);});
 }
 function unmountQueue(){queueRoot?.unmount();queueRoot=null;}
 function mountQueue(element:HTMLElement,options:QueueMountOptions){
-  unmountQueue();
-  queueRoot=createRoot(element);
-  queueRoot.render(<QueueView options={options}/>);
+  unmountQueue();const root=createRoot(element);queueRoot=root;root.render(loading('queue'));
+  void import('./queue').then(({QueueView})=>{if(queueRoot===root)root.render(<QueueView options={options}/>);});
 }
 function unmountWanted(){wantedRoot?.unmount();wantedRoot=null;}
 function mountWanted(element:HTMLElement,options:WantedMountOptions){
-  unmountWanted();
-  wantedRoot=createRoot(element);
-  wantedRoot.render(<WantedView options={options}/>);
+  unmountWanted();const root=createRoot(element);wantedRoot=root;root.render(loading('wanted media'));
+  void import('./wanted').then(({WantedView})=>{if(wantedRoot===root)root.render(<WantedView options={options}/>);});
 }
 function unmountCalendar(){calendarRoot?.unmount();calendarRoot=null;}
 function mountCalendar(element:HTMLElement,options:CalendarMountOptions){
-  unmountCalendar();
-  calendarRoot=createRoot(element);
-  calendarRoot.render(<CalendarView options={options}/>);
+  unmountCalendar();const root=createRoot(element);calendarRoot=root;root.render(loading('calendar'));
+  void import('./calendar').then(({CalendarView})=>{if(calendarRoot===root)root.render(<CalendarView options={options}/>);});
 }
 function unmountMovieDetail(){movieDetailRoot?.unmount();movieDetailRoot=null;}
 function mountMovieDetail(element:HTMLElement,options:MovieDetailMountOptions){
-  unmountMovieDetail();
-  movieDetailRoot=createRoot(element);
-  movieDetailRoot.render(<MovieDetailView options={options}/>);
+  unmountMovieDetail();const root=createRoot(element);movieDetailRoot=root;root.render(loading('movie details'));
+  void import('./movie-detail').then(({MovieDetailView})=>{if(movieDetailRoot===root)root.render(<MovieDetailView options={options}/>);});
 }
 function unmountTvDetail(){tvDetailRoot?.unmount();tvDetailRoot=null;}
 function mountTvDetail(element:HTMLElement,options:TvDetailMountOptions){
-  unmountTvDetail();
-  tvDetailRoot=createRoot(element);
-  tvDetailRoot.render(<TvDetailView options={options}/>);
+  unmountTvDetail();const root=createRoot(element);tvDetailRoot=root;root.render(loading('television details'));
+  void import('./tv-detail').then(({TvDetailView})=>{if(tvDetailRoot===root)root.render(<TvDetailView options={options}/>);});
 }
 
 declare global {
-  interface Window {
-    VynodeArrReact?:{
-      mountDashboard:(element:HTMLElement,data:DashboardData)=>void;
-      unmountDashboard:()=>void;
-      mountDashboardAnalytics:(element:HTMLElement,analytics:DashboardAnalytics)=>void;
-      unmountDashboardAnalytics:()=>void;
-      mountLibrary:(element:HTMLElement,options:LibraryMountOptions)=>void;
-      unmountLibrary:()=>void;
-      mountHistory:(element:HTMLElement,options:HistoryMountOptions)=>void;
-      unmountHistory:()=>void;
-      mountQueue:(element:HTMLElement,options:QueueMountOptions)=>void;
-      unmountQueue:()=>void;
-      mountWanted:(element:HTMLElement,options:WantedMountOptions)=>void;
-      unmountWanted:()=>void;
-      mountCalendar:(element:HTMLElement,options:CalendarMountOptions)=>void;
-      unmountCalendar:()=>void;
-      mountMovieDetail:(element:HTMLElement,options:MovieDetailMountOptions)=>void;
-      unmountMovieDetail:()=>void;
-      mountTvDetail:(element:HTMLElement,options:TvDetailMountOptions)=>void;
-      unmountTvDetail:()=>void;
-    };
-  }
+  interface Window {VynodeArrReact?:{
+    mountDashboard:(element:HTMLElement,data:DashboardData)=>void;unmountDashboard:()=>void;
+    mountDashboardAnalytics:(element:HTMLElement,analytics:DashboardAnalytics)=>void;unmountDashboardAnalytics:()=>void;
+    mountLibrary:(element:HTMLElement,options:LibraryMountOptions)=>void;unmountLibrary:()=>void;
+    mountHistory:(element:HTMLElement,options:HistoryMountOptions)=>void;unmountHistory:()=>void;
+    mountQueue:(element:HTMLElement,options:QueueMountOptions)=>void;unmountQueue:()=>void;
+    mountWanted:(element:HTMLElement,options:WantedMountOptions)=>void;unmountWanted:()=>void;
+    mountCalendar:(element:HTMLElement,options:CalendarMountOptions)=>void;unmountCalendar:()=>void;
+    mountMovieDetail:(element:HTMLElement,options:MovieDetailMountOptions)=>void;unmountMovieDetail:()=>void;
+    mountTvDetail:(element:HTMLElement,options:TvDetailMountOptions)=>void;unmountTvDetail:()=>void;
+  }}
 }
-
 window.VynodeArrReact={mountDashboard,unmountDashboard,mountDashboardAnalytics,unmountDashboardAnalytics,mountLibrary,unmountLibrary,mountHistory,unmountHistory,mountQueue,unmountQueue,mountWanted,unmountWanted,mountCalendar,unmountCalendar,mountMovieDetail,unmountMovieDetail,mountTvDetail,unmountTvDetail};
