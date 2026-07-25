@@ -5,7 +5,7 @@ import './react-selection-rules.css';
 const list=(value:unknown)=>Array.isArray(value)?value.map(String):String(value||'').split(',').map(item=>item.trim()).filter(Boolean);
 const numbers=(value:unknown)=>Array.isArray(value)?value.map(Number).filter(Number.isFinite):[];
 const errorMessage=(reason:unknown)=>reason instanceof Error?reason.message:'The engine settings could not be updated.';
-const releaseResource=()=> 'releaseProfiles';
+const releaseResource=(_domain:SelectionDomain)=>'releaseProfiles';
 const clone=<T,>(value:T):T=>structuredClone(value);
 const labelFor=(value:ApiRecord)=>String(value.label||value.name||value.implementationName||value.implementation||'Condition');
 const fieldOptions=(field:NativeField)=>{
