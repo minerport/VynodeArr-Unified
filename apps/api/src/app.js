@@ -471,26 +471,26 @@ export function createApplication(options={}){
     const results=await Promise.all(['movie','tv'].map(async domain=>{
       const client=registry.get(domain).client;
       const queueQuery=domain==='movie'
-        ?{page:1,pageSize:500,includeUnknownMovieItems:false,includeMovie:true}
-        :{page:1,pageSize:500,includeUnknownSeriesItems:false,includeSeries:true,includeEpisode:true};
+        ?{page:1,pageSize:500,includeUnknownMovieItems:true,includeMovie:true}
+        :{page:1,pageSize:500,includeUnknownSeriesItems:true,includeSeries:true,includeEpisode:true};
       const [queueValue,library,historyValue]=await Promise.all([
         client.get('queue',queueQuery),
         client.get(domain==='movie'?'movie':'series').catch(()=>[]),
         client.get('history',{page:1,pageSize:500,sortKey:'date',sortDirection:'descending'}).catch(()=>({records:[]}))
       ]);
-      const engineRecords=Array.isArray(queueValue?.records)?queueValue.records:[],records=engineRecords.filter(item=>{
-        const linkedId=Number(domain==='movie'?(item.movieId||item.movie?.id):(item.seriesId||item.series?.id||item.episode?.seriesId));
-        return Number.isFinite(linkedId)&&linkedId>0;
-      }),libraryById=new Map((Array.isArray(library)?library:[]).map(item=>[Number(item.id),item]));
+      const records=Array.isArray(queueValue?.records)?queueValue.records:[],libraryById=new Map((Array.isArray(library)?library:[]).map(item=>[Number(item.id),item]));
       const importedHistory=(Array.isArray(historyValue?.records)?historyValue.records:[]).filter(event=>String(event.eventType).toLowerCase()==='downloadfolderimported');
       const importedDownloadIds=new Set(importedHistory.map(event=>String(event.downloadId||event.data?.downloadId||'')).filter(Boolean));
       const importedSourceTitles=new Set(importedHistory.map(event=>String(event.sourceTitle||'').toLowerCase()).filter(Boolean));
+      const imported=item=>{
+        const downloadId=String(item.downloadId||item.downloadClientId||''),sourceTitle=String(item.title||'').toLowerCase();
+        return downloadId?importedDownloadIds.has(downloadId):Boolean(sourceTitle&&importedSourceTitles.has(sourceTitle));
+      };
       for(const item of records){
         const mediaId=Number(domain==='movie'?(item.movieId||item.movie?.id):(item.seriesId||item.series?.id||item.episode?.seriesId));
         const status=String(item.status||item.trackedDownloadStatus||item.trackedDownloadState||'').toLowerCase(),sizeLeft=Number(item.sizeleft??item.sizeLeft??0),terminal=(status==='completed'||status==='complete')&&sizeLeft<=0;
         if(!terminal)continue;
-        const downloadId=String(item.downloadId||item.downloadClientId||''),sourceTitle=String(item.title||'').toLowerCase();
-        const confirmedImported=downloadId?importedDownloadIds.has(downloadId):Boolean(sourceTitle&&importedSourceTitles.has(sourceTitle));
+        const confirmedImported=imported(item);
         if(confirmedImported){
           const key=queueRecordKey(domain,item),last=completedQueueCleanups.get(key)||0,now=Date.now();
           if(item.id!=null&&now-last>30*60*1000){
@@ -500,12 +500,9 @@ export function createApplication(options={}){
         }else scheduleCompletedMediaRefresh(domain,item);
       }
       return records.filter(item=>{
-        const mediaId=Number(domain==='movie'?(item.movieId||item.movie?.id):(item.seriesId||item.series?.id||item.episode?.seriesId));
-        const status=String(item.status||item.trackedDownloadStatus||item.trackedDownloadState||'').toLowerCase(),sizeLeft=Number(item.sizeleft??item.sizeLeft??0);
-        const noLongerActive=(status==='completed'||status==='complete')&&sizeLeft<=0;
-        return !noLongerActive&&!completedQueueItemHasArrived(item,domain,libraryById.get(mediaId));
+        return !imported(item);
       }).map(item=>{
-        const mediaId=Number(domain==='movie'?(item.movieId||item.movie?.id):(item.seriesId||item.series?.id||item.episode?.seriesId)),media=item[domain==='movie'?'movie':'series']||libraryById.get(mediaId)||null,size=Number(item.size||0),sizeLeft=Number(item.sizeleft??item.sizeLeft??0),percentage=size>0?(size-sizeLeft)/size*100:null;
+        const linkedId=Number(domain==='movie'?(item.movieId||item.movie?.id):(item.seriesId||item.series?.id||item.episode?.seriesId)),mediaId=Number.isFinite(linkedId)&&linkedId>0?linkedId:null,media=item[domain==='movie'?'movie':'series']||(mediaId?libraryById.get(mediaId):null)||null,size=Number(item.size||0),sizeLeft=Number(item.sizeleft??item.sizeLeft??0),percentage=size>0?(size-sizeLeft)/size*100:null;
         return{...item,domain,media,mediaId,clientStatus:item.status||item.trackedDownloadState||null,clientFilename:item.title||null,clientPercentage:Number.isFinite(percentage)?percentage:null,clientTimeLeft:item.timeleft||item.estimatedCompletionTime||null,clientSizeLeftMb:Number.isFinite(sizeLeft)?sizeLeft/1048576:null,clientSpeed:null};
       });
     }));

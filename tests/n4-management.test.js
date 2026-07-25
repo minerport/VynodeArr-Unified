@@ -57,9 +57,10 @@ test('native interaction workflows replace an upstream-shaped generic shell',asy
   for(const workflow of ['/api/media-match','rematchMedia','addImportExclusion:false','addImportListExclusion:false','The original match was restored when possible','Fix match'])assert.ok(script.includes(workflow)||apiSource.includes(workflow),workflow);
   for(const workflow of ['quality-range-track','data-control="range"','qualityDefinitionLimits','data-dirty="true"','Save limits to engine',"`/api/manage/${domain.value}/qualityDefinitions/${payload.id}`","method:'PUT'"])assert.ok(script.includes(workflow),workflow);
   for(const workflow of ['liveQueue','includeMovie:true','includeSeries:true','includeEpisode:true','trackedDownloadState','clientStatus','clientFilename','/api/activity/queue/live'])assert.ok(apiSource.includes(workflow));
-  assert.ok(apiSource.includes('includeUnknownMovieItems:false'));
-  assert.ok(apiSource.includes('includeUnknownSeriesItems:false'));
-  assert.ok(apiSource.includes('Number.isFinite(linkedId)&&linkedId>0'),'live queue must exclude download-client jobs that are not linked to engine media');
+  assert.ok(apiSource.includes('includeUnknownMovieItems:true'));
+  assert.ok(apiSource.includes('includeUnknownSeriesItems:true'));
+  assert.ok(apiSource.includes('mediaId=Number.isFinite(linkedId)&&linkedId>0?linkedId:null'),'live queue must retain unmatched engine records without inventing a media link');
+  assert.ok(apiSource.includes('return !imported(item)'),'live queue must retain paused and completed-pending-import records until import history confirms completion');
   assert.ok(!apiSource.includes("apikey:apiKey"),'live queue must rely on the engines authenticated client polling, not masked provider credentials');
   for(const workflow of ['tvMetadataArtwork','api.tvmaze.com/lookup/shows','api.tvmaze.com/shows/${show.id}/seasons','episodebynumber','static.tvmaze.com'])assert.ok(apiSource.includes(workflow));
   for(const workflow of ['showEngineManagement','Repair automatic connections','external-engine-settings','Engine keys are created once during installation','Changing this key affects external applications','Seerr and every other connected application','/api/settings/engines/repair'])assert.ok(script.includes(workflow));

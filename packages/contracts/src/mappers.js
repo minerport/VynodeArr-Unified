@@ -125,9 +125,10 @@ export function queueItem(record, domain) {
 export function historyItem(record, domain) {
   const media = domain === 'movie' ? record.movie : record.series;
   const publicMediaId=media?.id ? `${domain === 'movie' ? 'movie' : 'series'}_${media.id}` : null;
+  const episode=record.episode,context=domain==='tv'&&episode?`S${String(episode.seasonNumber??0).padStart(2,'0')}E${String(episode.episodeNumber??0).padStart(2,'0')}${episode.title?` · ${episode.title}`:''}`:null;
   return {
     id: `${domain}_history_${record.id}`, domain, mediaId: publicMediaId,
-    title: media?.title || record.sourceTitle || 'Media event', artwork: publicMediaId?{url:`/api/artwork/${domain}/${publicMediaId}/poster`,kind:'poster',width:0,height:0}:artwork([]),
+    title: media?.title || record.sourceTitle || 'Media event', context, artwork: publicMediaId?{url:`/api/artwork/${domain}/${publicMediaId}/poster`,kind:'poster',width:0,height:0}:artwork([]),
     eventType: record.eventType || 'unknown', quality: record.quality?.quality?.name || null,
     timestamp: safeDate(record.date), details: record.data?.message || null
   };

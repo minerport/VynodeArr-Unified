@@ -5,6 +5,7 @@ export interface HistoryItem {
   domain:HistoryDomain;
   mediaId?:string|null;
   title:string;
+  context?:string|null;
   eventType?:string;
   quality?:string|null;
   timestamp?:string|null;

@@ -5,7 +5,7 @@ import test from 'node:test';
 const read=(path)=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
 test('the complete dashboard has a React view with a legacy-safe bridge',async()=>{
-  const [packageJson,index,app,entry,dashboard,analytics,library,libraryCss,libraryTypes,history,queue,wanted,calendar,movieDetail,tvDetail,collections,collectionTypes,addMedia,addMediaTypes,bundleBudget,unraidDockerfile]=await Promise.all([
+  const [packageJson,index,app,entry,dashboard,analytics,library,libraryCss,libraryTypes,history,queue,wanted,calendar,movieDetail,tvDetail,collections,collectionTypes,addMedia,addMediaTypes,health,healthTypes,bundleBudget,unraidDockerfile]=await Promise.all([
     read('package.json'),
     read('apps/web/public/index.html'),
     read('apps/web/public/app.js'),
@@ -25,6 +25,8 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
     read('apps/web/client/src/collection-types.ts'),
     read('apps/web/client/src/add-media.tsx'),
     read('apps/web/client/src/add-media-types.ts'),
+    read('apps/web/client/src/health.tsx'),
+    read('apps/web/client/src/health-types.ts'),
     read('scripts/check-web-bundle.mjs'),
     read('Dockerfile.unraid')
   ]);
@@ -62,6 +64,9 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(entry,/mountAddMedia/);
   assert.match(entry,/unmountAddMedia/);
   assert.match(entry,/import\('\.\/add-media'\)/);
+  assert.match(entry,/mountHealth/);
+  assert.match(entry,/unmountHealth/);
+  assert.match(entry,/import\('\.\/health'\)/);
   assert.match(dashboard,/Recently added/);
   assert.match(dashboard,/Recent events/);
   assert.match(analytics,/DashboardAnalyticsView/);
@@ -79,7 +84,11 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(library,/\/api\/media\/tv\/\$\{encodeURIComponent\(item\.id\)\}/);
   assert.match(libraryCss,/content-visibility:auto/);
   assert.match(libraryTypes,/LibraryMountOptions/);
-  assert.match(history,/Retry organize/);
+  assert.match(history,/Organize again/);
+  assert.match(history,/Imported into library/);
+  assert.match(history,/Download grabbed/);
+  assert.match(history,/event\.organizable/);
+  assert.match(history,/Activity type/);
   assert.match(history,/Find activity/);
   assert.match(queue,/Select all completed/);
   assert.match(queue,/\/api\/activity\/queue\/live/);
@@ -122,6 +131,12 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(addMedia,/seasonFolder:true/);
   assert.match(addMediaTypes,/interface AddMediaMountOptions/);
   assert.match(app,/showAddMediaReact/);
+  assert.match(health,/export function HealthView/);
+  assert.match(health,/Review root folders/);
+  assert.match(health,/Review download clients/);
+  assert.match(healthTypes,/interface HealthMountOptions/);
+  assert.match(app,/showHealthReact/);
+  assert.doesNotMatch(app,/function healthFix/);
   assert.match(manifest.scripts.verify,/check:web-bundle/);
   assert.match(bundleBudget,/limits=\{entry:300_000,route:45_000,css:50_000\}/);
   assert.match(unraidDockerfile,/FROM node:24-alpine AS web-build/);
