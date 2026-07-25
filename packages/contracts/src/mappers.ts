@@ -26,7 +26,7 @@ export const completedQueueItemHasArrived = (record, domain, libraryRecord = nul
   return Boolean(record?.episode?.hasFile || record?.episodeFileId || record?.episode?.episodeFile?.id);
 };
 
-export function movieSummary(record, context = {}) {
+export function movieSummary(record, context: any = {}) {
   if (!record || record.id == null || !record.title) throw new TypeError('Invalid movie record');
   const hasFile = Boolean(record.hasFile || record.movieFile || Number(record.sizeOnDisk || 0) > 0);
   return assertModel('MovieSummary', {
@@ -44,7 +44,7 @@ export function movieSummary(record, context = {}) {
   });
 }
 
-export function movieDetails(record, context = {}) {
+export function movieDetails(record, context: any = {}) {
   const summary = movieSummary(record, context);
   return {
     ...summary, overview: record.overview || '', runtimeMinutes: Number(record.runtime || 0),
@@ -62,7 +62,7 @@ export function movieDetails(record, context = {}) {
   };
 }
 
-export function seriesSummary(record, context = {}) {
+export function seriesSummary(record, context: any = {}) {
   if (!record || record.id == null || !record.title) throw new TypeError('Invalid series record');
   const statistics = record.statistics || {};
   const episodeCount = Number(statistics.episodeCount || 0);
@@ -85,7 +85,7 @@ export function seriesSummary(record, context = {}) {
   });
 }
 
-export function seriesDetails(record, episodes = [], context = {}) {
+export function seriesDetails(record, episodes = [], context: any = {}) {
   const summary = seriesSummary(record, context);
   const seasons = (record.seasons || []).map((season) => {
     const seasonEpisodes = episodes.filter((episode) => episode.seasonNumber === season.seasonNumber);
