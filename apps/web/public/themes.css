@@ -1,0 +1,64 @@
+:root {
+  --input: #080e19;
+}
+
+[data-theme="obsidian"] {
+  --bg:#07090d; --panel:#0d1118; --panel2:#151b24; --line:#2a3442; --text:#f3f6fa;
+  --muted:#8995a6; --accent:#9aa8bd; --cyan:#6fc7d9; --green:#72d6a3; --warm:#e7b66f; --input:#090d13;
+}
+[data-theme="aurora"] {
+  --bg:#06100f; --panel:#0a1a19; --panel2:#102624; --line:#1c403d; --text:#effffc;
+  --muted:#82aaa5; --accent:#8a6cff; --cyan:#2ee6c4; --green:#5ee397; --warm:#ffd173; --input:#071512;
+}
+[data-theme="cyber"] {
+  --bg:#050b18; --panel:#091327; --panel2:#101e38; --line:#1c3f67; --text:#eff7ff;
+  --muted:#7f9db9; --accent:#3578ff; --cyan:#22d8ff; --green:#44e6a1; --warm:#ffca63; --input:#071022;
+}
+[data-theme="nebula"] {
+  --bg:#0c0716; --panel:#160d25; --panel2:#211438; --line:#43265e; --text:#fbf3ff;
+  --muted:#a48bb4; --accent:#b45cff; --cyan:#ef67db; --green:#74dda7; --warm:#ffba70; --input:#11091e;
+}
+[data-theme="synthwave"] {
+  --bg:#100716; --panel:#1a0d24; --panel2:#29143a; --line:#512462; --text:#fff1fc;
+  --muted:#b188b1; --accent:#ff4fc3; --cyan:#32e4ff; --green:#62e6a7; --warm:#ffd45c; --input:#15091d;
+}
+[data-theme="oceanic"] {
+  --bg:#061018; --panel:#0a1b26; --panel2:#102a38; --line:#1d4558; --text:#effbff;
+  --muted:#82a6b4; --accent:#2c8cff; --cyan:#31d9d0; --green:#57daa0; --warm:#f3c66e; --input:#071720;
+}
+[data-theme="ember"] {
+  --bg:#120a08; --panel:#1d110e; --panel2:#2b1914; --line:#573128; --text:#fff6f1;
+  --muted:#b39a90; --accent:#ff7043; --cyan:#f0a65b; --green:#7ed69c; --warm:#ffc05f; --input:#170d0b;
+}
+[data-theme="matrix"] {
+  --bg:#050d08; --panel:#09170e; --panel2:#102519; --line:#1d482b; --text:#effff3;
+  --muted:#7ba58a; --accent:#48db65; --cyan:#20ef8b; --green:#61e77b; --warm:#cfe86e; --input:#07130b;
+}
+[data-theme="frost"] {
+  --bg:#081018; --panel:#0e1924; --panel2:#162534; --line:#2a475c; --text:#f4fbff;
+  --muted:#91a9b9; --accent:#80a7ff; --cyan:#70e1ee; --green:#7bddb7; --warm:#f6cc83; --input:#0a151f;
+}
+
+[data-theme="light"], [data-theme="system"] {
+  filter:none;
+}
+[data-theme="light"] img, [data-theme="system"] img {
+  filter:none;
+}
+
+body, aside, header, .panel, .card, input, select, textarea, button {
+  transition:background-color .2s ease,border-color .2s ease,color .2s ease;
+}
+aside, header {
+  background-color:color-mix(in srgb,var(--bg) 94%,transparent);
+}
+input, select, textarea {
+  background-color:var(--input);
+  color:var(--text);
+}
+.primary {
+  background:linear-gradient(135deg,var(--accent),color-mix(in srgb,var(--accent) 72%,#000));
+}
+.summary, .metric {
+  background:linear-gradient(135deg,var(--panel2),var(--panel));
+}

@@ -757,6 +757,23 @@ export function createApplication(options={}){
           clearReleaseCache(domain);
           return json(res,201,{result,selection:{title:selected.title,quality:selected.quality?.quality?.name||selected.quality?.name||'Unknown',size:Number(selected.size||0),acceptedCandidates:accepted.length}});
         }
+        if(url.pathname==='/api/manage/queue/bulk-delete'&&req.method==='POST'){
+          if(!administrator(res,session)||!requireCsrf(req,res,session))return;
+          const input=await body(req),items=Array.isArray(input.items)?input.items.slice(0,250):[];
+          if(!items.length)throw new Error('Choose at least one queue item to remove');
+          const results=await Promise.allSettled(items.map(item=>{
+            const domain=item?.domain;
+            if(!['movie','tv'].includes(domain)||!item?.id)return Promise.reject(new Error('A queue item is missing its engine or identifier'));
+            return management.execute(domain,'queue','DELETE',{id:String(item.id),query:{removeFromClient:String(input.removeFromClient!==false),blocklist:String(input.blocklist===true)},payload:{}});
+          }));
+          const removed=[],failed=[];
+          results.forEach((result,index)=>{
+            const item=items[index];
+            if(result.status==='fulfilled')removed.push({domain:item.domain,id:item.id});
+            else failed.push({domain:item.domain,id:item.id,message:result.reason instanceof Error?result.reason.message:String(result.reason)});
+          });
+          return json(res,failed.length?207:200,{removed,failed,items:mode==='engine'?await liveQueue():await sync.operations('queue')});
+        }
         const managementMatch=url.pathname.match(/^\/api\/manage\/(movie|tv)\/([A-Za-z][A-Za-z0-9]*)(?:\/([A-Za-z0-9_-]+))?$/);
         if(managementMatch){
           if(!administrator(res,session))return;

@@ -4,6 +4,10 @@ import './react-account.css';
 
 const message=(reason:unknown)=>reason instanceof Error?reason.message:'The request could not be completed.';
 const formatDate=(value:string)=>new Intl.DateTimeFormat(undefined,{dateStyle:'medium',timeStyle:'short'}).format(new Date(value));
+const themes=[
+  ['dark','Vynode Core'],['obsidian','Obsidian'],['aurora','Aurora'],['cyber','Cyber Blue'],['nebula','Nebula'],
+  ['synthwave','Synthwave'],['oceanic','Oceanic'],['ember','Ember'],['matrix','Matrix'],['frost','Frost'],
+] as const;
 
 function Tabs({section,administrator}:{section:AccountSection;administrator:boolean}){
   return <nav className="settings-tabs" aria-label="Account settings">
@@ -29,7 +33,7 @@ function AccountForm({options}:{options:AccountMountOptions}){
     <div className="form-grid"><label>Display name<input name="name" defaultValue={user.name} required/></label><label>Username<input name="username" defaultValue={user.username} required/></label></div>
     <label>Email<input name="email" type="email" defaultValue={user.email} required/></label>
     <div className="form-grid"><label>Profile image URL<input name="profileImage" defaultValue={user.profileImage||''} placeholder="Optional"/></label><label>Time zone<input name="timeZone" defaultValue={user.timeZone||'UTC'}/></label></div>
-    <div className="form-grid"><label>Date/time format<select name="dateTimeFormat" defaultValue={user.dateTimeFormat||'locale'}><option value="locale">Regional default</option><option value="24h">24-hour</option><option value="12h">12-hour</option></select></label><label>Theme<select name="theme" defaultValue={user.theme||'dark'}><option value="dark">Dark</option><option value="light">Light</option><option value="system">System</option></select></label></div>
+    <div className="form-grid"><label>Date/time format<select name="dateTimeFormat" defaultValue={user.dateTimeFormat||'locale'}><option value="locale">Regional default</option><option value="24h">24-hour</option><option value="12h">12-hour</option></select></label><label>Interface theme<select name="theme" defaultValue={themes.some(([value])=>value===user.theme)?user.theme:'dark'}>{themes.map(([value,label])=><option value={value} key={value}>{label}</option>)}</select><small className="theme-hint">Ten clean color systems; layout and functionality stay unchanged.</small></label></div>
     <label>Language<select name="language" defaultValue={user.language||'en'}><option value="en">English</option></select></label>
     <hr/><h2>Change password</h2>
     <div className="form-grid three"><label>Current password<input name="currentPassword" type="password" autoComplete="current-password"/></label><label>New password<input name="newPassword" type="password" autoComplete="new-password"/></label><label>Confirm new password<input name="confirmPassword" type="password" autoComplete="new-password"/></label></div>

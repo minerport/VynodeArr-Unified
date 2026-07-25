@@ -103,6 +103,32 @@ export function LibraryView({options}:{options:LibraryMountOptions}){
     if(observer&&gridRef.current)observer.observe(gridRef.current);
     return()=>{window.removeEventListener('scroll',alignRail);window.removeEventListener('resize',alignRail);observer?.disconnect();};
   },[view,filter,debouncedQuery]);
+
+  useEffect(()=>{
+    let frame=0;
+    const syncActiveLetter=()=>{
+      frame=0;
+      const cards=Array.from(gridRef.current?.querySelectorAll<HTMLElement>('[data-library-letter]')||[]);
+      if(!cards.length)return;
+      const gridTop=gridRef.current?.getBoundingClientRect().top||120;
+      const readingLine=Math.min(Math.max(120,gridTop)+12,window.innerHeight*.4);
+      const current=cards.find(card=>card.getBoundingClientRect().bottom>readingLine)||cards[cards.length-1];
+      const letter=current.dataset.libraryLetter;
+      if(letter&&alphabet.includes(letter))setActiveLetter(letter);
+    };
+    const scheduleSync=()=>{
+      if(frame)return;
+      frame=window.requestAnimationFrame(syncActiveLetter);
+    };
+    scheduleSync();
+    window.addEventListener('scroll',scheduleSync,{passive:true});
+    window.addEventListener('resize',scheduleSync);
+    return()=>{
+      window.removeEventListener('scroll',scheduleSync);
+      window.removeEventListener('resize',scheduleSync);
+      if(frame)window.cancelAnimationFrame(frame);
+    };
+  },[visible,limit,view]);
   const monitored=items.filter(item=>item.monitoring!=='none'),missing=monitored.filter(item=>movie?item.state==='missing':Number(item.missingEpisodes||0)>0).length,cutoff=monitored.filter(item=>movie?item.state==='cutoff':Number(item.cutoffUnmetEpisodes||0)>0).length,coverage=Math.round(items.filter(item=>movie?item.hasFile:Number(item.missingEpisodes||0)===0).length/Math.max(items.length,1)*100);
   async function monitor(item:LibraryItem){
     const domain=movie?'movie':'tv',engineId=item.id.replace(movie?'movie_':'series_','');
@@ -122,7 +148,7 @@ export function LibraryView({options}:{options:LibraryMountOptions}){
     <div className="hero"><div><span className="eyebrow">YOUR LIBRARY</span><h1>{movie?'Movies':'TV'}</h1><p className="lede">{movie?'Every story, presented through one secure gateway.':'Every season and episode, normalized in one library.'}</p></div><span className="read-only">Connected library</span></div>
     <div className="summary"><div><strong>{items.length}</strong><span>Titles</span></div><div><strong>{monitored.length}</strong><span>Monitored</span></div><div><strong>{missing+cutoff}</strong><span>Need attention</span><small>{movie?`${missing} missing · ${cutoff} below cutoff`:`${missing} missing episodes · ${cutoff} below cutoff`}</small></div><div><strong>{coverage}%</strong><span>Library coverage</span></div></div>
     <div className="toolbar react-library-toolbar"><div className="filters">{['all','monitored','unmonitored','missing','cutoff'].map(value=><button key={value} type="button" className={`chip ${filter===value?'selected':''}`} onClick={()=>setFilter(value)}>{value==='cutoff'?'Cutoff unmet':value[0].toUpperCase()+value.slice(1)}</button>)}</div>{movie&&filter==='missing'?<button className="primary react-library-search-missing" disabled={searching||!visible.length} onClick={()=>void searchAllMissing()}>{searching?'Queuing searches…':`Search all missing (${visible.length})`}</button>:null}<label className="react-library-search">Filter titles<input value={query} onChange={event=>setQuery(event.target.value)} placeholder={`Search ${movie?'movies':'television'}`}/></label><div><select className="sort" aria-label="Sort media" value={sort} onChange={event=>setSort(event.target.value)}><option value="title">Title</option><option value="year">Year</option><option value="attention">Attention</option></select>{views.map(value=><button key={value} type="button" className={`icon-button ${view===value?'selected':''}`} title={viewLabels[value]} onClick={()=>chooseView(value)}>{value==='poster'?'▦':value==='cards'?'▥':value==='compact'?'▤':'☷'}</button>)}</div></div>
-    <div ref={gridRef} className={`grid view-${view}`}>{visible.slice(0,limit).map(item=><LibraryCard key={item.id} item={item} kind={kind} view={view} onMonitor={monitor} onPrefetch={prefetch}/>)}</div>
+    <div ref={gridRef} className={`grid view-${view} library-results-grid`}>{visible.slice(0,limit).map(item=><LibraryCard key={item.id} item={item} kind={kind} view={view} onMonitor={monitor} onPrefetch={prefetch}/>)}</div>
     <nav className="library-alphabet-rail" style={{top:`${railTop}px`}} ref={alphabetRef} aria-label={`Jump through ${movie?'movies':'television'} alphabetically`} onPointerDown={event=>{event.currentTarget.setPointerCapture(event.pointerId);selectFromPointer(event);}} onPointerMove={event=>{if(event.currentTarget.hasPointerCapture(event.pointerId))selectFromPointer(event);}}>
       <span className="library-alphabet-slider" style={{top:`${(alphabet.indexOf(activeLetter)+.5)/alphabet.length*100}%`}} aria-hidden="true"/>
       {alphabet.map(letter=><button key={letter} type="button" className={activeLetter===letter?'active':''} disabled={!availableLetters.has(letter)} onClick={()=>jumpToLetter(letter)} aria-label={`Jump to ${letter==='#'?'numbers and symbols':letter}`}>{letter}</button>)}
