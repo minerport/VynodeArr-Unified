@@ -8,6 +8,8 @@ import { HistoryView } from './history';
 import type { HistoryMountOptions } from './history-types';
 import { QueueView } from './queue';
 import type { QueueMountOptions } from './queue-types';
+import { WantedView } from './wanted';
+import type { WantedMountOptions } from './wanted-types';
 
 let dashboardRoot:Root|null=null;
 let dashboardElement:HTMLElement|null=null;
@@ -15,6 +17,7 @@ let fullDashboardRoot:Root|null=null;
 let libraryRoot:Root|null=null;
 let historyRoot:Root|null=null;
 let queueRoot:Root|null=null;
+let wantedRoot:Root|null=null;
 
 function unmountDashboardAnalytics(){
   dashboardRoot?.unmount();
@@ -59,6 +62,12 @@ function mountQueue(element:HTMLElement,options:QueueMountOptions){
   queueRoot=createRoot(element);
   queueRoot.render(<QueueView options={options}/>);
 }
+function unmountWanted(){wantedRoot?.unmount();wantedRoot=null;}
+function mountWanted(element:HTMLElement,options:WantedMountOptions){
+  unmountWanted();
+  wantedRoot=createRoot(element);
+  wantedRoot.render(<WantedView options={options}/>);
+}
 
 declare global {
   interface Window {
@@ -73,8 +82,10 @@ declare global {
       unmountHistory:()=>void;
       mountQueue:(element:HTMLElement,options:QueueMountOptions)=>void;
       unmountQueue:()=>void;
+      mountWanted:(element:HTMLElement,options:WantedMountOptions)=>void;
+      unmountWanted:()=>void;
     };
   }
 }
 
-window.VynodeArrReact={mountDashboard,unmountDashboard,mountDashboardAnalytics,unmountDashboardAnalytics,mountLibrary,unmountLibrary,mountHistory,unmountHistory,mountQueue,unmountQueue};
+window.VynodeArrReact={mountDashboard,unmountDashboard,mountDashboardAnalytics,unmountDashboardAnalytics,mountLibrary,unmountLibrary,mountHistory,unmountHistory,mountQueue,unmountQueue,mountWanted,unmountWanted};
