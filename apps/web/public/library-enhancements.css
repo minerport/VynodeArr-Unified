@@ -1258,8 +1258,13 @@
 }
 
 .info-card-content > header {
+  position: relative;
   min-height: 4.6rem;
-  padding-right: 2.8rem;
+  margin: -1rem -1.1rem .15rem;
+  padding: 1rem 1.1rem .9rem;
+  border-bottom: 1px solid #25334c;
+  background: linear-gradient(110deg, rgba(15, 24, 41, .98), rgba(9, 15, 27, .92));
+  box-shadow: inset 3px 0 0 rgba(124, 92, 255, .72);
 }
 
 .info-card-content h2 {
@@ -1343,7 +1348,15 @@
 
 .view-cards .library-select {
   top: .8rem;
-  right: .8rem;
+  right: auto;
+  left: .8rem;
+  border-color: rgba(180, 194, 220, .72);
+  background: rgba(7, 13, 24, .92);
+  box-shadow: 0 5px 16px rgba(0, 0, 0, .45);
+}
+
+.view-cards .info-card-poster {
+  position: relative;
 }
 
 .media-quick-dialog {

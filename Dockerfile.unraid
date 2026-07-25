@@ -8,6 +8,13 @@ RUN apk add --no-cache curl tar \
     && curl -fsSL "https://github.com/Sonarr/Sonarr/releases/download/v${SONARR_VERSION}/Sonarr.main.${SONARR_VERSION}.linux-musl-x64.tar.gz" \
       | tar -xz -C /opt/engines
 
+FROM node:24-alpine AS web-build
+WORKDIR /app
+COPY package.json ./
+RUN npm install --include=dev --no-audit --no-fund
+COPY apps/web/client ./apps/web/client
+RUN npm run typecheck:web && npm run build:web
+
 FROM node:24-alpine
 LABEL org.opencontainers.image.title="VynodeArr" \
       org.opencontainers.image.description="Unified movie and television management for Unraid" \
@@ -18,6 +25,7 @@ RUN apk add --no-cache icu-libs sqlite-libs libgcc libstdc++ tzdata tini
 WORKDIR /app
 COPY package.json ./
 COPY apps ./apps
+COPY --from=web-build /app/apps/web/public/react ./apps/web/public/react
 COPY packages ./packages
 COPY OPEN_SOURCE_NOTICES LICENSE THIRD_PARTY_NOTICES ./
 COPY --from=engines /opt/engines/Radarr /opt/vynodearr/movies
