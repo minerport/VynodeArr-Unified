@@ -15,7 +15,7 @@
 .library-status-badges .badge.muted{border-color:#536078;background:#30394b;color:#d1d8e6}
 .library-status-badges .cutoff-status.green{border-color:#247d59;background:#153f31;color:#7be4ae}
 .library-status-badges .cutoff-status.warm{border-color:#936b2e;background:#4b371d;color:#ffc96f}
-.view-poster .library-status-badges.poster-badges{position:absolute;top:.55rem;left:.55rem;right:.55rem;z-index:4}
+.view-poster .library-status-badges.poster-badges{position:absolute;top:.55rem;bottom:auto;left:.55rem;right:.55rem;z-index:4;align-items:flex-start}
 .react-library-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem;min-width:0}
 .react-library-heading>div:first-child{min-width:0}
 .react-library-heading h2,.react-library-heading p{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

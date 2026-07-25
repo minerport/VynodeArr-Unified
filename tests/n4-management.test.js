@@ -67,9 +67,9 @@ test('native interaction workflows replace an upstream-shaped generic shell',asy
   for(const workflow of ['/api/media-match','rematchMedia','addImportExclusion:false','addImportListExclusion:false','The original match was restored when possible','Fix match'])assert.ok(script.includes(workflow)||apiSource.includes(workflow),workflow);
   for(const workflow of ['quality-range-track','data-control="range"','qualityDefinitionLimits','data-dirty="true"','Save limits to engine',"`/api/manage/${domain.value}/qualityDefinitions/${payload.id}`","method:'PUT'"])assert.ok(script.includes(workflow),workflow);
   for(const workflow of ['liveQueue','includeMovie:true','includeSeries:true','includeEpisode:true','trackedDownloadState','clientStatus','clientFilename','/api/activity/queue/live'])assert.ok(apiSource.includes(workflow));
-  assert.ok(apiSource.includes('includeUnknownMovieItems:true'));
-  assert.ok(apiSource.includes('includeUnknownSeriesItems:true'));
-  assert.ok(apiSource.includes('mediaId=Number.isFinite(linkedId)&&linkedId>0?linkedId:null'),'live queue must retain unmatched engine records without inventing a media link');
+  assert.ok(!apiSource.includes('includeUnknownMovieItems:true'),'live queue must not request untracked movie download-client items');
+  assert.ok(!apiSource.includes('includeUnknownSeriesItems:true'),'live queue must not request untracked television download-client items');
+  assert.ok(apiSource.includes('engineRecords.filter(item=>{const id=linkedId(item);return Number.isFinite(id)&&id>0;})'),'live queue must exclude records that are not associated with engine media');
   assert.ok(apiSource.includes('return !imported(item)'),'live queue must retain paused and completed-pending-import records until import history confirms completion');
   assert.ok(!apiSource.includes("apikey:apiKey"),'live queue must rely on the engines authenticated client polling, not masked provider credentials');
   for(const workflow of ['tvMetadataArtwork','api.tvmaze.com/lookup/shows','api.tvmaze.com/shows/${show.id}/seasons','episodebynumber','static.tvmaze.com'])assert.ok(apiSource.includes(workflow));

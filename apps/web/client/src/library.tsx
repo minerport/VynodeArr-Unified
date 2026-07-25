@@ -65,7 +65,17 @@ export function LibraryView({options}:{options:LibraryMountOptions}){
     .sort((a,b)=>sort==='year'?Number(b.year||0)-Number(a.year||0):sort==='attention'?(movie?Number(a.state==='available')-Number(b.state==='available'):Number(b.missingEpisodes||0)-Number(a.missingEpisodes||0)):a.title.localeCompare(b.title)),[items,filter,sort,debouncedQuery,movie]);
   useEffect(()=>{const node=loadMoreRef.current;if(!node||limit>=visible.length||!('IntersectionObserver'in window))return;const observer=new IntersectionObserver(entries=>{if(entries.some(entry=>entry.isIntersecting))setLimit(value=>value+120);},{rootMargin:'600px'});observer.observe(node);return()=>observer.disconnect();},[limit,visible.length]);
   const monitored=items.filter(item=>item.monitoring!=='none'),missing=monitored.filter(item=>movie?item.state==='missing':Number(item.missingEpisodes||0)>0).length,cutoff=monitored.filter(item=>movie?item.state==='cutoff':Number(item.cutoffUnmetEpisodes||0)>0).length,coverage=Math.round(items.filter(item=>movie?item.hasFile:Number(item.missingEpisodes||0)===0).length/Math.max(items.length,1)*100);
-  async function monitor(item:LibraryItem){const domain=movie?'movie':'tv',engineId=item.id.replace(movie?'movie_':'series_','');try{const value=await request<{result:Record<string,unknown>}>(`/api/manage/${domain}/library/${engineId}`),raw=value.result;raw.monitored=!raw.monitored;await request(`/api/manage/${domain}/library/${engineId}`,{method:'PUT',body:JSON.stringify(raw)});setItems(current=>current.map(value=>value.id===item.id?{...value,monitoring:raw.monitored?(movie?'monitored':'all'):'none'}:value));notify(raw.monitored?`${movie?'Movie':'Series'} monitored.`:`${movie?'Movie':'Series'} unmonitored.`);}catch(error){notify(error instanceof Error?error.message:'The monitoring change failed.','error');}}
+  async function monitor(item:LibraryItem){
+    const domain=movie?'movie':'tv',engineId=item.id.replace(movie?'movie_':'series_','');
+    try{
+      const value=await request<{result:Record<string,unknown>}>(`/api/manage/${domain}/library/${engineId}`),raw=value.result,next=!raw.monitored;
+      const saved=await request<{result:Record<string,unknown>}>(`/api/manage/${domain}/library/${engineId}`,{method:'PUT',body:JSON.stringify({...raw,monitored:next})});
+      const monitored=Boolean(saved.result?.monitored??next),updated={...item,monitoring:monitored?(movie?'monitored':'all'):'none'};
+      setItems(current=>current.map(value=>value.id===item.id?updated:value));
+      options.onItemChange?.(updated);
+      notify(monitored?`${movie?'Movie':'Series'} monitored.`:`${movie?'Movie':'Series'} unmonitored.`);
+    }catch(error){notify(error instanceof Error?error.message:'The monitoring change failed.','error');}
+  }
   async function searchAllMissing(){const ids=visible.filter(item=>item.state==='missing'&&item.monitoring!=='none').map(item=>Number(item.id.replace(/^movie_/,''))).filter(Number.isFinite);if(!ids.length)return;setSearching(true);try{for(let index=0;index<ids.length;index+=100)await request('/api/manage/movie/commands',{method:'POST',body:JSON.stringify({name:'MoviesSearch',movieIds:ids.slice(index,index+100)})});notify(`Search queued for ${ids.length} missing movie${ids.length===1?'':'s'}.`);}catch(error){notify(error instanceof Error?error.message:'The missing movie search failed.','error');}finally{setSearching(false);}}
   const prefetch=(item:LibraryItem)=>{void request(movie?`/api/media/movies/${encodeURIComponent(item.id)}`:`/api/media/tv/${encodeURIComponent(item.id)}`).catch(()=>{});};
   function chooseView(next:LibraryView){setView(next);options.onViewChange(next);}

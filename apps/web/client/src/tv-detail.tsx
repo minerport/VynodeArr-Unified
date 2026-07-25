@@ -22,7 +22,16 @@ export function TvDetailView({options}:{options:TvDetailMountOptions}){
   useEffect(()=>{void load();return()=>loadController.current?.abort();},[load]);
   const run=async(name:string,work:()=>Promise<unknown>,notice:string,reload=false)=>{setBusy(name);try{await work();options.notify(notice);if(reload)await load();}catch(reason){options.notify(message(reason),'error');}finally{setBusy('');}};
   const command=(name:string,payload:Record<string,unknown>={})=>run(name,()=>options.request('/api/manage/tv/commands',{method:'POST',body:JSON.stringify({name,...payload})}),name==='SeriesSearch'?'Series search queued.':'Refresh and folder scan queued.');
-  const toggleSeries=()=>run('monitor-series',async()=>{const value=await options.request<{result:RawSeries}>(`/api/manage/tv/library/${engineId}`),raw=value.result;raw.monitored=!raw.monitored;await options.request(`/api/manage/tv/library/${engineId}`,{method:'PUT',body:JSON.stringify(raw)});},item?.monitoring==='none'?'Series monitored.':'Series unmonitored.',true);
+  const toggleSeries=async()=>{
+    setBusy('monitor-series');
+    try{
+      const value=await options.request<{result:RawSeries}>(`/api/manage/tv/library/${engineId}`),raw=value.result,next=!raw.monitored;
+      const saved=await options.request<{result:RawSeries}>(`/api/manage/tv/library/${engineId}`,{method:'PUT',body:JSON.stringify({...raw,monitored:next})});
+      const monitoring=(saved.result?.monitored??next)?'all':'none';
+      setItem(current=>current?{...current,monitoring}:current);
+      options.notify(monitoring==='none'?'Series unmonitored.':'Series monitored.');
+    }catch(reason){options.notify(message(reason),'error');}finally{setBusy('');}
+  };
   const rename=async()=>{setBusy('rename-preview');try{const value=await options.request<{preview:RenamePreviewRecord}>(`/api/media-files/rename?domain=tv&mediaId=${engineId}`);setRenamePreview(value.preview);}catch(reason){options.notify(message(reason),'error');}finally{setBusy('');}};
   const applyRename=()=>run('rename-apply',async()=>{await options.request('/api/media-files/rename',{method:'POST',body:JSON.stringify({domain:'tv',mediaId:engineId,previewId:renamePreview?.previewId})});setRenamePreview(null);},`Rename and organization queued for ${item?.title}.`,true);
   const toggleSeason=(season:TvSeason)=>run(`season-${season.seasonNumber}`,async()=>{const value=await options.request<{result:RawSeries}>(`/api/manage/tv/library/${engineId}`),raw=value.result,target=raw.seasons?.find(entry=>Number(entry.seasonNumber)===season.seasonNumber);if(!target)throw new Error('This season is no longer available.');target.monitored=!season.monitored;await options.request(`/api/manage/tv/library/${engineId}`,{method:'PUT',body:JSON.stringify(raw)});},`Season ${season.seasonNumber} ${season.monitored?'unmonitored':'monitored'}.`,true);

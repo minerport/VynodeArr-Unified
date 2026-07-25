@@ -34,4 +34,5 @@ export interface LibraryMountOptions {
   request:<T=unknown>(path:string,options?:RequestInit)=>Promise<T>;
   notify:(message:string,tone?:string)=>void;
   onViewChange:(view:LibraryView)=>void;
+  onItemChange?:(item:LibraryItem)=>void;
 }

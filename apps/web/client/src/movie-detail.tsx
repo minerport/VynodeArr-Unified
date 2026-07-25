@@ -28,7 +28,17 @@ export function MovieDetailView({options}:{options:MovieDetailMountOptions}){
   const load=useCallback(async()=>{loadController.current?.abort();const controller=new AbortController();loadController.current=controller;setLoading(true);try{const value=await options.request<{item:MovieDetail}>(`/api/media/movies/${encodeURIComponent(options.publicId)}`,{signal:controller.signal});if(controller.signal.aborted)return;setItem(value.item);setError('');setLoading(false);setEnrichment(null);setEnrichmentLoading(true);void options.request<{item:MediaEnrichment|null}>(`/api/discover/enrich?domain=movie&title=${encodeURIComponent(value.item.title)}&year=${value.item.year||''}`,{signal:controller.signal}).then(rich=>{if(!controller.signal.aborted)setEnrichment(rich.item);}).catch(()=>{}).finally(()=>{if(!controller.signal.aborted)setEnrichmentLoading(false);});}catch(reason){if(!controller.signal.aborted)setError(errorMessage(reason));}finally{if(!controller.signal.aborted)setLoading(false);}},[options]);
   useEffect(()=>{void load();return()=>loadController.current?.abort();},[load]);
   const run=async(name:string,work:()=>Promise<unknown>,notice:string,refreshAfter=false)=>{setBusy(name);try{await work();options.notify(notice);if(refreshAfter)await load();}catch(reason){options.notify(errorMessage(reason),'error');}finally{setBusy('');}};
-  const monitor=async()=>{if(!item)return;await run('monitor',async()=>{const value=await options.request<{result:LibraryMovie}>(`/api/manage/movie/library/${engineId}`),raw=value.result;raw.monitored=!raw.monitored;await options.request(`/api/manage/movie/library/${engineId}`,{method:'PUT',body:JSON.stringify(raw)});},item.monitoring==='none'?'Movie monitored.':'Movie unmonitored.',true);};
+  const monitor=async()=>{
+    if(!item)return;
+    setBusy('monitor');
+    try{
+      const value=await options.request<{result:LibraryMovie}>(`/api/manage/movie/library/${engineId}`),raw=value.result,next=!raw.monitored;
+      const saved=await options.request<{result:LibraryMovie}>(`/api/manage/movie/library/${engineId}`,{method:'PUT',body:JSON.stringify({...raw,monitored:next})});
+      const monitoring=(saved.result?.monitored??next)?'all':'none';
+      setItem(current=>current?{...current,monitoring}:current);
+      options.notify(monitoring==='none'?'Movie unmonitored.':'Movie monitored.');
+    }catch(reason){options.notify(errorMessage(reason),'error');}finally{setBusy('');}
+  };
   const automatic=()=>run('automatic',()=>options.request('/api/manage/movie/automaticSearch',{method:'POST',body:JSON.stringify({movieId:engineId})}),'Best available release selected.');
   const refresh=()=>run('refresh',()=>options.request('/api/manage/movie/commands',{method:'POST',body:JSON.stringify({name:'RefreshMovie',movieIds:[engineId]})}),'Refresh and folder scan queued.');
   const rename=async()=>{setBusy('rename-preview');try{const value=await options.request<{preview:RenamePreviewRecord}>(`/api/media-files/rename?domain=movie&mediaId=${engineId}`);setRenamePreview(value.preview);}catch(reason){options.notify(errorMessage(reason),'error');}finally{setBusy('');}};
