@@ -60,6 +60,7 @@ export interface RecentlyAddedItem {
   title?:string;
   year?:number;
   type?:string;
+  timestamp?:string;
 }
 
 export interface RecentActivityItem {
@@ -77,4 +78,9 @@ export interface DashboardData {
   analytics?:DashboardAnalytics;
   recentlyAdded?:RecentlyAddedItem[];
   recentActivity?:RecentActivityItem[];
+  engines?:{
+    configured?:boolean;
+    mode?:string;
+    status?:Record<Domain,{status?:string;lastSuccess?:string|null;safeError?:string|null;itemCount?:number}>;
+  };
 }

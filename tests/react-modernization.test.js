@@ -67,8 +67,9 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(entry,/mountHealth/);
   assert.match(entry,/unmountHealth/);
   assert.match(entry,/import\('\.\/health'\)/);
-  assert.match(dashboard,/Recently added/);
-  assert.match(dashboard,/Recent events/);
+  assert.match(dashboard,/Recently imported/);
+  assert.match(dashboard,/Recent engine events/);
+  assert.match(dashboard,/dashboard-attention-grid/);
   assert.match(analytics,/DashboardAnalyticsView/);
   assert.match(library,/Filter titles/);
   assert.match(library,/onMonitor/);
@@ -141,6 +142,13 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(bundleBudget,/limits=\{entry:300_000,route:45_000,css:50_000\}/);
   assert.match(unraidDockerfile,/FROM node:24-alpine AS web-build/);
   assert.match(unraidDockerfile,/apps\/web\/public\/react/);
+});
+
+test('dashboard resolves television quality profile names and reports real storage',async()=>{
+  const api=await read('apps/api/src/app.js');
+  assert.match(api,/management\.execute\('tv','profiles','GET'\)/);
+  assert.match(api,/qualityProfiles\.tv\?\.get\(String\(item\.qualityProfile\)\)/);
+  assert.match(api,/analytics\.library\.movie\.sizeOnDisk\+analytics\.library\.tv\.sizeOnDisk/);
 });
 
 test('library navigation preserves mounted views and safely reuses short-lived reads',async()=>{

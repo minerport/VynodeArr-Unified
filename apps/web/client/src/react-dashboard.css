@@ -17,6 +17,10 @@
 
 .react-dashboard-hero {
   margin-bottom: 0;
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
 }
 
 .react-metric-grid .metric-card {
@@ -71,3 +75,7 @@
   color: var(--muted);
   font-size: .86rem;
 }
+
+.dashboard-engine-state{display:grid;grid-template-columns:auto auto;align-items:center;gap:.35rem .5rem;padding:.65rem .8rem;border:1px solid var(--line);border-radius:.7rem;background:rgba(8,14,25,.52);color:var(--muted);font-size:.72rem;text-transform:capitalize}.status-dot{width:.45rem;height:.45rem;border-radius:50%;background:#f0a957}.status-dot.ready{background:#54dfa4;box-shadow:0 0 .6rem rgba(84,223,164,.5)}.dashboard-metric-link{color:inherit;text-decoration:none;transition:border-color .15s ease,transform .15s ease}.dashboard-metric-link:hover{border-color:#52678a;transform:translateY(-1px)}.dashboard-attention-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.75rem}.dashboard-attention-card{position:relative;display:grid;gap:.45rem;padding:.9rem 2.2rem .9rem 1rem;border:1px solid var(--line);border-radius:.8rem;background:rgba(12,20,35,.82);color:inherit;text-decoration:none}.dashboard-attention-card>div{display:flex;align-items:baseline;justify-content:space-between;gap:.5rem}.dashboard-attention-card span{color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.05em}.dashboard-attention-card strong{font-size:1.25rem}.dashboard-attention-card p{margin:0;color:var(--muted);font-size:.75rem;line-height:1.35}.dashboard-attention-card i{position:absolute;right:.9rem;top:50%;transform:translateY(-50%);font-style:normal;color:#7f91ae}.dashboard-attention-card.warm{border-color:rgba(240,169,87,.32)}.dashboard-attention-card.danger{border-color:rgba(255,102,123,.38)}.dashboard-attention-card.good{border-color:rgba(84,223,164,.25)}.react-analytics-section{margin-top:0}.react-analytics-section .analytics-chart svg{height:84px}.react-analytics-section .analytics-card{padding:1rem}.react-analytics-section .analytics-card h3{margin:.8rem 0 .5rem}.react-analytics-section .analytics-card.movie polyline,.react-analytics-section .analytics-card.tv polyline{fill:none}.react-analytics-section .analytics-stat-grid>div,.react-analytics-section .analytics-activity span{padding:.5rem}
+
+@media(max-width:1050px){.dashboard-attention-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:700px){.react-dashboard-hero{align-items:flex-start;flex-direction:column}.dashboard-engine-state{width:100%}.dashboard-attention-grid{grid-template-columns:1fr}}

@@ -11,7 +11,7 @@ function formatBytes(value:number){
 }
 
 function TrendChart({points,domain}:{points:TrendPoint[];domain:Domain}){
-  const width=620,height=170,padding=18;
+  const width=620,height=92,padding=12;
   const values=points.map((point)=>Number(point.count||0));
   const total=values.reduce((sum,value)=>sum+value,0);
   if(!total)return <div className={`analytics-chart analytics-chart-empty ${domain}`}>
@@ -60,7 +60,7 @@ function AnalyticsPanel({domain,analytics}:{domain:Domain;analytics:DashboardAna
     <TrendChart points={analytics.downloadsOverTime[domain]} domain={domain}/>
     <div className="analytics-activity"><span><strong>{number(activity.completed)}</strong> completed</span><span><strong>{number(activity.grabbed)}</strong> grabbed</span><span><strong>{number(activity.failed)}</strong> failed</span></div>
     <div className="analytics-stat-grid">{stats.map(([label,value])=><div key={label}><strong>{typeof value==='number'?number(value):value}</strong><span>{label}</span></div>)}</div>
-    <h3>{movie?'Quality types':'Quality profiles'}</h3>
+    <h3>{movie?'File quality':'Quality profiles'}</h3>
     <DistributionBars items={analytics.qualityDistribution[domain]}/>
   </article>;
 }
