@@ -17,7 +17,15 @@ function Field({field,onChange}:{field:ProviderField;onChange:(value:unknown)=>v
 export function ProviderSettingsView({options}:{options:ProviderSettingsMountOptions}){
   const {kind}=options,indexer=kind==='indexers',title=indexer?'Indexers':'Download Clients',schema=indexer?'indexerSchemas':'downloadClientSchemas',testResource=indexer?'indexerTest':'downloadClientTest';
   const [domain,setDomain]=useState<ProviderDomain>('movie'),[items,setItems]=useState<ProviderRecord[]>([]),[selected,setSelected]=useState<ProviderRecord|null>(null),[definitions,setDefinitions]=useState<ProviderRecord[]>([]),[advanced,setAdvanced]=useState(false),[loading,setLoading]=useState(true),[busy,setBusy]=useState(''),[error,setError]=useState(''),[fieldErrors,setFieldErrors]=useState<Record<string,string>>({}),[policy,setPolicy]=useState<ProviderRecord|null>(null);
-  const load=useCallback(async()=>{setLoading(true);setError('');setSelected(null);try{const requests=[options.request<{result:ProviderRecord[]}>(`/api/manage/${domain}/${kind}`),...(!indexer?[options.request<{result:ProviderRecord}>(`/api/manage/${domain}/downloadClientSettings`)]:[])],values=await Promise.all(requests);setItems(values[0].result||[]);setPolicy(indexer?null:(values[1] as {result:ProviderRecord})?.result||null);}catch(reason){setError(errorText(reason));}finally{setLoading(false);}},[domain,indexer,kind,options]);
+  const load=useCallback(async()=>{setLoading(true);setError('');setSelected(null);try{
+    const providers=await options.request<{result:ProviderRecord[]}>(`/api/manage/${domain}/${kind}`);
+    setItems(providers.result||[]);
+    if(indexer)setPolicy(null);
+    else{
+      const settings=await options.request<{result:ProviderRecord}>(`/api/manage/${domain}/downloadClientSettings`);
+      setPolicy(settings.result||null);
+    }
+  }catch(reason){setError(errorText(reason));}finally{setLoading(false);}},[domain,indexer,kind,options]);
   useEffect(()=>{void load();},[load]);
   const visibleFields=useMemo(()=>(selected?.fields||[]).map((field,index)=>({field,index})).filter(({field})=>!field.hidden&&(advanced||!field.advanced)),[selected,advanced]);
   const update=(key:string,value:unknown)=>setSelected(current=>current?{...current,[key]:value}:null);
