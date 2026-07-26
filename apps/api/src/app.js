@@ -233,6 +233,24 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
   async function renameMediaPreview(input){
     const domain=String(input.domain||''),mediaId=Number(input.mediaId);
     if(!['movie','tv'].includes(domain)||!Number.isFinite(mediaId))throw new Error('Choose a movie or television series to organize');
+    let refreshStatus='not-requested';
+    if(input.storePlan!==false){
+      try{
+        const payload=domain==='movie'?{name:'RefreshMovie',movieIds:[mediaId]}:{name:'RefreshSeries',seriesId:mediaId};
+        const command=await management.execute(domain,'commands','POST',{payload}),commandId=Number(command?.id);
+        refreshStatus='queued';
+        if(Number.isFinite(commandId)){
+          const deadline=Date.now()+20_000;
+          while(Date.now()<deadline){
+            await new Promise(resolve=>setTimeout(resolve,500));
+            const current=await management.execute(domain,'commands','GET',{id:commandId});
+            const status=String(current?.status||'').toLowerCase();
+            if(['completed','failed','aborted','cancelled'].includes(status)){refreshStatus=status;break;}
+          }
+          if(refreshStatus==='queued')refreshStatus='timed-out';
+        }
+      }catch{refreshStatus='unavailable';}
+    }
     const record=await management.execute(domain,'library','GET',{id:mediaId});
     const folderResult=await management.execute(domain,'libraryFolder','GET',{id:mediaId});
     const folder=String(folderResult?.folder||'').trim();
@@ -243,10 +261,13 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
     const fileRecords=await management.execute(domain,domain==='movie'?'movieFiles':'episodeFiles','GET',{query:domain==='movie'?{movieId:mediaId}:{seriesId:mediaId}});
     const filesById=new Map((Array.isArray(fileRecords)?fileRecords:[]).map(file=>[Number(file.id),file]));
     const preview={
-      domain,mediaId,title:record.title,currentPath:record.path,rootFolderPath,destinationPath,folderChange:normalizeMediaPath(record.path)!==normalizeMediaPath(destinationPath),
-      files:(Array.isArray(renameItems)?renameItems:[]).map(item=>{const file=filesById.get(Number(item.movieFileId??item.episodeFileId??item.id))||item;return({
+      domain,mediaId,title:record.title,currentPath:record.path,rootFolderPath,destinationPath,folderChange:normalizeMediaPath(record.path)!==normalizeMediaPath(destinationPath),refreshStatus,
+      files:(Array.isArray(renameItems)?renameItems:[]).map(item=>{const file=filesById.get(Number(item.movieFileId??item.episodeFileId??item.id))||item;
+        const existingPath=file.path||item.existingPath||item.path||'',libraryPath=normalizeMediaPath(record.path).toLowerCase(),normalizedExisting=normalizeMediaPath(existingPath).toLowerCase();
+        return({
         id:item.movieFileId??item.episodeFileId??item.id,
-        existingPath:item.existingPath||item.path||'',
+        existingPath,
+        outsideLibraryFolder:Boolean(libraryPath&&normalizedExisting.includes('/')&&!normalizedExisting.startsWith(`${libraryPath}/`)),
         newPath:item.newPath||'',size:Number(file.size||file.sizeOnDisk||0),
         quality:file.quality?.quality?.name||file.quality?.name||file.quality||'',
         languages:(Array.isArray(file.languages)?file.languages:file.language?[file.language]:[]).map(value=>value?.name||value).filter(Boolean),
