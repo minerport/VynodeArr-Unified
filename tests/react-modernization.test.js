@@ -296,6 +296,10 @@ test('advanced engine resources use a typed schema-driven React editor',async()=
   assert.match(management,/downloadClientSchemas/);
   assert.match(management,/management-native-fields/);
   assert.match(management,/Advanced JSON/);
+  assert.match(management,/methods\.includes\('POST'\)\?'POST':methods\.includes\('PUT'\)\?'PUT':null/);
+  assert.match(management,/Read only/);
+  assert.match(legacy,/unmountDashboardAnalytics/);
+  assert.match(legacy,/unmountHealth/);
   assert.match(types,/interface ManagementField/);
   assert.match(islands,/mountManagement/);
   assert.match(legacy,/showManagementReact/);
@@ -338,6 +342,9 @@ test('storage folders use a typed React route while retaining the existing impor
   assert.match(legacy,/showRootFoldersReact/);
   assert.match(legacy,/reviewLibraryImport\(domain,root,showRootFoldersReact\)/);
   assert.match(legacy,/document\.body\.appendChild\(Object\.assign\(document\.createElement\('dialog'\),\{id:'detail-dialog'\}\)\)/);
+  assert.match(legacy,/duplicateFolderDetails/);
+  assert.match(legacy,/Possible duplicate/);
+  assert.match(legacy,/Newest copy/);
 });
 
 test('indexers and download clients use a typed native provider editor with connection testing',async()=>{
