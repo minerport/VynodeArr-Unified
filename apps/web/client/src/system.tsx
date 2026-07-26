@@ -12,7 +12,51 @@ function DomainSection({domain,count,children}:{domain:SystemDomain;count:number
   return <section className="system-domain-section"><div className="panel-heading"><div><span className="eyebrow">{domain==='movie'?'MOVIE ENGINE':'TELEVISION ENGINE'}</span><h2>{label(domain)}</h2></div><span className="badge">{count}</span></div>{children}</section>;
 }
 function Status({disks}:{disks:Record<SystemDomain,DiskSpace[]>}){
-  return <div className="system-domain-grid">{domains.map(domain=>{const items=disks[domain]||[],primary=items.find(item=>item.path===(domain==='movie'?'/movies':'/tv'))||items[0],free=Number(primary?.freeSpace||0),total=Number(primary?.totalSpace||0),used=Math.max(0,total-free),percent=total?Math.round(used/total*100):0;return <DomainSection domain={domain} count={items.length} key={domain}><div className="storage-summary"><div><strong>{storageSize(free)}</strong><small>free of {storageSize(total)}</small></div><div><strong>{storageSize(used)}</strong><small>used · {percent}%</small></div></div><div className="storage-meter"><span style={{width:`${percent}%`}}/></div>{items.map(item=><div className="data-row" key={item.path}><span><strong>{item.path}</strong><small>{storageSize(item.freeSpace)} free of {storageSize(item.totalSpace)}</small></span><span className={item.freeSpace>10737418240?'status-path-state healthy':'status-path-state warning'}>{item.freeSpace>10737418240?'Available':'Low space'}</span></div>)}</DomainSection>;})}</div>;
+  return (
+    <div className="system-domain-grid system-status-grid">
+      {domains.map(domain=>{
+        const items=disks[domain]||[];
+        const primary=items.find(item=>item.path===(domain==='movie'?'/movies':'/tv'))||items[0];
+        const free=Number(primary?.freeSpace||0);
+        const total=Number(primary?.totalSpace||0);
+        const used=Math.max(0,total-free);
+        const percent=total?Math.round(used/total*100):0;
+
+        return (
+          <DomainSection domain={domain} count={items.length} key={domain}>
+            <div className="storage-summary">
+              <div>
+                <span className="storage-summary-label">Free space</span>
+                <strong>{storageSize(free)}</strong>
+                <small>of {storageSize(total)} total</small>
+              </div>
+              <div>
+                <span className="storage-summary-label">Used space</span>
+                <strong>{storageSize(used)}</strong>
+                <small>{percent}% utilized</small>
+              </div>
+            </div>
+            <div className="storage-meter" aria-label={`${percent}% storage used`}>
+              <span style={{width:`${percent}%`}}/>
+            </div>
+            <div className="storage-path-list">
+              {items.map(item=>(
+                <div className="data-row" key={item.path}>
+                  <span>
+                    <strong>{item.path}</strong>
+                    <small>{storageSize(item.freeSpace)} free of {storageSize(item.totalSpace)}</small>
+                  </span>
+                  <span className={item.freeSpace>10737418240?'status-path-state healthy':'status-path-state warning'}>
+                    {item.freeSpace>10737418240?'Available':'Low space'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </DomainSection>
+        );
+      })}
+    </div>
+  );
 }
 function Tasks({items,run}:{items:SystemRecord[];run:(item:SystemRecord)=>void}){
   return <><div className="notice"><strong>Automatic schedules are active</strong><p>Run now starts an additional execution without changing the recurring schedule.</p></div><div className="system-domain-grid">{domains.map(domain=>{const records=items.filter(item=>item.domain===domain);return <DomainSection domain={domain} count={records.length} key={domain}>{records.map(item=><div className="data-row task-row" key={`${domain}:${item.taskName}`}><span><strong>{item.name||item.taskName}</strong><small>{cadence(item.interval)}</small><small>Last {date(item.lastExecution)} · Next {date(item.nextExecution)}</small></span><button className="secondary" onClick={()=>run(item)}>Run now</button></div>)}</DomainSection>;})}</div></>;

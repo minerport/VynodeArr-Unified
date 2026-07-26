@@ -474,3 +474,297 @@
     transition: none;
   }
 }
+
+/* Shared page masthead: dashboard structure with the theme-aware System glass surface. */
+:is(
+  .react-library,
+  .react-history,
+  .react-wanted,
+  .react-collections,
+  .react-add-media,
+  .react-calendar,
+  .react-queue,
+  .react-account,
+  .react-system,
+  .react-health,
+  .root-folders-react-route,
+  .media-management-react-route,
+  .management-react-route,
+  .selection-rules-route,
+  .provider-settings-route
+) > :is(.hero, .collections-hero, .calendar-hero, .storage-hero) {
+  position: relative;
+  min-height: 8rem;
+  margin: 0 0 1rem;
+  padding: 1.45rem 1.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  overflow: hidden;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: 1.1rem;
+  background:
+    radial-gradient(circle at 11% 8%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 36%),
+    radial-gradient(circle at 88% 12%, color-mix(in srgb, var(--cyan) 14%, transparent), transparent 34%),
+    linear-gradient(135deg, rgba(255, 255, 255, .055), transparent 42%),
+    var(--route-glass) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .085),
+    0 16px 38px rgba(0, 0, 0, .2);
+  backdrop-filter: blur(20px) saturate(1.35);
+  -webkit-backdrop-filter: blur(20px) saturate(1.35);
+}
+
+:is(
+  .react-library,
+  .react-history,
+  .react-wanted,
+  .react-collections,
+  .react-add-media,
+  .react-calendar,
+  .react-queue,
+  .react-account,
+  .react-system,
+  .react-health,
+  .root-folders-react-route,
+  .media-management-react-route,
+  .management-react-route,
+  .selection-rules-route,
+  .provider-settings-route
+) > :is(.hero, .collections-hero, .calendar-hero, .storage-hero) > * {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+}
+
+:is(
+  .react-library,
+  .react-history,
+  .react-wanted,
+  .react-collections,
+  .react-add-media,
+  .react-calendar,
+  .react-queue,
+  .react-account,
+  .react-system,
+  .react-health,
+  .root-folders-react-route,
+  .media-management-react-route,
+  .management-react-route,
+  .selection-rules-route,
+  .provider-settings-route
+) > :is(.hero, .collections-hero, .calendar-hero, .storage-hero) > :first-child {
+  flex: 1 1 auto;
+}
+
+:is(
+  .react-library,
+  .react-history,
+  .react-wanted,
+  .react-collections,
+  .react-add-media,
+  .react-calendar,
+  .react-queue,
+  .react-account,
+  .react-system,
+  .react-health,
+  .root-folders-react-route,
+  .media-management-react-route,
+  .management-react-route,
+  .selection-rules-route,
+  .provider-settings-route
+) > :is(.hero, .collections-hero, .calendar-hero, .storage-hero) .eyebrow {
+  display: block;
+  margin: 0 0 .25rem;
+}
+
+:is(
+  .react-library,
+  .react-history,
+  .react-wanted,
+  .react-collections,
+  .react-add-media,
+  .react-calendar,
+  .react-queue,
+  .react-account,
+  .react-system,
+  .react-health,
+  .root-folders-react-route,
+  .media-management-react-route,
+  .management-react-route,
+  .selection-rules-route,
+  .provider-settings-route
+) > :is(.hero, .collections-hero, .calendar-hero, .storage-hero) h1 {
+  margin: .15rem 0 .25rem;
+  padding: .08em 0 .1em;
+  font-size: clamp(2.15rem, 4vw, 3.25rem);
+  line-height: 1.08;
+  letter-spacing: -.055em;
+  overflow: visible;
+}
+
+:is(
+  .react-library,
+  .react-history,
+  .react-wanted,
+  .react-collections,
+  .react-add-media,
+  .react-calendar,
+  .react-queue,
+  .react-account,
+  .react-system,
+  .react-health,
+  .root-folders-react-route,
+  .media-management-react-route,
+  .management-react-route,
+  .selection-rules-route,
+  .provider-settings-route
+) > :is(.hero, .collections-hero, .calendar-hero, .storage-hero) .lede {
+  max-width: 42rem;
+  margin: 0;
+  font-size: .95rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 700px) {
+  :is(
+    .react-library,
+    .react-history,
+    .react-wanted,
+    .react-collections,
+    .react-add-media,
+    .react-calendar,
+    .react-queue,
+    .react-account,
+    .react-system,
+    .react-health,
+    .root-folders-react-route,
+    .media-management-react-route,
+    .management-react-route,
+    .selection-rules-route,
+    .provider-settings-route
+  ) > :is(.hero, .collections-hero, .calendar-hero, .storage-hero) {
+    min-height: 0;
+    padding: 1.15rem;
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+/* System status keeps each engine as one continuous glass surface. */
+.system-status-grid .system-domain-section {
+  overflow: hidden;
+  padding: 1.05rem 1.2rem .3rem;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: 1rem;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, .045), transparent 45%),
+    var(--route-glass) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .055), 0 14px 32px rgba(0, 0, 0, .2);
+  backdrop-filter: blur(18px) saturate(1.25);
+}
+
+.system-status-grid .panel-heading {
+  margin: 0;
+  padding: 0 0 .85rem;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--glass-border) 70%, transparent);
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.system-status-grid .storage-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  margin: 0;
+  padding: .45rem 0 .55rem;
+  border: 0;
+  background: transparent;
+}
+
+.system-status-grid .storage-summary > div {
+  display: grid;
+  gap: .12rem;
+  margin: 0;
+  padding: .7rem 1rem .65rem 0;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.system-status-grid .storage-summary > div + div {
+  padding-left: 1rem;
+  border-left: 1px solid color-mix(in srgb, var(--glass-border) 70%, transparent) !important;
+}
+
+.system-status-grid .storage-summary-label {
+  color: var(--muted);
+  font-size: .68rem;
+  font-weight: 750;
+  letter-spacing: .12em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.system-status-grid .storage-summary strong {
+  font-size: clamp(1.45rem, 2.4vw, 1.85rem);
+  line-height: 1.08;
+}
+
+.system-status-grid .storage-summary small {
+  color: var(--muted);
+}
+
+.system-status-grid .storage-meter {
+  height: .38rem;
+  margin: 0 0 .45rem;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--glass-border) 55%, transparent);
+  box-shadow: none;
+}
+
+.system-status-grid .storage-path-list {
+  margin-top: .15rem;
+  border-top: 1px solid color-mix(in srgb, var(--glass-border) 70%, transparent);
+}
+
+.system-status-grid .storage-path-list .data-row {
+  min-height: 0;
+  margin: 0;
+  padding: .72rem 0;
+  border: 0 !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--glass-border) 55%, transparent) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.system-status-grid .storage-path-list .data-row:last-child {
+  border-bottom: 0 !important;
+}
+
+.system-status-grid .storage-path-list .data-row:hover {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 6%, transparent), transparent 72%) !important;
+}
+
+.system-status-grid .status-path-state {
+  font-size: .68rem;
+  font-weight: 750;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 560px) {
+  .system-status-grid .storage-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .system-status-grid .storage-summary > div + div {
+    padding-left: 0;
+    border-top: 1px solid color-mix(in srgb, var(--glass-border) 55%, transparent) !important;
+    border-left: 0 !important;
+  }
+}
