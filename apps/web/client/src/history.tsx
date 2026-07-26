@@ -125,7 +125,7 @@ function HistorySection({
     }
   }
   return (
-    <section className="react-history-domain">
+    <section className="system-domain-section react-history-domain">
       <header className="panel-heading">
         <div>
           <span className="eyebrow">
@@ -308,7 +308,7 @@ export function HistoryView({ options }: { options: HistoryMountOptions }) {
           history records, so they do not show that action.
         </p>
       </div>
-      <div className="react-history-toolbar panel">
+      <div className="react-history-toolbar">
         <label>
           Find activity
           <input
@@ -334,7 +334,7 @@ export function HistoryView({ options }: { options: HistoryMountOptions }) {
           </select>
         </label>
       </div>
-      <div className="react-history-feed panel">
+      <div className="system-domain-grid">
         <HistorySection
           domain="movie"
           items={filtered.filter((item) => item.domain === "movie")}
