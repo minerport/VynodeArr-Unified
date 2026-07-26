@@ -7,6 +7,14 @@ const numericId = (id) => Number(String(id).replace(/^movie_/, ''));
 
 export class MovieEngineAdapter {
   constructor(config, client = new ReadOnlyEngineClient(config, 'Movie')) { this.config = config; this.client = client; }
+  async getAttentionSummary() {
+    const [missing, cutoff] = await Promise.all([
+      this.client.get('wanted/missing', { page: 1, pageSize: 1, monitored: true }),
+      this.client.get('wanted/cutoff', { page: 1, pageSize: 1, monitored: true })
+    ]);
+    const count = value => Number.isFinite(Number(value?.totalRecords)) ? Number(value.totalRecords) : (records(value) || []).length;
+    return { missing: count(missing), cutoff: count(cutoff) };
+  }
   async #cutoffIds() {
     const pageSize=1000,ids=new Set();
     for(let page=1;page<=100;page+=1){

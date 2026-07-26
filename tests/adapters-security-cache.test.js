@@ -25,6 +25,11 @@ test('movie adapter recognizes scanned media when the engine reports disk usage 
   const adapter=new MovieEngineAdapter({enabled:true},new FakeClient({movie:[pendingFile],queue:{records:[]},'wanted/cutoff':{records:[]}})),item=(await adapter.listMovies())[0];
   assert.equal(item.hasFile,true);assert.equal(item.state,'available');assert.equal(item.quality,'Detected media');
 });
+test('engine attention summaries use authoritative wanted totals',async()=>{
+  const values={'wanted/missing':{records:[],totalRecords:30},'wanted/cutoff':{records:[],totalRecords:1000}};
+  assert.deepEqual(await new MovieEngineAdapter({enabled:true},new FakeClient(values)).getAttentionSummary(),{missing:30,cutoff:1000});
+  assert.deepEqual(await new TvEngineAdapter({enabled:true},new FakeClient(values)).getAttentionSummary(),{missing:30,cutoff:1000});
+});
 test('movie cutoff attention includes every engine result page',async()=>{
   const movies=Array.from({length:1001},(_,index)=>({...movieRecord,id:index+1,title:`Movie ${index+1}`}));
   const client={

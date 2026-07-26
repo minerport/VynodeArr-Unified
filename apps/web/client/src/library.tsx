@@ -60,7 +60,7 @@ function LibraryCard({item,kind,view,priority,onMonitor,onPrefetch}:{item:Librar
 export function LibraryView({options}:{options:LibraryMountOptions}){
   const {kind,request,notify}=options,movie=kind==='movies';
   const storageKey=`vynodearr.libraryState.${kind}`,saved=useMemo(()=>{try{return JSON.parse(sessionStorage.getItem(storageKey)||'{}') as {filter?:string;sort?:string;query?:string;scrollY?:number};}catch{return{};}},[storageKey]);
-  const [items,setItems]=useState(options.items),[filter,setFilter]=useState(saved.filter||'all'),[sort,setSort]=useState(saved.sort||'title'),[query,setQuery]=useState(saved.query||''),[debouncedQuery,setDebouncedQuery]=useState(saved.query||''),[view,setView]=useState(options.initialView),[limit,setLimit]=useState(120),[searching,setSearching]=useState(false),[priorityIds,setPriorityIds]=useState<Set<string>>(()=>new Set());
+  const [items,setItems]=useState(options.items),[attention,setAttention]=useState<{missing:number;cutoff:number}|null>(null),[filter,setFilter]=useState(saved.filter||'all'),[sort,setSort]=useState(saved.sort||'title'),[query,setQuery]=useState(saved.query||''),[debouncedQuery,setDebouncedQuery]=useState(saved.query||''),[view,setView]=useState(options.initialView),[limit,setLimit]=useState(120),[searching,setSearching]=useState(false),[priorityIds,setPriorityIds]=useState<Set<string>>(()=>new Set());
   const loadMoreRef=useRef<HTMLDivElement|null>(null);
   const gridRef=useRef<HTMLDivElement|null>(null);
   const alphabetRef=useRef<HTMLElement|null>(null);
@@ -72,16 +72,28 @@ export function LibraryView({options}:{options:LibraryMountOptions}){
       if(pending)return;
       pending=true;
       try{
-        const value=await request<{items?:LibraryItem[]}>(movie?'/api/media/movies':'/api/media/tv');
+        const value=await request<{items?:LibraryItem[];attention?:{missing:number;cutoff:number}}>(movie?'/api/media/movies':'/api/media/tv');
         if(active&&Array.isArray(value.items))setItems(value.items);
+        if(active&&value.attention)setAttention(value.attention);
       }catch{}finally{pending=false;}
     };
     const resume=()=>{if(document.visibilityState==='visible')void refresh();};
     void refresh();
-    const timer=window.setInterval(resume,30_000);
+    const events=new EventSource('/api/library-events');
+    events.addEventListener('library-updated',raw=>{
+      try{
+        const update=JSON.parse((raw as MessageEvent<string>).data) as {domain?:string;items?:LibraryItem[];attention?:{missing:number;cutoff:number}};
+        if(update.domain!==(movie?'movie':'tv'))return;
+        if(update.attention)setAttention(update.attention);
+        if(Array.isArray(update.items)&&update.items.length){
+          const replacements=new Map(update.items.map(item=>[item.id,item]));
+          setItems(current=>current.map(item=>replacements.get(item.id)||item));
+        }
+      }catch{}
+    });
     window.addEventListener('focus',resume);
     document.addEventListener('visibilitychange',resume);
-    return()=>{active=false;window.clearInterval(timer);window.removeEventListener('focus',resume);document.removeEventListener('visibilitychange',resume);};
+    return()=>{active=false;events.close();window.removeEventListener('focus',resume);document.removeEventListener('visibilitychange',resume);};
   },[movie,request,options]);
   useEffect(()=>{const timer=window.setTimeout(()=>setDebouncedQuery(query),200);return()=>window.clearTimeout(timer);},[query]);
   useEffect(()=>{setLimit(120);},[filter,sort,debouncedQuery,view]);
@@ -154,7 +166,7 @@ export function LibraryView({options}:{options:LibraryMountOptions}){
       if(frame)window.cancelAnimationFrame(frame);
     };
   },[visible,limit,view]);
-  const monitored=items.filter(item=>item.monitoring!=='none'),missing=monitored.filter(item=>movie?item.state==='missing':Number(item.missingEpisodes||0)>0).length,cutoff=monitored.filter(item=>movie?item.state==='cutoff':Number(item.cutoffUnmetEpisodes||0)>0).length,coverage=Math.round(items.filter(item=>movie?item.hasFile:Number(item.missingEpisodes||0)===0).length/Math.max(items.length,1)*100);
+  const monitored=items.filter(item=>item.monitoring!=='none'),derivedMissing=monitored.reduce((sum,item)=>sum+(movie?Number(item.state==='missing'):Number(item.missingEpisodes||0)),0),derivedCutoff=monitored.reduce((sum,item)=>sum+(movie?Number(item.state==='cutoff'):Number(item.cutoffUnmetEpisodes||0)),0),missing=attention?.missing??derivedMissing,cutoff=attention?.cutoff??derivedCutoff,coverage=Math.round(items.filter(item=>movie?item.hasFile:Number(item.missingEpisodes||0)===0).length/Math.max(items.length,1)*100);
   async function monitor(item:LibraryItem){
     const domain=movie?'movie':'tv',engineId=item.id.replace(movie?'movie_':'series_','');
     try{

@@ -7,6 +7,14 @@ const numericId = (id) => Number(String(id).replace(/^series_/, ''));
 
 export class TvEngineAdapter {
   constructor(config, client = new ReadOnlyEngineClient(config, 'TV')) { this.config = config; this.client = client; }
+  async getAttentionSummary() {
+    const [missing, cutoff] = await Promise.all([
+      this.client.get('wanted/missing', { page: 1, pageSize: 1, monitored: true }),
+      this.client.get('wanted/cutoff', { page: 1, pageSize: 1, monitored: true })
+    ]);
+    const count = value => Number.isFinite(Number(value?.totalRecords)) ? Number(value.totalRecords) : (records(value) || []).length;
+    return { missing: count(missing), cutoff: count(cutoff) };
+  }
   async #context() {
     const [queue, missing] = await Promise.all([
       this.getQueue().catch(() => []),

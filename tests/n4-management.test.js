@@ -49,11 +49,12 @@ test('management gateway exposes native capabilities and forwards only allowlist
 });
 
 test('native interaction workflows replace an upstream-shaped generic shell',async()=>{
-  const [html,script,apiSource,clientSource]=await Promise.all([
+  const [html,script,apiSource,clientSource,librarySource]=await Promise.all([
     readFile(new URL('../apps/web/public/index.html',import.meta.url),'utf8'),
     readFile(new URL('../apps/web/client/src/app-shell.ts',import.meta.url),'utf8'),
     readFile(new URL('../apps/api/src/app.js',import.meta.url),'utf8'),
-    readFile(new URL('../packages/platform/src/read-only-engine-client.ts',import.meta.url),'utf8')
+    readFile(new URL('../packages/platform/src/read-only-engine-client.ts',import.meta.url),'utf8'),
+    readFile(new URL('../apps/web/client/src/library.tsx',import.meta.url),'utf8')
   ]);
   for(const route of ['#add','#wanted','#queue','#service/root-folders','#system'])assert.match(html,new RegExp(route));
   for(const workflow of ['wanted-series-search','wanted-season-search','SeriesSearch','SeasonSearch','Search entire show','Search entire season'])assert.match(script,new RegExp(workflow));
@@ -105,6 +106,9 @@ assert.ok(apiSource.includes("domain==='movie'?{name:'RenameMovie',movieIds:[med
   for(const workflow of ['[400,404,409,422,500]','item?.detail','item?.description'])assert.ok(clientSource.includes(workflow),workflow);
   for(const workflow of ['VYNODEARR_IMPORT_PACE_MS||25','cancelRequested',"status='canceling'",'cancel-import-job','importRefreshMilestones','job.completed%50===0','Stopping after the current item','Refresh and folder scan queued','includeFiles=true','Video files ('])assert.ok(script.includes(workflow)||apiSource.includes(workflow),workflow);
   for(const workflow of ['startMissingSearchJob','/api/search-jobs','Search all missing','Stopping after the current batch','MoviesSearch','EpisodeSearch','ensureBundledDownloadPathMappings','VYNODEARR_DOWNLOAD_CLIENT_REMOTE_PATH','/data/complete','/downloads','detail-navigation','← Previous','Next →'])assert.ok(script.includes(workflow)||apiSource.includes(workflow),workflow);
+  for(const workflow of ['/api/library-events','text/event-stream','library-updated','queueImportedLibraryReconciliation','completedLibraryImports','new EventSource','events.close()'])assert.ok(script.includes(workflow)||apiSource.includes(workflow)||librarySource.includes(workflow),workflow);
+  for(const workflow of ['closeDetailFromBackdrop','backdropPress','onpointercancel'])assert.ok(script.includes(workflow),workflow);
+  assert.ok(!librarySource.includes('window.setInterval(resume,30_000)'),'mounted libraries must react to imported-history events instead of polling every 30 seconds');
   for(const workflow of ['reassignMediaFile','/api/media-files/reassign','filterExistingFiles:false',"name:'ManualImport'","importMode:'Auto'",'Choose movie file','episode-change-file','CHOOSE MEDIA FILE','This replaces its stale file association'])assert.ok(script.includes(workflow)||apiSource.includes(workflow),workflow);
   for(const workflow of ['queue-removing',"button.classList.add('activated')","button.textContent='Removing…'",'queue-select-all','queue-select-completed','queue-status-filter','queue-media-filter','queue-source-filter','removeQueueButton'])assert.ok(script.includes(workflow),workflow);
   for(const workflow of ['showCollectionsV2','collection-builder-layout','LIVE PREVIEW','titleContains','genres','decade','includedMovieIds','excludedMovieIds','Changing rules replaces the current matches','retain-preview-movie','remove-preview-movie','Edit rules & movies'])assert.ok(script.includes(workflow)||apiSource.includes(workflow),workflow);

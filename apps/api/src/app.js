@@ -80,14 +80,14 @@ export function createApplication(options={}){
   const downloadClientRemotePath=domain=>String(env[domain==='movie'?'VYNODEARR_MOVIE_DOWNLOAD_CLIENT_REMOTE_PATH':'VYNODEARR_TV_DOWNLOAD_CLIENT_REMOTE_PATH']||env.VYNODEARR_DOWNLOAD_CLIENT_REMOTE_PATH||'/data/complete').replace(/\/+$/,'')||'/data/complete';
   const downloadFolderStore=options.downloadFolderStore||new JsonStore(join(dataDir,'download-folders.json'),{version:1,movie:{path:defaultDownloadFolder('movie')},tv:{path:defaultDownloadFolder('tv')},updatedAt:null});
   const discovery=options.discovery||new TmdbDiscoveryService({token:env.TMDB_API_READ_TOKEN||env.TMDB_API_KEY});
-  const artworkCache=new Map(),artworkRuns=new Map(),tvMetadataCache=new Map();let mode=baseConfig.dataMode;
+  const artworkCache=new Map(),artworkRuns=new Map(),tvMetadataCache=new Map();let mode=baseConfig.dataMode,librarySummaryTimer=null;
   let movie=options.movie||(mode==='fixture'?new MovieFixtureAdapter(baseConfig.movie):new MovieEngineAdapter(baseConfig.movie));
   let tv=options.tv||(mode==='fixture'?new TvFixtureAdapter(baseConfig.tv):new TvEngineAdapter(baseConfig.tv));
   const registry=options.registry||new MediaEngineRegistry().register('movie',movie).register('tv',tv);
   const sync=options.sync||new SynchronizationService({movie,tv,maxItems:baseConfig.cacheMaxItems,pollIntervalMs:baseConfig.pollIntervalMs,projectionStore});
   const enginesConfigured=()=>mode==='fixture'||engineSettings.configured();
   const management=new EngineManagementService(registry);
-const importJobs=new Map(),searchJobs=new Map(),completedQueueRefreshes=new Map(),completedQueueCleanups=new Map(),completedUpgradeRenames=new Map(),interactiveReleaseCache=new Map(),renamePlans=new Map();
+const importJobs=new Map(),searchJobs=new Map(),completedQueueRefreshes=new Map(),completedQueueCleanups=new Map(),completedUpgradeRenames=new Map(),completedLibraryImports=new Map(),libraryReconciliations=new Map(),libraryEventClients=new Set(),interactiveReleaseCache=new Map(),renamePlans=new Map();
   let initialized=false,queueCompletionTimer=null;
   function importIdentityKeys(value={}){
     const keys=[],title=String(value.title||value.name||'').trim().toLowerCase(),year=Number(value.year||0);
@@ -274,6 +274,52 @@ const importJobs=new Map(),searchJobs=new Map(),completedQueueRefreshes=new Map(
   function truthyEngineValue(value){
     return value===true||['true','1','yes','on'].includes(String(value??'').trim().toLowerCase());
   }
+  function broadcastLibraryEvent(value){
+    const payload=`event: library-updated\ndata: ${JSON.stringify(value)}\n\n`;
+    for(const client of libraryEventClients)try{client.write(payload);}catch{libraryEventClients.delete(client);}
+  }
+  function importedMediaId(domain,event){
+    return Number(domain==='movie'?(event?.movieId||event?.movie?.id):(event?.seriesId||event?.series?.id||event?.episode?.seriesId));
+  }
+  async function authoritativeAttention(domain){
+    const adapter=registry.get(domain);
+    if(typeof adapter.getAttentionSummary==='function')return adapter.getAttentionSummary();
+    const items=await sync.list(domain);
+    const monitored=items.filter(item=>item.monitoring!=='none');
+    return{
+      missing:monitored.reduce((sum,item)=>sum+(domain==='movie'?Number(item.state==='missing'):Number(item.missingEpisodes||0)),0),
+      cutoff:monitored.reduce((sum,item)=>sum+(domain==='movie'?Number(item.state==='cutoff'):Number(item.cutoffUnmetEpisodes||0)),0)
+    };
+  }
+  async function broadcastAuthoritativeAttention(domain){
+    const attention=await authoritativeAttention(domain);
+    broadcastLibraryEvent({domain,attention,updatedAt:new Date().toISOString()});
+    return attention;
+  }
+  function queueImportedLibraryReconciliation(domain,event){
+    const mediaId=importedMediaId(domain,event);
+    if(!Number.isFinite(mediaId)||mediaId<=0)return;
+    const identity=String(event?.id||event?.movieFileId||event?.episodeFileId||event?.downloadId||event?.data?.downloadId||event?.date||`${mediaId}:${event?.sourceTitle||''}`);
+    const eventKey=`${domain}:${identity}`,now=Date.now(),seen=completedLibraryImports.get(eventKey)||0;
+    if(now-seen<24*60*60*1000)return;
+    completedLibraryImports.set(eventKey,now);
+    let pending=libraryReconciliations.get(domain);
+    if(!pending){pending={mediaIds:new Set(),timer:null};libraryReconciliations.set(domain,pending);}
+    pending.mediaIds.add(mediaId);
+    if(!pending.timer)pending.timer=setTimeout(async()=>{
+      pending.timer=null;
+      const mediaIds=[...pending.mediaIds];pending.mediaIds.clear();
+      try{
+        sync.invalidate(domain);
+        const [items,attention]=await Promise.all([sync.synchronize(domain),authoritativeAttention(domain)]),wanted=new Set(mediaIds.map(id=>`${domain==='movie'?'movie':'series'}_${id}`)),changed=items.filter(item=>wanted.has(item.id));
+        broadcastLibraryEvent({domain,mediaIds,items:changed,attention,updatedAt:new Date().toISOString()});
+      }catch{
+        for(const id of mediaIds)pending.mediaIds.add(id);
+        if(!pending.timer)pending.timer=setTimeout(()=>{pending.timer=null;for(const id of [...pending.mediaIds])queueImportedLibraryReconciliation(domain,{id:`retry:${id}:${Date.now()}`,movieId:domain==='movie'?id:null,seriesId:domain==='tv'?id:null});},10_000);
+      }
+    },2_000);
+    if(completedLibraryImports.size>5_000)for(const [key,timestamp] of completedLibraryImports)if(now-timestamp>24*60*60*1000)completedLibraryImports.delete(key);
+  }
   function scheduleImportedUpgradeRename(domain,item,event){
     if(!truthyEngineValue(event?.data?.isUpgrade??event?.isUpgrade))return;
     const mediaId=Number(domain==='movie'?(item.movieId||item.movie?.id):(item.seriesId||item.series?.id||item.episode?.seriesId));
@@ -429,6 +475,11 @@ const importJobs=new Map(),searchJobs=new Map(),completedQueueRefreshes=new Map(
       queueCompletionTimer=setInterval(()=>liveQueue().catch(()=>{}),interval);
       queueCompletionTimer.unref?.();
     }
+    if(mode==='engine'&&!librarySummaryTimer){
+      const interval=Math.max(5*60_000,Number(env.VYNODEARR_LIBRARY_SUMMARY_RECONCILE_MS||15*60_000));
+      librarySummaryTimer=setInterval(()=>{for(const domain of ['movie','tv'])void broadcastAuthoritativeAttention(domain).catch(()=>{});},interval);
+      librarySummaryTimer.unref?.();
+    }
     initialized=true;
   }
   async function testEngine(domain,input){
@@ -504,6 +555,7 @@ const importJobs=new Map(),searchJobs=new Map(),completedQueueRefreshes=new Map(
       ]);
       const engineRecords=Array.isArray(queueValue?.records)?queueValue.records:[],linkedId=item=>Number(domain==='movie'?(item.movieId||item.movie?.id):(item.seriesId||item.series?.id||item.episode?.seriesId)),records=engineRecords.filter(item=>{const id=linkedId(item);return Number.isFinite(id)&&id>0;}),libraryById=new Map((Array.isArray(library)?library:[]).map(item=>[Number(item.id),item]));
       const importedHistory=(Array.isArray(historyValue?.records)?historyValue.records:[]).filter(event=>String(event.eventType).toLowerCase()==='downloadfolderimported');
+      for(const event of importedHistory)queueImportedLibraryReconciliation(domain,event);
       const importedByDownloadId=new Map(),importedBySourceTitle=new Map();
       for(const event of importedHistory){
         const downloadId=String(event.downloadId||event.data?.downloadId||''),sourceTitle=String(event.sourceTitle||'').toLowerCase();
@@ -583,6 +635,13 @@ const importJobs=new Map(),searchJobs=new Map(),completedQueueRefreshes=new Map(
       }
       if(url.pathname.startsWith('/api/')){
         const session=requireSession(req,res,auth);if(!session)return;const sessionId=cookies(req.headers.cookie).vynodearr_session;
+        if(url.pathname==='/api/library-events'&&req.method==='GET'){
+          res.writeHead(200,{'content-type':'text/event-stream; charset=utf-8','cache-control':'no-store','connection':'keep-alive','x-accel-buffering':'no','x-content-type-options':'nosniff'});
+          res.write('event: ready\ndata: {}\n\n');libraryEventClients.add(res);
+          const heartbeat=setInterval(()=>{try{res.write(': keepalive\n\n');}catch{}},25_000);heartbeat.unref?.();
+          req.on('close',()=>{clearInterval(heartbeat);libraryEventClients.delete(res);});
+          return;
+        }
         if(url.pathname==='/api/import-jobs'&&req.method==='GET')return json(res,200,{items:[...importJobs.values()].filter(job=>job.userId===session.user.id).map(publicImportJob)});
         if(url.pathname==='/api/import-jobs'&&req.method==='POST'){if(!requireCsrf(req,res,session))return;return json(res,202,{job:startImportJob(session.user.id,await body(req,25_000_000))});}
         const importJobMatch=url.pathname.match(/^\/api\/import-jobs\/(import_[A-Za-z0-9-]+)$/);
@@ -858,9 +917,9 @@ const importJobs=new Map(),searchJobs=new Map(),completedQueueRefreshes=new Map(
           }
           res.writeHead(200,{'content-type':value.contentType,'cache-control':'private, max-age=86400, stale-while-revalidate=604800','x-content-type-options':'nosniff'});return res.end(value.body);
         }
-        if(url.pathname==='/api/media/movies')return json(res,200,{items:await sync.list('movie',{refresh:url.searchParams.get('refresh')==='true'}),mode,sync:sync.snapshot().movie});
+        if(url.pathname==='/api/media/movies'){const[items,attention]=await Promise.all([sync.list('movie',{refresh:url.searchParams.get('refresh')==='true'}),authoritativeAttention('movie')]);return json(res,200,{items,attention,mode,sync:sync.snapshot().movie});}
         const movieMatch=url.pathname.match(/^\/api\/media\/movies\/(movie_[A-Za-z0-9_-]+)$/);if(movieMatch){const item=await registry.movie().getMovie(movieMatch[1]);return item?json(res,200,{item,mode}):json(res,404,{error:{code:'not_found',message:'Movie was not found.'}});}
-        if(url.pathname==='/api/media/tv')return json(res,200,{items:await sync.list('tv',{refresh:url.searchParams.get('refresh')==='true'}),mode,sync:sync.snapshot().tv});
+        if(url.pathname==='/api/media/tv'){const[items,attention]=await Promise.all([sync.list('tv',{refresh:url.searchParams.get('refresh')==='true'}),authoritativeAttention('tv')]);return json(res,200,{items,attention,mode,sync:sync.snapshot().tv});}
         const tvMatch=url.pathname.match(/^\/api\/media\/tv\/(series_[A-Za-z0-9_-]+)$/);if(tvMatch){const item=await registry.tv().getSeries(tvMatch[1]);return item?json(res,200,{item,mode}):json(res,404,{error:{code:'not_found',message:'TV series was not found.'}});}
         if(url.pathname==='/api/activity/queue/live'||url.pathname==='/api/activity/queue')return json(res,200,{items:mode==='engine'?await liveQueue():await sync.operations('queue')});
         if(url.pathname==='/api/activity/history')return json(res,200,{items:await sync.operations('history')});
