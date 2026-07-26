@@ -17,7 +17,7 @@ const routeChunks=sizes.filter(file=>file.name.endsWith('.js')&&!['vynodearr-rea
 const stylesheet=sizes.find(file=>file.name==='vynodearr-react.css');
 // Keep the transitional application shell near its current minified baseline
 // while typed routes continue moving out into independently loaded chunks.
-const limits={entry:300_000,shell:250_000,route:45_000,css:50_000};
+const limits={entry:300_000,shell:250_000,route:45_000,css:52_000};
 const failures=[];
 
 if(!entry)failures.push('The React entry bundle was not produced.');

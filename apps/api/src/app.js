@@ -240,13 +240,20 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
     const rootFolderPath=String(record.rootFolderPath||parentMediaPath(record.path));
     const destinationPath=joinMediaPath(rootFolderPath,folder);
     const renameItems=await management.execute(domain,'renamePreview','GET',{query:domain==='movie'?{movieId:mediaId}:{seriesId:mediaId}});
+    const fileRecords=await management.execute(domain,domain==='movie'?'movieFiles':'episodeFiles','GET',{query:domain==='movie'?{movieId:mediaId}:{seriesId:mediaId}});
+    const filesById=new Map((Array.isArray(fileRecords)?fileRecords:[]).map(file=>[Number(file.id),file]));
     const preview={
       domain,mediaId,title:record.title,currentPath:record.path,rootFolderPath,destinationPath,folderChange:normalizeMediaPath(record.path)!==normalizeMediaPath(destinationPath),
-      files:(Array.isArray(renameItems)?renameItems:[]).map(item=>({
+      files:(Array.isArray(renameItems)?renameItems:[]).map(item=>{const file=filesById.get(Number(item.movieFileId??item.episodeFileId??item.id))||item;return({
         id:item.movieFileId??item.episodeFileId??item.id,
         existingPath:item.existingPath||item.path||'',
-        newPath:item.newPath||''
-      }))
+        newPath:item.newPath||'',size:Number(file.size||file.sizeOnDisk||0),
+        quality:file.quality?.quality?.name||file.quality?.name||file.quality||'',
+        languages:(Array.isArray(file.languages)?file.languages:file.language?[file.language]:[]).map(value=>value?.name||value).filter(Boolean),
+        videoCodec:file.mediaInfo?.videoCodec||'',audioCodec:file.mediaInfo?.audioCodec||'',
+        resolution:file.mediaInfo?.resolution||file.mediaInfo?.videoResolution||'',dateAdded:file.dateAdded||'',
+        seasonNumber:item.seasonNumber,episodeNumbers:item.episodeNumbers||[]
+      })})
     };
     return input.storePlan===false?preview:saveRenamePlan(preview,record);
   }
@@ -269,15 +276,29 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
       if((input.domain&&input.domain!==preview.domain)||(input.mediaId&&Number(input.mediaId)!==preview.mediaId))throw new Error('This rename preview does not match the selected media.');
       if(renameMediaSignature(record)!==plan.signature)throw new Error('This media changed after the rename preview was created. Generate a fresh preview before applying changes.');
     }else preview=await renameMediaPreview({...input,storePlan:false});
-    const domain=preview.domain,mediaId=preview.mediaId;
-    if(preview.folderChange){
+    const domain=preview.domain,mediaId=preview.mediaId,moveFolder=input.moveFolder!==false;
+    const availableIds=new Set(preview.files.map(file=>Number(file.id)).filter(Number.isFinite));
+    const requestedIds=Array.isArray(input.fileIds)?input.fileIds.map(Number).filter(id=>availableIds.has(id)):Array.from(availableIds);
+    if(preview.folderChange&&moveFolder){
       record||=await management.execute(domain,'library','GET',{id:mediaId});
       await management.execute(domain,'library','PUT',{id:mediaId,query:{moveFiles:true},payload:{...record,path:preview.destinationPath,rootFolderPath:preview.rootFolderPath}});
     }
-    const command=await management.execute(domain,'commands','POST',{payload:domain==='movie'?{name:'RenameMovie',movieIds:[mediaId]}:{name:'RenameSeries',seriesIds:[mediaId]}});
+    const command=requestedIds.length?await management.execute(domain,'commands','POST',{payload:domain==='movie'?{name:'RenameFiles',movieId:mediaId,files:requestedIds}:{name:'RenameFiles',seriesId:mediaId,files:requestedIds}}):null;
     sync.invalidate(domain);
     for(const delay of [2_000,10_000,30_000])setTimeout(()=>sync.synchronize(domain).catch(()=>{}),delay);
     return{preview,command};
+  }
+  async function deleteRenamePreviewFile(input){
+    const previewId=String(input.previewId||''),fileId=Number(input.fileId),plan=renamePlans.get(previewId);
+    if(!plan||plan.expiresAt<=Date.now())throw new Error('This rename preview expired. Generate a fresh preview before deleting a file.');
+    const preview=plan.preview,file=preview.files.find(item=>Number(item.id)===fileId);
+    if(!file)throw new Error('That file is not part of this rename preview.');
+    await management.execute(preview.domain,preview.domain==='movie'?'movieFiles':'episodeFiles','DELETE',{id:fileId});
+    preview.files=preview.files.filter(item=>Number(item.id)!==fileId);
+    const record=await management.execute(preview.domain,'library','GET',{id:preview.mediaId});
+    plan.signature=renameMediaSignature(record);
+    sync.invalidate(preview.domain);
+    return{deleted:true,fileId};
   }
   function queueRecordKey(domain,item){
     return `${domain}:${String(item.id||item.downloadId||item.downloadClientId||item.title||'unknown')}`;
@@ -874,6 +895,7 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
         }
         if(url.pathname==='/api/media-files/rename'&&req.method==='GET'){if(!administrator(res,session))return;return json(res,200,{preview:await renameMediaPreview(Object.fromEntries(url.searchParams))});}
         if(url.pathname==='/api/media-files/rename'&&req.method==='POST'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;return json(res,202,{queued:true,result:await renameMedia(await body(req))});}
+        if(url.pathname==='/api/media-files/rename/file'&&req.method==='DELETE'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;return json(res,200,{result:await deleteRenamePreviewFile(await body(req))});}
         const catalogMatch=url.pathname.match(/^\/api\/manage\/(movie|tv)$/);
         if(catalogMatch&&req.method==='GET'){if(!administrator(res,session))return;return json(res,200,{domain:catalogMatch[1],available:management.available(catalogMatch[1]),resources:management.catalog(catalogMatch[1])});}
         const automaticSearchMatch=url.pathname.match(/^\/api\/manage\/(movie|tv)\/automaticSearch$/);
