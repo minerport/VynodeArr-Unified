@@ -11,6 +11,11 @@ const feeds=[
 ] as const;
 const normalize=(value:string)=>value.toLowerCase().replace(/[^a-z0-9]+/g,'').trim();
 const libraryKey=(domain:DiscoverDomain,title:string,year?:number|null)=>`${domain}:${normalize(title)}:${Number(year||0)}`;
+const mergeUnique=(pages:DiscoverPage[])=>{
+  const seen=new Set<string>();
+  return pages.flatMap(page=>page.results).filter(item=>!seen.has(item.id)&&Boolean(seen.add(item.id)));
+};
+type BrowseContext={domain:DiscoverDomain;returnDomain:'all'|DiscoverDomain;parameter:'genre'|'company'|'network';id:number;page:number;totalPages:number;totalResults:number;loading:boolean};
 const libraryStatus=(domain:DiscoverDomain,item:LibraryItem):DiscoverLibraryStatus=>{
   if(domain==='movie')return item.hasFile||Number(item.sizeOnDisk||0)>0?'available':'pending';
   return Number.parseInt(item.episodeProgress||'0',10)>0||Number(item.sizeOnDisk||0)>0?'available':'pending';
@@ -28,11 +33,12 @@ function Card({item,status,onOpen}:{item:DiscoverItem;status?:DiscoverLibrarySta
   </article>;
 }
 
-function Row({title,subtitle,items,library,onOpen,onMore}:{title:string;subtitle:string;items:DiscoverItem[];library:Map<string,DiscoverLibraryStatus>;onOpen:(item:DiscoverItem)=>void;onMore?:()=>void}){
+function Row({title,subtitle,items,library,onOpen,onMore,onBack,grid=false}:{title:string;subtitle:string;items:DiscoverItem[];library:Map<string,DiscoverLibraryStatus>;onOpen:(item:DiscoverItem)=>void;onMore?:()=>void;onBack?:()=>void;grid?:boolean}){
   const strip=useRef<HTMLDivElement>(null);
-  return <section className="discover-row"><div className="discover-row-heading"><div><h2>{title}</h2><p>{subtitle}</p></div><div className="discover-row-controls">
+  return <section className={`discover-row${grid?' discover-results-grid':''}`}>{onBack?<button className="discover-results-back" type="button" onClick={onBack}>← Back to Discover</button>:null}<div className="discover-row-heading"><div><h2>{title}</h2><p>{subtitle}</p></div><div className="discover-row-controls">
     <button type="button" onClick={()=>strip.current?.scrollBy({left:-strip.current.clientWidth*.8,behavior:'smooth'})}>←</button>
     <button type="button" onClick={()=>{strip.current?.scrollBy({left:strip.current.clientWidth*.8,behavior:'smooth'});onMore?.();}}>→</button>
+    {grid?<button className="discover-results-more" type="button" onClick={onMore} disabled={!onMore}>{onMore?'Load more':'All loaded'}</button>:null}
   </div></div><div className="discover-strip" ref={strip}>{items.map(item=><Card key={item.id} item={item} status={library.get(libraryKey(item.domain,item.title,item.year))} onOpen={onOpen}/>)}</div></section>;
 }
 
@@ -53,7 +59,9 @@ export function DiscoverView({options}:{options:DiscoverMountOptions}){
   const [query,setQuery]=useState('');
   const [searchResults,setSearchResults]=useState<DiscoverItem[]|null>(null);
   const [resultTitle,setResultTitle]=useState('');
+  const [browseContext,setBrowseContext]=useState<BrowseContext|null>(null);
   const [error,setError]=useState('');
+  const browseRequest=useRef(0);
 
   const loadFeed=useCallback(async(kind:string,page=1)=>{
     const value=await cachedRequest(`discover:feed:${kind}:${page}`,()=>options.request<DiscoverPage>(`/api/discover/feed?kind=${kind}&page=${page}`),90_000);
@@ -90,30 +98,62 @@ export function DiscoverView({options}:{options:DiscoverMountOptions}){
   },[loadFeed,options,refreshLibrary]);
 
   useEffect(()=>{
-    const term=query.trim();if(!term){setSearchResults(null);setResultTitle('');return;}
+    const term=query.trim();if(!term){if(!browseContext)setSearchResults(null);return;}
+    setBrowseContext(null);
     const controller=new AbortController(),timer=setTimeout(()=>{
       const domains:DiscoverDomain[]=domain==='all'?['movie','tv']:[domain];
       void Promise.all(domains.map(value=>options.request<DiscoverPage>(`/api/discover/browse?domain=${value}&query=${encodeURIComponent(term)}&page=1`,{signal:controller.signal}))).then(values=>{setResultTitle(`Search results for “${term}”`);setSearchResults(values.flatMap(value=>value.results));}).catch(()=>{});
     },250);
     return()=>{clearTimeout(timer);controller.abort();};
-  },[query,domain,options]);
+  },[query,domain,options,browseContext]);
 
   const featured=rows.trending?.find(item=>item.backdrop)||rows.trending?.[0];
   const visible=useMemo(()=>feeds.filter(([kind])=>domain==='all'||(domain==='movie'&&kind.includes('movie'))||(domain==='tv'&&kind.includes('tv'))),[domain]);
   const open=useCallback((item:DiscoverItem)=>window.dispatchEvent(new CustomEvent('vynodearr:discover-details',{detail:item})),[]);
-  const browse=useCallback((item:DiscoverCategory&{taxonomy:'genre'|'studio'|'network'})=>{
-    const parameter=item.taxonomy==='genre'?'genre':item.taxonomy==='studio'?'company':'network';
-    setResultTitle(item.name);setSearchResults([]);
-    void cachedRequest(`discover:browse:${item.domain}:${parameter}:${item.id}:1`,()=>options.request<DiscoverPage>(`/api/discover/browse?domain=${item.domain}&${parameter}=${item.id}&page=1`),5*60_000)
-      .then(value=>setSearchResults(value.results)).catch(reason=>options.notify(reason instanceof Error?reason.message:'Collection unavailable.','error'));
+  const loadBrowsePages=useCallback(async(context:BrowseContext,start:number,count:number,replace=false)=>{
+    if(context.loading||start>context.totalPages)return;
+    const requestId=++browseRequest.current,end=Math.min(context.totalPages,start+count-1);
+    setBrowseContext(current=>current?{...current,loading:true}:current);
+    try{
+      const pages=await Promise.all(Array.from({length:end-start+1},(_,index)=>{
+        const page=start+index,path=`/api/discover/browse?domain=${context.domain}&${context.parameter}=${context.id}&page=${page}`;
+        return cachedRequest(`discover:browse:${context.domain}:${context.parameter}:${context.id}:${page}`,()=>options.request<DiscoverPage>(path),5*60_000);
+      }));
+      if(requestId!==browseRequest.current)return;
+      const incoming=mergeUnique(pages);
+      setSearchResults(current=>replace?incoming:mergeUnique([{page:1,totalPages:1,totalResults:0,results:[...(current||[]),...incoming]}]));
+      setBrowseContext(current=>current?{...current,page:end,totalPages:pages[0]?.totalPages||current.totalPages,totalResults:pages[0]?.totalResults||current.totalResults,loading:false}:current);
+    }catch(reason){
+      if(requestId===browseRequest.current){
+        setBrowseContext(current=>current?{...current,loading:false}:current);
+        options.notify(reason instanceof Error?reason.message:'Collection unavailable.','error');
+      }
+    }
   },[options]);
+  const browse=useCallback((item:DiscoverCategory&{taxonomy:'genre'|'studio'|'network'})=>{
+    const parameter=item.taxonomy==='genre'?'genre':item.taxonomy==='studio'?'company':'network',requestId=++browseRequest.current;
+    setQuery('');setDomain(item.domain);setResultTitle(item.name);setSearchResults([]);
+    const firstPath=`/api/discover/browse?domain=${item.domain}&${parameter}=${item.id}&page=1`;
+    void cachedRequest(`discover:browse:${item.domain}:${parameter}:${item.id}:1`,()=>options.request<DiscoverPage>(firstPath),5*60_000).then(first=>{
+      if(requestId!==browseRequest.current)return;
+      const context:BrowseContext={domain:item.domain,returnDomain:domain,parameter,id:item.id,page:0,totalPages:first.totalPages,totalResults:first.totalResults,loading:false};
+      setBrowseContext(context);
+      if(first.totalPages<=1){setSearchResults(first.results);setBrowseContext({...context,page:1});return;}
+      void loadBrowsePages(context,1,5,true);
+    }).catch(reason=>options.notify(reason instanceof Error?reason.message:'Collection unavailable.','error'));
+  },[domain,loadBrowsePages,options]);
+  const closeBrowse=useCallback(()=>{
+    browseRequest.current+=1;
+    const returnDomain=browseContext?.returnDomain||'all';
+    setBrowseContext(null);setSearchResults(null);setResultTitle('');setQuery('');setDomain(returnDomain);
+  },[browseContext]);
 
   return <div className="react-discover">
     {featured?<section className="discover-hero"><div className="discover-hero-backdrop">{(featured.backdrop||featured.poster)?<img src={featured.backdrop||featured.poster||''} alt=""/>:null}</div><div className="discover-hero-shade"/><div className="discover-hero-copy"><span className="eyebrow">TRENDING TODAY</span><h1>{featured.title}</h1><p>{featured.overview}</p><div className="discover-meta"><span>★ {featured.rating.toFixed(1)}</span><span>{featured.year||'TBA'}</span></div><button className="primary" onClick={()=>open(featured)}>View details</button></div></section>:<section className="discover-hero skeleton"><div className="discover-hero-copy"><span className="eyebrow">DISCOVER</span><h1>Loading trending titles…</h1></div></section>}
     <section className="discover-toolbar"><label className="discover-search"><span>⌕</span><input type="search" value={query} onChange={event=>setQuery(event.target.value)} placeholder="Search all TMDB movies and television"/></label><div className="discover-domain-filter">{(['all','movie','tv'] as const).map(value=><button className={`chip${domain===value?' selected':''}`} onClick={()=>setDomain(value)} key={value}>{value==='all'?'Everything':value==='movie'?'Movies':'TV'}</button>)}</div><span className="discover-source">Live TMDB discovery · no Plex dependency</span></section>
     <div id="discover-rows">
       {error&&!Object.keys(rows).length?<div className="empty error-state"><h2>Connect Discover to TMDB</h2><p>{error}</p>{options.administrator?<a className="primary button-link" href="#service/discover">Configure Discover</a>:null}</div>:null}
-      {searchResults?<Row title={resultTitle||'Browse results'} subtitle="Live TMDB title search" items={searchResults} library={library} onOpen={open}/>:visible.map(([kind,title,subtitle])=>{
+      {searchResults?<Row title={resultTitle||'Browse results'} subtitle={browseContext?`${searchResults.length.toLocaleString()} of ${browseContext.totalResults.toLocaleString()} TMDB titles`:'Live TMDB title search'} items={searchResults} library={library} onOpen={open} grid={Boolean(browseContext)} onBack={browseContext?closeBrowse:undefined} onMore={browseContext&&browseContext.page<browseContext.totalPages&&!browseContext.loading?()=>void loadBrowsePages(browseContext,browseContext.page+1,3):undefined}/>:visible.map(([kind,title,subtitle])=>{
         const items=rows[kind]||[];if(!items.length)return <section className="discover-row skeleton" key={kind}><div className="discover-row-heading"><h2>{title}</h2></div></section>;
         return <div key={kind}><Row title={title} subtitle={subtitle} items={items} library={library} onOpen={open} onMore={()=>loadFeed(kind,(pages[kind]||1)+1).catch(()=>{})}/>
           {kind==='popular_movies'?<><Taxonomy title="Movie genres" kind="genre" items={taxonomies.movie} onSelect={browse}/><Taxonomy title="Studios" kind="studio" items={taxonomies.studios} onSelect={browse}/></>:null}
