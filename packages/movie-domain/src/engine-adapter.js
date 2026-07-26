@@ -19,8 +19,8 @@ export class MovieEngineAdapter {
     }
     return ids;
   }
-  async #context() {
-    const [queue, cutoff] = await Promise.allSettled([this.getQueue(), this.#cutoffIds()]);
+  async #context({includeCutoff=true}={}) {
+    const [queue, cutoff] = await Promise.allSettled([this.getQueue(), includeCutoff?this.#cutoffIds():Promise.resolve(new Set())]);
     const queueById = new Map((queue.value || []).filter((item) => item.mediaId).map((item) => [numericId(item.mediaId), item]));
     const cutoffIds = cutoff.value instanceof Set ? cutoff.value : new Set();
     return { queueById, cutoffIds };
@@ -38,7 +38,7 @@ export class MovieEngineAdapter {
     try {
       const [record, context] = await Promise.all([
         this.client.get(`movie/${engineId}`),
-        this.#context()
+        this.#context({includeCutoff:false})
       ]);
       return movieDetails(record, context);
     } catch (error) { if (error.code) throw error; throw engineError.invalid(); }
