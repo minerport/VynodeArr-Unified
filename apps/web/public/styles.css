@@ -63,4 +63,414 @@
 @media(max-width:650px){.discover-results-grid .discover-strip{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 /* Glass surfaces shared by the movie and television libraries. */
-.react-library{--library-glass:linear-gradient(145deg,color-mix(in srgb,var(--panel2) 54%,transparent),color-mix(in srgb,var(--panel) 66%,transparent) 52%,color-mix(in srgb,var(--bg) 76%,transparent));--library-glass-strong:linear-gradient(135deg,color-mix(in srgb,var(--panel2) 69%,transparent),color-mix(in srgb,var(--panel) 76%,transparent));position:relative;isolation:isolate}.react-library:before{content:"";position:absolute;z-index:-1;inset:-3rem -2rem;background:radial-gradient(circle at 8% 2%,color-mix(in srgb,var(--accent) 20%,transparent),transparent 27rem),radial-gradient(circle at 94% 14%,color-mix(in srgb,var(--cyan) 14%,transparent),transparent 28rem);pointer-events:none}.react-library>.hero{position:relative;overflow:hidden;margin-bottom:1rem;padding:1.25rem 1.45rem;border:1px solid color-mix(in srgb,var(--cyan) 20%,var(--glass-border));border-radius:1.05rem;background:radial-gradient(circle at 10% 0%,color-mix(in srgb,var(--accent) 20%,transparent),transparent 38%),radial-gradient(circle at 90% 5%,color-mix(in srgb,var(--cyan) 14%,transparent),transparent 36%),var(--library-glass-strong);box-shadow:inset 0 1px 0 rgba(255,255,255,.11),0 20px 48px rgba(0,0,0,.22);backdrop-filter:blur(24px) saturate(1.35)}.react-library>.hero:after,.react-library>.summary:after,.react-library-toolbar:after,.react-library-card:after{content:"";position:absolute;inset:0;border-radius:inherit;background:linear-gradient(118deg,rgba(255,255,255,.065),transparent 24%,transparent 74%,rgba(255,255,255,.025));pointer-events:none}.react-library>.hero>*{position:relative;z-index:1}.react-library>.summary{position:relative;overflow:hidden;margin-bottom:1rem;border:1px solid var(--glass-border);border-radius:1rem;background:var(--library-glass);box-shadow:inset 0 1px 0 rgba(255,255,255,.085),0 14px 34px rgba(0,0,0,.18);backdrop-filter:blur(20px) saturate(1.25)}.react-library>.summary>div{position:relative;z-index:1;background:transparent}.react-library-toolbar{position:relative;overflow:hidden;margin-bottom:1rem;padding:.72rem;border:1px solid var(--glass-border);border-radius:.9rem;background:var(--library-glass);box-shadow:inset 0 1px 0 rgba(255,255,255,.075),0 12px 30px rgba(0,0,0,.16);backdrop-filter:blur(20px) saturate(1.25)}.react-library-toolbar>*{position:relative;z-index:1}.react-library-search input{border-color:var(--glass-border);background:color-mix(in srgb,var(--bg) 65%,transparent);box-shadow:inset 0 1px 0 rgba(255,255,255,.045)}.react-library-card{overflow:hidden;border-color:var(--glass-border);background:var(--library-glass);box-shadow:inset 0 1px 0 rgba(255,255,255,.075),0 14px 34px rgba(0,0,0,.18);backdrop-filter:blur(18px) saturate(1.24);transition:border-color .18s ease,box-shadow .18s ease,transform .18s ease}.react-library-card:hover{border-color:color-mix(in srgb,var(--cyan) 36%,var(--glass-border));box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 18px 42px rgba(0,0,0,.25);transform:translateY(-2px)}.react-library-card>.poster,.react-library-card>.card-body,.react-library-card>.react-poster-title{position:relative;z-index:1}.library-alphabet-rail{border-color:var(--glass-border);background:var(--library-glass-strong);box-shadow:inset 0 1px 0 rgba(255,255,255,.11),0 14px 38px rgba(0,0,0,.32);backdrop-filter:blur(22px) saturate(1.35)}@media(prefers-reduced-motion:reduce){.react-library-card{transition:none}.react-library-card:hover{transform:none}}
+.react-library{--library-glass:var(--glass-surface);--library-glass-strong:var(--glass-surface-strong);position:relative;isolation:isolate}.react-library:before{content:"";position:absolute;z-index:-1;inset:-3rem -2rem;background:radial-gradient(circle at 8% 2%,color-mix(in srgb,var(--accent) 20%,transparent),transparent 27rem),radial-gradient(circle at 94% 14%,color-mix(in srgb,var(--cyan) 14%,transparent),transparent 28rem);pointer-events:none}.react-library>.hero{position:relative;overflow:hidden;margin-bottom:1rem;padding:1.25rem 1.45rem;border:1px solid color-mix(in srgb,var(--cyan) 20%,var(--glass-border));border-radius:1.05rem;background:radial-gradient(circle at 10% 0%,color-mix(in srgb,var(--accent) 20%,transparent),transparent 38%),radial-gradient(circle at 90% 5%,color-mix(in srgb,var(--cyan) 14%,transparent),transparent 36%),var(--library-glass-strong);box-shadow:inset 0 1px 0 rgba(255,255,255,.11),0 20px 48px rgba(0,0,0,.22);backdrop-filter:blur(24px) saturate(1.35)}.react-library>.hero:after,.react-library>.summary:after,.react-library-toolbar:after,.react-library-card:after{content:"";position:absolute;inset:0;border-radius:inherit;background:linear-gradient(118deg,rgba(255,255,255,.075),transparent 24%,transparent 74%,color-mix(in srgb,var(--cyan) 4%,transparent));pointer-events:none}.react-library>.hero>*{position:relative;z-index:1}.react-library>.summary{position:relative;overflow:hidden;margin-bottom:1rem;border:1px solid var(--glass-border);border-radius:1rem;background:var(--library-glass);box-shadow:inset 0 1px 0 rgba(255,255,255,.085),0 14px 34px rgba(0,0,0,.18);backdrop-filter:blur(20px) saturate(1.25)}.react-library>.summary>div{position:relative;z-index:1;background:transparent}.react-library-toolbar{position:relative;overflow:hidden;margin-bottom:1rem;padding:.72rem;border:1px solid var(--glass-border);border-radius:.9rem;background:var(--library-glass);box-shadow:inset 0 1px 0 rgba(255,255,255,.075),0 12px 30px rgba(0,0,0,.16);backdrop-filter:blur(20px) saturate(1.25)}.react-library-toolbar>*{position:relative;z-index:1}.react-library-search input{border-color:var(--glass-border);background:color-mix(in srgb,var(--bg) 52%,transparent);box-shadow:inset 0 1px 0 rgba(255,255,255,.045)}.react-library .library-results-grid .react-library-card{position:relative;overflow:hidden;border-color:var(--glass-border);background:var(--library-glass);box-shadow:inset 0 1px 0 rgba(255,255,255,.085),0 14px 34px rgba(0,0,0,.18);backdrop-filter:blur(20px) saturate(1.32);transition:border-color .18s ease,box-shadow .18s ease,transform .18s ease}.react-library .library-results-grid .react-library-card:hover{border-color:color-mix(in srgb,var(--cyan) 42%,var(--glass-border));box-shadow:inset 0 1px 0 rgba(255,255,255,.13),0 18px 42px rgba(0,0,0,.25),0 0 24px color-mix(in srgb,var(--accent) 9%,transparent);transform:translateY(-2px)}.react-library-card>.poster,.react-library-card>.card-body,.react-library-card>.react-poster-title{position:relative;z-index:1}.react-library-card .card-body{background:transparent}.react-library-card .secondary{border-color:var(--glass-border);background:color-mix(in srgb,var(--panel2) 40%,transparent);color:var(--text);backdrop-filter:blur(12px)}.react-library-card .secondary:hover{border-color:color-mix(in srgb,var(--cyan) 45%,var(--glass-border));background:color-mix(in srgb,var(--accent) 16%,transparent)}.react-library .library-alphabet-rail{border-color:var(--glass-border);background:var(--library-glass-strong);box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 14px 38px rgba(0,0,0,.32),0 0 24px color-mix(in srgb,var(--accent) 10%,transparent);backdrop-filter:blur(24px) saturate(1.4)}@media(prefers-reduced-motion:reduce){.react-library-card{transition:none}.react-library-card:hover{transform:none}}
+.react-library .react-poster-title{background:linear-gradient(180deg,transparent 0%,color-mix(in srgb,var(--bg) 66%,transparent) 42%,color-mix(in srgb,var(--bg) 94%,transparent) 100%);color:var(--text)}.react-library .react-poster-quick-actions>*{border-color:var(--glass-border);background:color-mix(in srgb,var(--panel2) 58%,transparent);color:var(--text);backdrop-filter:blur(10px)}.react-library .react-poster-quick-actions a:hover,.react-library .react-poster-quick-actions button:hover{border-color:color-mix(in srgb,var(--cyan) 68%,var(--glass-border));background:color-mix(in srgb,var(--accent) 22%,transparent)}.react-library .react-poster-quick-actions .react-poster-quality{border-color:color-mix(in srgb,var(--accent) 44%,var(--glass-border));color:var(--muted)}.react-library .library-alphabet-rail button{color:var(--muted)}.react-library .library-alphabet-rail button:hover,.react-library .library-alphabet-rail button.active{color:var(--text);text-shadow:0 0 8px color-mix(in srgb,var(--cyan) 70%,transparent)}.react-library .library-alphabet-slider{border-color:color-mix(in srgb,var(--cyan) 74%,rgba(255,255,255,.25));background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 92%,transparent),color-mix(in srgb,var(--cyan) 82%,transparent));box-shadow:0 0 14px color-mix(in srgb,var(--cyan) 42%,transparent)}
+
+/* Theme-aware glass surfaces shared by Discover, History, and Wanted. */
+.react-discover,.react-history,.react-wanted{--route-glass:var(--glass-surface);--route-glass-strong:var(--glass-surface-strong);position:relative;isolation:isolate}.react-discover:before,.react-history:before,.react-wanted:before{content:"";position:absolute;z-index:-1;inset:-3rem -2rem;background:radial-gradient(circle at 8% 4%,color-mix(in srgb,var(--accent) 18%,transparent),transparent 28rem),radial-gradient(circle at 94% 18%,color-mix(in srgb,var(--cyan) 13%,transparent),transparent 30rem);pointer-events:none}
+.react-history>.hero,.react-wanted>.hero{position:relative;overflow:hidden;margin-bottom:1rem;padding:1.2rem 1.4rem;border:1px solid color-mix(in srgb,var(--cyan) 20%,var(--glass-border));border-radius:1.05rem;background:radial-gradient(circle at 8% 0%,color-mix(in srgb,var(--accent) 19%,transparent),transparent 42%),radial-gradient(circle at 92% 0%,color-mix(in srgb,var(--cyan) 13%,transparent),transparent 38%),var(--route-glass-strong);box-shadow:inset 0 1px 0 rgba(255,255,255,.11),0 20px 48px rgba(0,0,0,.22);backdrop-filter:blur(24px) saturate(1.35)}.react-history>.hero:after,.react-wanted>.hero:after,.history-summary:after,.react-history-toolbar:after,.wanted-segment:after,.wanted-card:after,.react-wanted-shows>.wanted-show:after{content:"";position:absolute;inset:0;border-radius:inherit;background:linear-gradient(118deg,rgba(255,255,255,.07),transparent 24%,transparent 76%,color-mix(in srgb,var(--cyan) 4%,transparent));pointer-events:none}.react-history>.hero>*,.react-wanted>.hero>*,.history-summary>*,.react-history-toolbar>*,.wanted-segment>*,.wanted-card>*,.react-wanted-shows>.wanted-show>*{position:relative;z-index:1}
+.react-history .history-summary,.react-history .history-help.notice,.react-history .react-history-toolbar,.react-history .react-history-domain{position:relative;overflow:hidden;border-color:var(--glass-border);background:var(--route-glass);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 14px 34px rgba(0,0,0,.18);backdrop-filter:blur(20px) saturate(1.3)}.react-history .react-history-toolbar input,.react-history .react-history-toolbar select{border-color:var(--glass-border);background:color-mix(in srgb,var(--bg) 50%,transparent);color:var(--text)}.react-history .react-history-domain .panel-heading{border-color:var(--glass-border);background:color-mix(in srgb,var(--panel2) 28%,transparent)}.react-history .react-history-row{border-color:color-mix(in srgb,var(--glass-border) 76%,transparent);background:transparent;transition:background .16s ease}.react-history .react-history-row:hover{background:color-mix(in srgb,var(--accent) 8%,transparent)}.react-history .secondary{border-color:var(--glass-border);background:color-mix(in srgb,var(--panel2) 42%,transparent);color:var(--text);backdrop-filter:blur(12px)}
+.react-wanted .wanted-segment,.react-wanted .wanted-search-progress.panel{position:relative;overflow:hidden;border-color:var(--glass-border);background:var(--route-glass);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 12px 30px rgba(0,0,0,.16);backdrop-filter:blur(20px) saturate(1.3)}.react-wanted .wanted-segment button{color:var(--muted)}.react-wanted .wanted-segment button.active{background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 84%,transparent),color-mix(in srgb,var(--cyan) 54%,var(--accent)));color:#fff;box-shadow:0 8px 22px color-mix(in srgb,var(--accent) 24%,transparent)}.react-wanted .wanted-domain-count{border-color:var(--glass-border);background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--text)}.react-wanted .wanted-card,.react-wanted .react-wanted-shows>.wanted-show,.react-wanted .wanted-season{position:relative;overflow:hidden;border-color:var(--glass-border);background:var(--route-glass);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 14px 34px rgba(0,0,0,.18);backdrop-filter:blur(20px) saturate(1.3);transition:border-color .18s ease,box-shadow .18s ease,transform .18s ease}.react-wanted .wanted-card:hover,.react-wanted .react-wanted-shows>.wanted-show:hover{border-color:color-mix(in srgb,var(--cyan) 42%,var(--glass-border));box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 18px 42px rgba(0,0,0,.24),0 0 22px color-mix(in srgb,var(--accent) 8%,transparent);transform:translateY(-2px)}.react-wanted .wanted-card-art{background:color-mix(in srgb,var(--bg) 52%,transparent)}.react-wanted .secondary{border-color:var(--glass-border);background:color-mix(in srgb,var(--panel2) 42%,transparent);color:var(--text);backdrop-filter:blur(12px)}.react-wanted-dialog-backdrop{background:color-mix(in srgb,var(--bg) 72%,transparent);backdrop-filter:blur(10px)}.react-wanted-dialog{border-color:var(--glass-border);background:var(--glass-surface-strong);box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 30px 80px rgba(0,0,0,.5);backdrop-filter:blur(28px) saturate(1.35)}
+.react-discover .discover-hero{border:1px solid var(--glass-border);border-radius:1.1rem;box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 22px 54px rgba(0,0,0,.28)}.react-discover .discover-hero-shade{background:linear-gradient(90deg,color-mix(in srgb,var(--bg) 94%,transparent) 0%,color-mix(in srgb,var(--bg) 72%,var(--accent) 8%) 42%,color-mix(in srgb,var(--bg) 16%,transparent) 78%),linear-gradient(0deg,color-mix(in srgb,var(--bg) 82%,transparent),transparent 52%)}.react-discover .discover-toolbar,.react-discover .discover-search,.react-discover .discover-row-controls button,.react-discover .discover-results-back,.react-discover .discover-results-more{border-color:var(--glass-border);background:var(--route-glass);color:var(--text);box-shadow:inset 0 1px 0 rgba(255,255,255,.075),0 12px 28px rgba(0,0,0,.17);backdrop-filter:blur(20px) saturate(1.3)}.react-discover .discover-search input{background:transparent;color:var(--text)}.react-discover .discover-toolbar button.active{background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 84%,transparent),color-mix(in srgb,var(--cyan) 52%,var(--accent)));color:#fff}.react-discover .discover-poster{border-color:var(--glass-border);background:var(--route-glass);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 14px 34px rgba(0,0,0,.2)}.react-discover .discover-poster:hover{border-color:color-mix(in srgb,var(--cyan) 45%,var(--glass-border));box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 18px 42px rgba(0,0,0,.28),0 0 22px color-mix(in srgb,var(--accent) 9%,transparent)}.react-discover .discover-taxonomy-card{border-color:var(--glass-border);box-shadow:inset 0 1px 0 rgba(255,255,255,.09),0 12px 30px rgba(0,0,0,.18)}.react-discover .discover-taxonomy-shade{background:linear-gradient(90deg,color-mix(in srgb,var(--bg) 86%,var(--accent) 8%),color-mix(in srgb,var(--bg) 48%,transparent)),linear-gradient(0deg,color-mix(in srgb,var(--bg) 82%,transparent),transparent 64%)}.react-discover .discover-dialog-backdrop{background:color-mix(in srgb,var(--bg) 72%,transparent);backdrop-filter:blur(10px)}.react-discover .discover-dialog,.react-discover .discover-add-dialog{border-color:var(--glass-border);background:var(--glass-surface-strong);box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 30px 80px rgba(0,0,0,.5);backdrop-filter:blur(28px) saturate(1.35)}.react-discover .discover-dialog input,.react-discover .discover-dialog select,.react-discover .discover-add-dialog input,.react-discover .discover-add-dialog select{border-color:var(--glass-border);background:color-mix(in srgb,var(--bg) 54%,transparent);color:var(--text)}.react-discover .discover-fact{border-color:var(--glass-border);background:color-mix(in srgb,var(--panel2) 34%,transparent)}
+@media(prefers-reduced-motion:reduce){.react-wanted .wanted-card,.react-wanted .react-wanted-shows>.wanted-show{transition:none}.react-wanted .wanted-card:hover,.react-wanted .react-wanted-shows>.wanted-show:hover{transform:none}}
+/* Unified theme-aware glass treatment for remaining application routes. */
+:is(
+  .react-collections,
+  .react-add-media,
+  .react-calendar,
+  .react-queue,
+  .react-account,
+  .react-system,
+  .react-health,
+  .root-folders-react-route,
+  .media-management-react-route,
+  .management-react-route,
+  .selection-rules-route,
+  .provider-settings-route
+) {
+  --route-glass: color-mix(in srgb, var(--glass-surface) 88%, transparent);
+  --route-glass-strong: color-mix(in srgb, var(--glass-surface-strong) 91%, transparent);
+  --route-glass-hover: color-mix(in srgb, var(--accent) 12%, var(--glass-surface-strong));
+  position: relative;
+  isolation: isolate;
+}
+
+:is(
+  .react-collections,
+  .react-add-media,
+  .react-calendar,
+  .react-queue,
+  .react-account,
+  .react-system,
+  .react-health,
+  .root-folders-react-route,
+  .media-management-react-route,
+  .management-react-route,
+  .selection-rules-route,
+  .provider-settings-route
+)::before {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  content: "";
+  background:
+    radial-gradient(circle at 16% 8%, color-mix(in srgb, var(--accent) 13%, transparent), transparent 34rem),
+    radial-gradient(circle at 86% 28%, color-mix(in srgb, var(--cyan) 10%, transparent), transparent 38rem);
+}
+
+:is(
+  .react-collections,
+  .react-add-media,
+  .react-calendar,
+  .react-queue,
+  .react-account,
+  .react-system,
+  .react-health,
+  .root-folders-react-route,
+  .media-management-react-route,
+  .management-react-route,
+  .selection-rules-route,
+  .provider-settings-route
+) > :is(.hero, .collections-hero, .calendar-hero, .storage-hero),
+:is(
+  .react-collections,
+  .react-add-media,
+  .react-calendar,
+  .react-queue,
+  .react-account,
+  .react-system,
+  .react-health,
+  .root-folders-react-route,
+  .media-management-react-route,
+  .management-react-route,
+  .selection-rules-route,
+  .provider-settings-route
+) :is(
+  .panel,
+  .settings-tabs,
+  .management-toolbar,
+  .storage-engine-bar,
+  .collection-showcase,
+  .collection-builder,
+  .calendar-shell,
+  .calendar-agenda,
+  .calendar-agenda-card,
+  .react-queue-row,
+  .system-domain-section,
+  .storage-summary,
+  .health-issue,
+  .management-record,
+  .rule-summary-card,
+  .condition-card,
+  .profile-item,
+  .data-row,
+  .event-row,
+  .notice,
+  .discovery-card,
+  .empty
+) {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.055), transparent 42%),
+    var(--route-glass) !important;
+  border: 1px solid var(--glass-border) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.085),
+    0 16px 38px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(20px) saturate(1.35);
+  -webkit-backdrop-filter: blur(20px) saturate(1.35);
+}
+
+:is(
+  .react-collections,
+  .react-add-media,
+  .react-calendar,
+  .react-queue,
+  .react-account,
+  .react-system,
+  .react-health,
+  .root-folders-react-route,
+  .media-management-react-route,
+  .management-react-route,
+  .selection-rules-route,
+  .provider-settings-route
+) > :is(.hero, .collections-hero, .calendar-hero, .storage-hero) {
+  border-radius: 22px;
+}
+
+:is(
+  .react-collections,
+  .react-add-media,
+  .react-calendar,
+  .react-queue,
+  .react-account,
+  .react-system,
+  .react-health,
+  .root-folders-react-route,
+  .media-management-react-route,
+  .management-react-route,
+  .selection-rules-route,
+  .provider-settings-route
+) :is(
+  .panel-heading,
+  .storage-card-heading,
+  .react-queue-sort,
+  .calendar-weekdays,
+  .condition-heading,
+  .collection-card-actions,
+  .folder-browser-actions,
+  .storage-card-footer,
+  .form-actions,
+  .editor-actions
+) {
+  background: var(--route-glass-strong) !important;
+  border-color: var(--glass-border) !important;
+  backdrop-filter: blur(16px) saturate(1.25);
+  -webkit-backdrop-filter: blur(16px) saturate(1.25);
+}
+
+:is(
+  .react-collections,
+  .react-add-media,
+  .react-calendar,
+  .react-queue,
+  .react-account,
+  .react-system,
+  .react-health,
+  .root-folders-react-route,
+  .media-management-react-route,
+  .management-react-route,
+  .selection-rules-route,
+  .provider-settings-route
+) :is(input, select, textarea) {
+  color: var(--text);
+  background: color-mix(in srgb, var(--bg) 56%, transparent) !important;
+  border-color: color-mix(in srgb, var(--glass-border) 80%, var(--accent) 20%) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+:is(
+  .react-collections,
+  .react-add-media,
+  .react-calendar,
+  .react-queue,
+  .react-account,
+  .react-system,
+  .react-health,
+  .root-folders-react-route,
+  .media-management-react-route,
+  .management-react-route,
+  .selection-rules-route,
+  .provider-settings-route
+) :is(input, select, textarea):focus {
+  border-color: color-mix(in srgb, var(--accent) 70%, var(--cyan)) !important;
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+:is(
+  .react-account,
+  .react-system,
+  .root-folders-react-route,
+  .media-management-react-route,
+  .management-react-route,
+  .selection-rules-route,
+  .provider-settings-route
+) .settings-tabs {
+  padding: 6px;
+  border-radius: 16px;
+}
+
+:is(
+  .react-account,
+  .react-system,
+  .root-folders-react-route,
+  .media-management-react-route,
+  .management-react-route,
+  .selection-rules-route,
+  .provider-settings-route
+) .settings-tabs a {
+  border: 1px solid transparent;
+  border-radius: 11px;
+}
+
+:is(
+  .react-account,
+  .react-system,
+  .root-folders-react-route,
+  .media-management-react-route,
+  .management-react-route,
+  .selection-rules-route,
+  .provider-settings-route
+) .settings-tabs a:is(.active, [aria-current="page"]) {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 30%, transparent), color-mix(in srgb, var(--cyan) 12%, transparent)),
+    var(--route-glass-strong) !important;
+  border-color: color-mix(in srgb, var(--accent) 48%, var(--glass-border)) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 8px 22px color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.react-collections .collection-feature {
+  overflow: hidden;
+  background: var(--route-glass) !important;
+  border-color: var(--glass-border) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 20px 44px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(18px) saturate(1.3);
+}
+
+.react-collections :is(.collection-feature-hero, .collection-poster-rail) {
+  background-color: color-mix(in srgb, var(--glass-surface-strong) 72%, transparent) !important;
+}
+
+.react-add-media .discovery-card,
+.react-calendar :is(.calendar-day, .calendar-agenda-card),
+.react-queue .react-queue-row {
+  transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
+}
+
+.react-add-media .discovery-card:hover,
+.react-calendar .calendar-agenda-card:hover,
+.react-queue .react-queue-row:hover,
+:is(.management-react-route, .selection-rules-route, .provider-settings-route) :is(.management-record, .rule-summary-card, .condition-card, .profile-item):hover {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.07), transparent 44%),
+    var(--route-glass-hover) !important;
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--glass-border)) !important;
+}
+
+.react-calendar .calendar-day {
+  background: color-mix(in srgb, var(--glass-surface) 72%, transparent) !important;
+  border-color: color-mix(in srgb, var(--glass-border) 76%, transparent) !important;
+}
+
+.react-calendar .calendar-day:is(.today, .selected) {
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--accent) 22%, transparent), color-mix(in srgb, var(--cyan) 10%, transparent)),
+    var(--route-glass-strong) !important;
+  border-color: color-mix(in srgb, var(--accent) 62%, var(--glass-border)) !important;
+}
+
+.react-calendar .calendar-day-events > * {
+  background: color-mix(in srgb, var(--accent) 14%, var(--glass-surface-strong)) !important;
+  border-color: color-mix(in srgb, var(--accent) 34%, var(--glass-border)) !important;
+}
+
+.react-queue :is(.react-queue-toolbar, .react-queue-list) {
+  overflow: hidden;
+}
+
+.react-queue .react-queue-row + .react-queue-row,
+:is(.react-system, .react-health, .management-react-route, .provider-settings-route) :is(.data-row, .event-row, .management-record, .profile-item) + :is(.data-row, .event-row, .management-record, .profile-item) {
+  border-top-color: color-mix(in srgb, var(--glass-border) 72%, transparent) !important;
+}
+
+.root-folders-react-route :is(
+  .storage-config-grid,
+  .storage-folder-card,
+  .storage-card-heading,
+  .storage-path-control,
+  .storage-card-footer,
+  .storage-add-form,
+  .storage-root-list,
+  .storage-path-row
+),
+.media-management-react-route :is(.media-management-layout, .media-config-form, .media-config-grid, .config-switch),
+.management-react-route :is(.management-layout, .management-records, .editor-panel, .management-native-fields),
+.selection-rules-route :is(.selection-rule-stack, .selection-rule-intro, .rule-summary-grid, .custom-format-editor, .condition-list, .native-field-grid, .scoring-panel),
+.provider-settings-route :is(.provider-policy, .provider-settings-layout, .provider-list, .provider-editor, .provider-core-grid, .provider-native-fields, .provider-toggles) {
+  background-color: transparent !important;
+}
+
+:is(
+  .root-folders-react-route,
+  .media-management-react-route,
+  .management-react-route,
+  .selection-rules-route,
+  .provider-settings-route
+) :is(
+  .storage-folder-card,
+  .media-config-form,
+  .editor-panel,
+  .custom-format-editor,
+  .scoring-panel,
+  .provider-list,
+  .provider-editor
+) {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.05), transparent 48%),
+    var(--route-glass) !important;
+  border: 1px solid var(--glass-border) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.075),
+    0 18px 42px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(20px) saturate(1.3);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3);
+}
+
+:is(.react-account, .react-system, .react-health) :is(.session-list, .user-list, .system-domain-grid, .health-domain-grid, .health-issue-list) {
+  background: transparent !important;
+}
+
+:is(.react-account, .react-system) :is(.session-list > *, .user-list > *, .application-update) {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.04), transparent),
+    var(--route-glass) !important;
+  border-color: var(--glass-border) !important;
+}
+
+:is(.react-dialog-backdrop, .root-folder-browser-backdrop) {
+  background: color-mix(in srgb, var(--bg) 72%, transparent) !important;
+  backdrop-filter: blur(14px) saturate(0.9);
+  -webkit-backdrop-filter: blur(14px) saturate(0.9);
+}
+
+:is(
+  .react-account-dialog,
+  .root-folder-browser,
+  .collection-builder-dialog,
+  .react-detail-dialog,
+  .react-tv-dialog
+) {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.07), transparent 45%),
+    var(--route-glass-strong) !important;
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--glass-border)) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.11),
+    0 28px 80px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(28px) saturate(1.4);
+  -webkit-backdrop-filter: blur(28px) saturate(1.4);
+}
+
+:is(
+  .react-collections,
+  .react-add-media,
+  .react-calendar,
+  .react-queue,
+  .react-account,
+  .react-system,
+  .react-health,
+  .root-folders-react-route,
+  .media-management-react-route,
+  .management-react-route,
+  .selection-rules-route,
+  .provider-settings-route
+) button.secondary {
+  background: color-mix(in srgb, var(--glass-surface-strong) 82%, transparent) !important;
+  border-color: var(--glass-border) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(12px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .react-add-media .discovery-card,
+  .react-calendar :is(.calendar-day, .calendar-agenda-card),
+  .react-queue .react-queue-row {
+    transition: none;
+  }
+}

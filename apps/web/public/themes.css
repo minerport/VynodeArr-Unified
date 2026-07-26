@@ -6,8 +6,14 @@
     linear-gradient(145deg,color-mix(in srgb,var(--bg) 92%,#101a31),var(--bg) 56%,color-mix(in srgb,var(--bg) 94%,#02050b));
   --tab-surface:color-mix(in srgb,var(--panel) 76%,transparent);
   --tab-active:linear-gradient(135deg,color-mix(in srgb,var(--accent) 34%,var(--panel)),color-mix(in srgb,var(--panel2) 88%,transparent));
-  --glass-surface:linear-gradient(145deg,color-mix(in srgb,var(--panel2) 68%,transparent),color-mix(in srgb,var(--panel) 52%,transparent));
-  --glass-border:color-mix(in srgb,var(--line) 72%,rgba(255,255,255,.16));
+  --glass-surface:
+    radial-gradient(circle at 8% 0%,color-mix(in srgb,var(--accent) 14%,transparent),transparent 44%),
+    radial-gradient(circle at 94% 100%,color-mix(in srgb,var(--cyan) 9%,transparent),transparent 42%),
+    linear-gradient(145deg,color-mix(in srgb,var(--panel2) 48%,transparent),color-mix(in srgb,var(--panel) 38%,transparent));
+  --glass-surface-strong:
+    radial-gradient(circle at 10% 0%,color-mix(in srgb,var(--accent) 16%,transparent),transparent 48%),
+    linear-gradient(145deg,color-mix(in srgb,var(--panel2) 62%,transparent),color-mix(in srgb,var(--panel) 52%,transparent));
+  --glass-border:color-mix(in srgb,var(--accent) 20%,color-mix(in srgb,var(--line) 70%,rgba(255,255,255,.18)));
   --glass-highlight:rgba(255,255,255,.055);
 }
 
