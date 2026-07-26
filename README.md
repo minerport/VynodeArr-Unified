@@ -54,6 +54,7 @@ Build hand-picked collections or combine smart rules such as title, year, decade
 - First-run administrator creation and secure local accounts
 - User roles, active sessions, encrypted credentials, and engine-key controls
 - Visual root-folder browser, quality profiles, indexers, and download clients
+- Review, customize, compare, and apply TRaSH guide templates independently for Movies and TV
 - Movie and television settings kept separate where their behavior differs
 - Backup creation, download, upload, and restore from the VynodeArr interface
 - Actionable health issues with direct links to the setting that needs attention
@@ -108,10 +109,11 @@ Run `Stop-VynodeArr.ps1` to stop VynodeArr without removing its data.
 
 1. Open **Service Settings → Root Folders** and confirm the movie and television locations.
 2. Review the quality profiles for each library.
-3. Add at least one indexer and download client.
-4. Ensure the same completed-download folder is visible to VynodeArr and the download client.
-5. Add or import media and choose monitoring behavior.
-6. Open **Health** from the dashboard to resolve any remaining setup issues.
+3. Optionally review recommended settings under **Service Settings → Guide Templates**.
+4. Add at least one indexer and download client.
+5. Ensure the same completed-download folder is visible to VynodeArr and the download client.
+6. Add or import media and choose monitoring behavior.
+7. Open **Health** from the dashboard to resolve any remaining setup issues.
 
 ## Connect Seerr or another request application
 
@@ -183,6 +185,7 @@ More documentation:
 
 - [Architecture](docs/VYNODEARR_ARCHITECTURE.md)
 - [Authentication and accounts](docs/AUTHENTICATION.md)
+- [Using guide templates](docs/GUIDE_TEMPLATES.md)
 - [Management gateway](docs/N4_MANAGEMENT_GATEWAY.md)
 - [Interaction parity](docs/N5_INTERACTION_PARITY.md)
 - [Packaging and licensing](docs/PACKAGING_AND_LICENSING.md)

@@ -20,7 +20,7 @@ const stylesheet=sizes.find(file=>file.name==='vynodearr-react.css');
 // The shared stylesheet now includes the theme-wide glass component system and
 // the movie/TV template review editors. Keep headroom small enough to
 // catch accidental growth while accounting for those intentional surfaces.
-const limits={entry:300_000,shell:250_000,route:45_000,css:64_000};
+const limits={entry:300_000,shell:250_000,route:45_000,css:68_000};
 const failures=[];
 
 if(!entry)failures.push('The React entry bundle was not produced.');

@@ -203,7 +203,7 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(app,/showHealthReact/);
   assert.doesNotMatch(app,/function healthFix/);
   assert.match(manifest.scripts.verify,/check:web-bundle/);
-  assert.match(bundleBudget,/limits=\{entry:300_000,shell:250_000,route:45_000,css:64_000\}/);
+  assert.match(bundleBudget,/limits=\{entry:300_000,shell:250_000,route:45_000,css:68_000\}/);
   assert.match(unraidDockerfile,/FROM node:24-alpine AS web-build/);
   assert.match(unraidDockerfile,/apps\/web\/public\/react/);
 });
