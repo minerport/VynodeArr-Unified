@@ -54,31 +54,8 @@
   background: #080e19;
   color: var(--text);
 }
-.react-history-feed {
-  padding: 0;
-  overflow: hidden;
-}
 .react-history-domain {
   min-width: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  backdrop-filter: none;
-}
-.react-history-domain + .react-history-domain {
-  border-top: 1px solid var(--glass-border);
-}
-.react-history-domain .panel-heading {
-  padding: 1rem 1.2rem;
-  border-bottom: 1px solid var(--glass-border);
-  background: color-mix(in srgb, var(--bg) 34%, transparent);
-}
-.react-history-domain .panel-heading h2 {
-  margin: 0.2rem 0 0;
-}
-.react-history-domain .panel-heading p {
-  margin: 0.25rem 0 0;
 }
 .react-history-list {
   display: grid;
@@ -89,7 +66,7 @@
   grid-template-columns: 0.5rem minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.85rem;
-  padding: 0.9rem 1.2rem;
+  padding: 0.85rem 0;
   border-top: 1px solid var(--line);
 }
 .react-history-row:first-child {

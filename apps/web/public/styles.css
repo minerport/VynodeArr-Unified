@@ -768,3 +768,8 @@
     border-left: 0 !important;
   }
 }
+
+/* Route-specific glass details live in the shared bundle to keep lazy route CSS lean. */
+.react-library-search-field{position:relative;display:flex}.react-library-search-field input{padding-right:2.35rem}.react-library-search-clear{position:absolute;top:50%;right:.35rem;display:grid;width:1.7rem;height:1.7rem;padding:0;border:0;border-radius:.4rem;background:transparent;color:var(--muted);font-size:1.15rem;line-height:1;transform:translateY(-50%);place-items:center;cursor:pointer}.react-library-search-clear:hover{background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--text)}
+.react-history-feed{padding:0;overflow:hidden}.react-history .react-history-domain{min-width:0;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;backdrop-filter:none}.react-history .react-history-domain+.react-history-domain{border-top:1px solid var(--glass-border)}.react-history .react-history-domain .panel-heading{padding:1rem 1.2rem;border-bottom:1px solid var(--glass-border);background:color-mix(in srgb,var(--bg) 34%,transparent)}.react-history .react-history-domain .panel-heading h2{margin:.2rem 0 0}.react-history .react-history-domain .panel-heading p{margin:.25rem 0 0}.react-history .react-history-row{padding:.9rem 1.2rem}
+@media(max-width:760px){.react-library-search-field{flex:1}}
