@@ -337,6 +337,7 @@ test('storage folders use a typed React route while retaining the existing impor
   assert.match(islands,/mountRootFolders/);
   assert.match(legacy,/showRootFoldersReact/);
   assert.match(legacy,/reviewLibraryImport\(domain,root,showRootFoldersReact\)/);
+  assert.match(legacy,/document\.body\.appendChild\(Object\.assign\(document\.createElement\('dialog'\),\{id:'detail-dialog'\}\)\)/);
 });
 
 test('indexers and download clients use a typed native provider editor with connection testing',async()=>{

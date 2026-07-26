@@ -646,7 +646,7 @@ function wireLibraryImportReview({dialog,form,matches,movie}){
   toolbar.querySelector('.import-match-filter').onchange=applyFilter;toolbar.querySelector('.import-select-all').onchange=event=>{rows.filter(row=>!row.hidden&&!row.classList.contains('import-unmatched')).forEach(row=>row.querySelector('.import-enabled').checked=event.target.checked);applyFilter();};applyFilter();
 }
 async function reviewLibraryImport(domain,root,reload){
-  const movie=domain==='movie',dialog=document.querySelector('#detail-dialog'),normalizePath=value=>String(value||'').replaceAll('\\','/').replace(/\/+$/,'').toLowerCase();let rootPath=normalizePath(root.path);
+  const movie=domain==='movie',dialog=document.querySelector('#detail-dialog')||document.body.appendChild(Object.assign(document.createElement('dialog'),{id:'detail-dialog'})),normalizePath=value=>String(value||'').replaceAll('\\','/').replace(/\/+$/,'').toLowerCase();let rootPath=normalizePath(root.path);
   dialog.innerHTML=`<div class="library-import"><div class="panel-heading"><div><span class="eyebrow">SCAN EXISTING ${movie?'MOVIES':'TELEVISION'}</span><h2>${esc(root.path)}</h2></div><button class="secondary close-import" type="button">Cancel</button></div><div class="skeleton">Comparing folders with your library…</div></div>`;dialog.querySelector('.close-import').onclick=()=>dialog.close();dialog.showModal();
   try{
     const {result:freshRoots=[]}=await api(`/api/manage/${domain}/rootFolders`);
