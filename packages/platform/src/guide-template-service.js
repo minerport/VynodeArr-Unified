@@ -62,6 +62,19 @@ const requestJson=async(fetcher,url)=>{
   if(!response.ok)throw new Error(`TRaSH Guides could not be reached (${response.status}).`);
   return response.json();
 };
+const durableIndexFor=(stored,domain,catalog)=>{
+  const saved=stored.formatIndexes?.[domain],entries=catalog.templates.filter(item=>item.domain===domain&&item.resourceType==='customFormat');
+  if(!saved||saved.revision!==catalog.revision||!Array.isArray(saved.items)||saved.items.length!==entries.length)return null;
+  const templates=new Map(entries.map(entry=>[entry.id,entry])),index=new Map();
+  try{
+    for(const item of saved.items){
+      const entry=templates.get(item.templateId),trashId=String(item.trashId||'').toLowerCase();
+      if(!entry||!entry.path.endsWith('.json')||!/^[a-f0-9]{32}$/.test(trashId)||index.has(trashId)||String(item.value?.trash_id||'').toLowerCase()!==trashId)return null;
+      cleanFormat(item.value);index.set(trashId,{entry,value:item.value});
+    }
+  }catch{return null;}
+  return index.size===entries.length?index:null;
+};
 
 export class GuideTemplateService{
   constructor({store,fetcher=globalThis.fetch,cacheTtlMs=21_600_000}={}){
@@ -96,7 +109,8 @@ export class GuideTemplateService{
       coordination[domain]={conflicts:conflicts.custom_formats||[],profileGroups:Array.isArray(profileGroups)?profileGroups:[]};
     }
     const catalog={provider:'TRaSH Guides',repository,revision,fetchedAt:new Date().toISOString(),templates,coordination};
-    const stored=await this.state();await this.store.write({...stored,version:1,catalog});
+    const stored=await this.state(),formatIndexes=Object.fromEntries(Object.entries(stored.formatIndexes||{}).filter(([,index])=>index?.revision===revision));
+    await this.store.write({...stored,version:1,catalog,formatIndexes});
     return{...catalog,purposes:[...purposes,{id:'other',label:'Other formats',description:'Additional specialized matching templates.'}],cached:false};
   }
   async template(id){
@@ -114,7 +128,9 @@ export class GuideTemplateService{
   async customFormatsByTrashIds(ids=[],domain='movie'){
     const wanted=new Set(ids.map(value=>String(value).toLowerCase()));
     if(!this.formatIndexRuns.has(domain))this.formatIndexRuns.set(domain,(async()=>{
-      const catalog=await this.catalog(),entries=catalog.templates.filter(item=>item.domain===domain&&item.resourceType==='customFormat');
+      const catalog=await this.catalog(),stored=await this.state(),durable=durableIndexFor(stored,domain,catalog);
+      if(durable)return durable;
+      const entries=catalog.templates.filter(item=>item.domain===domain&&item.resourceType==='customFormat');
       const pairs=[];
       for(let index=0;index<entries.length;index+=24){
         const batch=await Promise.all(entries.slice(index,index+24).map(async entry=>{
@@ -123,7 +139,11 @@ export class GuideTemplateService{
         }));
         pairs.push(...batch);
       }
-      return new Map(pairs);
+      const index=new Map(pairs);
+      if(index.size!==entries.length||[...index].some(([trashId,item])=>!/^[a-f0-9]{32}$/.test(trashId)||!item.entry||String(item.value?.trash_id||'').toLowerCase()!==trashId))throw new Error(`TRaSH Guides returned an incomplete ${domain==='movie'?'movie':'television'} custom-format index.`);
+      const latest=await this.state(),formatIndexes={...(latest.formatIndexes||{}),[domain]:{revision:catalog.revision,builtAt:new Date().toISOString(),items:[...index].map(([trashId,item])=>({trashId,templateId:item.entry.id,value:item.value}))}};
+      await this.store.write({...latest,version:1,formatIndexes});
+      return index;
     })().finally(()=>{setTimeout(()=>{this.formatIndexRuns.delete(domain);},this.cacheTtlMs).unref?.();}));
     const index=await this.formatIndexRuns.get(domain),result=new Map();
     for(const id of wanted){const found=index.get(id);if(found){const format=cleanFormat(found.value);result.set(id,{...found.entry,trashId:id,format,scores:found.value.trash_scores||{}});}}

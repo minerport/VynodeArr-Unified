@@ -134,6 +134,26 @@ Administrators can reveal or generate the individual API keys under **Account Se
 - A new installation can upload and restore downloaded backup files.
 - Library media remains in `/movies` and `/tv`; it is not stored inside the application container.
 
+### Restore existing movie and TV engine backups
+
+Native backups from an existing installation can be restored through
+**System → Backups**:
+
+1. Upload the native movie-engine backup with **Upload & restore** under **Movies backups**.
+2. Wait for the Movies engine to restart and reconnect.
+3. Upload the native TV-engine backup under **Television backups**.
+4. Wait for the TV engine to restart and reconnect.
+
+The backups are restored separately and must be uploaded to their matching
+sections. Supported uploads are `.zip`, `.db`, and `.xml` files up to 500 MB.
+Restoring replaces the selected engine's current configuration but does not
+restore VynodeArr accounts or application-level settings.
+
+After restoring, verify root folders and download paths because paths from the
+old installation must also exist inside the new container or be remapped.
+See [Backup and Restore](docs/BACKUP_AND_RESTORE.md) for the complete migration
+and verification procedure.
+
 ## Troubleshooting
 
 <details>
@@ -183,8 +203,10 @@ npm run verify
 
 More documentation:
 
+- [Changelog](CHANGELOG.md)
 - [Architecture](docs/VYNODEARR_ARCHITECTURE.md)
 - [Authentication and accounts](docs/AUTHENTICATION.md)
+- [Backup and restore](docs/BACKUP_AND_RESTORE.md)
 - [Using guide templates](docs/GUIDE_TEMPLATES.md)
 - [Management gateway](docs/N4_MANAGEMENT_GATEWAY.md)
 - [Interaction parity](docs/N5_INTERACTION_PARITY.md)

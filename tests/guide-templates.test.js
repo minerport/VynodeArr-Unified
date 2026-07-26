@@ -79,3 +79,50 @@ test('TRaSH field objects are converted to movie-engine schema fields',()=>{
   assert.equal(payload.specifications[0].fields[0].value,'\\b3D\\b');
   assert.equal(payload.specifications[0].implementationName,'Release Title');
 });
+
+function indexedFetcher({revisionValue=revision,failFormats=false,counter={formats:0}}={}){
+  return async url=>{
+    if(url.includes('/branches/master'))return jsonResponse({commit:{sha:revisionValue}});
+    if(url.includes('/git/trees/'))return jsonResponse({truncated:false,tree:['radarr','sonarr'].flatMap(domain=>Array.from({length:60},(_,index)=>({type:'blob',path:`docs/json/${domain}/cf/template-${index}.json`,sha:`${domain}-${index}`})))});
+    if(url.includes('/conflicts.json'))return jsonResponse({custom_formats:[]});
+    if(url.includes('/quality-profile-groups/groups.json'))return jsonResponse([]);
+    const match=url.match(/docs\/json\/(radarr|sonarr)\/cf\/template-(\d+)\.json$/);
+    if(match){
+      counter.formats++;
+      if(failFormats)throw new Error('upstream unavailable');
+      const domainDigit=match[1]==='radarr'?'1':'2',index=Number(match[2]),trashId=`${domainDigit}${String(index).padStart(31,'0')}`;
+      return jsonResponse({...format,trash_id:trashId,name:`${match[1]} format ${index}`});
+    }
+    throw new Error(`Unexpected URL ${url}`);
+  };
+}
+
+test('custom-format indexes persist by revision and isolate Movies from TV',async()=>{
+  const store=new MemoryStore(),coldCounter={formats:0},cold=new GuideTemplateService({store,fetcher:indexedFetcher({counter:coldCounter}),cacheTtlMs:5});
+  const movieId=`1${String(7).padStart(31,'0')}`,tvId=`2${String(7).padStart(31,'0')}`;
+  const [first,concurrent]=await Promise.all([cold.customFormatsByTrashIds([movieId],'movie'),cold.customFormatsByTrashIds([movieId],'movie')]);
+  assert.equal(first.get(movieId).format.name,'radarr format 7');assert.equal(concurrent.get(movieId).format.name,'radarr format 7');assert.equal(coldCounter.formats,60);
+  assert.equal((await store.read()).formatIndexes.movie.revision,revision);assert.equal((await store.read()).formatIndexes.tv,undefined);
+
+  const warmCounter={formats:0},warm=new GuideTemplateService({store,fetcher:indexedFetcher({counter:warmCounter,failFormats:true})});
+  assert.equal((await warm.customFormatsByTrashIds([movieId],'movie')).get(movieId).format.name,'radarr format 7');assert.equal(warmCounter.formats,0);
+  const tvCounter={formats:0},tvService=new GuideTemplateService({store,fetcher:indexedFetcher({counter:tvCounter})});
+  assert.equal((await tvService.customFormatsByTrashIds([tvId],'tv')).get(tvId).format.name,'sonarr format 7');assert.equal(tvCounter.formats,60);
+  assert.equal((await store.read()).formatIndexes.movie.revision,revision);assert.equal((await store.read()).formatIndexes.tv.revision,revision);
+
+  const failedStore=new MemoryStore(),failure=new GuideTemplateService({store:failedStore,fetcher:indexedFetcher({failFormats:true})});
+  await assert.rejects(()=>failure.customFormatsByTrashIds([movieId],'movie'),/upstream unavailable/);
+  assert.deepEqual((await failedStore.read()).formatIndexes,{});
+});
+
+test('custom-format indexes rebuild when corrupt or from an older revision',async()=>{
+  const store=new MemoryStore(),seedCounter={formats:0},seed=new GuideTemplateService({store,fetcher:indexedFetcher({counter:seedCounter})});
+  const movieId=`1${String(3).padStart(31,'0')}`;await seed.customFormatsByTrashIds([movieId],'movie');
+  store.value.formatIndexes.movie.items[0].value.trash_id='invalid';
+  const repairCounter={formats:0},repair=new GuideTemplateService({store,fetcher:indexedFetcher({counter:repairCounter})});
+  assert.ok((await repair.customFormatsByTrashIds([movieId],'movie')).has(movieId));assert.equal(repairCounter.formats,60);
+
+  const nextRevision='c'.repeat(40),refreshCounter={formats:0},refresh=new GuideTemplateService({store,fetcher:indexedFetcher({revisionValue:nextRevision,counter:refreshCounter})});
+  await refresh.catalog({refresh:true});assert.equal((await store.read()).formatIndexes.movie,undefined);
+  assert.ok((await refresh.customFormatsByTrashIds([movieId],'movie')).has(movieId));assert.equal(refreshCounter.formats,60);assert.equal((await store.read()).formatIndexes.movie.revision,nextRevision);
+});

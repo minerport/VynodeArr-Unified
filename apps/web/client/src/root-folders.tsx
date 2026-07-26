@@ -1,12 +1,11 @@
 import {useCallback,useEffect,useState} from 'react';
 import type {Directory,DownloadFolders,RootFolder,RootFoldersMountOptions,StorageDomain} from './root-folders-types';
+import {ServiceTabs} from './service-tabs';
 
 const clean=(value:string)=>value==='/'?'/':value.replace(/\/+$/,'')||'/';
 const parent=(value:string)=>clean(value).split('/').slice(0,-1).join('/')||'/';
 const size=(bytes=0)=>{const gb=bytes/1073741824;return gb>=1024?`${(gb/1024).toFixed(gb>=10240?0:1)} TB`:`${Math.round(gb)} GB`;};
 const message=(reason:unknown)=>reason instanceof Error?reason.message:'Storage settings are unavailable.';
-const Tabs=()=> <nav className="settings-tabs"><a className="active" href="#service/root-folders">Root Folders</a><a href="#service/media-management">Media Management</a><a href="#service/profiles">Quality Profiles</a><a href="#service/custom-formats">Custom Formats</a><a href="#service/guide-templates">Guide Templates</a><a href="#service/release-profiles">Release Profiles</a><a href="#service/indexers">Indexers</a><a href="#service/download-clients">Download Clients</a><a href="#service/discover">Discover</a><a href="#management">Advanced</a></nav>;
-
 export function RootFoldersView({options}:{options:RootFoldersMountOptions}){
   const [domain,setDomain]=useState<StorageDomain>('movie'),[roots,setRoots]=useState<RootFolder[]>([]),[downloads,setDownloads]=useState<DownloadFolders>({}),[rootPath,setRootPath]=useState('/movies'),[downloadPath,setDownloadPath]=useState('/downloads'),[loading,setLoading]=useState(true),[busy,setBusy]=useState(''),[error,setError]=useState(''),[browser,setBrowser]=useState<null|'root'|'download'>(null),[current,setCurrent]=useState('/'),[directories,setDirectories]=useState<Directory[]>([]),[browseError,setBrowseError]=useState('');
   const load=useCallback(async()=>{setLoading(true);setError('');try{const [rootValue,downloadValue]=await Promise.all([options.request<{result:RootFolder[]}>(`/api/manage/${domain}/rootFolders`),options.request<DownloadFolders>('/api/settings/download-folders')]);setRoots(rootValue.result||[]);setDownloads(downloadValue||{});setDownloadPath(clean(downloadValue?.[domain]?.path||'/downloads'));}catch(reason){setError(message(reason));}finally{setLoading(false);}},[domain,options]);
@@ -17,7 +16,7 @@ export function RootFoldersView({options}:{options:RootFoldersMountOptions}){
   const addRoot=async()=>{setBusy('root');try{await options.request(`/api/manage/${domain}/rootFolders`,{method:'POST',body:JSON.stringify({path:rootPath})});options.notify('Library folder added.');await load();}catch(reason){options.notify(message(reason),'error');}finally{setBusy('');}};
   const remove=async(root:RootFolder)=>{if(!confirm(`Remove ${root.path} as a library folder? Media files will not be deleted.`))return;setBusy(String(root.id));try{await options.request(`/api/manage/${domain}/rootFolders/${root.id}`,{method:'DELETE'});options.notify('Library folder removed.');await load();}catch(reason){options.notify(message(reason),'error');}finally{setBusy('');}};
   const samePath=clean(rootPath)===clean(downloadPath);
-  return <div className="root-folders-react-route"><div className="hero storage-hero"><div><span className="eyebrow">SERVICE SETTINGS</span><h1>Storage Folders</h1><p className="lede">Separate completed downloads from the permanent, organized media library.</p></div></div><Tabs/>
+  return <div className="root-folders-react-route"><div className="hero storage-hero"><div><span className="eyebrow">SERVICE SETTINGS</span><h1>Storage Folders</h1><p className="lede">Separate completed downloads from the permanent, organized media library.</p></div></div><ServiceTabs active="root-folders"/>
     <section className="storage-engine-bar"><div><span className="eyebrow">CONFIGURING</span><strong>{domain==='movie'?'Movies':'Television'} storage</strong></div><label>Media engine<select value={domain} onChange={event=>setDomain(event.target.value as StorageDomain)}><option value="movie">Movies</option><option value="tv">Television</option></select></label></section>
     {samePath?<div className="notice storage-warning"><strong>Download and library paths match</strong><p>Choose separate paths so completed downloads remain isolated until the engine imports and organizes them.</p></div>:null}
     {error?<div className="panel error-state"><h2>Storage settings unavailable</h2><p>{error}</p><button className="secondary" onClick={()=>void load()}>Try again</button></div>:<div className="storage-config-grid">

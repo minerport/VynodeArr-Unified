@@ -2,6 +2,7 @@ import {useCallback,useEffect,useMemo,useState} from 'react';
 import {createPortal} from 'react-dom';
 import type {Catalog,CustomFormat,GuideTemplatesMountOptions,ResourceType,TemplateChangePlan,TemplateDetail,TemplateDomain,TemplateSummary} from './guide-templates-types';
 import {addCustomFormatsToken,customFormatsToken,namingHasCustomFormatsToken,type NamingSettings} from './custom-format-naming';
+import {ServiceTabs} from './service-tabs';
 import './react-guide-templates.css';
 import './react-guide-template-families.css';
 
@@ -9,8 +10,6 @@ const errorText=(value:unknown)=>value instanceof Error?value.message:'The guide
 const short=(value?:string)=>value?.slice(0,8)||'unknown';
 const types:Array<[ResourceType,string,string]>=[['customFormat','Custom formats','Selection Rules'],['customFormatGroup','Format groups','Selection Rules'],['qualityProfile','Quality profiles','Quality Profiles'],['qualitySize','Quality size','Quality Profiles'],['naming','Naming','Media Management']];
 const destination:Record<ResourceType,string>={customFormat:'#service/custom-formats',customFormatGroup:'#service/custom-formats',qualityProfile:'#service/profiles',qualitySize:'#service/profiles',naming:'#service/media-management'};
-const Tabs=()=> <nav className="settings-tabs"><a href="#service/root-folders">Root Folders</a><a href="#service/media-management">Media Management</a><a href="#service/profiles">Quality Profiles</a><a href="#service/custom-formats">Custom Formats</a><a className="active" href="#service/guide-templates">Guide Templates</a><a href="#service/release-profiles">Release Profiles</a><a href="#service/indexers">Indexers</a><a href="#service/download-clients">Download Clients</a><a href="#service/discover">Discover</a></nav>;
-
 export function GuideTemplatesView({options}:{options:GuideTemplatesMountOptions}){
   const availableTypes=types.filter(([id])=>!options.initialTypes?.length||options.initialTypes.includes(id));
   const [catalog,setCatalog]=useState<Catalog|null>(null),[domain,setDomain]=useState<TemplateDomain>(options.initialDomain||'movie'),[type,setType]=useState<ResourceType>(options.initialTypes?.[0]||'customFormat'),[purpose,setPurpose]=useState('all'),[query,setQuery]=useState(''),[selected,setSelected]=useState<TemplateDetail|null>(null),[draft,setDraft]=useState<any>(null),[naming,setNaming]=useState<NamingSettings>({}),[profileIds,setProfileIds]=useState<number[]>([]),[scoreSet,setScoreSet]=useState('default'),[plan,setPlan]=useState<TemplateChangePlan|null>(null),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState('');
@@ -24,7 +23,7 @@ export function GuideTemplatesView({options}:{options:GuideTemplatesMountOptions
   const profiles=selected?.resourceType==='customFormat'?(selected.qualityProfiles||[]):((selected?.engine?.profiles||[]) as Array<any>);
   return <div className="guide-templates-route">
     <div className="hero"><div><span className="eyebrow">ENGINE-NATIVE RECOMMENDATIONS</span><h1>Guide Templates</h1><p className="lede">Review, customize, and apply TRaSH recommendations through the setting they actually control.</p></div><button className="secondary" disabled={loading} onClick={()=>void load(true)}>{loading?'Checking…':'Check for updates'}</button></div>
-    <Tabs/>
+    <ServiceTabs active="guide-templates"/>
     <section className="guide-source-strip"><div><strong>TRaSH Guides · {domain==='movie'?'Movies':'TV'} templates</strong><span>{catalog?`Revision ${short(catalog.revision)} · ${catalog.templates.filter(item=>item.domain===domain).length} templates`:'Catalog not loaded'}</span></div><div className="template-domain-switch" role="group" aria-label="Template engine"><button className={domain==='movie'?'active':''} onClick={()=>{setDomain('movie');setPurpose('all');}}>Movies</button><button className={domain==='tv'?'active':''} onClick={()=>{setDomain('tv');setPurpose('all');}}>TV</button></div><a href={domain==='movie'?'https://trash-guides.info/%52adarr/':'https://trash-guides.info/%53onarr/'} target="_blank" rel="noreferrer">Open source guide ↗</a></section>
     <nav className="template-family-tabs">{availableTypes.map(([id,label,place])=><button className={type===id?'active':''} key={id} onClick={()=>{setType(id);setPurpose('all');}}><strong>{label}</strong><small>{place}</small><span>{catalog?.templates.filter(item=>item.domain===domain&&item.resourceType===id).length||0}</span></button>)}</nav>
     {error?<div className="panel error-state"><p>{error}</p></div>:loading&&!catalog?<div className="panel skeleton">Loading guide catalog…</div>:<section className="template-browser">

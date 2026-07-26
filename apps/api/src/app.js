@@ -1,8 +1,10 @@
 import { readFile } from 'node:fs/promises';
-import { randomUUID } from 'node:crypto';
+import { createHash,randomUUID } from 'node:crypto';
 import { request as httpRequest } from 'node:http';
 import { request as httpsRequest } from 'node:https';
 import { extname,join,normalize,resolve } from 'node:path';
+import { promisify } from 'node:util';
+import { gzip } from 'node:zlib';
 import { MediaEngineRegistry } from '../../../packages/platform/src/engine-registry.js';
 import { loadEngineConfiguration,loadSecret,publicEngineConfiguration } from '../../../packages/platform/src/engine-config.js';
 import { SynchronizationService } from '../../../packages/platform/src/synchronization-service.js';
@@ -22,6 +24,22 @@ import { TmdbDiscoveryService } from './tmdb-discovery.js';
 const applicationVersion=JSON.parse(await readFile(resolve(process.cwd(),'package.json'),'utf8')).version;
 const webRoot=resolve(process.cwd(),'apps/web/public');
 const mime={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.ico':'image/x-icon'};
+const gzipAsync=promisify(gzip);
+const compressible=new Set(['.html','.css','.js','.svg']);
+async function staticResponse(req,res,path,value,{fallback=false}={}){
+  const extension=extname(path),contentType=mime[extension]||'application/octet-stream';
+  const tag=`W/"${createHash('sha256').update(value).digest('base64url')}"`;
+  const hashed=/\/react\/[^/]+-[A-Za-z0-9_-]{8,}\.(?:js|css)$/.test(path.replaceAll('\\','/'));
+  const cacheControl=fallback||extension==='.html'?'no-cache':hashed?'public, max-age=31536000, immutable':'public, max-age=3600, stale-while-revalidate=86400';
+  const headers={'content-type':contentType,'cache-control':cacheControl,etag:tag,'x-content-type-options':'nosniff'};
+  if(compressible.has(extension))headers.vary='Accept-Encoding';
+  if(req.headers['if-none-match']===tag){res.writeHead(304,headers);return res.end();}
+  const acceptsGzip=/\bgzip\b/i.test(String(req.headers['accept-encoding']||'')),shouldCompress=acceptsGzip&&compressible.has(extension)&&value.length>=1024;
+  const output=shouldCompress?await gzipAsync(value):value;
+  if(shouldCompress)headers['content-encoding']='gzip';
+  headers['content-length']=String(output.length);
+  res.writeHead(200,headers);res.end(output);
+}
 const cookies=(header='')=>Object.fromEntries(header.split(';').map((part)=>part.trim().split('=').map(decodeURIComponent)).filter(([key])=>key));
 const redact=(value)=>String(value||'').replace(/https?:\/\/\S+/gi,'[internal service]').replace(/\b\d{1,3}(?:\.\d{1,3}){3}\b/g,'[internal host]').replace(/[A-Za-z0-9_-]{24,}/g,'[redacted]');
 async function body(req,maxSize=1_500_000){const chunks=[];let size=0;for await(const chunk of req){size+=chunk.length;if(size>maxSize)throw new Error('Request is too large');chunks.push(chunk);}return chunks.length?JSON.parse(Buffer.concat(chunks).toString('utf8')):{};}
@@ -1212,7 +1230,7 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
         return json(res,404,{error:{code:'not_found',message:'The requested VynodeArr resource was not found.'}});
       }
       const requested=url.pathname==='/'?'index.html':url.pathname.slice(1),safe=normalize(requested).replace(/^(\.\.[/\\])+/, '');
-      try{const path=join(webRoot,safe),value=await readFile(path);res.writeHead(200,{'content-type':mime[extname(path)]||'application/octet-stream'});return res.end(value);}catch{const value=await readFile(join(webRoot,'index.html'));res.writeHead(200,{'content-type':mime['.html']});return res.end(value);}
+      try{const path=join(webRoot,safe),value=await readFile(path);return staticResponse(req,res,path,value);}catch{const path=join(webRoot,'index.html'),value=await readFile(path);return staticResponse(req,res,path,value,{fallback:true});}
     }catch(error){if(url.pathname.startsWith('/api/'))return safeError(res,error,url.pathname.includes('/tv')?'TV':url.pathname.includes('/movies')?'Movie':null,url.pathname);res.writeHead(500);res.end();}
   }
   return{handleRequest,registry,sync,auth,config:baseConfig,engineSettings,initialize};

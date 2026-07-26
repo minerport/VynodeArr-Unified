@@ -13,6 +13,7 @@ function Tabs({section,administrator}:{section:AccountSection;administrator:bool
   return <nav className="settings-tabs" aria-label="Account settings">
     <a className={section==='account'?'active':''} href="#settings/account">My account</a>
     <a className={section==='sessions'?'active':''} href="#settings/sessions">Active sessions</a>
+    {administrator?<a href="#settings/engines">Engines</a>:null}
     {administrator?<a className={section==='users'?'active':''} href="#settings/users">Users</a>:null}
   </nav>;
 }

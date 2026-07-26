@@ -51,6 +51,17 @@ test('public errors and health are neutral',async()=>{
   try{assert.equal((await fetch(`${base}/healthz`)).status,200);const value=await (await fetch(`${base}/api/media/movies`)).json();assert.match(value.error.message,/Sign in/);assert.doesNotMatch(JSON.stringify(value),/\b(radarr|sonarr)\b/i);}
   finally{await new Promise((resolve)=>server.close(resolve));await rm(directory,{recursive:true,force:true});}
 });
+test('static assets use safe caching, validation, and gzip compression',()=>fixtureServer(async({base})=>{
+  const first=await fetch(`${base}/styles.css`,{headers:{'accept-encoding':'identity'}});
+  assert.equal(first.status,200);assert.match(first.headers.get('cache-control'),/max-age=3600/);
+  const tag=first.headers.get('etag');assert.match(tag,/^W\//);assert.equal(first.headers.get('vary'),'Accept-Encoding');assert.equal(first.headers.get('x-content-type-options'),'nosniff');
+  const unchanged=await fetch(`${base}/styles.css`,{headers:{'if-none-match':tag,'accept-encoding':'identity'}});
+  assert.equal(unchanged.status,304);assert.equal(unchanged.headers.get('vary'),'Accept-Encoding');
+  const compressed=await fetch(`${base}/styles.css`,{headers:{'accept-encoding':'gzip'}});
+  assert.equal(compressed.status,200);assert.equal(compressed.headers.get('content-encoding'),'gzip');assert.match(await compressed.text(),/--bg/);
+  const shell=await fetch(`${base}/not-a-real-route`);
+  assert.equal(shell.status,200);assert.equal(shell.headers.get('cache-control'),'no-cache');assert.match(await shell.text(),/VynodeArr/);
+}));
 test('UI exposes login, dashboard, media, operations, settings, and responsive shell',async()=>{
   const html=await readFile(new URL('../apps/web/public/index.html',import.meta.url),'utf8');const script=await readFile(new URL('../apps/web/client/src/app-shell.ts',import.meta.url),'utf8');const loader=await readFile(new URL('../apps/web/public/app.js',import.meta.url),'utf8');const css=await readFile(new URL('../apps/web/public/styles.css',import.meta.url),'utf8');
   for(const value of ['Create Administrator','Sign in','Username or email','Remember me','Forgot password','Discover','Movies','TV','Queue','History','Calendar','Settings','System','Read-only mode'])assert.match(html,new RegExp(value));

@@ -379,3 +379,32 @@ test('indexers and download clients use a typed native provider editor with conn
   assert.match(gateway,/indexerTest:\{path:'indexer\/test'/);
   assert.match(gateway,/downloadClientTest:\{path:'downloadclient\/test'/);
 });
+
+test('React service settings routes share one complete navigation component',async()=>{
+  const [tabs,...routes]=await Promise.all([
+    read('apps/web/client/src/service-tabs.tsx'),
+    read('apps/web/client/src/guide-templates.tsx'),
+    read('apps/web/client/src/provider-settings.tsx'),
+    read('apps/web/client/src/media-management.tsx'),
+    read('apps/web/client/src/root-folders.tsx'),
+    read('apps/web/client/src/selection-rules.tsx')
+  ]);
+  for(const href of ['#service/root-folders','#service/media-management','#service/profiles','#service/custom-formats','#service/guide-templates','#service/release-profiles','#service/indexers','#service/download-clients','#service/discover','#management']){
+    assert.match(tabs,new RegExp(href.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
+  }
+  for(const route of routes){
+    assert.match(route,/ServiceTabs/);
+    assert.doesNotMatch(route,/<nav className="settings-tabs"/);
+  }
+});
+
+test('administrator account navigation retains access to engine API-key management',async()=>{
+  const [account,shell]=await Promise.all([
+    read('apps/web/client/src/account.tsx'),
+    read('apps/web/client/src/app-shell.ts')
+  ]);
+  assert.match(account,/\{administrator\?<a href="#settings\/engines">Engines<\/a>:null\}/);
+  assert.match(shell,/parts\[1\]==='engines'\?showEngineManagement\(\):showAccountReact/);
+  assert.match(shell,/External application access/);
+  assert.match(shell,/Generate new key/);
+});
