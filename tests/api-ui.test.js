@@ -24,7 +24,7 @@ async function fixtureServer(run){
 const get=(base,path,cookie)=>fetch(`${base}${path}`,{headers:{cookie}});
 
 test('setup auto-login, session validation, CSRF, and logout',()=>fixtureServer(async({base,cookie,csrf})=>{
-  const status=await (await get(base,'/api/auth/status',cookie)).json();assert.equal(status.authenticated,true);assert.equal(status.user.role,'administrator');
+  const status=await (await get(base,'/api/auth/status',cookie)).json();assert.equal(status.authenticated,true);assert.equal(status.user.role,'administrator');assert.equal(status.enginesConfigured,true);
   const rejected=await fetch(`${base}/api/auth/logout`,{method:'POST',headers:{cookie}});assert.equal(rejected.status,403);
   const logout=await fetch(`${base}/api/auth/logout`,{method:'POST',headers:{cookie,'x-vynodearr-csrf':csrf}});assert.equal(logout.status,200);
 }));

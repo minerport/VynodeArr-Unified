@@ -1,5 +1,14 @@
 :root {
   --input: #080e19;
+  --page-gradient:
+    radial-gradient(circle at 84% -8%, color-mix(in srgb,var(--accent) 18%,transparent) 0, transparent 34rem),
+    radial-gradient(circle at 10% 18%, color-mix(in srgb,var(--cyan) 8%,transparent) 0, transparent 28rem),
+    linear-gradient(145deg,color-mix(in srgb,var(--bg) 92%,#101a31),var(--bg) 56%,color-mix(in srgb,var(--bg) 94%,#02050b));
+  --tab-surface:color-mix(in srgb,var(--panel) 76%,transparent);
+  --tab-active:linear-gradient(135deg,color-mix(in srgb,var(--accent) 34%,var(--panel)),color-mix(in srgb,var(--panel2) 88%,transparent));
+  --glass-surface:linear-gradient(145deg,color-mix(in srgb,var(--panel2) 68%,transparent),color-mix(in srgb,var(--panel) 52%,transparent));
+  --glass-border:color-mix(in srgb,var(--line) 72%,rgba(255,255,255,.16));
+  --glass-highlight:rgba(255,255,255,.055);
 }
 
 [data-theme="obsidian"] {
@@ -49,6 +58,14 @@
 body, aside, header, .panel, .card, input, select, textarea, button {
   transition:background-color .2s ease,border-color .2s ease,color .2s ease;
 }
+body {
+  background:var(--page-gradient);
+  background-attachment:fixed;
+}
+main,
+#content {
+  background:transparent;
+}
 aside, header {
   background-color:color-mix(in srgb,var(--bg) 94%,transparent);
 }
@@ -61,4 +78,44 @@ input, select, textarea {
 }
 .summary, .metric {
   background:linear-gradient(135deg,var(--panel2),var(--panel));
+}
+
+/* One dark, theme-aware tab language across settings and in-page views. */
+.settings-tabs,
+.system-tabs,
+.wanted-segment {
+  background:var(--tab-surface);
+  border:1px solid color-mix(in srgb,var(--line) 82%,transparent);
+  border-radius:.8rem;
+  padding:.3rem;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.025);
+}
+.settings-tabs {
+  gap:.2rem;
+  margin:-10px 0 25px;
+}
+.settings-tabs a,
+.settings-tabs button,
+.system-tabs button,
+.wanted-segment button {
+  border:0;
+  border-radius:.55rem;
+  background:transparent;
+  color:var(--muted);
+}
+.settings-tabs a:hover,
+.settings-tabs button:hover,
+.system-tabs button:hover,
+.wanted-segment button:hover {
+  background:color-mix(in srgb,var(--panel2) 78%,transparent);
+  color:var(--text);
+}
+.settings-tabs a.active,
+.settings-tabs button.active,
+.system-tabs button.active,
+.wanted-segment button.active {
+  border:0;
+  background:var(--tab-active);
+  color:var(--text);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 7px 18px rgba(0,0,0,.2);
 }

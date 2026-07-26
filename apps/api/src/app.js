@@ -85,6 +85,7 @@ export function createApplication(options={}){
   let tv=options.tv||(mode==='fixture'?new TvFixtureAdapter(baseConfig.tv):new TvEngineAdapter(baseConfig.tv));
   const registry=options.registry||new MediaEngineRegistry().register('movie',movie).register('tv',tv);
   const sync=options.sync||new SynchronizationService({movie,tv,maxItems:baseConfig.cacheMaxItems,pollIntervalMs:baseConfig.pollIntervalMs,projectionStore});
+  const enginesConfigured=()=>mode==='fixture'||engineSettings.configured();
   const management=new EngineManagementService(registry);
   const importJobs=new Map(),searchJobs=new Map(),completedQueueRefreshes=new Map(),completedQueueCleanups=new Map(),interactiveReleaseCache=new Map(),renamePlans=new Map();
   let initialized=false,queueCompletionTimer=null;
@@ -541,15 +542,15 @@ export function createApplication(options={}){
       if(req.method==='GET'&&url.pathname==='/healthz')return json(res,200,{status:'ready',service:'VynodeArr'});
       if(url.pathname==='/movies'||url.pathname.startsWith('/movies/'))return proxyCompatibilityApi(req,res,url,'movie','/movies');
       if(url.pathname==='/tv'||url.pathname.startsWith('/tv/'))return proxyCompatibilityApi(req,res,url,'tv','/tv');
-      if(url.pathname==='/api/auth/status'&&req.method==='GET'){const session=sessionFor(req,auth);return json(res,200,{setupRequired:await auth.setupRequired(),authenticated:Boolean(session),user:session?.user||null,csrf:session?.csrf||null,enginesConfigured:engineSettings.configured()});}
+      if(url.pathname==='/api/auth/status'&&req.method==='GET'){const session=sessionFor(req,auth);return json(res,200,{setupRequired:await auth.setupRequired(),authenticated:Boolean(session),user:session?.user||null,csrf:session?.csrf||null,enginesConfigured:enginesConfigured()});}
       if(url.pathname==='/api/auth/setup'&&req.method==='POST'){
         const input=await body(req),user=await auth.createInitialAdministrator(input),result=await auth.createSession(user,{ip:req.socket.remoteAddress,userAgent:req.headers['user-agent'],remember:true});
-        return json(res,201,{created:true,authenticated:true,user:result.user,csrf:result.csrf,enginesConfigured:engineSettings.configured()},{'set-cookie':auth.cookie(result.id,false,true)});
+        return json(res,201,{created:true,authenticated:true,user:result.user,csrf:result.csrf,enginesConfigured:enginesConfigured()},{'set-cookie':auth.cookie(result.id,false,true)});
       }
       if(url.pathname==='/api/auth/login'&&req.method==='POST'){
         const input=await body(req),result=await auth.login(input.identifier||input.username,input.password,{ip:req.socket.remoteAddress,userAgent:req.headers['user-agent'],remember:Boolean(input.remember)});
         if(!result)return json(res,401,{error:{code:'login_failed',message:'The username, email, or password was not accepted.'}});
-        return json(res,200,{authenticated:true,user:result.user,csrf:result.csrf,enginesConfigured:engineSettings.configured()},{'set-cookie':auth.cookie(result.id,false,Boolean(input.remember))});
+        return json(res,200,{authenticated:true,user:result.user,csrf:result.csrf,enginesConfigured:enginesConfigured()},{'set-cookie':auth.cookie(result.id,false,Boolean(input.remember))});
       }
       if(url.pathname.startsWith('/api/')){
         const session=requireSession(req,res,auth);if(!session)return;const sessionId=cookies(req.headers.cookie).vynodearr_session;

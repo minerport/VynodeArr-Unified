@@ -8,10 +8,10 @@ const secret = (env, name) => {
 };
 export const loadSecret = (env,name) => secret(env,name);
 
-function domainConfig(env, prefix, displayName, fixtureFallback) {
+function domainConfig(env, prefix, displayName, fixtureFallback, defaultPort) {
   const https = bool(env[`${prefix}_HTTPS`], false);
   const host = env[`${prefix}_HOST`] || '127.0.0.1';
-  const port = integer(env[`${prefix}_PORT`], https ? 443 : 8989, 1, 65535);
+  const port = integer(env[`${prefix}_PORT`], https ? 443 : defaultPort, 1, 65535);
   const urlBase = String(env[`${prefix}_URL_BASE`] || '').replace(/^\/+|\/+$/g, '');
   return Object.freeze({
     enabled: bool(env[`${prefix}_ENABLED`], true),
@@ -31,8 +31,8 @@ function domainConfig(env, prefix, displayName, fixtureFallback) {
 export function loadEngineConfiguration(env = process.env) {
   const fixtureMode = String(env.VYNODEARR_DATA_MODE || 'fixture').toLowerCase() === 'fixture';
   return Object.freeze({
-    movie: domainConfig(env, 'MOVIE_ENGINE', 'Movies', fixtureMode),
-    tv: domainConfig(env, 'TV_ENGINE', 'TV', fixtureMode),
+    movie: domainConfig(env, 'MOVIE_ENGINE', 'Movies', fixtureMode, 7878),
+    tv: domainConfig(env, 'TV_ENGINE', 'TV', fixtureMode, 8989),
     pollIntervalMs: integer(env.VYNODEARR_SYNC_INTERVAL_MS||env.VYNODENEW_SYNC_INTERVAL_MS, 900000, 60000, 86400000),
     cacheMaxItems: integer(env.VYNODEARR_CACHE_MAX_ITEMS, 5000, 10, 100000),
     dataMode: fixtureMode ? 'fixture' : 'engine'

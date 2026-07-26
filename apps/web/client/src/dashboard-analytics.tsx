@@ -49,13 +49,13 @@ function AnalyticsPanel({domain,analytics}:{domain:Domain;analytics:DashboardAna
     ?[['Available',analytics.library.movie.available],['Missing',analytics.library.movie.missing],['Below cutoff',analytics.library.movie.belowCutoff],['Storage',formatBytes(library.sizeOnDisk)]]
     :[['Complete',analytics.library.tv.complete],['Need attention',analytics.library.tv.needsAttention],['Missing episodes',analytics.library.tv.episodesMissing],['Storage',formatBytes(library.sizeOnDisk)]];
   return <article className={`analytics-card ${domain}`}>
-    <header className="analytics-card-heading">
+    <div className="analytics-card-heading">
       <div className="analytics-card-identity">
         <span className="analytics-domain-mark" aria-hidden="true">{movie?'M':'TV'}</span>
         <div><span className="eyebrow">{movie?'MOVIE LIBRARY':'TELEVISION LIBRARY'}</span><h2>{movie?'Movie insights':'Television insights'}</h2><p>{movie?'Availability, upgrades, storage, and download activity.':'Episode coverage, storage, and download activity.'}</p></div>
       </div>
       <div className="analytics-total"><strong>{number(library.total)}</strong><span>{movie?'movies':'series'}</span></div>
-    </header>
+    </div>
     <h3>Completed downloads · last {analytics.rangeDays} days</h3>
     <TrendChart points={analytics.downloadsOverTime[domain]} domain={domain}/>
     <div className="analytics-activity"><span><strong>{number(activity.completed)}</strong> completed</span><span><strong>{number(activity.grabbed)}</strong> grabbed</span><span><strong>{number(activity.failed)}</strong> failed</span></div>
@@ -68,7 +68,7 @@ function AnalyticsPanel({domain,analytics}:{domain:Domain;analytics:DashboardAna
 export function DashboardAnalyticsView({analytics}:{analytics:DashboardAnalytics}){
   return <section className="analytics-section react-analytics-section">
     <div className="section-heading">
-      <div className="section-heading-copy"><span className="eyebrow">LIBRARY ANALYTICS</span><h2>Movies and television at a glance</h2><p>Download activity, coverage, quality, and storage across both libraries.</p></div>
+      <div className="section-heading-copy"><span className="eyebrow">LIBRARY ANALYTICS</span><h2>Library performance</h2><p>Coverage, quality, storage, and 30-day activity.</p></div>
       <span className="analytics-source">Last {analytics.rangeDays} days · Live engine data</span>
     </div>
     <div className="analytics-grid"><AnalyticsPanel domain="movie" analytics={analytics}/><AnalyticsPanel domain="tv" analytics={analytics}/></div>
