@@ -30,6 +30,20 @@ test('engine attention summaries use authoritative wanted totals',async()=>{
   assert.deepEqual(await new MovieEngineAdapter({enabled:true},new FakeClient(values)).getAttentionSummary(),{missing:30,cutoff:1000});
   assert.deepEqual(await new TvEngineAdapter({enabled:true},new FakeClient(values)).getAttentionSummary(),{missing:30,cutoff:1000});
 });
+test('engine history paging covers the requested window instead of truncating to the latest page',async()=>{
+  const now=Date.now(),records=Array.from({length:620},(_,index)=>({
+    id:index+1,eventType:index%2?'downloadFolderImported':'grabbed',
+    date:new Date(now-index*60_000).toISOString(),movie:{id:1,title:'Mapped Movie'}
+  }));
+  const client={async get(path,query={}){
+    assert.equal(path,'history');
+    const start=(Number(query.page)-1)*Number(query.pageSize);
+    return{records:records.slice(start,start+Number(query.pageSize)),totalRecords:records.length};
+  }};
+  const items=await new MovieEngineAdapter({enabled:true},client).getHistorySince({since:new Date(now-500*60_000),pageSize:200});
+  assert.equal(items.length,501);
+  assert.equal(items.filter(item=>item.eventType==='downloadFolderImported').length,250);
+});
 test('movie cutoff attention includes every engine result page',async()=>{
   const movies=Array.from({length:1001},(_,index)=>({...movieRecord,id:index+1,title:`Movie ${index+1}`}));
   const client={

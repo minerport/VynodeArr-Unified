@@ -61,6 +61,21 @@ export class MovieEngineAdapter {
     const items = records(value); if (!items) throw engineError.invalid();
     return items.map((record) => historyItem(record, 'movie'));
   }
+  async getHistorySince({ since, pageSize = 250 } = {}) {
+    const cutoff=new Date(since),items=[];
+    if(Number.isNaN(cutoff.getTime()))throw new TypeError('A valid history start date is required');
+    for(let page=1;page<=200;page+=1){
+      const value=await this.client.get('history',{page,pageSize,includeMovie:true,sortKey:'date',sortDirection:'descending'});
+      const pageRecords=records(value);if(!pageRecords)throw engineError.invalid();
+      for(const record of pageRecords){
+        const timestamp=new Date(record.date);
+        if(!Number.isNaN(timestamp.getTime())&&timestamp>=cutoff)items.push(historyItem(record,'movie'));
+      }
+      const oldest=pageRecords.at(-1)?.date,total=Number(value?.totalRecords);
+      if(!pageRecords.length||pageRecords.length<pageSize||(Number.isFinite(total)&&page*pageSize>=total)||(oldest&&!Number.isNaN(new Date(oldest).getTime())&&new Date(oldest)<cutoff))break;
+    }
+    return items;
+  }
   async getCalendar() {
     const value = await this.client.get('calendar', { unmonitored: true });
     if (!Array.isArray(value)) throw engineError.invalid();

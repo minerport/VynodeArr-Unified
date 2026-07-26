@@ -41,7 +41,7 @@ function dashboardAnalytics(movies=[],series=[],history=[],days=30,qualityProfil
     const day=parsedTimestamp&&!Number.isNaN(parsedTimestamp.getTime())?parsedTimestamp.toISOString().slice(0,10):'';
     if(event.includes('failed'))activity[domain].failed++;
     else if(event.includes('grabbed'))activity[domain].grabbed++;
-    else if(event.includes('imported')||event.includes('downloaded')){
+    else if(event==='downloadfolderimported'){
       activity[domain].completed++;
       if(day in downloads[domain])downloads[domain][day]++;
     }
@@ -70,6 +70,7 @@ function dashboardAnalytics(movies=[],series=[],history=[],days=30,qualityProfil
 export function createApplication(options={}){
   const env=options.env||process.env,baseConfig=options.config||loadEngineConfiguration(env);
   let dashboardSnapshot=null,dashboardSnapshotExpires=0,dashboardSnapshotRun=null;
+  let dashboardHistorySnapshot=null,dashboardHistoryExpires=0,dashboardHistoryRun=null;
   const dataDir=resolve(env.VYNODEARR_DATA_DIR||resolve(process.cwd(),'data'));
   const auth=options.auth||new AuthService({userFile:join(dataDir,'users.json'),sessionFile:join(dataDir,'sessions.json'),secureCookies:String(env.VYNODEARR_SECURE_COOKIES||env.NODE_ENV==='production')==='true'});
   const engineSettings=options.engineSettings||new EngineSettingsService({path:join(dataDir,'engine-settings.json'),vaultPath:join(dataDir,'credentials.enc'),masterKey:options.masterKey||loadSecret(env,'VYNODEARR_MASTER_KEY')||'local-development-key-change-me-2026',defaults:baseConfig});
@@ -303,6 +304,7 @@ const importJobs=new Map(),searchJobs=new Map(),completedQueueRefreshes=new Map(
     const eventKey=`${domain}:${identity}`,now=Date.now(),seen=completedLibraryImports.get(eventKey)||0;
     if(now-seen<24*60*60*1000)return;
     completedLibraryImports.set(eventKey,now);
+    dashboardSnapshot=null;dashboardSnapshotExpires=0;dashboardHistorySnapshot=null;dashboardHistoryExpires=0;
     let pending=libraryReconciliations.get(domain);
     if(!pending){pending={mediaIds:new Set(),timer:null};libraryReconciliations.set(domain,pending);}
     pending.mediaIds.add(mediaId);
@@ -588,6 +590,23 @@ const importJobs=new Map(),searchJobs=new Map(),completedQueueRefreshes=new Map(
       });
     }));
     return results.flat();
+  }
+  async function dashboardHistory(days=30){
+    if(mode!=='engine')return sync.operations('history');
+    if(dashboardHistorySnapshot&&dashboardHistoryExpires>Date.now())return dashboardHistorySnapshot;
+    if(!dashboardHistoryRun)dashboardHistoryRun=(async()=>{
+      const start=new Date();start.setUTCHours(0,0,0,0);start.setUTCDate(start.getUTCDate()-(days-1));
+      const results=await Promise.all(['movie','tv'].map(async domain=>{
+        const adapter=registry.get(domain);
+        return typeof adapter.getHistorySince==='function'?adapter.getHistorySince({since:start}):adapter.getHistory({limit:5000});
+      }));
+      return results.flat().sort((left,right)=>String(right.timestamp).localeCompare(String(left.timestamp)));
+    })();
+    try{
+      dashboardHistorySnapshot=await dashboardHistoryRun;
+      dashboardHistoryExpires=Date.now()+5*60_000;
+      return dashboardHistorySnapshot;
+    }finally{dashboardHistoryRun=null;}
   }
   function resolveCollectionMembers(collection,movies){
     if(collection.type!=='smart')return(collection.movieIds||[]).map(id=>movies.find(movie=>movie.id===id)).filter(Boolean);
@@ -927,7 +946,7 @@ const importJobs=new Map(),searchJobs=new Map(),completedQueueRefreshes=new Map(
         if(url.pathname==='/api/system/health')return json(res,200,{items:await sync.operations('health'),sync:sync.snapshot()});
         if(url.pathname==='/api/dashboard'){
           if(dashboardSnapshot&&dashboardSnapshotExpires>Date.now())return json(res,200,dashboardSnapshot,{'x-vynodearr-cache':'hit'});
-          if(!dashboardSnapshotRun)dashboardSnapshotRun=(async()=>{const[movies,tvItems,queue,history,calendar,health,tvProfiles]=await Promise.all([sync.list('movie'),sync.list('tv'),mode==='engine'?liveQueue():sync.operations('queue'),sync.operations('history'),sync.operations('calendar'),sync.operations('health'),management.execute('tv','profiles','GET').catch(()=>[])]),profileNames={tv:new Map((Array.isArray(tvProfiles)?tvProfiles:[]).map(profile=>[String(profile.id),profile.name||`Profile ${profile.id}`]))},analytics=dashboardAnalytics(movies,tvItems,history,30,profileNames),recentImports=history.filter(item=>String(item.eventType||'').toLowerCase().includes('imported')),seen=new Set(),recentlyAdded=[];for(const item of recentImports){const key=`${item.domain}:${item.mediaId||item.title}`;if(seen.has(key))continue;seen.add(key);recentlyAdded.push({id:item.mediaId||item.id,title:item.title,type:item.domain==='movie'?'Movie':'TV',timestamp:item.timestamp});if(recentlyAdded.length===6)break;}const upcoming=[...calendar].filter(item=>item.dateUtc).sort((left,right)=>String(left.dateUtc).localeCompare(String(right.dateUtc))).slice(0,6).map(item=>({id:item.id,domain:item.domain,title:item.title,context:item.context||null,dateUtc:item.dateUtc,mediaId:item.mediaId||null}));return{metrics:{movies:movies.length,tv:tvItems.length,queue:queue.length,upcomingMovies:calendar.filter((item)=>item.domain==='movie').length,upcomingEpisodes:calendar.filter((item)=>item.domain==='tv').length,missing:movies.filter((item)=>item.state==='missing').length+tvItems.reduce((sum,item)=>sum+item.missingEpisodes,0),downloading:queue.filter((item)=>String(item.status).toLowerCase().includes('down')).length,health:health.length,storage:analytics.library.movie.sizeOnDisk+analytics.library.tv.sizeOnDisk},upcoming,analytics,recentlyAdded,recentActivity:history.slice(0,8),engines:{configured:engineSettings.configured(),mode,status:sync.snapshot()}};})();
+          if(!dashboardSnapshotRun)dashboardSnapshotRun=(async()=>{const[movies,tvItems,queue,history,calendar,health,tvProfiles]=await Promise.all([sync.list('movie'),sync.list('tv'),mode==='engine'?liveQueue():sync.operations('queue'),dashboardHistory(30),sync.operations('calendar'),sync.operations('health'),management.execute('tv','profiles','GET').catch(()=>[])]),profileNames={tv:new Map((Array.isArray(tvProfiles)?tvProfiles:[]).map(profile=>[String(profile.id),profile.name||`Profile ${profile.id}`]))},analytics=dashboardAnalytics(movies,tvItems,history,30,profileNames),recentImports=history.filter(item=>String(item.eventType||'').toLowerCase()==='downloadfolderimported'),seen=new Set(),recentlyAdded=[];for(const item of recentImports){const key=`${item.domain}:${item.mediaId||item.title}`;if(seen.has(key))continue;seen.add(key);recentlyAdded.push({id:item.mediaId||item.id,title:item.title,type:item.domain==='movie'?'Movie':'TV',timestamp:item.timestamp});if(recentlyAdded.length===6)break;}const upcoming=[...calendar].filter(item=>item.dateUtc).sort((left,right)=>String(left.dateUtc).localeCompare(String(right.dateUtc))).slice(0,6).map(item=>({id:item.id,domain:item.domain,title:item.title,context:item.context||null,dateUtc:item.dateUtc,mediaId:item.mediaId||null}));return{metrics:{movies:movies.length,tv:tvItems.length,queue:queue.length,upcomingMovies:calendar.filter((item)=>item.domain==='movie').length,upcomingEpisodes:calendar.filter((item)=>item.domain==='tv').length,missing:movies.filter((item)=>item.state==='missing').length+tvItems.reduce((sum,item)=>sum+item.missingEpisodes,0),downloading:queue.filter((item)=>String(item.status).toLowerCase().includes('down')).length,health:health.length,storage:analytics.library.movie.sizeOnDisk+analytics.library.tv.sizeOnDisk},upcoming,analytics,recentlyAdded,recentActivity:history.slice(0,8),engines:{configured:engineSettings.configured(),mode,status:sync.snapshot()}};})();
           try{dashboardSnapshot=await dashboardSnapshotRun;dashboardSnapshotExpires=Date.now()+15_000;return json(res,200,dashboardSnapshot,{'x-vynodearr-cache':'miss'});}finally{dashboardSnapshotRun=null;}
         }
         if(url.pathname==='/api/system/engines'){const [movieTest,tvTest,movieStatus,tvStatus]=await Promise.all([registry.movie().testConnection(),registry.tv().testConnection(),registry.movie().getSystemStatus().catch(()=>null),registry.tv().getSystemStatus().catch(()=>null)]);const publicSettings=engineSettings.public();return json(res,200,{mode,managed:String(env.VYNODEARR_BUNDLED_ENGINES||'false')==='true',configured:engineSettings.configured(),engines:[{domain:'movie',displayName:'Movies',configuration:publicSettings.movie||publicEngineConfiguration(baseConfig.movie),connection:movieTest,status:movieStatus,synchronization:sync.snapshot().movie},{domain:'tv',displayName:'TV',configuration:publicSettings.tv||publicEngineConfiguration(baseConfig.tv),connection:tvTest,status:tvStatus,synchronization:sync.snapshot().tv}]});}

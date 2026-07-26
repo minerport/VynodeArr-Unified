@@ -22,7 +22,7 @@ import type { RootFoldersMountOptions } from './root-folders-types';
 import type { ProviderSettingsMountOptions } from './provider-settings-types';
 import { RouteErrorBoundary } from './error-boundary';
 
-let dashboardRoot:Root|null=null,dashboardElement:HTMLElement|null=null,fullDashboardRoot:Root|null=null,libraryRoot:Root|null=null,historyRoot:Root|null=null,queueRoot:Root|null=null,wantedRoot:Root|null=null,calendarRoot:Root|null=null,movieDetailRoot:Root|null=null,tvDetailRoot:Root|null=null,discoverRoot:Root|null=null,collectionsRoot:Root|null=null,addMediaRoot:Root|null=null,healthRoot:Root|null=null,accountRoot:Root|null=null,systemRoot:Root|null=null,selectionRulesRoot:Root|null=null,importMonitorRoot:Root|null=null,managementRoot:Root|null=null,mediaManagementRoot:Root|null=null,rootFoldersRoot:Root|null=null,providerSettingsRoot:Root|null=null;
+let dashboardRoot:Root|null=null,dashboardElement:HTMLElement|null=null,fullDashboardRoot:Root|null=null,dashboardRefreshTimer:number|null=null,libraryRoot:Root|null=null,historyRoot:Root|null=null,queueRoot:Root|null=null,wantedRoot:Root|null=null,calendarRoot:Root|null=null,movieDetailRoot:Root|null=null,tvDetailRoot:Root|null=null,discoverRoot:Root|null=null,collectionsRoot:Root|null=null,addMediaRoot:Root|null=null,healthRoot:Root|null=null,accountRoot:Root|null=null,systemRoot:Root|null=null,selectionRulesRoot:Root|null=null,importMonitorRoot:Root|null=null,managementRoot:Root|null=null,mediaManagementRoot:Root|null=null,rootFoldersRoot:Root|null=null,providerSettingsRoot:Root|null=null;
 const loading=(label:string)=><div className="panel skeleton react-route-loading">Loading {label}…</div>;
 
 const guarded=(children:ReactNode)=><RouteErrorBoundary>{children}</RouteErrorBoundary>;
@@ -31,10 +31,21 @@ function mountDashboardAnalytics(element:HTMLElement,analytics:DashboardAnalytic
   unmountDashboardAnalytics();dashboardElement=element;const root=createRoot(element);dashboardRoot=root;root.render(loading('analytics'));
   void import('./dashboard-analytics').then(({DashboardAnalyticsView})=>{if(dashboardRoot===root)root.render(<DashboardAnalyticsView analytics={analytics}/>);});
 }
-function unmountDashboard(){fullDashboardRoot?.unmount();fullDashboardRoot=null;}
+function unmountDashboard(){if(dashboardRefreshTimer!==null)window.clearInterval(dashboardRefreshTimer);dashboardRefreshTimer=null;fullDashboardRoot?.unmount();fullDashboardRoot=null;}
 function mountDashboard(element:HTMLElement,data:DashboardData){
   unmountDashboard();unmountDashboardAnalytics();const root=createRoot(element);fullDashboardRoot=root;root.render(loading('dashboard'));
-  void import('./dashboard').then(({DashboardView})=>{if(fullDashboardRoot===root)root.render(guarded(<DashboardView data={data}/>));});
+  void import('./dashboard').then(({DashboardView})=>{
+    if(fullDashboardRoot!==root)return;
+    const render=(value:DashboardData)=>root.render(guarded(<DashboardView data={value}/>));
+    render(data);
+    dashboardRefreshTimer=window.setInterval(async()=>{
+      if(fullDashboardRoot!==root||document.hidden)return;
+      try{
+        const response=await fetch('/api/dashboard',{headers:{accept:'application/json'},cache:'no-store'});
+        if(response.ok)render(await response.json() as DashboardData);
+      }catch{}
+    },15_000);
+  });
 }
 function unmountLibrary(){libraryRoot?.unmount();libraryRoot=null;}
 function mountLibrary(element:HTMLElement,options:LibraryMountOptions){
