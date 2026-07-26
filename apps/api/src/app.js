@@ -88,7 +88,7 @@ export function createApplication(options={}){
   const sync=options.sync||new SynchronizationService({movie,tv,maxItems:baseConfig.cacheMaxItems,pollIntervalMs:baseConfig.pollIntervalMs,projectionStore});
   const enginesConfigured=()=>mode==='fixture'||engineSettings.configured();
   const management=new EngineManagementService(registry);
-const importJobs=new Map(),searchJobs=new Map(),completedQueueRefreshes=new Map(),completedQueueCleanups=new Map(),completedUpgradeRenames=new Map(),completedLibraryImports=new Map(),libraryReconciliations=new Map(),libraryEventClients=new Set(),interactiveReleaseCache=new Map(),renamePlans=new Map();
+const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),completedQueueRefreshes=new Map(),completedQueueCleanups=new Map(),completedUpgradeRenames=new Map(),completedLibraryImports=new Map(),libraryReconciliations=new Map(),libraryEventClients=new Set(),interactiveReleaseCache=new Map(),renamePlans=new Map();
   let initialized=false,queueCompletionTimer=null;
   function importIdentityKeys(value={}){
     const keys=[],title=String(value.title||value.name||'').trim().toLowerCase(),year=Number(value.year||0);
@@ -249,6 +249,16 @@ const importJobs=new Map(),searchJobs=new Map(),completedQueueRefreshes=new Map(
       }))
     };
     return input.storePlan===false?preview:saveRenamePlan(preview,record);
+  }
+  const publicNamingAuditJob=job=>({id:job.id,domain:job.domain,status:job.status,total:job.total,completed:job.completed,matching:job.matching,mismatched:job.results.length,failed:job.failed,currentTitle:job.currentTitle,results:job.results,errors:job.errors.slice(-25),createdAt:job.createdAt,finishedAt:job.finishedAt});
+  async function runNamingAudit(job){
+    try{
+      const records=await management.execute(job.domain,'library','GET',{}),items=(Array.isArray(records)?records:[]).filter(record=>job.domain==='movie'?Boolean(record.hasFile||record.movieFile):Number(record.statistics?.episodeFileCount||0)>0);
+      job.total=items.length;let index=0;
+      const worker=async()=>{while(index<items.length){const record=items[index++];job.currentTitle=record.title||'';try{const preview=await renameMediaPreview({domain:job.domain,mediaId:Number(record.id),storePlan:false}),files=preview.files.filter(file=>normalizeMediaPath(file.existingPath)!==normalizeMediaPath(file.newPath));if(preview.folderChange||files.length)job.results.push({...preview,files});else job.matching++;}catch(error){job.failed++;job.errors.push({title:record.title||'Unknown media',message:error instanceof Error?error.message:String(error)});}finally{job.completed++;}}};
+      await Promise.all(Array.from({length:Math.min(4,Math.max(items.length,1))},worker));job.status='completed';
+    }catch(error){job.status='failed';job.errors.push({title:'Library audit',message:error instanceof Error?error.message:String(error)});}
+    job.currentTitle='';job.finishedAt=new Date().toISOString();
   }
   async function renameMedia(input){
     let preview,record;
@@ -847,6 +857,21 @@ const importJobs=new Map(),searchJobs=new Map(),completedQueueRefreshes=new Map(
         }
         if(url.pathname==='/api/media-files/reassign'&&req.method==='POST'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;return json(res,200,{reassigned:true,result:await reassignMediaFile(await body(req))});}
         if(url.pathname==='/api/media-match'&&req.method==='POST'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;return json(res,200,{matched:true,result:await rematchMedia(await body(req))});}
+        if(url.pathname==='/api/media-files/naming-audit'&&req.method==='POST'){
+          if(!administrator(res,session)||!requireCsrf(req,res,session))return;
+          const input=await body(req),domain=String(input.domain||'');
+          if(!['movie','tv'].includes(domain))throw new Error('Choose the movie or television library to audit');
+          const active=[...namingAuditJobs.values()].find(job=>job.domain===domain&&job.status==='running');
+          if(active)return json(res,202,{job:publicNamingAuditJob(active)});
+          const job={id:randomUUID(),domain,status:'running',total:0,completed:0,matching:0,failed:0,currentTitle:'',results:[],errors:[],createdAt:new Date().toISOString(),finishedAt:null};
+          namingAuditJobs.set(job.id,job);void runNamingAudit(job);return json(res,202,{job:publicNamingAuditJob(job)});
+        }
+        const namingAuditMatch=url.pathname.match(/^\/api\/media-files\/naming-audit\/([0-9a-f-]+)$/i);
+        if(namingAuditMatch&&req.method==='GET'){
+          if(!administrator(res,session))return;
+          const job=namingAuditJobs.get(namingAuditMatch[1]);if(!job)return json(res,404,{error:{message:'Naming audit not found'}});
+          return json(res,200,{job:publicNamingAuditJob(job)});
+        }
         if(url.pathname==='/api/media-files/rename'&&req.method==='GET'){if(!administrator(res,session))return;return json(res,200,{preview:await renameMediaPreview(Object.fromEntries(url.searchParams))});}
         if(url.pathname==='/api/media-files/rename'&&req.method==='POST'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;return json(res,202,{queued:true,result:await renameMedia(await body(req))});}
         const catalogMatch=url.pathname.match(/^\/api\/manage\/(movie|tv)$/);
@@ -946,7 +971,7 @@ const importJobs=new Map(),searchJobs=new Map(),completedQueueRefreshes=new Map(
         if(url.pathname==='/api/system/health')return json(res,200,{items:await sync.operations('health'),sync:sync.snapshot()});
         if(url.pathname==='/api/dashboard'){
           if(dashboardSnapshot&&dashboardSnapshotExpires>Date.now())return json(res,200,dashboardSnapshot,{'x-vynodearr-cache':'hit'});
-          if(!dashboardSnapshotRun)dashboardSnapshotRun=(async()=>{const[movies,tvItems,queue,history,calendar,health,tvProfiles]=await Promise.all([sync.list('movie'),sync.list('tv'),mode==='engine'?liveQueue():sync.operations('queue'),dashboardHistory(30),sync.operations('calendar'),sync.operations('health'),management.execute('tv','profiles','GET').catch(()=>[])]),profileNames={tv:new Map((Array.isArray(tvProfiles)?tvProfiles:[]).map(profile=>[String(profile.id),profile.name||`Profile ${profile.id}`]))},analytics=dashboardAnalytics(movies,tvItems,history,30,profileNames),recentImports=history.filter(item=>String(item.eventType||'').toLowerCase()==='downloadfolderimported'),seen=new Set(),recentlyAdded=[];for(const item of recentImports){const key=`${item.domain}:${item.mediaId||item.title}`;if(seen.has(key))continue;seen.add(key);recentlyAdded.push({id:item.mediaId||item.id,title:item.title,type:item.domain==='movie'?'Movie':'TV',timestamp:item.timestamp});if(recentlyAdded.length===6)break;}const upcoming=[...calendar].filter(item=>item.dateUtc).sort((left,right)=>String(left.dateUtc).localeCompare(String(right.dateUtc))).slice(0,6).map(item=>({id:item.id,domain:item.domain,title:item.title,context:item.context||null,dateUtc:item.dateUtc,mediaId:item.mediaId||null}));return{metrics:{movies:movies.length,tv:tvItems.length,queue:queue.length,upcomingMovies:calendar.filter((item)=>item.domain==='movie').length,upcomingEpisodes:calendar.filter((item)=>item.domain==='tv').length,missing:movies.filter((item)=>item.state==='missing').length+tvItems.reduce((sum,item)=>sum+item.missingEpisodes,0),downloading:queue.filter((item)=>String(item.status).toLowerCase().includes('down')).length,health:health.length,storage:analytics.library.movie.sizeOnDisk+analytics.library.tv.sizeOnDisk},upcoming,analytics,recentlyAdded,recentActivity:history.slice(0,8),engines:{configured:engineSettings.configured(),mode,status:sync.snapshot()}};})();
+          if(!dashboardSnapshotRun)dashboardSnapshotRun=(async()=>{const[movies,tvItems,queue,history,calendar,health,tvProfiles]=await Promise.all([sync.list('movie'),sync.list('tv'),mode==='engine'?liveQueue():sync.operations('queue'),dashboardHistory(30),sync.operations('calendar'),sync.operations('health'),management.execute('tv','profiles','GET').catch(()=>[])]),profileNames={tv:new Map((Array.isArray(tvProfiles)?tvProfiles:[]).map(profile=>[String(profile.id),profile.name||`Profile ${profile.id}`]))},analytics=dashboardAnalytics(movies,tvItems,history,30,profileNames),recentImports=history.filter(item=>String(item.eventType||'').toLowerCase()==='downloadfolderimported'),seen=new Set(),recentlyAdded=[];for(const item of recentImports){const key=`${item.domain}:${item.mediaId||item.title}`;if(seen.has(key))continue;seen.add(key);recentlyAdded.push({id:item.mediaId||item.id,title:item.title,type:item.domain==='movie'?'Movie':'TV',timestamp:item.timestamp});if(recentlyAdded.length===6)break;}const today=new Date();today.setUTCHours(0,0,0,0);const futureCalendar=[...calendar].filter(item=>item.dateUtc&&new Date(item.dateUtc)>=today).sort((left,right)=>String(left.dateUtc).localeCompare(String(right.dateUtc))),upcoming=futureCalendar.slice(0,6).map(item=>({id:item.id,domain:item.domain,title:item.title,context:item.context||null,dateUtc:item.dateUtc,mediaId:item.mediaId||null}));return{metrics:{movies:movies.length,tv:tvItems.length,queue:queue.length,upcomingMovies:futureCalendar.filter((item)=>item.domain==='movie').length,upcomingEpisodes:futureCalendar.filter((item)=>item.domain==='tv').length,missing:movies.filter((item)=>item.state==='missing').length+tvItems.reduce((sum,item)=>sum+item.missingEpisodes,0),downloading:queue.filter((item)=>String(item.status).toLowerCase().includes('down')).length,health:health.length,storage:analytics.library.movie.sizeOnDisk+analytics.library.tv.sizeOnDisk},upcoming,analytics,recentlyAdded,recentActivity:history.slice(0,8),engines:{configured:engineSettings.configured(),mode,status:sync.snapshot()}};})();
           try{dashboardSnapshot=await dashboardSnapshotRun;dashboardSnapshotExpires=Date.now()+15_000;return json(res,200,dashboardSnapshot,{'x-vynodearr-cache':'miss'});}finally{dashboardSnapshotRun=null;}
         }
         if(url.pathname==='/api/system/engines'){const [movieTest,tvTest,movieStatus,tvStatus]=await Promise.all([registry.movie().testConnection(),registry.tv().testConnection(),registry.movie().getSystemStatus().catch(()=>null),registry.tv().getSystemStatus().catch(()=>null)]);const publicSettings=engineSettings.public();return json(res,200,{mode,managed:String(env.VYNODEARR_BUNDLED_ENGINES||'false')==='true',configured:engineSettings.configured(),engines:[{domain:'movie',displayName:'Movies',configuration:publicSettings.movie||publicEngineConfiguration(baseConfig.movie),connection:movieTest,status:movieStatus,synchronization:sync.snapshot().movie},{domain:'tv',displayName:'TV',configuration:publicSettings.tv||publicEngineConfiguration(baseConfig.tv),connection:tvTest,status:tvStatus,synchronization:sync.snapshot().tv}]});}

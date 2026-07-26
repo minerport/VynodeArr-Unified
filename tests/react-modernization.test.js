@@ -91,6 +91,8 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(selectionRules,/condition\.required/);
   assert.match(selectionRules,/minFormatScore/);
   assert.match(selectionRules,/cutoffFormatScore/);
+  assert.match(app,/Allowed qualities exceed this cutoff/);
+  assert.match(app,/cutoff stops upgrades; it is not a maximum/);
   assert.match(selectionRules,/minUpgradeFormatScore/);
   assert.match(selectionRules,/releaseProfiles/);
   assert.doesNotMatch(selectionRules,/domain==='movie'\?'restrictions'/);
@@ -317,6 +319,9 @@ test('media naming and importing settings use a typed React route without flatte
   assert.match(view,/const flatten=/);
   assert.match(view,/const setPath=/);
   assert.match(view,/\/naming/);
+  assert.match(view,/Naming audit/);
+  assert.match(view,/\/api\/media-files\/naming-audit/);
+  assert.match(view,/Running an audit does not rename or move anything/);
   assert.match(view,/\/mediaManagement/);
   assert.match(view,/copyUsingHardlinks/);
   assert.match(types,/type MediaSettings=Record<string,unknown>/);

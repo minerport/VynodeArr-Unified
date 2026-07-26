@@ -73,6 +73,18 @@ test('dashboard API returns useful product metrics',()=>appSession({movie:new Mo
   assert.ok(Array.isArray(value.analytics.qualityDistribution.movie));assert.ok(Array.isArray(value.analytics.qualityDistribution.tv));
   assert.equal(value.analytics.library.movie.total,3);assert.equal(value.analytics.library.tv.total,3);
 }));
+test('dashboard upcoming excludes calendar events before today',()=>{
+  const yesterday=new Date(Date.now()-86400000).toISOString(),tomorrow=new Date(Date.now()+86400000).toISOString();
+  const movie=Object.assign(new MovieFixtureAdapter(),{getCalendar:async()=>[
+    {id:'past',domain:'movie',title:'Already released',dateUtc:yesterday},
+    {id:'future',domain:'movie',title:'Coming soon',dateUtc:tomorrow}
+  ]}),tv=Object.assign(new TvFixtureAdapter(),{getCalendar:async()=>[]});
+  return appSession({movie,tv},async({base,cookie})=>{
+    const value=await (await fetch(`${base}/api/dashboard`,{headers:{cookie}})).json();
+    assert.deepEqual(value.upcoming.map(item=>item.title),['Coming soon']);
+    assert.equal(value.metrics.upcomingMovies,1);
+  });
+});
 test('smart collections combine rules with retained and excluded movie choices',()=>appSession({movie:new MovieFixtureAdapter(),tv:new TvFixtureAdapter()},async({base,cookie,csrf})=>{
   const movies=(await (await fetch(`${base}/api/media/movies`,{headers:{cookie}})).json()).items,first=movies[0],retained=movies[1];
   const created=await fetch(`${base}/api/collections`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({name:'Flexible picks',type:'smart',rules:{year:first.year,genres:first.genres?.slice(0,1)||[]},includedMovieIds:[retained.id],excludedMovieIds:[first.id]})});
