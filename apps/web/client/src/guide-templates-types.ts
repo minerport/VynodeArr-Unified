@@ -1,0 +1,15 @@
+export type RequestOptions={method?:string;body?:BodyInit};
+export type GuideTemplatesMountOptions={request:<T=any>(path:string,options?:RequestOptions)=>Promise<T>;notify:(message:string,type?:string)=>void;initialTypes?:ResourceType[];initialDomain?:TemplateDomain};
+export type ResourceType='customFormat'|'qualityProfile'|'qualitySize'|'naming'|'customFormatGroup';
+export type Purpose={id:string;label:string;description:string};
+export type TemplateDomain='movie'|'tv';
+export type TemplateSummary={id:string;domain:TemplateDomain;title:string;purpose:string;resourceType:ResourceType;familyLabel:string;url:string;blob:string};
+export type DomainCoordination={conflicts:Array<Record<string,{name:string;desc?:string}>>;profileGroups:Array<{name:string;profiles:Record<string,string>}>;
+};
+export type Catalog={provider:string;revision:string;fetchedAt:string;cached:boolean;purposes:Purpose[];templates:TemplateSummary[];coordination:Record<TemplateDomain,DomainCoordination>};
+export type CustomFormat={name:string;includeCustomFormatWhenRenaming:boolean;specifications:Array<Record<string,any>>};
+export type EngineComparison={status:'new'|'matches'|'modified'|'conflict';existing?:Record<string,any>|null;record?:{decision:string;decidedAt:string}|null;sourceOfTruth:'movie-engine'|'tv-engine';observedAt:string};
+export type TemplateChange={resource:string;name:string;action:'add'|'update'|'unchanged';details:Array<{field:string;before:any;after:any}>};
+export type TemplateChangePlan={requiresConfirmation:boolean;hasChanges:boolean;changes:TemplateChange[];observedAt:string};
+export type TemplateQualityProfile={id:number;name:string;currentScore:number|null};
+export type TemplateDetail=TemplateSummary&{trashId:string;format?:CustomFormat;template?:Record<string,any>;scores?:Record<string,number>;qualityProfiles?:TemplateQualityProfile[];engine?:Record<string,any>;contentHash:string;revision:string;provider:string;comparison:EngineComparison};

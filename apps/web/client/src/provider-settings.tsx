@@ -4,7 +4,7 @@ import type {ProviderDomain,ProviderField,ProviderKind,ProviderRecord,ProviderSe
 const errorText=(reason:unknown)=>reason instanceof Error?reason.message:'The provider could not be updated.';
 const providerName=(item:ProviderRecord)=>String(item.name||item.implementationName||item.implementation||'Provider');
 const clone=<T,>(value:T):T=>structuredClone(value);
-const Tabs=({kind}:{kind:ProviderKind})=><nav className="settings-tabs"><a href="#service/root-folders">Root Folders</a><a href="#service/media-management">Media Management</a><a href="#service/profiles">Quality Profiles</a><a href="#service/custom-formats">Custom Formats</a><a href="#service/release-profiles">Release Profiles</a><a className={kind==='indexers'?'active':''} href="#service/indexers">Indexers</a><a className={kind==='downloadClients'?'active':''} href="#service/download-clients">Download Clients</a><a href="#service/discover">Discover</a><a href="#management">Advanced</a></nav>;
+const Tabs=({kind}:{kind:ProviderKind})=><nav className="settings-tabs"><a href="#service/root-folders">Root Folders</a><a href="#service/media-management">Media Management</a><a href="#service/profiles">Quality Profiles</a><a href="#service/custom-formats">Custom Formats</a><a href="#service/guide-templates">Guide Templates</a><a href="#service/release-profiles">Release Profiles</a><a className={kind==='indexers'?'active':''} href="#service/indexers">Indexers</a><a className={kind==='downloadClients'?'active':''} href="#service/download-clients">Download Clients</a><a href="#service/discover">Discover</a><a href="#management">Advanced</a></nav>;
 
 function Field({field,onChange}:{field:ProviderField;onChange:(value:unknown)=>void}){
   const label=field.label||field.name;

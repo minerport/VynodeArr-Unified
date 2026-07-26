@@ -11,6 +11,7 @@ import { AuthService } from '../../../packages/platform/src/auth-service.js';
 import { EngineSettingsService } from '../../../packages/platform/src/engine-settings-service.js';
 import { EngineManagementService } from '../../../packages/platform/src/engine-management-service.js';
 import { JsonStore } from '../../../packages/platform/src/json-store.js';
+import { GuideTemplateService,formatForMovieEngine } from '../../../packages/platform/src/guide-template-service.js';
 import { MovieEngineAdapter } from '../../../packages/movie-domain/src/engine-adapter.js';
 import { TvEngineAdapter } from '../../../packages/tv-domain/src/engine-adapter.js';
 import { MovieFixtureAdapter } from '../../../packages/movie-domain/src/fixture-adapter.js';
@@ -25,6 +26,19 @@ const cookies=(header='')=>Object.fromEntries(header.split(';').map((part)=>part
 const redact=(value)=>String(value||'').replace(/https?:\/\/\S+/gi,'[internal service]').replace(/\b\d{1,3}(?:\.\d{1,3}){3}\b/g,'[internal host]').replace(/[A-Za-z0-9_-]{24,}/g,'[redacted]');
 async function body(req,maxSize=1_500_000){const chunks=[];let size=0;for await(const chunk of req){size+=chunk.length;if(size>maxSize)throw new Error('Request is too large');chunks.push(chunk);}return chunks.length?JSON.parse(Buffer.concat(chunks).toString('utf8')):{};}
 function json(res,status,value,headers={}){res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer',...headers});res.end(JSON.stringify(value));}
+function templateDiff(before,after,fields){
+  return fields.flatMap(field=>{
+    const previous=before?.[field]??null,next=after?.[field]??null;
+    return JSON.stringify(previous)===JSON.stringify(next)?[]:[{field,before:previous,after:next}];
+  });
+}
+function templateChange(resource,name,before,after,fields){
+  const details=before?templateDiff(before,after,fields):[];
+  return{resource,name,action:before?(details.length?'update':'unchanged'):'add',details};
+}
+function templatePlan(changes){
+  return{requiresConfirmation:changes.some(item=>item.action==='update'),hasChanges:changes.some(item=>item.action!=='unchanged'),changes,observedAt:new Date().toISOString()};
+}
 function safeError(res,error,domain,url=''){const engine=Boolean(error?.safeMessage||error?.code?.startsWith('engine_'));const message=redact(engine?(error.safeMessage||(domain?`${domain} service unavailable`:'Media data could not be refreshed')):error?.message||'The request could not be completed.');const status=error?.code==='engine_validation_failed'?400:error?.code==='engine_authentication_failed'?502:engine?503:400;json(res,status,{error:{code:engine?(error.code||'service_unavailable'):'validation_failed',message}});}
 function sessionFor(req,auth){return auth.session(cookies(req.headers.cookie).vynodearr_session);}
 function requireSession(req,res,auth){const session=sessionFor(req,auth);if(!session){json(res,401,{error:{code:'authentication_required',message:'Sign in to VynodeArr to continue.'}});return null;}return session;}
@@ -77,6 +91,8 @@ export function createApplication(options={}){
   const projectionStore=options.projectionStore||new ProjectionStore(join(dataDir,'projections.json'));
   const auditStore=options.auditStore||new JsonStore(join(dataDir,'management-audit.json'),{version:1,entries:[]});
   const collectionStore=options.collectionStore||new JsonStore(join(dataDir,'collections.json'),{version:1,collections:[]});
+  const guideTemplateStore=options.guideTemplateStore||new JsonStore(join(dataDir,'guide-templates.json'),{version:1,records:{}});
+  const guideTemplates=options.guideTemplates||new GuideTemplateService({store:guideTemplateStore,fetcher:options.fetcher||globalThis.fetch});
   const defaultDownloadFolder=domain=>String(env[domain==='movie'?'VYNODEARR_MOVIE_DOWNLOADS_PATH':'VYNODEARR_TV_DOWNLOADS_PATH']||env.VYNODEARR_DOWNLOADS_PATH||'/downloads').replace(/\/+$/,'')||'/downloads';
   const downloadClientRemotePath=domain=>String(env[domain==='movie'?'VYNODEARR_MOVIE_DOWNLOAD_CLIENT_REMOTE_PATH':'VYNODEARR_TV_DOWNLOAD_CLIENT_REMOTE_PATH']||env.VYNODEARR_DOWNLOAD_CLIENT_REMOTE_PATH||'/data/complete').replace(/\/+$/,'')||'/data/complete';
   const downloadFolderStore=options.downloadFolderStore||new JsonStore(join(dataDir,'download-folders.json'),{version:1,movie:{path:defaultDownloadFolder('movie')},tv:{path:defaultDownloadFolder('tv')},updatedAt:null});
@@ -917,6 +933,179 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
         if(url.pathname==='/api/media-files/rename'&&req.method==='GET'){if(!administrator(res,session))return;return json(res,200,{preview:await renameMediaPreview(Object.fromEntries(url.searchParams))});}
         if(url.pathname==='/api/media-files/rename'&&req.method==='POST'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;return json(res,202,{queued:true,result:await renameMedia(await body(req))});}
         if(url.pathname==='/api/media-files/rename/file'&&req.method==='DELETE'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;return json(res,200,{result:await deleteRenamePreviewFile(await body(req))});}
+        if(url.pathname==='/api/guide-templates/catalog'&&req.method==='GET'){
+          if(!administrator(res,session))return;
+          return json(res,200,await guideTemplates.catalog({refresh:url.searchParams.get('refresh')==='true'}));
+        }
+        const guideTemplateMatch=url.pathname.match(/^\/api\/guide-templates\/templates\/([a-z0-9][a-z0-9-]*)(?:\/decision)?$/i);
+        if(guideTemplateMatch&&req.method==='GET'&&!url.pathname.endsWith('/decision')){
+          if(!administrator(res,session))return;
+          const template=await guideTemplates.template(guideTemplateMatch[1]),domain=template.domain||'movie';
+          if(template.resourceType!=='customFormat'){
+            const resources={
+              qualityProfile:['profiles','profileSchema','customFormats'],
+              qualitySize:['qualityDefinitions'],
+              naming:['naming'],
+              customFormatGroup:['customFormats','profiles']
+            }[template.resourceType]||[];
+            const values=await Promise.all(resources.map(resource=>management.execute(domain,resource,'GET')));
+            const engine=Object.fromEntries(resources.map((resource,index)=>[resource,values[index]]));
+            const existing=template.resourceType==='qualityProfile'?(Array.isArray(engine.profiles)?engine.profiles:[]).find(item=>String(item.name).toLowerCase()===String(template.template.name).toLowerCase()):null;
+            return json(res,200,{...template,engine,comparison:{status:existing?'conflict':'new',existing:existing||null,record:null,sourceOfTruth:`${domain}-engine`,observedAt:new Date().toISOString()}});
+          }
+          const [configuredValue,profilesValue]=await Promise.all([
+            management.execute(domain,'customFormats','GET'),
+            management.execute(domain,'profiles','GET')
+          ]);
+          const configured=Array.isArray(configuredValue)?configuredValue:[],profiles=Array.isArray(profilesValue)?profilesValue:[];
+          const comparison=await guideTemplates.comparison(template,configured),formatId=comparison.existing?.id;
+          const qualityProfiles=profiles.map(profile=>({
+            id:profile.id,
+            name:profile.name,
+            currentScore:formatId?(profile.formatItems||[]).find(item=>Number(item.format)===Number(formatId))?.score:null
+          }));
+          return json(res,200,{...template,resourceType:'customFormat',qualityProfiles,comparison});
+        }
+        if(guideTemplateMatch&&req.method==='POST'&&url.pathname.endsWith('/decision')){
+          if(!administrator(res,session)||!requireCsrf(req,res,session))return;
+          const input=await body(req),template=await guideTemplates.template(guideTemplateMatch[1]),domain=template.domain||'movie',engineLabel=domain==='movie'?'movie':'TV';
+          if(template.resourceType!=='customFormat'){
+            if(!['implement','reject'].includes(input.decision))throw new Error('Choose whether to implement or reject this template.');
+            if(input.decision==='reject'){
+              await guideTemplates.recordDecision(template,{decision:'rejected',username:session.user.username});
+              return json(res,200,{message:`${template.template?.name||template.title} rejected. No ${engineLabel}-engine settings were changed.`,comparison:{status:'new',existing:null,record:null,sourceOfTruth:`${domain}-engine`,observedAt:new Date().toISOString()}});
+            }
+            const previewChanges=[];
+            if(template.resourceType==='naming'){
+              const current=await management.execute(domain,'naming','GET'),reviewed=input.reviewed||{};
+              const target=domain==='movie'
+                ?{renameMovies:reviewed.renameMovies??true,standardMovieFormat:String(reviewed.standardMovieFormat||current.standardMovieFormat),movieFolderFormat:String(reviewed.movieFolderFormat||current.movieFolderFormat)}
+                :{renameEpisodes:reviewed.renameEpisodes??true,standardEpisodeFormat:String(reviewed.standardEpisodeFormat||current.standardEpisodeFormat),dailyEpisodeFormat:String(reviewed.dailyEpisodeFormat||current.dailyEpisodeFormat),animeEpisodeFormat:String(reviewed.animeEpisodeFormat||current.animeEpisodeFormat),seriesFolderFormat:String(reviewed.seriesFolderFormat||current.seriesFolderFormat),seasonFolderFormat:String(reviewed.seasonFolderFormat||current.seasonFolderFormat)};
+              previewChanges.push(templateChange('Naming',domain==='movie'?'Movie naming':'TV naming',current,target,Object.keys(target)));
+            }else if(template.resourceType==='qualitySize'){
+              const definitionsValue=await management.execute(domain,'qualityDefinitions','GET'),definitions=Array.isArray(definitionsValue)?definitionsValue:[],reviewed=Array.isArray(input.qualities)?input.qualities:template.template.qualities;
+              for(const recommendation of reviewed){
+                const definition=definitions.find(item=>String(item.title||item.quality?.name).toLowerCase()===String(recommendation.quality).toLowerCase());
+                previewChanges.push(templateChange('Quality size',recommendation.quality,definition,definition?{minSize:Number(recommendation.min),preferredSize:Number(recommendation.preferred),maxSize:Number(recommendation.max)}:recommendation,['minSize','preferredSize','maxSize']));
+              }
+            }else{
+              const requested=template.resourceType==='qualityProfile'?Object.values(template.template.formatItems||{}):((Array.isArray(input.customFormatIds)?input.customFormatIds:template.template.custom_formats?.filter(item=>item.required||item.default).map(item=>item.trash_id))||[]);
+              const [sources,configuredValue]=await Promise.all([guideTemplates.customFormatsByTrashIds(requested,domain),management.execute(domain,'customFormats','GET')]),configured=Array.isArray(configuredValue)?configuredValue:[];
+              for(const trashId of requested){const source=sources.get(String(trashId).toLowerCase());if(!source)continue;const existing=configured.find(item=>String(item.name).toLowerCase()===source.format.name.toLowerCase());previewChanges.push(templateChange('Custom format',source.format.name,existing,source.format,['name','includeCustomFormatWhenRenaming','specifications']));}
+              if(template.resourceType==='qualityProfile'){
+                const profilesValue=await management.execute(domain,'profiles','GET'),profiles=Array.isArray(profilesValue)?profilesValue:[],reviewed=input.reviewed||template.template,existing=profiles.find(item=>String(item.name).toLowerCase()===String(reviewed.name).toLowerCase());
+                previewChanges.push(templateChange('Quality profile',reviewed.name,existing,reviewed,['name','upgradeAllowed','minFormatScore','cutoffFormatScore','minUpgradeFormatScore']));
+              }
+            }
+            const plan=templatePlan(previewChanges);
+            if(input.preview===true)return json(res,200,{preview:true,plan});
+            if(plan.requiresConfirmation&&input.confirmOverwrite!==true)return json(res,409,{error:{code:'overwrite_confirmation_required',message:`The ${engineLabel} engine changed or contains settings this template would overwrite. Review and confirm the changes.`},plan});
+            let message,resourceId=null;
+            if(template.resourceType==='naming'){
+              const current=await management.execute(domain,'naming','GET'),reviewed=input.reviewed||{};
+              const payload=domain==='movie'
+                ?{...current,renameMovies:reviewed.renameMovies??true,standardMovieFormat:String(reviewed.standardMovieFormat||current.standardMovieFormat),movieFolderFormat:String(reviewed.movieFolderFormat||current.movieFolderFormat)}
+                :{...current,renameEpisodes:reviewed.renameEpisodes??true,standardEpisodeFormat:String(reviewed.standardEpisodeFormat||current.standardEpisodeFormat),dailyEpisodeFormat:String(reviewed.dailyEpisodeFormat||current.dailyEpisodeFormat),animeEpisodeFormat:String(reviewed.animeEpisodeFormat||current.animeEpisodeFormat),seriesFolderFormat:String(reviewed.seriesFolderFormat||current.seriesFolderFormat),seasonFolderFormat:String(reviewed.seasonFolderFormat||current.seasonFolderFormat)};
+              await management.execute(domain,'naming','PUT',{payload});resourceId=current.id;message=`TRaSH naming presets applied to ${engineLabel}-engine naming.`;
+            }else if(template.resourceType==='qualitySize'){
+              const definitionsValue=await management.execute(domain,'qualityDefinitions','GET'),definitions=Array.isArray(definitionsValue)?definitionsValue:[],reviewed=Array.isArray(input.qualities)?input.qualities:template.template.qualities;
+              let changed=0;
+              for(const recommendation of reviewed){
+                const definition=definitions.find(item=>String(item.title||item.quality?.name).toLowerCase()===String(recommendation.quality).toLowerCase());
+                if(!definition)continue;
+                await management.execute(domain,'qualityDefinitions','PUT',{id:String(definition.id),payload:{...definition,minSize:Number(recommendation.min),preferredSize:Number(recommendation.preferred),maxSize:Number(recommendation.max)}});changed++;
+              }
+              message=`${template.template.type||template.title} quality-size preset applied to ${changed} ${domain==='movie'?'movie':'TV'} qualities.`;
+            }else{
+              const requested=template.resourceType==='qualityProfile'?Object.values(template.template.formatItems||{}):((Array.isArray(input.customFormatIds)?input.customFormatIds:template.template.custom_formats?.filter(item=>item.required||item.default).map(item=>item.trash_id))||[]);
+              const sources=await guideTemplates.customFormatsByTrashIds(requested,domain),schemasValue=await management.execute(domain,'customFormatSchemas','GET'),schemas=Array.isArray(schemasValue)?schemasValue:[],configuredValue=await management.execute(domain,'customFormats','GET'),configured=Array.isArray(configuredValue)?configuredValue:[],installed=new Map();
+              for(const trashId of requested){
+                const source=sources.get(String(trashId).toLowerCase());if(!source)continue;
+                const existing=configured.find(item=>String(item.name).toLowerCase()===source.format.name.toLowerCase()),payload=formatForMovieEngine(source.format,schemas);
+                const saved=existing?await management.execute(domain,'customFormats','PUT',{id:String(existing.id),payload:{...payload,id:existing.id}}):await management.execute(domain,'customFormats','POST',{payload});
+                installed.set(String(trashId).toLowerCase(),{id:saved?.id||existing?.id,name:payload.name,scores:source.scores});
+              }
+              if(template.resourceType==='customFormatGroup'){
+                const profilesValue=await management.execute(domain,'profiles','GET'),profiles=Array.isArray(profilesValue)?profilesValue:[],profileIds=Array.isArray(input.profileIds)?input.profileIds.map(Number):[],scoreSet=String(input.scoreSet||'default');
+                for(const profile of profiles.filter(item=>profileIds.includes(Number(item.id)))){
+                  const formatItems=[...(profile.formatItems||[])];
+                  for(const installedFormat of installed.values()){const score=Number(installedFormat.scores?.[scoreSet]??installedFormat.scores?.default??0),index=formatItems.findIndex(item=>Number(item.format)===Number(installedFormat.id)),value={format:Number(installedFormat.id),name:installedFormat.name,score};if(index>=0)formatItems[index]={...formatItems[index],...value};else formatItems.push(value);}
+                  await management.execute(domain,'profiles','PUT',{id:String(profile.id),payload:{...profile,formatItems}});
+                }
+                message=`${template.template.name} applied with ${installed.size} custom formats.`;
+              }else{
+                const schema=await management.execute(domain,'profileSchema','GET'),profilesValue=await management.execute(domain,'profiles','GET'),profiles=Array.isArray(profilesValue)?profilesValue:[],source=input.reviewed||template.template;
+                const leaves=(schema.items||[]).flatMap(item=>item.items?.length?item.items:[item]);
+                const items=(source.items||[]).map((item,index)=>{
+                  if(Array.isArray(item.items)){const children=item.items.map(name=>structuredClone(leaves.find(leaf=>String(leaf.quality?.name).toLowerCase()===String(name).toLowerCase()))).filter(Boolean).map(child=>({...child,allowed:Boolean(item.allowed)}));return{name:item.name,items:children,allowed:Boolean(item.allowed),id:1000+index};}
+                  const leaf=structuredClone(leaves.find(value=>String(value.quality?.name).toLowerCase()===String(item.name).toLowerCase()));return leaf?{...leaf,allowed:Boolean(item.allowed)}:null;
+                }).filter(Boolean);
+                const cutoffItem=items.find(item=>String(item.name||item.quality?.name).toLowerCase()===String(source.cutoff).toLowerCase()),scoreSet=String(source.trash_score_set||'default');
+                const payload={
+                  ...schema,
+                  name:source.name,
+                  upgradeAllowed:Boolean(source.upgradeAllowed),
+                  cutoff:cutoffItem?.id||cutoffItem?.quality?.id||schema.cutoff,
+                  items,
+                  minFormatScore:Number(source.minFormatScore||0),
+                  cutoffFormatScore:Number(source.cutoffFormatScore||0),
+                  minUpgradeFormatScore:Number(source.minUpgradeFormatScore||1),
+                  formatItems:[...installed.values()].map(value=>({format:Number(value.id),name:value.name,score:Number(value.scores?.[scoreSet]??value.scores?.default??0)}))
+                };
+                const existing=profiles.find(item=>String(item.name).toLowerCase()===String(payload.name).toLowerCase()),saved=existing?await management.execute(domain,'profiles','PUT',{id:String(existing.id),payload:{...payload,id:existing.id}}):await management.execute(domain,'profiles','POST',{payload});
+                resourceId=saved?.id||existing?.id;message=`${payload.name} quality profile and ${installed.size} referenced custom formats applied.`;
+              }
+            }
+            await guideTemplates.recordDecision(template,{decision:'implemented',radarrId:resourceId,username:session.user.username});
+            clearReleaseCache(domain);
+            return json(res,200,{message,appliedChanges:plan.changes,comparison:{status:'matches',existing:{id:resourceId},record:null,sourceOfTruth:`${domain}-engine`,observedAt:new Date().toISOString()}});
+          }
+          const configuredValue=await management.execute(domain,'customFormats','GET'),configured=Array.isArray(configuredValue)?configuredValue:[],before=await guideTemplates.comparison(template,configured);
+          let radarrId=before.existing?.id||null,message;
+          if(input.decision==='reject'){
+            await guideTemplates.recordDecision(template,{decision:'rejected',radarrId,username:session.user.username});
+            message=`${template.format.name} rejected. No ${engineLabel}-engine settings were changed.`;
+          }else if(input.decision==='implement'){
+            const schemasValue=await management.execute(domain,'customFormatSchemas','GET'),schemas=Array.isArray(schemasValue)?schemasValue:[];
+            const reviewed=input.format&&typeof input.format==='object'?input.format:template.format;
+            const payload=formatForMovieEngine(reviewed,schemas);
+            const changes=[templateChange('Custom format',payload.name,before.existing,payload,['name','includeCustomFormatWhenRenaming','specifications'])];
+            const profileIds=Array.isArray(input.profileIds)?[...new Set(input.profileIds.map(Number).filter(Number.isFinite))]:[];
+            if(profileIds.length){
+              const profilesValue=await management.execute(domain,'profiles','GET'),profiles=Array.isArray(profilesValue)?profilesValue:[],score=Number(template.scores?.[String(input.scoreSet||'default')]);
+              for(const profile of profiles.filter(item=>profileIds.includes(Number(item.id)))){const existing=(profile.formatItems||[]).find(item=>Number(item.format)===Number(before.existing?.id));changes.push(templateChange('Profile score',profile.name,existing,{score},['score']));}
+            }
+            const plan=templatePlan(changes);
+            if(input.preview===true)return json(res,200,{preview:true,plan});
+            if(plan.requiresConfirmation&&input.confirmOverwrite!==true)return json(res,409,{error:{code:'overwrite_confirmation_required',message:`The ${engineLabel} engine contains settings this template would overwrite. Review and confirm the changes.`},plan});
+            const result=before.existing
+              ?await management.execute(domain,'customFormats','PUT',{id:String(before.existing.id),payload:{...payload,id:before.existing.id}})
+              :await management.execute(domain,'customFormats','POST',{payload});
+            radarrId=result?.id||radarrId;
+            if(profileIds.length){
+              const score=Number(template.scores?.[String(input.scoreSet||'default')]);
+              if(!Number.isFinite(score))throw new Error('Choose a valid TRaSH score recommendation.');
+              const profilesValue=await management.execute(domain,'profiles','GET'),profiles=Array.isArray(profilesValue)?profilesValue:[];
+              for(const profileId of profileIds){
+                const profile=profiles.find(item=>Number(item.id)===profileId);
+                if(!profile)throw new Error('A selected quality profile is no longer available.');
+                const formatItems=[...(profile.formatItems||[])],index=formatItems.findIndex(item=>Number(item.format)===Number(radarrId));
+                const scoreItem={...(index>=0?formatItems[index]:{}),format:Number(radarrId),name:result?.name||payload.name,score};
+                if(index>=0)formatItems[index]=scoreItem;else formatItems.push(scoreItem);
+                await management.execute(domain,'profiles','PUT',{id:String(profile.id),payload:{...profile,formatItems}});
+              }
+            }
+            await guideTemplates.recordDecision(template,{decision:'implemented',radarrId,username:session.user.username});
+            clearReleaseCache(domain);
+            const audit=await auditStore.read(),entries=Array.isArray(audit.entries)?audit.entries:[];
+            entries.unshift({id:`change_${randomUUID()}`,timestamp:new Date().toISOString(),userId:session.user.id,username:session.user.username,domain,resource:'guideTemplate',method:before.existing?'PUT':'POST',resourceId:radarrId,trashId:template.trashId});
+            await auditStore.write({version:1,entries:entries.slice(0,1000)});
+            message=`${payload.name} implemented in the ${engineLabel} engine${profileIds.length?` and scored in ${profileIds.length} quality profile${profileIds.length===1?'':'s'}`:''}.`;
+            input.appliedChanges=plan.changes;
+          }else throw new Error('Choose whether to implement or reject this template.');
+          const latestValue=await management.execute(domain,'customFormats','GET'),comparison=await guideTemplates.comparison(template,Array.isArray(latestValue)?latestValue:[]);
+          return json(res,200,{message,appliedChanges:input.appliedChanges||[],comparison});
+        }
         const catalogMatch=url.pathname.match(/^\/api\/manage\/(movie|tv)$/);
         if(catalogMatch&&req.method==='GET'){if(!administrator(res,session))return;return json(res,200,{domain:catalogMatch[1],available:management.available(catalogMatch[1]),resources:management.catalog(catalogMatch[1])});}
         const automaticSearchMatch=url.pathname.match(/^\/api\/manage\/(movie|tv)\/automaticSearch$/);

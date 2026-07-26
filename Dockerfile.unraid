@@ -19,10 +19,11 @@ COPY tsconfig.server.json ./
 RUN npm run typecheck:web && npm run build:web && npm run build:server
 
 FROM node:24-alpine
+ARG VYNODEARR_VERSION=1.0.53-rc.1
 LABEL org.opencontainers.image.title="VynodeArr" \
       org.opencontainers.image.description="Unified movie and television management for Unraid" \
       org.opencontainers.image.source="https://github.com/minerport/VynodeArr-Unified" \
-      org.opencontainers.image.version="1.0.51" \
+      org.opencontainers.image.version="${VYNODEARR_VERSION}" \
       org.opencontainers.image.licenses="Apache-2.0"
 RUN apk add --no-cache icu-libs sqlite-libs libgcc libstdc++ tzdata tini
 WORKDIR /app
@@ -35,7 +36,8 @@ COPY OPEN_SOURCE_NOTICES LICENSE THIRD_PARTY_NOTICES ./
 COPY --from=engines /opt/engines/Radarr /opt/vynodearr/movies
 COPY --from=engines /opt/engines/Sonarr /opt/vynodearr/television
 COPY infrastructure/unraid/entrypoint.sh /usr/local/bin/vynodearr-entrypoint
-RUN chmod 755 /usr/local/bin/vynodearr-entrypoint \
+RUN sed -i 's/\r$//' /usr/local/bin/vynodearr-entrypoint \
+    && chmod 755 /usr/local/bin/vynodearr-entrypoint \
     && addgroup -S vynodearr && adduser -S -G vynodearr -u 10001 vynodearr \
     && mkdir -p /config /movies /tv /downloads \
     && chown -R vynodearr:vynodearr /config /movies /tv /downloads

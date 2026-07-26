@@ -27,6 +27,7 @@ test('1.0 release includes self-contained Unraid and Windows distributions',asyn
     readFile(new URL('../distribution/windows/compose.yaml',import.meta.url),'utf8')
   ]);
   for(const value of ['Radarr.master.','Sonarr.main.','EXPOSE 8686','vynodearr-entrypoint'])assert.match(image,new RegExp(value.replaceAll('.','\\.')));
+  assert.match(image,/sed -i 's\/\\r\$\/\/' \/usr\/local\/bin\/vynodearr-entrypoint/);
   assert.doesNotMatch(template,/Target="(?:7878|8989)"/);
   for(const value of ['/config/movies','/config/television','MOVIE_ENGINE_API_CREDENTIAL','TV_ENGINE_API_CREDENTIAL','env -u PORT'])assert.match(entrypoint,new RegExp(value));
   for(const value of ['ghcr.io/minerport/vynodearr-unified:latest','Target="8686"','Target="/config"','Target="/movies"','Target="/tv"','Target="/downloads"'])assert.match(template,new RegExp(value));
