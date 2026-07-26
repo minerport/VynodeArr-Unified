@@ -1,13 +1,15 @@
 .react-dashboard {
-  --dashboard-glass:
-    linear-gradient(145deg,
-      color-mix(in srgb,var(--panel2) 52%,transparent) 0%,
-      color-mix(in srgb,var(--panel) 68%,transparent) 48%,
-      color-mix(in srgb,var(--bg) 76%,transparent) 100%);
-  --dashboard-glass-strong:
-    linear-gradient(135deg,
-      color-mix(in srgb,var(--panel2) 68%,transparent),
-      color-mix(in srgb,var(--panel) 78%,transparent));
+  --dashboard-glass: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--panel2) 52%, transparent) 0%,
+    color-mix(in srgb, var(--panel) 68%, transparent) 48%,
+    color-mix(in srgb, var(--bg) 76%, transparent) 100%
+  );
+  --dashboard-glass-strong: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--panel2) 68%, transparent),
+    color-mix(in srgb, var(--panel) 78%, transparent)
+  );
   display: grid;
   gap: 1rem;
   position: relative;
@@ -20,8 +22,16 @@
   z-index: -1;
   inset: -3rem -2rem;
   background:
-    radial-gradient(circle at 10% 4%, color-mix(in srgb,var(--accent) 22%,transparent), transparent 24rem),
-    radial-gradient(circle at 92% 18%, color-mix(in srgb,var(--cyan) 16%,transparent), transparent 26rem);
+    radial-gradient(
+      circle at 10% 4%,
+      color-mix(in srgb, var(--accent) 22%, transparent),
+      transparent 24rem
+    ),
+    radial-gradient(
+      circle at 92% 18%,
+      color-mix(in srgb, var(--cyan) 16%, transparent),
+      transparent 26rem
+    );
   pointer-events: none;
 }
 
@@ -35,15 +45,23 @@
   justify-content: space-between;
   gap: 1rem;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb,var(--cyan) 22%,var(--glass-border));
+  border: 1px solid color-mix(in srgb, var(--cyan) 22%, var(--glass-border));
   border-radius: 1.1rem;
   background:
-    radial-gradient(circle at 11% 8%,color-mix(in srgb,var(--accent) 22%,transparent),transparent 36%),
-    radial-gradient(circle at 88% 12%,color-mix(in srgb,var(--cyan) 16%,transparent),transparent 34%),
+    radial-gradient(
+      circle at 11% 8%,
+      color-mix(in srgb, var(--accent) 22%, transparent),
+      transparent 36%
+    ),
+    radial-gradient(
+      circle at 88% 12%,
+      color-mix(in srgb, var(--cyan) 16%, transparent),
+      transparent 34%
+    ),
     var(--dashboard-glass-strong);
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.12),
-    0 22px 55px rgba(0,0,0,.27);
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 22px 55px rgba(0, 0, 0, 0.27);
   backdrop-filter: blur(24px) saturate(1.35);
 }
 
@@ -52,8 +70,19 @@
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(115deg,rgba(255,255,255,.075),transparent 23%,transparent 70%,rgba(255,255,255,.035)),
-    linear-gradient(90deg,transparent,color-mix(in srgb,var(--cyan) 11%,transparent),transparent);
+    linear-gradient(
+      115deg,
+      rgba(255, 255, 255, 0.075),
+      transparent 23%,
+      transparent 70%,
+      rgba(255, 255, 255, 0.035)
+    ),
+    linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in srgb, var(--cyan) 11%, transparent),
+      transparent
+    );
   pointer-events: none;
 }
 
@@ -63,23 +92,23 @@
 }
 
 .react-dashboard-hero h1 {
-  margin: .25rem 0;
-  font-size: clamp(2.15rem,4vw,3.25rem);
-  letter-spacing: -.055em;
+  margin: 0.25rem 0;
+  font-size: clamp(2.15rem, 4vw, 3.25rem);
+  letter-spacing: -0.055em;
 }
 
 .react-dashboard-hero p:not(.eyebrow) {
   max-width: 42rem;
   margin: 0;
-  color: color-mix(in srgb,var(--text) 70%,var(--muted));
-  font-size: .95rem;
+  color: color-mix(in srgb, var(--text) 70%, var(--muted));
+  font-size: 0.95rem;
 }
 
 .react-metric-grid .metric-card {
   min-width: 0;
   display: grid;
-  gap: .2rem;
-  padding: .8rem 1rem;
+  gap: 0.2rem;
+  padding: 0.8rem 1rem;
   border: 1px solid var(--glass-border);
   border-radius: 1rem;
 }
@@ -94,14 +123,14 @@
   border-color: var(--glass-border);
   background: var(--dashboard-glass);
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.1),
-    0 16px 38px rgba(0,0,0,.22);
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 16px 38px rgba(0, 0, 0, 0.22);
   backdrop-filter: blur(22px) saturate(1.3);
 }
 
 .react-metric-grid .metric-card strong {
   display: block;
-  font-size: clamp(1.45rem,2.4vw,2rem);
+  font-size: clamp(1.45rem, 2.4vw, 2rem);
   line-height: 1.05;
 }
 
@@ -116,8 +145,8 @@
 .react-panel-heading {
   display: flex;
   align-items: baseline;
-  gap: .65rem;
-  margin-bottom: .5rem;
+  gap: 0.65rem;
+  margin-bottom: 0.5rem;
 }
 
 .react-panel-heading h2 {
@@ -139,7 +168,7 @@
   display: flex;
   gap: 1rem;
   justify-content: space-between;
-  padding: .6rem 0;
+  padding: 0.6rem 0;
 }
 
 .react-feed-row:first-child {
@@ -148,15 +177,143 @@
 
 .react-feed-row div {
   display: grid;
-  gap: .25rem;
+  gap: 0.25rem;
 }
 
 .react-feed-row span,
 .react-feed-row time {
   color: var(--muted);
-  font-size: .86rem;
+  font-size: 0.86rem;
 }
 
-.dashboard-engine-state{display:grid;grid-template-columns:auto auto;align-items:center;gap:.4rem .55rem;padding:.65rem .8rem;border:1px solid var(--glass-border);border-radius:.8rem;color:var(--muted);font-size:.7rem;text-transform:capitalize}.status-dot{width:.4rem;height:.4rem;border-radius:50%;background:#f0a957}.status-dot.ready{background:#54dfa4;box-shadow:0 0 .6rem rgba(84,223,164,.5)}.dashboard-metric-link{color:inherit;text-decoration:none;transition:.18s ease}.dashboard-metric-link:hover{border-color:color-mix(in srgb,var(--cyan) 48%,var(--line));transform:translateY(-2px)}.dashboard-attention-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.7rem}.dashboard-attention-card{position:relative;display:grid;gap:.25rem;padding:.7rem 1.9rem .7rem .85rem;border:1px solid var(--glass-border);border-radius:.9rem;color:inherit;text-decoration:none;transition:.18s ease}.dashboard-attention-card:hover{transform:translateY(-2px);border-color:color-mix(in srgb,var(--cyan) 38%,var(--glass-border))}.dashboard-attention-card>div{display:flex;align-items:baseline;justify-content:space-between;gap:.5rem}.dashboard-attention-card span{color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.05em}.dashboard-attention-card strong{font-size:1.05rem}.dashboard-attention-card p{margin:0;color:var(--muted);font-size:.7rem;line-height:1.3}.dashboard-attention-card i{position:absolute;right:.75rem;top:50%;transform:translateY(-50%);font-style:normal;color:#7f91ae}.dashboard-attention-card.warm{border-color:rgba(240,169,87,.32)}.dashboard-attention-card.danger{border-color:rgba(255,102,123,.38)}.dashboard-attention-card.good{border-color:rgba(84,223,164,.25)}.react-analytics-section .section-heading{margin-bottom:.75rem}.react-analytics-section .section-heading h2{font-size:1.4rem}.react-analytics-section .analytics-chart svg{height:66px}.react-analytics-section .analytics-card{padding:.9rem;border-radius:1rem}.react-analytics-section .analytics-card h3{margin:.6rem 0 .35rem}.react-analytics-section .analytics-card.movie polyline,.react-analytics-section .analytics-card.tv polyline{fill:none}.react-analytics-section .analytics-stat-grid>div,.react-analytics-section .analytics-activity span{padding:.45rem;background:color-mix(in srgb,var(--panel2) 42%,transparent);border:1px solid color-mix(in srgb,var(--glass-border) 72%,transparent)}
+.dashboard-engine-state {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  gap: 0.4rem 0.55rem;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--glass-border);
+  border-radius: 0.8rem;
+  color: var(--muted);
+  font-size: 0.7rem;
+  text-transform: capitalize;
+}
+.status-dot {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: #f0a957;
+}
+.status-dot.ready {
+  background: #54dfa4;
+  box-shadow: 0 0 0.6rem rgba(84, 223, 164, 0.5);
+}
+.dashboard-metric-link {
+  color: inherit;
+  text-decoration: none;
+}
+.dashboard-metric-link:hover {
+  border-color: color-mix(in srgb, var(--cyan) 48%, var(--line));
+  transform: translateY(-2px);
+}
+.dashboard-attention-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+.dashboard-attention-card {
+  position: relative;
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.7rem 1.9rem 0.7rem 0.85rem;
+  border: 1px solid var(--glass-border);
+  border-radius: 0.9rem;
+  color: inherit;
+  text-decoration: none;
+}
+.dashboard-attention-card:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--cyan) 38%, var(--glass-border));
+}
+.dashboard-attention-card > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.dashboard-attention-card span {
+  color: var(--muted);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.dashboard-attention-card strong {
+  font-size: 1.05rem;
+}
+.dashboard-attention-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.7rem;
+  line-height: 1.3;
+}
+.dashboard-attention-card i {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-style: normal;
+  color: #7f91ae;
+}
+.dashboard-attention-card.warm {
+  border-color: rgba(240, 169, 87, 0.32);
+}
+.dashboard-attention-card.danger {
+  border-color: rgba(255, 102, 123, 0.38);
+}
+.dashboard-attention-card.good {
+  border-color: rgba(84, 223, 164, 0.25);
+}
+.react-analytics-section .section-heading {
+  margin-bottom: 0.75rem;
+}
+.react-analytics-section .section-heading h2 {
+  font-size: 1.4rem;
+}
+.react-analytics-section .analytics-chart svg {
+  height: 66px;
+}
+.react-analytics-section .analytics-card {
+  padding: 0.9rem;
+  border-radius: 1rem;
+}
+.react-analytics-section .analytics-card h3 {
+  margin: 0.6rem 0 0.35rem;
+}
+.react-analytics-section .analytics-card.movie polyline,
+.react-analytics-section .analytics-card.tv polyline {
+  fill: none;
+}
+.react-analytics-section .analytics-stat-grid > div,
+.react-analytics-section .analytics-activity span {
+  padding: 0.45rem;
+  background: color-mix(in srgb, var(--panel2) 42%, transparent);
+  border: 1px solid color-mix(in srgb, var(--glass-border) 72%, transparent);
+}
 
-@media(max-width:1050px){.dashboard-attention-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:700px){.react-dashboard-hero{align-items:flex-start;flex-direction:column}.dashboard-engine-state{width:100%}.dashboard-attention-grid{grid-template-columns:1fr}}
+@media (max-width: 1050px) {
+  .dashboard-attention-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 700px) {
+  .react-dashboard-hero {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .dashboard-engine-state {
+    width: 100%;
+  }
+  .dashboard-attention-grid {
+    grid-template-columns: 1fr;
+  }
+}

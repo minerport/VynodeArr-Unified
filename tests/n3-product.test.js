@@ -68,7 +68,7 @@ test('authenticated artwork proxy caches binary responses without exposing engin
   assert.equal((await fetch(`${base}/api/artwork/movie/movie_1/poster`)).status,401);
 }));
 test('dashboard API returns useful product metrics',()=>appSession({movie:new MovieFixtureAdapter(),tv:new TvFixtureAdapter()},async({base,cookie})=>{
-  const response=await fetch(`${base}/api/dashboard`,{headers:{cookie}}),value=await response.json();assert.equal(value.metrics.movies,3);assert.equal(value.metrics.tv,3);assert.ok('missing'in value.metrics&&'upcomingEpisodes'in value.metrics);assert.ok(value.recentActivity.length);
+  const response=await fetch(`${base}/api/dashboard`,{headers:{cookie}}),value=await response.json();assert.equal(value.metrics.movies,3);assert.equal(value.metrics.tv,3);assert.ok('missing'in value.metrics&&'upcomingEpisodes'in value.metrics);assert.ok(Array.isArray(value.upcoming));assert.ok(value.recentActivity.length);
   assert.equal(value.analytics.rangeDays,30);assert.equal(value.analytics.downloadsOverTime.movie.length,30);assert.equal(value.analytics.downloadsOverTime.tv.length,30);
   assert.ok(Array.isArray(value.analytics.qualityDistribution.movie));assert.ok(Array.isArray(value.analytics.qualityDistribution.tv));
   assert.equal(value.analytics.library.movie.total,3);assert.equal(value.analytics.library.tv.total,3);

@@ -73,8 +73,18 @@ export interface RecentActivityItem {
   eta?:string;
 }
 
+export interface UpcomingItem {
+  id?:string|number;
+  domain:'movie'|'tv';
+  title?:string;
+  context?:string|null;
+  dateUtc?:string;
+  mediaId?:string|null;
+}
+
 export interface DashboardData {
   metrics:DashboardMetrics;
+  upcoming?:UpcomingItem[];
   analytics?:DashboardAnalytics;
   recentlyAdded?:RecentlyAddedItem[];
   recentActivity?:RecentActivityItem[];
