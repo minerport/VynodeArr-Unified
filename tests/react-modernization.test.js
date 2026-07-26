@@ -322,6 +322,12 @@ test('media naming and importing settings use a typed React route without flatte
   assert.match(view,/Naming audit/);
   assert.match(view,/\/api\/media-files\/naming-audit/);
   assert.match(view,/Running an audit does not rename or move anything/);
+  assert.match(view,/Select all shown/);
+  assert.match(view,/Folder issues/);
+  assert.match(view,/Filename issues/);
+  assert.match(view,/Rename selected/);
+  assert.match(view,/auditSelected\.has\(result\.mediaId\)/);
+  assert.match(view,/Rename queued/);
   assert.match(view,/\/mediaManagement/);
   assert.match(view,/copyUsingHardlinks/);
   assert.match(types,/type MediaSettings=Record<string,unknown>/);

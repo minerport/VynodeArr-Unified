@@ -918,6 +918,7 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
             const domain=managementMatch[1],load=()=>domain==='tv'&&query.seriesId?televisionSeriesReleases(query.seriesId,query.seasonNumber):management.execute(domain,'releases','GET',{query:Object.fromEntries(Object.entries(query).filter(([key])=>key!=='force'))});
             result=await cachedInteractiveReleases(domain,query,load);
             if(domain==='tv'&&!query.seriesId)result=await explainEmptyTelevisionSearch(query,result);
+            if(Array.isArray(result))result=result.map(release=>domain==='movie'&&query.movieId?{...release,mappedMovieId:Number(release.mappedMovieId||release.movieId||query.movieId)}:domain==='tv'&&query.episodeId?{...release,episodeId:Number(release.episodeId||query.episodeId)}:release);
           }
           else{
             const payload=managementMatch[2]==='releases'&&method==='POST'?await reacquireRelease(managementMatch[1],input):input;
@@ -930,7 +931,8 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
             await auditStore.write({version:1,entries:entries.slice(0,1000)});
             if(['library','libraryEditor'].includes(managementMatch[2])){
               sync.invalidate(managementMatch[1]);
-              await sync.synchronize(managementMatch[1]);
+              if(mode==='engine'){void sync.synchronize(managementMatch[1]).catch(()=>{});for(const delay of [5_000,20_000])setTimeout(()=>sync.synchronize(managementMatch[1]).catch(()=>{}),delay);}
+              else await sync.synchronize(managementMatch[1]);
             }
             else if(['episodes','episodeFiles'].includes(managementMatch[2]))await sync.synchronize('tv');
             else if(managementMatch[2]==='queue')await sync.synchronizeOperations();

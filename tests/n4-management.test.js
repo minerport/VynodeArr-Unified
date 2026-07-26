@@ -49,13 +49,14 @@ test('management gateway exposes native capabilities and forwards only allowlist
 });
 
 test('native interaction workflows replace an upstream-shaped generic shell',async()=>{
-  const [html,script,apiSource,clientSource,librarySource,queueSource]=await Promise.all([
+  const [html,script,apiSource,clientSource,librarySource,queueSource,releaseBrowser]=await Promise.all([
     readFile(new URL('../apps/web/public/index.html',import.meta.url),'utf8'),
     readFile(new URL('../apps/web/client/src/app-shell.ts',import.meta.url),'utf8'),
     readFile(new URL('../apps/api/src/app.js',import.meta.url),'utf8'),
     readFile(new URL('../packages/platform/src/read-only-engine-client.ts',import.meta.url),'utf8'),
     readFile(new URL('../apps/web/client/src/library.tsx',import.meta.url),'utf8'),
-    readFile(new URL('../apps/web/client/src/queue.tsx',import.meta.url),'utf8')
+    readFile(new URL('../apps/web/client/src/queue.tsx',import.meta.url),'utf8'),
+    readFile(new URL('../apps/web/client/src/release-browser.tsx',import.meta.url),'utf8')
   ]);
   for(const route of ['#add','#wanted','#queue','#service/root-folders','#system'])assert.match(html,new RegExp(route));
   for(const workflow of ['wanted-series-search','wanted-season-search','SeriesSearch','SeasonSearch','Search entire show','Search entire season'])assert.match(script,new RegExp(workflow));
@@ -67,6 +68,8 @@ test('native interaction workflows replace an upstream-shaped generic shell',asy
   for(const workflow of ['wantedImage','wanted-art','wanted-movie-row','wanted-episode-row','/api/artwork/movie/movie_${item.id}/poster','/api/artwork/tv/series_${seriesId}/fanart','/api/artwork/tv-metadata/${tvdbId}','season?season=${season}','episode?season=${season}&episode=${item.episodeNumber}'])assert.ok(script.includes(workflow));
   for(const workflow of ['queuePoll','load({quiet:true})','queue-poster','tone=item','clientFilename','clientTimeLeft','/api/activity/queue/live','showMediaManagement','media-management','mediaSettingOptions','flattenMediaSettings','mediaManagement','Naming and folders','Importing and file management'])assert.ok(script.includes(workflow));
   for(const workflow of ['releaseEligible','Grab anyway','release-warning','Only rejected releases were returned. Use Interactive Search','No releases were returned by the configured indexers.'])assert.ok(script.includes(workflow)||apiSource.includes(workflow),workflow);
+  assert.match(releaseBrowser,/Grab anyway/);
+  assert.doesNotMatch(releaseBrowser,/grabbing!==null\|\|!isAccepted/);
   for(const workflow of ['/api/media-match','rematchMedia','addImportExclusion:false','addImportListExclusion:false','The original match was restored when possible',"already in the ${domain==='movie'?'Movies':'Television'} library",'Fix match'])assert.ok(script.includes(workflow)||apiSource.includes(workflow),workflow);
   for(const workflow of ['quality-range-track','data-control="range"','qualityDefinitionLimits','data-dirty="true"','Save limits to engine',"`/api/manage/${domain.value}/qualityDefinitions/${payload.id}`","method:'PUT'"])assert.ok(script.includes(workflow),workflow);
   for(const workflow of ['liveQueue','includeMovie:true','includeSeries:true','includeEpisode:true','trackedDownloadState','clientStatus','clientFilename','/api/activity/queue/live'])assert.ok(apiSource.includes(workflow));
@@ -103,7 +106,8 @@ assert.ok(apiSource.includes("domain==='movie'?{name:'RenameMovie',movieIds:[med
   for(const workflow of ['importIdentityKeys','skipped:job.skipped','already present/skipped','importPaceMs','VYNODEARR_IMPORT_PACE_MS','sync.invalidate(domain)','mapWithConcurrency(folders,4','toggle-import-panel'])assert.ok(script.includes(workflow)||apiSource.includes(workflow),workflow);
   for(const redundantWork of ['Scanning imported folders','movieIds:createdIds','setTimeout(()=>sync.synchronize(domain).catch(()=>{}),15_000)'])assert.ok(!apiSource.includes(redundantWork),redundantWork);
   for(const workflow of ['duplicateImportError','qualityRank','eligibleRelease','approved!==false','downloadAllowed!==false','customFormatScore','compareReleases','automaticSearch','acceptedCandidates','Selecting best release','Media location','fileLocation'])assert.ok(script.includes(workflow)||apiSource.includes(workflow),workflow);
-  for(const workflow of ['televisionSeriesReleases','includeEpisodeFile:true','query.seriesId','query.seasonNumber','episode.seasonNumber','batchSize=8','interactiveReleaseCache','releaseCacheTtlMs=45_000','cachedInteractiveReleases','clearReleaseCache','reacquireRelease','mappedMovieId','mappedEpisodeInfo','episodeId','no longer available from the search source','explainEmptyTelevisionSearch','No television indexer is enabled for interactive search'])assert.ok(apiSource.includes(workflow),workflow);
+  for(const workflow of ['televisionSeriesReleases','includeEpisodeFile:true','query.seriesId','query.seasonNumber','episode.seasonNumber','batchSize=8','interactiveReleaseCache','releaseCacheTtlMs=45_000','cachedInteractiveReleases','clearReleaseCache','reacquireRelease','mappedMovieId','mappedEpisodeInfo','episodeId','query.movieId','query.episodeId','no longer available from the search source','explainEmptyTelevisionSearch','No television indexer is enabled for interactive search'])assert.ok(apiSource.includes(workflow),workflow);
+  assert.match(apiSource,/if\(mode==='engine'\)\{void sync\.synchronize/,'engine library edits must return before a full background library synchronization');
   for(const workflow of ["route=movie?'movie':'series'",'freshRoots','monitored=true'])assert.ok(script.includes(workflow),workflow);
   for(const workflow of ["String(path).replace(/^\\/+?/,'')==='release'".replace('+?','+'),'120_000'])assert.ok(clientSource.includes(workflow),workflow);
   for(const workflow of ['[400,404,409,422,500]','item?.detail','item?.description'])assert.ok(clientSource.includes(workflow),workflow);
