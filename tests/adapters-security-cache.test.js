@@ -25,6 +25,22 @@ test('movie adapter recognizes scanned media when the engine reports disk usage 
   const adapter=new MovieEngineAdapter({enabled:true},new FakeClient({movie:[pendingFile],queue:{records:[]},'wanted/cutoff':{records:[]}})),item=(await adapter.listMovies())[0];
   assert.equal(item.hasFile,true);assert.equal(item.state,'available');assert.equal(item.quality,'Detected media');
 });
+test('movie cutoff attention includes every engine result page',async()=>{
+  const movies=Array.from({length:1001},(_,index)=>({...movieRecord,id:index+1,title:`Movie ${index+1}`}));
+  const client={
+    async get(path,query={}){
+      if(path==='movie')return movies;
+      if(path==='queue')return{records:[]};
+      if(path==='wanted/cutoff'){
+        const start=(Number(query.page||1)-1)*Number(query.pageSize||1000);
+        return{records:movies.slice(start,start+Number(query.pageSize||1000)),totalRecords:movies.length};
+      }
+      return[];
+    }
+  };
+  const items=await new MovieEngineAdapter({enabled:true},client).listMovies({limit:2000});
+  assert.equal(items.filter(item=>item.state==='cutoff').length,1001);
+});
 test('completed queue records clear once they are no longer active in the download client',async()=>{
   const movie=new MovieEngineAdapter({enabled:true},new FakeClient({queue:{records:[
     {id:1,status:'completed',size:100,sizeleft:0,movie:{id:1,title:'Arrived',hasFile:true}},

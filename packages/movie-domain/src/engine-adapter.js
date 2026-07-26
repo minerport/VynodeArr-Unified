@@ -7,10 +7,22 @@ const numericId = (id) => Number(String(id).replace(/^movie_/, ''));
 
 export class MovieEngineAdapter {
   constructor(config, client = new ReadOnlyEngineClient(config, 'Movie')) { this.config = config; this.client = client; }
+  async #cutoffIds() {
+    const pageSize=1000,ids=new Set();
+    for(let page=1;page<=100;page+=1){
+      const value=await this.client.get('wanted/cutoff',{page,pageSize});
+      const pageRecords=records(value);
+      if(!pageRecords)break;
+      for(const item of pageRecords)ids.add(item.id);
+      const total=Number(value?.totalRecords);
+      if(pageRecords.length<pageSize||(Number.isFinite(total)&&ids.size>=total))break;
+    }
+    return ids;
+  }
   async #context() {
-    const [queue, cutoff] = await Promise.allSettled([this.getQueue(), this.client.get('wanted/cutoff', { page: 1, pageSize: 1000 })]);
+    const [queue, cutoff] = await Promise.allSettled([this.getQueue(), this.#cutoffIds()]);
     const queueById = new Map((queue.value || []).filter((item) => item.mediaId).map((item) => [numericId(item.mediaId), item]));
-    const cutoffIds = new Set((records(cutoff.value) || []).map((item) => item.id));
+    const cutoffIds = cutoff.value instanceof Set ? cutoff.value : new Set();
     return { queueById, cutoffIds };
   }
   async listMovies({ limit = 5000 } = {}) {
