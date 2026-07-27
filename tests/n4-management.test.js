@@ -49,14 +49,15 @@ test('management gateway exposes native capabilities and forwards only allowlist
 });
 
 test('native interaction workflows replace an upstream-shaped generic shell',async()=>{
-  const [html,script,apiSource,clientSource,librarySource,queueSource,releaseBrowser]=await Promise.all([
+  const [html,script,apiSource,clientSource,librarySource,queueSource,releaseBrowser,stateSource]=await Promise.all([
     readFile(new URL('../apps/web/public/index.html',import.meta.url),'utf8'),
     readFile(new URL('../apps/web/client/src/app-shell.ts',import.meta.url),'utf8'),
     readFile(new URL('../apps/api/src/app.js',import.meta.url),'utf8'),
     readFile(new URL('../packages/platform/src/read-only-engine-client.ts',import.meta.url),'utf8'),
     readFile(new URL('../apps/web/client/src/library.tsx',import.meta.url),'utf8'),
     readFile(new URL('../apps/web/client/src/queue.tsx',import.meta.url),'utf8'),
-    readFile(new URL('../apps/web/client/src/release-browser.tsx',import.meta.url),'utf8')
+    readFile(new URL('../apps/web/client/src/release-browser.tsx',import.meta.url),'utf8'),
+    readFile(new URL('../apps/web/client/src/app-state.ts',import.meta.url),'utf8')
   ]);
   for(const route of ['#add','#wanted','#queue','#service/root-folders','#system'])assert.match(html,new RegExp(route));
   for(const workflow of ['wanted-series-search','wanted-season-search','SeriesSearch','SeasonSearch','Search entire show','Search entire season'])assert.match(script,new RegExp(workflow));
@@ -96,7 +97,7 @@ assert.ok(apiSource.includes("domain==='movie'?{name:'RenameMovie',movieIds:[med
   for(const workflow of ['backupSections(items)','configuration backup','Create Movies and Television backups','restore-backup','/api/system/backups/${button.dataset.domain}/${button.dataset.id}/restore','did not reconnect after restoring the backup'])assert.ok(script.includes(workflow)||apiSource.includes(workflow));
   for(const workflow of ["client.post('command',{name:'Restart'})",'historySections(items)','eventSections(items)','wireEventFilters','event-toolbar','Movie and television activity separated by library'])assert.ok(script.includes(workflow)||apiSource.includes(workflow));
   for(const workflow of ['Download backups before uninstalling','Upload & restore','backup-upload-input','/download','/upload','completeEngineRestore','Backup must be a .zip, .db, or .xml file'])assert.ok(script.includes(workflow)||apiSource.includes(workflow));
-  for(const workflow of ['VynodeArr_${domain===','vynodearr.libraryView.${kind}','views:{movies:savedLibraryView'])assert.ok(script.includes(workflow)||apiSource.includes(workflow),workflow);
+  for(const workflow of ['VynodeArr_${domain===','vynodearr.libraryView.${kind}','views:{movies:savedLibraryView'])assert.ok(script.includes(workflow)||apiSource.includes(workflow)||stateSource.includes(workflow),workflow);
   for(const workflow of ["serviceTabs('advanced')",'statusSections(values)','storage-summary','status-domain-section'])assert.ok(script.includes(workflow),workflow);
   for(const workflow of ['privateProviderKeys','providerPresentation','mergeProviderPayload','Provider help is available through VynodeArr.'])assert.ok(script.includes(workflow),workflow);
   for(const workflow of ['mediaPath(values.rootFolderPath,raw.path)','path:mediaPath','moveFiles=true'])assert.ok(script.includes(workflow),workflow);

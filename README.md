@@ -19,6 +19,23 @@ VynodeArr is a self-hosted media-management application with one account system,
 
 ![VynodeArr movie library](docs/screenshots/movie-library.png)
 
+## Current release
+
+Version **2.0.5** is ready for real-time testing on Unraid and Windows. This
+release moves additional account, authentication, engine setup, quality
+profiles, dashboard, library, history, routing, API, and global shell behavior
+into React and TypeScript while preserving tested legacy fallbacks during the
+transition.
+
+The release has been validated with the complete automated test suite,
+TypeScript checking, production builds, bundle-budget checks, deployment
+validation, a fresh Docker image, connected movie and television engines, and
+a browser smoke test. Existing installations can update with the
+`ghcr.io/minerport/vynodearr-unified:latest` image while retaining their
+persistent `/config` mapping.
+
+See the [changelog](CHANGELOG.md) for the detailed list of changes.
+
 ## Why VynodeArr
 
 | One place for your media | Familiar control without the clutter | Built for real libraries |

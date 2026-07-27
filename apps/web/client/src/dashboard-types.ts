@@ -94,3 +94,7 @@ export interface DashboardData {
     status?:Record<Domain,{status?:string;lastSuccess?:string|null;safeError?:string|null;itemCount?:number}>;
   };
 }
+
+export interface DashboardMountOptions {
+  request:<T=unknown>(path:string,options?:RequestInit)=>Promise<T>;
+}

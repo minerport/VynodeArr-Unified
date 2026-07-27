@@ -15,6 +15,12 @@
 .rule-chip{padding:.3rem .55rem;border:1px solid rgba(58,211,155,.28);border-radius:999px;color:#65e5ae;background:rgba(24,125,87,.18);font-size:.72rem;font-weight:700}
 .rule-chip.muted{border-color:#35415a;color:#a5aec1;background:#151d2d}
 .custom-format-editor,.release-profile-card{position:fixed;z-index:1200;top:clamp(1rem,6vh,4.5rem);right:auto;bottom:auto;left:50%;width:min(calc(100vw - 2rem),78rem);max-height:calc(100vh - clamp(2rem,12vh,9rem));transform:translateX(-50%);display:grid;align-content:start;gap:1rem;overflow:auto;padding:1.35rem;background:rgba(8,15,29,.98);border:1px solid #31405e;border-radius:1rem;box-shadow:0 0 0 100vmax rgba(2,6,14,.78),0 28px 70px rgba(0,0,0,.55)}
+.release-profile-card{top:50%;width:min(calc(100vw - 2rem),66rem);max-height:min(calc(100vh - 2rem),52rem);transform:translate(-50%,-50%);align-content:stretch;gap:0;overflow:auto;padding:0;background:color-mix(in srgb,var(--glass-surface-strong,#08101d) 88%,transparent);border-color:var(--glass-border,#31405e);box-shadow:0 0 0 100vmax rgba(2,6,14,.72),0 30px 80px rgba(0,0,0,.58),inset 0 1px 0 rgba(255,255,255,.07);backdrop-filter:blur(24px) saturate(1.22)}
+.release-profile-card>.editor-heading{top:0;padding:1rem 1.15rem;background:color-mix(in srgb,var(--glass-surface-strong,#08101d) 92%,transparent)}
+.release-profile-card>.native-field-grid,.release-profile-card>.tag-fields,.release-profile-card>.preferred-editor,.release-profile-card>.television-release-fields{margin:0;padding:1rem 1.15rem}
+.release-profile-card>.tag-fields{padding-top:0}
+.release-profile-card>.editor-actions{bottom:0;margin:0;padding:1rem 1.15rem;background:color-mix(in srgb,var(--glass-surface-strong,#08101d) 92%,transparent)}
+.editor-action-spacer{grid-column:5;grid-row:2}
 .editor-heading{position:sticky;z-index:2;top:-1.35rem;display:grid;grid-template-columns:minmax(12rem,.7fr) minmax(18rem,1.3fr) auto auto auto;align-items:end;gap:.75rem 1rem;padding:1rem 0;background:rgba(8,15,29,.98);border-bottom:1px solid var(--line)}
 .editor-title{margin-right:auto}
 .editor-title h2{margin:.2rem 0 0}
@@ -88,13 +94,15 @@
   .selection-rule-intro,.editor-actions,.scoring-panel form header,.preferred-heading{align-items:stretch;flex-direction:column}
   .rule-summary-grid,.score-thresholds,.tag-fields{grid-template-columns:1fr}
   .rule-summary-card{align-items:flex-start}
-  .custom-format-editor,.release-profile-card{top:1rem;width:calc(100vw - 2rem);max-height:calc(100vh - 2rem)}
+  .custom-format-editor{top:1rem;width:calc(100vw - 2rem);max-height:calc(100vh - 2rem)}
+  .release-profile-card{top:50%;width:calc(100vw - 2rem);max-height:calc(100vh - 2rem)}
   .editor-heading{grid-template-columns:1fr auto;align-items:center}
   .editor-title{grid-column:1;grid-row:1}
   .editor-close{grid-column:2;grid-row:1}
   .editor-heading>label:first-of-type{grid-column:1/3;grid-row:2}
   .editor-heading>.check{grid-column:1;grid-row:3}
   .editor-heading>.danger-secondary{grid-column:2;grid-row:3}
+  .editor-heading>.editor-action-spacer{grid-column:2;grid-row:3}
   .condition-heading{grid-template-columns:1fr auto auto;align-items:center}
   .condition-heading>strong{grid-column:1/4}
   .condition-heading>label:not(.check){grid-column:1/4}

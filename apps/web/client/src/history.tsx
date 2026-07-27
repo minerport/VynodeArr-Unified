@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   HistoryDomain,
   HistoryItem,
@@ -199,29 +199,34 @@ function HistorySection({
 }
 
 export function HistoryView({ options }: { options: HistoryMountOptions }) {
-  const [items, setItems] = useState(options.items),
+  const [items, setItems] = useState(options.items || []),
     [query, setQuery] = useState(""),
     [category, setCategory] = useState<HistoryCategory>("all"),
-    [refreshing, setRefreshing] = useState(false);
-  const refresh = useCallback(async () => {
+    [refreshing, setRefreshing] = useState(false),
+    [loading, setLoading] = useState(!options.items),
+    [loadError, setLoadError] = useState("");
+  const refresh = useCallback(async (announce = true) => {
     setRefreshing(true);
     try {
       const value = await options.request<{ items?: HistoryItem[] }>(
         "/api/activity/history",
       );
       setItems(value.items || []);
-      options.notify("History refreshed.");
+      setLoadError("");
+      if (announce) options.notify("History refreshed.");
     } catch (error) {
-      options.notify(
-        error instanceof Error
-          ? error.message
-          : "History could not be refreshed.",
-        "error",
-      );
+      const message =
+        error instanceof Error ? error.message : "History could not be refreshed.";
+      setLoadError(message);
+      if (announce) options.notify(message, "error");
     } finally {
       setRefreshing(false);
+      setLoading(false);
     }
   }, [options]);
+  useEffect(() => {
+    if (!options.items) void refresh(false);
+  }, [options.items, refresh]);
   const counts = useMemo(
     () =>
       items.reduce<Record<Exclude<HistoryCategory, "all">, number>>(
@@ -262,8 +267,13 @@ export function HistoryView({ options }: { options: HistoryMountOptions }) {
     ["deleted", "Deleted"],
     ["other", "Other"],
   ];
+  if (loading)
+    return <div className="panel skeleton react-route-loading">Loading historyâ€¦</div>;
+  if (loadError && !items.length)
+    return <div className="empty error-state"><h2>History unavailable</h2><p>{loadError}</p></div>;
   return (
     <div className="react-history">
+      {loadError ? <div className="notice warning"><strong>History refresh delayed.</strong><p>{loadError}</p></div> : null}
       <div className="hero">
         <div>
           <span className="eyebrow">ACTIVITY</span>
@@ -276,7 +286,7 @@ export function HistoryView({ options }: { options: HistoryMountOptions }) {
         <button
           className="secondary"
           disabled={refreshing}
-          onClick={() => void refresh()}
+          onClick={() => void refresh(true)}
         >
           {refreshing ? "Refreshing…" : "Refresh"}
         </button>

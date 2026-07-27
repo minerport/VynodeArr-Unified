@@ -30,7 +30,8 @@ async function staticResponse(req,res,path,value,{fallback=false}={}){
   const extension=extname(path),contentType=mime[extension]||'application/octet-stream';
   const tag=`W/"${createHash('sha256').update(value).digest('base64url')}"`;
   const hashed=/\/react\/[^/]+-[A-Za-z0-9_-]{8,}\.(?:js|css)$/.test(path.replaceAll('\\','/'));
-  const cacheControl=fallback||extension==='.html'?'no-cache':hashed?'public, max-age=31536000, immutable':'public, max-age=3600, stale-while-revalidate=86400';
+  const stableCode=!hashed&&(extension==='.js'||extension==='.css');
+  const cacheControl=fallback||extension==='.html'||stableCode?'no-cache':hashed?'public, max-age=31536000, immutable':'public, max-age=3600, stale-while-revalidate=86400';
   const headers={'content-type':contentType,'cache-control':cacheControl,etag:tag,'x-content-type-options':'nosniff'};
   if(compressible.has(extension))headers.vary='Accept-Encoding';
   if(req.headers['if-none-match']===tag){res.writeHead(304,headers);return res.end();}

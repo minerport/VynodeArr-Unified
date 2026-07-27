@@ -1,5 +1,6 @@
 import { useCallback,useEffect,useState,type FormEvent } from 'react';
 import type { AccountMountOptions,AccountSection,AccountSession,AccountUser } from './account-types';
+import {AccountTabs} from './account-tabs';
 import './react-account.css';
 
 const message=(reason:unknown)=>reason instanceof Error?reason.message:'The request could not be completed.';
@@ -8,15 +9,6 @@ const themes=[
   ['dark','Vynode Core'],['obsidian','Obsidian'],['aurora','Aurora'],['cyber','Cyber Blue'],['nebula','Nebula'],
   ['synthwave','Synthwave'],['oceanic','Oceanic'],['ember','Ember'],['matrix','Matrix'],['frost','Frost'],
 ] as const;
-
-function Tabs({section,administrator}:{section:AccountSection;administrator:boolean}){
-  return <nav className="settings-tabs" aria-label="Account settings">
-    <a className={section==='account'?'active':''} href="#settings/account">My account</a>
-    <a className={section==='sessions'?'active':''} href="#settings/sessions">Active sessions</a>
-    {administrator?<a href="#settings/engines">Engines</a>:null}
-    {administrator?<a className={section==='users'?'active':''} href="#settings/users">Users</a>:null}
-  </nav>;
-}
 
 function AccountForm({options}:{options:AccountMountOptions}){
   const [user,setUser]=useState<AccountUser|null>(null),[saving,setSaving]=useState(false),[error,setError]=useState('');
@@ -66,5 +58,5 @@ function Users({options}:{options:AccountMountOptions}){
 
 export function AccountView({options}:{options:AccountMountOptions}){
   const section=options.section==='users'&&!options.administrator?'account':options.section,title=section==='sessions'?'Active Sessions':section==='users'?'Users':'My Account';
-  return <div className="react-account"><div className="hero"><div><span className="eyebrow">{section==='users'?'ADMINISTRATION':'SETTINGS'}</span><h1>{title}</h1><p className="lede">{section==='account'?'Your identity and VynodeArr preferences.':section==='sessions'?'Review and revoke devices signed into your account.':'Manage local access, roles, and account status.'}</p></div></div><Tabs section={section} administrator={options.administrator}/>{section==='account'?<AccountForm options={options}/>:section==='sessions'?<Sessions options={options}/>:<Users options={options}/>}</div>;
+  return <div className="react-account"><div className="hero"><div><span className="eyebrow">{section==='users'?'ADMINISTRATION':'SETTINGS'}</span><h1>{title}</h1><p className="lede">{section==='account'?'Your identity and VynodeArr preferences.':section==='sessions'?'Review and revoke devices signed into your account.':'Manage local access, roles, and account status.'}</p></div></div><AccountTabs active={section} administrator={options.administrator}/>{section==='account'?<AccountForm options={options}/>:section==='sessions'?<Sessions options={options}/>:<Users options={options}/>}</div>;
 }

@@ -1,6 +1,6 @@
 import { createRoot,type Root } from 'react-dom/client';
 import type { ReactNode } from 'react';
-import type { DashboardAnalytics,DashboardData } from './dashboard-types';
+import type { DashboardAnalytics,DashboardMountOptions } from './dashboard-types';
 import type { LibraryMountOptions } from './library-types';
 import type { HistoryMountOptions } from './history-types';
 import type { QueueMountOptions } from './queue-types';
@@ -21,9 +21,14 @@ import type { MediaManagementMountOptions } from './media-management-types';
 import type { RootFoldersMountOptions } from './root-folders-types';
 import type { ProviderSettingsMountOptions } from './provider-settings-types';
 import type { GuideTemplatesMountOptions } from './guide-templates-types';
+import type { EngineManagementMountOptions } from './engine-management-types';
+import type { DiscoverSettingsMountOptions } from './discover-settings-types';
+import type { QualityProfilesMountOptions } from './quality-profiles-types';
+import type { EngineSetupMountOptions } from './engine-setup-types';
+import type { AuthenticationMountOptions } from './authentication-types';
 import { RouteErrorBoundary } from './error-boundary';
 
-let dashboardRoot:Root|null=null,dashboardElement:HTMLElement|null=null,fullDashboardRoot:Root|null=null,dashboardRefreshTimer:number|null=null,libraryRoot:Root|null=null,historyRoot:Root|null=null,queueRoot:Root|null=null,wantedRoot:Root|null=null,calendarRoot:Root|null=null,movieDetailRoot:Root|null=null,tvDetailRoot:Root|null=null,discoverRoot:Root|null=null,collectionsRoot:Root|null=null,addMediaRoot:Root|null=null,healthRoot:Root|null=null,accountRoot:Root|null=null,systemRoot:Root|null=null,selectionRulesRoot:Root|null=null,importMonitorRoot:Root|null=null,managementRoot:Root|null=null,mediaManagementRoot:Root|null=null,rootFoldersRoot:Root|null=null,providerSettingsRoot:Root|null=null,guideTemplatesRoot:Root|null=null;
+let dashboardRoot:Root|null=null,dashboardElement:HTMLElement|null=null,fullDashboardRoot:Root|null=null,libraryRoot:Root|null=null,historyRoot:Root|null=null,queueRoot:Root|null=null,wantedRoot:Root|null=null,calendarRoot:Root|null=null,movieDetailRoot:Root|null=null,tvDetailRoot:Root|null=null,discoverRoot:Root|null=null,collectionsRoot:Root|null=null,addMediaRoot:Root|null=null,healthRoot:Root|null=null,accountRoot:Root|null=null,systemRoot:Root|null=null,selectionRulesRoot:Root|null=null,importMonitorRoot:Root|null=null,managementRoot:Root|null=null,mediaManagementRoot:Root|null=null,rootFoldersRoot:Root|null=null,providerSettingsRoot:Root|null=null,guideTemplatesRoot:Root|null=null,engineManagementRoot:Root|null=null,discoverSettingsRoot:Root|null=null,qualityProfilesRoot:Root|null=null,engineSetupRoot:Root|null=null,setupAuthRoot:Root|null=null,signInAuthRoot:Root|null=null;
 const loading=(label:string)=><div className="panel skeleton react-route-loading">Loading {label}…</div>;
 
 const guarded=(children:ReactNode)=><RouteErrorBoundary>{children}</RouteErrorBoundary>;
@@ -32,21 +37,10 @@ function mountDashboardAnalytics(element:HTMLElement,analytics:DashboardAnalytic
   unmountDashboardAnalytics();dashboardElement=element;const root=createRoot(element);dashboardRoot=root;root.render(loading('analytics'));
   void import('./dashboard-analytics').then(({DashboardAnalyticsView})=>{if(dashboardRoot===root)root.render(<DashboardAnalyticsView analytics={analytics}/>);});
 }
-function unmountDashboard(){if(dashboardRefreshTimer!==null)window.clearInterval(dashboardRefreshTimer);dashboardRefreshTimer=null;fullDashboardRoot?.unmount();fullDashboardRoot=null;}
-function mountDashboard(element:HTMLElement,data:DashboardData){
+function unmountDashboard(){fullDashboardRoot?.unmount();fullDashboardRoot=null;}
+function mountDashboard(element:HTMLElement,options:DashboardMountOptions){
   unmountDashboard();unmountDashboardAnalytics();const root=createRoot(element);fullDashboardRoot=root;root.render(loading('dashboard'));
-  void import('./dashboard').then(({DashboardView})=>{
-    if(fullDashboardRoot!==root)return;
-    const render=(value:DashboardData)=>root.render(guarded(<DashboardView data={value}/>));
-    render(data);
-    dashboardRefreshTimer=window.setInterval(async()=>{
-      if(fullDashboardRoot!==root||document.hidden)return;
-      try{
-        const response=await fetch('/api/dashboard',{headers:{accept:'application/json'},cache:'no-store'});
-        if(response.ok)render(await response.json() as DashboardData);
-      }catch{}
-    },15_000);
-  });
+  void import('./dashboard').then(({DashboardRoute})=>{if(fullDashboardRoot===root)root.render(guarded(<DashboardRoute options={options}/>));});
 }
 function unmountLibrary(){libraryRoot?.unmount();libraryRoot=null;}
 function mountLibrary(element:HTMLElement,options:LibraryMountOptions){
@@ -148,16 +142,41 @@ function mountGuideTemplates(element:HTMLElement,options:GuideTemplatesMountOpti
   unmountGuideTemplates();const root=createRoot(element);guideTemplatesRoot=root;root.render(loading('guide templates'));
   void import('./guide-templates').then(({GuideTemplatesView})=>{if(guideTemplatesRoot===root)root.render(guarded(<GuideTemplatesView options={options}/>));});
 }
+function unmountEngineManagement(){engineManagementRoot?.unmount();engineManagementRoot=null;}
+function mountEngineManagement(element:HTMLElement,options:EngineManagementMountOptions){
+  unmountEngineManagement();const root=createRoot(element);engineManagementRoot=root;root.render(loading('engine management'));
+  void import('./engine-management').then(({EngineManagementView})=>{if(engineManagementRoot===root)root.render(guarded(<EngineManagementView options={options}/>));});
+}
+function unmountDiscoverSettings(){discoverSettingsRoot?.unmount();discoverSettingsRoot=null;}
+function mountDiscoverSettings(element:HTMLElement,options:DiscoverSettingsMountOptions){
+  unmountDiscoverSettings();const root=createRoot(element);discoverSettingsRoot=root;root.render(loading('Discover settings'));
+  void import('./discover-settings').then(({DiscoverSettingsView})=>{if(discoverSettingsRoot===root)root.render(guarded(<DiscoverSettingsView options={options}/>));});
+}
+function unmountQualityProfiles(){qualityProfilesRoot?.unmount();qualityProfilesRoot=null;}
+function mountQualityProfiles(element:HTMLElement,options:QualityProfilesMountOptions){
+  unmountQualityProfiles();const root=createRoot(element);qualityProfilesRoot=root;root.render(loading('quality profiles'));
+  void import('./quality-profiles').then(({QualityProfilesView})=>{if(qualityProfilesRoot===root)root.render(guarded(<QualityProfilesView options={options}/>));});
+}
+function unmountEngineSetup(){engineSetupRoot?.unmount();engineSetupRoot=null;}
+function mountEngineSetup(element:HTMLElement,options:EngineSetupMountOptions){
+  unmountEngineSetup();const root=createRoot(element);engineSetupRoot=root;root.render(loading('engine setup'));
+  void import('./engine-setup').then(({EngineSetupView})=>{if(engineSetupRoot===root)root.render(guarded(<EngineSetupView options={options}/>));});
+}
+function unmountAuthentication(){setupAuthRoot?.unmount();signInAuthRoot?.unmount();setupAuthRoot=null;signInAuthRoot=null;}
+function mountAuthentication(setupElement:HTMLElement,signInElement:HTMLElement,options:AuthenticationMountOptions){
+  unmountAuthentication();const setupRoot=createRoot(setupElement),signInRoot=createRoot(signInElement);setupAuthRoot=setupRoot;signInAuthRoot=signInRoot;
+  void import('./authentication').then(({SetupView,SignInView})=>{if(setupAuthRoot===setupRoot)setupRoot.render(guarded(<SetupView options={options}/>));if(signInAuthRoot===signInRoot)signInRoot.render(guarded(<SignInView options={options}/>));});
+}
 const routeImports:Record<string,()=>Promise<unknown>>={
   dashboard:()=>import('./dashboard'),discover:()=>import('./discover'),collections:()=>import('./collections'),add:()=>import('./add-media'),movies:()=>import('./library'),tv:()=>import('./library'),
   queue:()=>import('./queue'),history:()=>import('./history'),wanted:()=>import('./wanted'),calendar:()=>import('./calendar'),health:()=>import('./health'),
-  movie:()=>import('./movie-detail'),series:()=>import('./tv-detail'),settings:()=>import('./account'),system:()=>import('./system'),service:()=>Promise.all([import('./selection-rules'),import('./media-management'),import('./root-folders'),import('./provider-settings'),import('./guide-templates')]),management:()=>import('./management'),
+  movie:()=>import('./movie-detail'),series:()=>import('./tv-detail'),settings:()=>Promise.all([import('./account'),import('./engine-management'),import('./engine-setup')]),system:()=>import('./system'),service:()=>Promise.all([import('./selection-rules'),import('./media-management'),import('./root-folders'),import('./provider-settings'),import('./guide-templates'),import('./discover-settings'),import('./quality-profiles')]),management:()=>import('./management'),
 };
 function preloadRoute(route:string){void routeImports[route]?.();}
 
 declare global {
   interface Window {VynodeArrReact?:{
-    mountDashboard:(element:HTMLElement,data:DashboardData)=>void;unmountDashboard:()=>void;
+    mountDashboard:(element:HTMLElement,options:DashboardMountOptions)=>void;unmountDashboard:()=>void;
     mountDashboardAnalytics:(element:HTMLElement,analytics:DashboardAnalytics)=>void;unmountDashboardAnalytics:()=>void;
     mountLibrary:(element:HTMLElement,options:LibraryMountOptions)=>void;unmountLibrary:()=>void;
     mountHistory:(element:HTMLElement,options:HistoryMountOptions)=>void;unmountHistory:()=>void;
@@ -179,7 +198,12 @@ declare global {
     mountRootFolders:(element:HTMLElement,options:RootFoldersMountOptions)=>void;unmountRootFolders:()=>void;
     mountProviderSettings:(element:HTMLElement,options:ProviderSettingsMountOptions)=>void;unmountProviderSettings:()=>void;
     mountGuideTemplates:(element:HTMLElement,options:GuideTemplatesMountOptions)=>void;unmountGuideTemplates:()=>void;
+    mountEngineManagement:(element:HTMLElement,options:EngineManagementMountOptions)=>void;unmountEngineManagement:()=>void;
+    mountDiscoverSettings:(element:HTMLElement,options:DiscoverSettingsMountOptions)=>void;unmountDiscoverSettings:()=>void;
+    mountQualityProfiles:(element:HTMLElement,options:QualityProfilesMountOptions)=>void;unmountQualityProfiles:()=>void;
+    mountEngineSetup:(element:HTMLElement,options:EngineSetupMountOptions)=>void;unmountEngineSetup:()=>void;
+    mountAuthentication:(setupElement:HTMLElement,signInElement:HTMLElement,options:AuthenticationMountOptions)=>void;unmountAuthentication:()=>void;
     preloadRoute:(route:string)=>void;
   }}
 }
-window.VynodeArrReact={mountDashboard,unmountDashboard,mountDashboardAnalytics,unmountDashboardAnalytics,mountLibrary,unmountLibrary,mountHistory,unmountHistory,mountQueue,unmountQueue,mountWanted,unmountWanted,mountCalendar,unmountCalendar,mountMovieDetail,unmountMovieDetail,mountTvDetail,unmountTvDetail,mountDiscover,unmountDiscover,mountCollections,unmountCollections,mountAddMedia,unmountAddMedia,mountHealth,unmountHealth,mountAccount,unmountAccount,mountSystem,unmountSystem,mountSelectionRules,unmountSelectionRules,mountImportMonitor,unmountImportMonitor,mountManagement,unmountManagement,mountMediaManagement,unmountMediaManagement,mountRootFolders,unmountRootFolders,mountProviderSettings,unmountProviderSettings,mountGuideTemplates,unmountGuideTemplates,preloadRoute};
+window.VynodeArrReact={mountDashboard,unmountDashboard,mountDashboardAnalytics,unmountDashboardAnalytics,mountLibrary,unmountLibrary,mountHistory,unmountHistory,mountQueue,unmountQueue,mountWanted,unmountWanted,mountCalendar,unmountCalendar,mountMovieDetail,unmountMovieDetail,mountTvDetail,unmountTvDetail,mountDiscover,unmountDiscover,mountCollections,unmountCollections,mountAddMedia,unmountAddMedia,mountHealth,unmountHealth,mountAccount,unmountAccount,mountSystem,unmountSystem,mountSelectionRules,unmountSelectionRules,mountImportMonitor,unmountImportMonitor,mountManagement,unmountManagement,mountMediaManagement,unmountMediaManagement,mountRootFolders,unmountRootFolders,mountProviderSettings,unmountProviderSettings,mountGuideTemplates,unmountGuideTemplates,mountEngineManagement,unmountEngineManagement,mountDiscoverSettings,unmountDiscoverSettings,mountQualityProfiles,unmountQualityProfiles,mountEngineSetup,unmountEngineSetup,mountAuthentication,unmountAuthentication,preloadRoute};

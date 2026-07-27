@@ -60,7 +60,7 @@ function LibraryCard({item,kind,view,priority,onMonitor,onPrefetch}:{item:Librar
 export function LibraryView({options}:{options:LibraryMountOptions}){
   const {kind,request,notify}=options,movie=kind==='movies';
   const storageKey=`vynodearr.libraryState.${kind}`,saved=useMemo(()=>{try{return JSON.parse(sessionStorage.getItem(storageKey)||'{}') as {filter?:string;sort?:string;query?:string;scrollY?:number};}catch{return{};}},[storageKey]);
-  const [items,setItems]=useState(options.items),[attention,setAttention]=useState<{missing:number;cutoff:number}|null>(null),[filter,setFilter]=useState(saved.filter||'all'),[sort,setSort]=useState(saved.sort||'title'),[query,setQuery]=useState(saved.query||''),[debouncedQuery,setDebouncedQuery]=useState(saved.query||''),[view,setView]=useState(options.initialView),[limit,setLimit]=useState(120),[searching,setSearching]=useState(false),[priorityIds,setPriorityIds]=useState<Set<string>>(()=>new Set());
+  const [items,setItems]=useState(options.items),[attention,setAttention]=useState<{missing:number;cutoff:number}|null>(null),[filter,setFilter]=useState(saved.filter||'all'),[sort,setSort]=useState(saved.sort||'title'),[query,setQuery]=useState(saved.query||''),[debouncedQuery,setDebouncedQuery]=useState(saved.query||''),[view,setView]=useState(options.initialView),[limit,setLimit]=useState(120),[searching,setSearching]=useState(false),[priorityIds,setPriorityIds]=useState<Set<string>>(()=>new Set()),[loading,setLoading]=useState(!options.items.length),[loadError,setLoadError]=useState('');
   const loadMoreRef=useRef<HTMLDivElement|null>(null);
   const gridRef=useRef<HTMLDivElement|null>(null);
   const alphabetRef=useRef<HTMLElement|null>(null);
@@ -72,10 +72,11 @@ export function LibraryView({options}:{options:LibraryMountOptions}){
       if(pending)return;
       pending=true;
       try{
-        const value=await request<{items?:LibraryItem[];attention?:{missing:number;cutoff:number}}>(movie?'/api/media/movies':'/api/media/tv');
-        if(active&&Array.isArray(value.items))setItems(value.items);
+        const value=await request<{items?:LibraryItem[];attention?:{missing:number;cutoff:number};mode?:string}>(movie?'/api/media/movies':'/api/media/tv');
+        if(active&&Array.isArray(value.items)){setItems(value.items);options.onLoaded?.(value.items,value.mode);}
         if(active&&value.attention)setAttention(value.attention);
-      }catch{}finally{pending=false;}
+        if(active)setLoadError('');
+      }catch(error){if(active)setLoadError(error instanceof Error?error.message:'The library could not be loaded.');}finally{pending=false;if(active)setLoading(false);}
     };
     const resume=()=>{if(document.visibilityState==='visible')void refresh();};
     void refresh();
@@ -181,8 +182,11 @@ export function LibraryView({options}:{options:LibraryMountOptions}){
   async function searchAllMissing(){const ids=visible.filter(item=>item.state==='missing'&&item.monitoring!=='none').map(item=>Number(item.id.replace(/^movie_/,''))).filter(Number.isFinite);if(!ids.length)return;setSearching(true);try{for(let index=0;index<ids.length;index+=100)await request('/api/manage/movie/commands',{method:'POST',body:JSON.stringify({name:'MoviesSearch',movieIds:ids.slice(index,index+100)})});notify(`Search queued for ${ids.length} missing movie${ids.length===1?'':'s'}.`);}catch(error){notify(error instanceof Error?error.message:'The missing movie search failed.','error');}finally{setSearching(false);}}
   const prefetch=(item:LibraryItem)=>{void request(movie?`/api/media/movies/${encodeURIComponent(item.id)}`:`/api/media/tv/${encodeURIComponent(item.id)}`).catch(()=>{});};
   function chooseView(next:LibraryView){setView(next);options.onViewChange(next);}
+  if(loading&&!items.length)return <div className="panel skeleton react-route-loading">Loading {movie?'movies':'television'}…</div>;
+  if(loadError&&!items.length)return <div className="empty error-state"><h2>{movie?'Movie':'TV'} service unavailable</h2><p>{loadError}</p></div>;
   return <div className="react-library">
     <div className="hero"><div><span className="eyebrow">YOUR LIBRARY</span><h1>{movie?'Movies':'TV'}</h1><p className="lede">{movie?'Every story, presented through one secure gateway.':'Every season and episode, normalized in one library.'}</p></div><span className="read-only">Connected library</span></div>
+    {loadError?<div className="notice warning"><strong>Library refresh delayed.</strong><p>{loadError}</p></div>:null}
     <div className="summary"><div><strong>{items.length}</strong><span>Titles</span></div><div><strong>{monitored.length}</strong><span>Monitored</span></div><div><strong>{missing+cutoff}</strong><span>Need attention</span><small>{movie?`${missing} missing · ${cutoff} below cutoff`:`${missing} missing episodes · ${cutoff} below cutoff`}</small></div><div><strong>{coverage}%</strong><span>Library coverage</span></div></div>
     <div className="toolbar react-library-toolbar"><div className="filters">{['all','monitored','unmonitored','missing','cutoff'].map(value=><button key={value} type="button" className={`chip ${filter===value?'selected':''}`} onClick={()=>setFilter(value)}>{value==='cutoff'?'Cutoff unmet':value[0].toUpperCase()+value.slice(1)}</button>)}</div>{movie&&filter==='missing'?<button className="primary react-library-search-missing" disabled={searching||!visible.length} onClick={()=>void searchAllMissing()}>{searching?'Queuing searches…':`Search all missing (${visible.length})`}</button>:null}<label className="react-library-search">Filter titles<span className="react-library-search-field"><input value={query} onChange={event=>setQuery(event.target.value)} placeholder={`Search ${movie?'movies':'television'}`}/>{query?<button type="button" className="react-library-search-clear" aria-label={`Clear ${movie?'movie':'television'} filter`} title="Clear filter" onClick={()=>setQuery('')}>×</button>:null}</span></label><div><select className="sort" aria-label="Sort media" value={sort} onChange={event=>setSort(event.target.value)}><option value="title">Title</option><option value="year">Year</option><option value="attention">Attention</option></select>{views.map(value=><button key={value} type="button" className={`icon-button ${view===value?'selected':''}`} title={viewLabels[value]} onClick={()=>chooseView(value)}>{value==='poster'?'▦':value==='cards'?'▥':value==='compact'?'▤':'☷'}</button>)}</div></div>
     <div ref={gridRef} className={`grid view-${view} library-results-grid`}>{visible.slice(0,limit).map(item=><LibraryCard key={item.id} item={item} kind={kind} view={view} priority={priorityIds.has(item.id)} onMonitor={monitor} onPrefetch={prefetch}/>)}</div>

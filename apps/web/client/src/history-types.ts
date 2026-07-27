@@ -13,7 +13,7 @@ export interface HistoryItem {
 }
 
 export interface HistoryMountOptions {
-  items:HistoryItem[];
+  items?:HistoryItem[];
   administrator:boolean;
   request:<T=unknown>(path:string,options?:RequestInit)=>Promise<T>;
   notify:(message:string,tone?:string)=>void;

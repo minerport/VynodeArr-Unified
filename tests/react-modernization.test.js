@@ -50,7 +50,8 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(entry,/createRoot/);
   assert.match(entry,/import\('\.\/library'\)/);
   assert.match(entry,/import\('\.\/movie-detail'\)/);
-  assert.match(entry,/DashboardView/);
+  assert.match(entry,/DashboardRoute/);
+  assert.match(dashboard,/DashboardView/);
   assert.match(entry,/LibraryView/);
   assert.match(entry,/unmountLibrary/);
   assert.match(entry,/HistoryView/);
@@ -234,12 +235,21 @@ test('the Node API has a compiled TypeScript migration boundary',async()=>{
 });
 
 test('library navigation preserves mounted views and safely reuses short-lived reads',async()=>{
-  const legacy=await read('apps/web/client/src/app-shell.ts');
-  assert.match(legacy,/const responseCache=new Map\(\),responseInflight=new Map\(\)/);
-  assert.match(legacy,/const cacheLifetime=path=>/);
-  assert.match(legacy,/responseInflight\.has\(path\)/);
-  assert.match(legacy,/responseCache\.clear\(\)/);
-  assert.match(legacy,/libraryStale:\{movies:false,tv:false\}/);
+  const [legacy,client,appState]=await Promise.all([
+    read('apps/web/client/src/app-shell.ts'),
+    read('apps/web/client/src/api-client.ts'),
+    read('apps/web/client/src/app-state.ts')
+  ]);
+  assert.match(client,/const responseCache=new Map<string,CachedResponse>\(\)/);
+  assert.match(client,/export function cacheLifetime/);
+  assert.match(client,/responseInflight\.has\(path\)/);
+  assert.match(client,/responseCache\.clear\(\)/);
+  assert.match(client,/activeRequests\.get\(requestKey\)\?\.abort\(\)/);
+  assert.match(legacy,/const api=createApiClient/);
+  assert.match(legacy,/csrfToken:\(\)=>state\.csrf/);
+  assert.match(legacy,/onUnauthorized:async/);
+  assert.match(legacy,/onMutation:path/);
+  assert.match(appState,/libraryStale:\{movies:false,tv:false\}/);
   assert.match(legacy,/preserveLibrary/);
   assert.match(legacy,/if\(preserveLibrary&&!state\.libraryStale\[key\]\)return/);
   assert.match(legacy,/if\(!document\.querySelector\('#movies-react'\)\)await showMedia\('movies'\)/);
@@ -287,11 +297,12 @@ test('global import progress uses a typed React monitor with the legacy path ret
 });
 
 test('advanced engine resources use a typed schema-driven React editor',async()=>{
-  const [management,types,islands,legacy]=await Promise.all([
+  const [management,types,islands,legacy,lifecycle]=await Promise.all([
     read('apps/web/client/src/management.tsx'),
     read('apps/web/client/src/management-types.ts'),
     read('apps/web/client/src/react-islands.tsx'),
-    read('apps/web/client/src/app-shell.ts')
+    read('apps/web/client/src/app-shell.ts'),
+    read('apps/web/client/src/route-lifecycle.ts')
   ]);
   assert.match(management,/export function ManagementView/);
   assert.match(management,/indexerSchemas/);
@@ -300,12 +311,13 @@ test('advanced engine resources use a typed schema-driven React editor',async()=
   assert.match(management,/Advanced JSON/);
   assert.match(management,/methods\.includes\('POST'\)\?'POST':methods\.includes\('PUT'\)\?'PUT':null/);
   assert.match(management,/Read only/);
-  assert.match(legacy,/unmountDashboardAnalytics/);
-  assert.match(legacy,/unmountHealth/);
+  assert.match(legacy,/teardownRoute/);
+  assert.match(lifecycle,/unmountDashboardAnalytics/);
+  assert.match(lifecycle,/unmountHealth/);
   assert.match(types,/interface ManagementField/);
   assert.match(islands,/mountManagement/);
   assert.match(legacy,/showManagementReact/);
-  assert.match(legacy,/unmountManagement/);
+  assert.match(lifecycle,/unmountManagement/);
 });
 
 test('media naming and importing settings use a typed React route without flattening away native fields',async()=>{
@@ -399,12 +411,314 @@ test('React service settings routes share one complete navigation component',asy
 });
 
 test('administrator account navigation retains access to engine API-key management',async()=>{
-  const [account,shell]=await Promise.all([
+  const [account,tabs,shell]=await Promise.all([
     read('apps/web/client/src/account.tsx'),
+    read('apps/web/client/src/account-tabs.tsx'),
     read('apps/web/client/src/app-shell.ts')
   ]);
-  assert.match(account,/\{administrator\?<a href="#settings\/engines">Engines<\/a>:null\}/);
+  assert.match(account,/AccountTabs/);
+  assert.match(tabs,/\{administrator\?<a className=\{active==='engines'/);
+  assert.match(tabs,/href="#settings\/engines">Engines/);
   assert.match(shell,/parts\[1\]==='engines'\?showEngineManagement\(\):showAccountReact/);
   assert.match(shell,/External application access/);
   assert.match(shell,/Generate new key/);
+});
+
+test('engine management uses a typed React route while retaining a legacy fallback',async()=>{
+  const [view,types,islands,shell,api]=await Promise.all([
+    read('apps/web/client/src/engine-management.tsx'),
+    read('apps/web/client/src/engine-management-types.ts'),
+    read('apps/web/client/src/react-islands.tsx'),
+    read('apps/web/client/src/app-shell.ts'),
+    read('apps/api/src/app.js')
+  ]);
+  for(const workflow of ['External application access','Reveal','Hide','Copy','Generate new key','Repair automatic connections','Advanced: external engines','Test connection']){
+    assert.match(view,new RegExp(workflow));
+  }
+  assert.match(view,/navigator\.clipboard\.writeText/);
+  assert.match(view,/\/api\/settings\/engines\/\$\{engine\.domain\}\/api-key/);
+  assert.match(view,/\/api\/settings\/engines\/repair/);
+  assert.match(view,/\/api\/settings\/engines\/\$\{domain\}\/test/);
+  assert.match(view,/method:'PUT'/);
+  assert.match(types,/interface EngineManagementMountOptions/);
+  assert.match(islands,/mountEngineManagement/);
+  assert.match(islands,/import\('\.\/engine-management'\)/);
+  assert.match(shell,/showEngineManagementLegacy/);
+  assert.match(shell,/mountEngineManagement/);
+  assert.match(api,/client\.post\('command',\{name:'ResetApiKey'\}\)/);
+  assert.match(api,/did not reconnect with the new API key/);
+});
+
+test('Discover credential settings use a typed React route with a safe legacy fallback',async()=>{
+  const [view,types,islands,shell,api]=await Promise.all([
+    read('apps/web/client/src/discover-settings.tsx'),
+    read('apps/web/client/src/discover-settings-types.ts'),
+    read('apps/web/client/src/react-islands.tsx'),
+    read('apps/web/client/src/app-shell.ts'),
+    read('apps/api/src/app.js')
+  ]);
+  for(const workflow of ['TMDB metadata','Test token','Save token','Remove token','Container configuration is optional']){
+    assert.match(view,new RegExp(workflow));
+  }
+  assert.match(view,/type="password"/);
+  assert.match(view,/autoComplete="new-password"/);
+  assert.match(view,/\/api\/settings\/discover\/test/);
+  assert.match(view,/method:'POST'/);
+  assert.match(view,/method:'DELETE'/);
+  assert.doesNotMatch(types,/token:/);
+  assert.match(types,/interface DiscoverSettingsMountOptions/);
+  assert.match(islands,/mountDiscoverSettings/);
+  assert.match(islands,/import\('\.\/discover-settings'\)/);
+  assert.match(shell,/showDiscoverSettingsLegacy/);
+  assert.match(shell,/mountDiscoverSettings/);
+  assert.match(api,/saveDiscoveryCredential\(input\.token\)/);
+  assert.match(api,/removeDiscoveryCredential\(\)/);
+});
+
+test('quality profiles use a typed React route with engine-native editing parity',async()=>{
+  const [view,types,islands,shell]=await Promise.all([
+    read('apps/web/client/src/quality-profiles.tsx'),
+    read('apps/web/client/src/quality-profiles-types.ts'),
+    read('apps/web/client/src/react-islands.tsx'),
+    read('apps/web/client/src/app-shell.ts')
+  ]);
+  for(const workflow of ['New profile','Browse TRaSH templates','Upgrade until the cutoff is met','Allowed qualities','Custom format scores','Quality size limits','Save limits to engine']){
+    assert.match(view,new RegExp(workflow));
+  }
+  for(const endpoint of ['profiles','profileSchema','customFormats','qualityDefinitions','qualityDefinitionLimits'])assert.match(view,new RegExp(endpoint));
+  for(const method of ["'POST'","'PUT'","'DELETE'"])assert.match(view,new RegExp(method));
+  assert.match(types,/interface QualityProfilesMountOptions/);
+  assert.match(islands,/mountQualityProfiles/);
+  assert.match(islands,/import\('\.\/quality-profiles'\)/);
+  assert.match(shell,/showProfilesLegacy/);
+  assert.match(shell,/mountQualityProfiles/);
+});
+
+test('first-run engine setup uses the shared typed React connection workflow',async()=>{
+  const [setup,types,management,islands,shell]=await Promise.all([
+    read('apps/web/client/src/engine-setup.tsx'),
+    read('apps/web/client/src/engine-setup-types.ts'),
+    read('apps/web/client/src/engine-management.tsx'),
+    read('apps/web/client/src/react-islands.tsx'),
+    read('apps/web/client/src/app-shell.ts')
+  ]);
+  for(const workflow of ['Connect your engines','Skip for now and use review data','Both engines are required'])assert.match(setup,new RegExp(workflow));
+  assert.match(setup,/ExternalEngineForm domain="movie"/);
+  assert.match(setup,/ExternalEngineForm domain="tv"/);
+  assert.match(management,/export function ExternalEngineForm/);
+  for(const workflow of ['Test connection','Connection validated','Save \\$\\{display\\(domain\\)\\}','initial\\.configured'])assert.match(management,new RegExp(workflow));
+  assert.match(types,/interface EngineSetupMountOptions/);
+  assert.match(islands,/mountEngineSetup/);
+  assert.match(islands,/import\('\.\/engine-setup'\)/);
+  assert.match(shell,/showEngineSetupLegacy/);
+  assert.match(shell,/mountEngineSetup/);
+});
+
+test('administrator setup and sign-in use a typed React authentication shell',async()=>{
+  const [view,types,islands,shell]=await Promise.all([
+    read('apps/web/client/src/authentication.tsx'),
+    read('apps/web/client/src/authentication-types.ts'),
+    read('apps/web/client/src/react-islands.tsx'),
+    read('apps/web/client/src/app-shell.ts')
+  ]);
+  for(const workflow of ['Create Administrator','Create administrator and continue','Sign in','Remember me','Forgot password?','Passwords do not match'])assert.match(view,new RegExp(workflow));
+  assert.match(view,/\/api\/auth\/setup/);
+  assert.match(view,/\/api\/auth\/login/);
+  assert.match(view,/autoComplete="new-password"/);
+  assert.match(view,/autoComplete="current-password"/);
+  assert.match(types,/interface AuthenticationMountOptions/);
+  assert.match(islands,/mountAuthentication/);
+  assert.match(islands,/import\('\.\/authentication'\)/);
+  assert.match(shell,/wireLegacyAuthentication/);
+  assert.match(shell,/mountAuthentication/);
+  assert.match(shell,/authenticationComplete/);
+});
+
+test('hash navigation uses a typed route table without removing legacy route handlers',async()=>{
+  const [routing,shell]=await Promise.all([
+    read('apps/web/client/src/routing.ts'),
+    read('apps/web/client/src/app-shell.ts')
+  ]);
+  for(const route of ['dashboard','discover','movies','tv','collections','add','wanted','movie','series','queue','history','calendar','health','service','management','settings','system','engine-setup']){
+    assert.match(routing,new RegExp(`'${route}'`));
+  }
+  assert.match(routing,/export function parseRoute/);
+  assert.match(routing,/knownRouteKeys\.has\(requestedKey\)\?requestedKey:'dashboard'/);
+  assert.match(routing,/export function preservesMountedLibrary/);
+  assert.match(shell,/import \{parseRoute,preservesMountedLibrary\} from '\.\/routing'/);
+  assert.match(shell,/const currentRoute=parseRoute\(location\.hash\)/);
+  assert.match(shell,/if\(key==='service'\)return showServiceSettings\(parts\[1\],parts\[2\]\)/);
+  assert.match(shell,/parts\[1\]==='engines'\?showEngineManagement\(\):showAccountReact\(parts\[1\]\)/);
+});
+
+test('dashboard loading, caching, and refresh ownership live in typed React',async()=>{
+  const [dashboard,types,islands,shell]=await Promise.all([
+    read('apps/web/client/src/dashboard.tsx'),
+    read('apps/web/client/src/dashboard-types.ts'),
+    read('apps/web/client/src/react-islands.tsx'),
+    read('apps/web/client/src/app-shell.ts')
+  ]);
+  assert.match(dashboard,/export function DashboardRoute/);
+  assert.match(dashboard,/options\.request<DashboardData>\('\/api\/dashboard'\)/);
+  assert.match(dashboard,/sessionStorage\.setItem\(dashboardSnapshotKey/);
+  assert.match(dashboard,/window\.setInterval/);
+  assert.match(dashboard,/document\.hidden/);
+  assert.match(types,/interface DashboardMountOptions/);
+  assert.match(islands,/DashboardRoute options=\{options\}/);
+  assert.doesNotMatch(islands,/fetch\('\/api\/dashboard'/);
+  assert.match(shell,/mountDashboard\(dashboardHost,\{request:api\}\)/);
+  assert.match(shell,/content\.innerHTML='<div class="hero"/);
+});
+
+test('movie and television initial loading is owned by typed React without losing shell synchronization',async()=>{
+  const [library,types,shell]=await Promise.all([
+    read('apps/web/client/src/library.tsx'),
+    read('apps/web/client/src/library-types.ts'),
+    read('apps/web/client/src/app-shell.ts')
+  ]);
+  assert.match(library,/Loading \{movie\?'movies':'television'\}/);
+  assert.match(library,/options\.onLoaded\?\.\(value\.items,value\.mode\)/);
+  assert.match(library,/Library refresh delayed/);
+  assert.match(types,/onLoaded\?:\(items:LibraryItem\[\],mode\?:string\)/);
+  assert.match(shell,/mountLibrary\(host,\{kind,items:state\[kind\]/);
+  assert.match(shell,/onLoaded:\(items,mode\)=>\{state\[kind\]=items/);
+  assert.match(shell,/if\(window\.VynodeArrReact\?\.mountLibrary\).*return;/);
+  assert.match(shell,/try\{const value=await api\(movie\?'\/api\/media\/movies':'\/api\/media\/tv'\)/);
+});
+
+test('history initial loading and refresh recovery are owned by typed React',async()=>{
+  const [history,types,shell]=await Promise.all([
+    read('apps/web/client/src/history.tsx'),
+    read('apps/web/client/src/history-types.ts'),
+    read('apps/web/client/src/app-shell.ts')
+  ]);
+  assert.match(history,/useEffect/);
+  assert.match(history,/if \(!options\.items\) void refresh\(false\)/);
+  assert.match(history,/Loading history/);
+  assert.match(history,/History refresh delayed/);
+  assert.match(history,/options\.administrator && item\.mediaId && event\.organizable/);
+  assert.match(types,/items\?:HistoryItem\[\]/);
+  assert.match(shell,/mountHistory\(host,\{administrator:state\.user\.role==='administrator',request:api,notify\}\)/);
+  assert.match(shell,/return showOperational\('History','\/api\/activity\/history'\)/);
+});
+
+test('route teardown and navigation activation use a typed lifecycle helper',async()=>{
+  const [lifecycle,shell]=await Promise.all([
+    read('apps/web/client/src/route-lifecycle.ts'),
+    read('apps/web/client/src/app-shell.ts')
+  ]);
+  for(const method of ['unmountDashboard','unmountLibrary','unmountDiscover','unmountGuideTemplates','unmountEngineManagement','unmountQualityProfiles']){
+    assert.match(lifecycle,new RegExp(method));
+  }
+  assert.match(lifecycle,/if\(!options\.preserveLibrary\)bridge\?\.unmountLibrary/);
+  assert.match(lifecycle,/vynode-detail-modal-host/);
+  assert.match(lifecycle,/link\.classList\.toggle/);
+  assert.match(lifecycle,/body\.classList\.remove\('nav-open'\)/);
+  assert.match(shell,/import \{teardownRoute,updateNavigation\} from '\.\/route-lifecycle'/);
+  assert.match(shell,/teardownRoute\(window\.VynodeArrReact,\{preserveLibrary,document\}\)/);
+  assert.match(shell,/updateNavigation\(nav,key,document\.body\)/);
+});
+
+test('React pages and detail modals use a typed route host boundary',async()=>{
+  const [host,shell]=await Promise.all([
+    read('apps/web/client/src/route-host.ts'),
+    read('apps/web/client/src/app-shell.ts')
+  ]);
+  assert.match(host,/export function createRouteHost/);
+  assert.match(host,/container\.replaceChildren\(host\)/);
+  assert.match(host,/export function createModalRouteHost/);
+  assert.match(host,/document\.body\.append\(host\)/);
+  assert.match(shell,/import \{createModalRouteHost,createRouteHost\} from '\.\/route-host'/);
+  assert.match(shell,/createRouteHost\(content,`\$\{kind\}-react`\)/);
+  for(const id of ['history-react','queue-react','wanted-react','guide-templates-react']){
+    assert.match(shell,new RegExp(`createRouteHost\\(content,'${id}'\\)`));
+  }
+  assert.match(shell,/createModalRouteHost\('movie-detail-react','vynode-detail-modal-host'\)/);
+  assert.match(shell,/createModalRouteHost\('tv-detail-react','vynode-detail-modal-host'\)/);
+  assert.doesNotMatch(shell,/const host=document\.createElement\('div'\);host\.id=.*-react/);
+});
+
+test('release profile editor uses a bounded glass modal layout',async()=>{
+  const [view,styles]=await Promise.all([
+    read('apps/web/client/src/selection-rules.tsx'),
+    read('apps/web/client/src/react-selection-rules.css')
+  ]);
+  assert.match(styles,/\.release-profile-card\{top:50%;width:min\(calc\(100vw - 2rem\),66rem\)/);
+  assert.match(styles,/transform:translate\(-50%,-50%\)/);
+  assert.match(styles,/backdrop-filter:blur\(24px\)/);
+  assert.match(styles,/\.release-profile-card>\.editor-heading\{top:0/);
+  assert.match(styles,/\.release-profile-card>\.editor-actions\{bottom:0/);
+  assert.match(view,/profile\.id\?<button className="danger-secondary"/);
+  assert.match(view,/editor-action-spacer/);
+});
+
+test('new release profiles remain drafts until explicitly saved',async()=>{
+  const view=await read('apps/web/client/src/selection-rules.tsx');
+  assert.match(view,/method:isNew\?'POST':'PUT'/);
+  assert.match(view,/const closeRelease=\(profile:ReleaseProfile,index:number\)=>\{if\(!profile\.id\)setReleases/);
+  assert.match(view,/onClick=\{\(\)=>closeRelease\(profile,index\)\}/);
+  assert.match(view,/releases\.some\(profile=>profile\.id\)/);
+  assert.match(view,/profile\.id\?<article className="rule-summary-card"/);
+});
+
+test('legacy shell state and shared helpers have typed ownership',async()=>{
+  const [state,utils,shell]=await Promise.all([
+    read('apps/web/client/src/app-state.ts'),
+    read('apps/web/client/src/shell-utils.ts'),
+    read('apps/web/client/src/app-shell.ts')
+  ]);
+  assert.match(state,/export function savedLibraryView/);
+  assert.match(state,/export function createAppState/);
+  assert.match(state,/libraryStale:\{movies:false,tv:false\}/);
+  for(const helper of ['esc','pct','when','badge','formValue','mediaPath','formatBytes','releaseEligible']){
+    assert.match(utils,new RegExp(`export function ${helper}`));
+  }
+  assert.match(shell,/import \{createAppState\} from '\.\/app-state'/);
+  assert.match(shell,/from '\.\/shell-utils'/);
+  assert.match(shell,/state=createAppState\(\)/);
+  assert.doesNotMatch(shell,/savedLibraryView=kind=>/);
+  assert.doesNotMatch(shell,/const esc=\(value\)=>/);
+});
+
+test('session bootstrap and authenticated shell activation have typed ownership',async()=>{
+  const [lifecycle,shell]=await Promise.all([
+    read('apps/web/client/src/session-lifecycle.ts'),
+    read('apps/web/client/src/app-shell.ts')
+  ]);
+  assert.match(lifecycle,/export async function bootstrapSession/);
+  assert.match(lifecycle,/request<AuthenticationStatus>\('\/api\/auth\/status'\)/);
+  assert.match(lifecycle,/setupView\.hidden=!status\.setupRequired/);
+  assert.match(lifecycle,/if\(!status\.enginesConfigured&&location\.hash!=='#engine-setup'\)/);
+  assert.match(lifecycle,/export function completeAuthentication/);
+  assert.match(lifecycle,/location\.hash=options\.setup\?'#engine-setup'/);
+  assert.match(shell,/import \{bootstrapSession,completeAuthentication\} from '\.\/session-lifecycle'/);
+  assert.match(shell,/await bootstrapSession\(\{state,request:api,setupView,authView,shell,applyUser,startImportMonitor,route\}\)/);
+  assert.match(shell,/completeAuthentication\(\{state,result,setup,setupView,authView,shell,applyUser\}\)/);
+  assert.doesNotMatch(shell,/const status=await api\('\/api\/auth\/status'\)/);
+});
+
+test('global shell controls and presentation have typed ownership',async()=>{
+  const [controller,shell]=await Promise.all([
+    read('apps/web/client/src/shell-controller.ts'),
+    read('apps/web/client/src/app-shell.ts')
+  ]);
+  assert.match(controller,/export function createNotifier/);
+  assert.match(controller,/\/abort\/i/);
+  assert.match(controller,/tone==='error'\?6500:3500/);
+  assert.match(controller,/export function applyUserPresentation/);
+  for(const element of ['accountName','accountRole','avatar','documentElement']){
+    assert.match(controller,new RegExp(`elements\\.${element}`));
+  }
+  assert.match(controller,/export function wireShellControls/);
+  assert.match(controller,/request\('\/api\/auth\/logout'/);
+  assert.match(controller,/classList\.toggle\('nav-open'\)/);
+  assert.match(controller,/location\.hash\.slice\(1\)/);
+  assert.match(controller,/addEventListener\('beforeunload'/);
+  assert.match(shell,/from '\.\/shell-controller'/);
+  assert.match(shell,/const notify=createNotifier\(toast\)/);
+  assert.match(shell,/applyUserPresentation\(state,user/);
+  assert.match(shell,/wireShellControls\(\{state/);
+  assert.doesNotMatch(shell,/function notify\(/);
+  assert.doesNotMatch(shell,/document\.querySelector\('#logout'\)\.addEventListener/);
+  assert.doesNotMatch(shell,/addEventListener\('beforeunload'/);
 });

@@ -35,4 +35,5 @@ export interface LibraryMountOptions {
   notify:(message:string,tone?:string)=>void;
   onViewChange:(view:LibraryView)=>void;
   onItemChange?:(item:LibraryItem)=>void;
+  onLoaded?:(items:LibraryItem[],mode?:string)=>void;
 }
