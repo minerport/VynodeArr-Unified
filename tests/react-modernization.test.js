@@ -837,3 +837,8 @@ test('legacy library filtering and sorting have typed ownership',async()=>{
   assert.doesNotMatch(shell,/const titleInitial=item=>/);
   assert.doesNotMatch(shell,/function filtered\(kind\)\{const movie=/);
 });
+
+test('application layout reserves a stable scrollbar gutter',async()=>{
+  const styles=await read('apps/web/public/styles.css');
+  assert.match(styles,/html\{scrollbar-gutter:stable\}/);
+});

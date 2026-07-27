@@ -7,6 +7,13 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.7] - 2026-07-26
+
+### Fixed
+
+- Prevented horizontal page jitter in Edge when navigating between short
+  loading states and tall settings pages such as Engines.
+
 ## [2.0.6] - 2026-07-26
 
 ### Changed
@@ -105,7 +112,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.6...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.7...HEAD
+[2.0.7]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.6...v2.0.7
 [2.0.6]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.5...v2.0.6
 [2.0.5]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.4...v2.0.5
 [2.0.4]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.3...v2.0.4
