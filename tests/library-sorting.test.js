@@ -39,3 +39,15 @@ test('missing metadata stays last and random order is stable for a seed',()=>{
   assert.equal(sortLibraryItems(incomplete,'movies','rating','descending').at(-1).id,'movie_4');
   assert.deepEqual(ids(sortLibraryItems(items,'movies','random','ascending',1234)),ids(sortLibraryItems(items,'movies','random','ascending',1234)));
 });
+
+test('year sorting uses the domain release date before falling back to title',()=>{
+  const sameYear=[
+    {id:'1',title:'Alpha',sortTitle:'alpha',year:2024,releaseDate:'2024-11-01',firstAired:'2024-02-01'},
+    {id:'2',title:'Zulu',sortTitle:'zulu',year:2024,releaseDate:'2024-01-15',firstAired:'2024-10-15'},
+    {id:'3',title:'Undated',sortTitle:'undated',year:2024}
+  ];
+  assert.deepEqual(ids(sortLibraryItems(sameYear,'movies','year','ascending')),['2','1','3']);
+  assert.deepEqual(ids(sortLibraryItems(sameYear,'movies','year','descending')),['1','2','3']);
+  assert.deepEqual(ids(sortLibraryItems(sameYear,'tv','year','ascending')),['1','2','3']);
+  assert.deepEqual(ids(sortLibraryItems(sameYear,'tv','year','descending')),['2','1','3']);
+});

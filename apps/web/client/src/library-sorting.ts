@@ -85,6 +85,13 @@ export function sortLibraryItems(items:LibraryItem[],kind:LibraryKind,sort:Libra
     if(a===null)return 1;
     if(b===null)return-1;
     const compared=typeof a==='number'&&typeof b==='number'?a-b:String(a).localeCompare(String(b),undefined,{numeric:true,sensitivity:'base'});
-    return compared?compared*factor:left.title.localeCompare(right.title);
+    if(compared)return compared*factor;
+    if(sort==='year'){
+      const leftDate=date(movie?left.releaseDate:left.firstAired),rightDate=date(movie?right.releaseDate:right.firstAired);
+      if(leftDate!==null&&rightDate!==null&&leftDate!==rightDate)return(leftDate-rightDate)*factor;
+      if(leftDate===null&&rightDate!==null)return 1;
+      if(leftDate!==null&&rightDate===null)return-1;
+    }
+    return left.title.localeCompare(right.title);
   });
 }
