@@ -1,4 +1,4 @@
-import {parseRoute,type RouteKey} from './routing';
+import {parseRoute,type AppRoute,type RouteKey} from './routing';
 
 interface NavigationBridge{
   unmountDiscover?:()=>void;
@@ -13,12 +13,24 @@ interface NavigationLifecycleOptions{
   onDiscoverDetails:(detail:unknown)=>void;
 }
 
+export function shouldResetRouteScroll(previous:AppRoute,next:AppRoute):boolean{
+  const returnsToMovieLibrary=previous.key==='movie'&&next.key==='movies';
+  const returnsToTvLibrary=previous.key==='series'&&next.key==='tv';
+  return !returnsToMovieLibrary&&!returnsToTvLibrary;
+}
+
 export function wireNavigationLifecycle(options:NavigationLifecycleOptions):()=>void{
+  let activeRoute=parseRoute(options.window.location.hash);
   const onDiscoverDetails=(event:Event)=>{
     options.onDiscoverDetails((event as CustomEvent<unknown>).detail);
   };
   const onHashChange=()=>{
+    const nextRoute=parseRoute(options.window.location.hash);
     options.bridge()?.unmountDiscover?.();
+    if(shouldResetRouteScroll(activeRoute,nextRoute)){
+      options.window.scrollTo({top:0,left:0,behavior:'instant'});
+    }
+    activeRoute=nextRoute;
     void options.route();
   };
   const preloadBindings:Array<{

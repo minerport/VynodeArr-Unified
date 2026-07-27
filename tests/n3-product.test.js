@@ -26,8 +26,10 @@ test('first administrator validates identity uniqueness and setup never repeats'
 }));
 test('account updates email and username, password change invalidates other sessions',()=>tempAuth(async(auth)=>{
   const admin=await auth.createInitialAdministrator(adminInput),current=await auth.createSession(admin,{ip:'10.0.0.4',userAgent:'Mozilla Chrome Windows'}),other=await auth.createSession(admin,{ip:'10.0.0.5',userAgent:'Mozilla Firefox Linux'});
-  const updated=await auth.updateAccount(admin.id,{name:'Updated Owner',username:'new-owner',email:'new@example.test',currentPassword:adminInput.password,newPassword:'Another-strong-pass2',confirmPassword:'Another-strong-pass2'},current.id);
-  assert.equal(updated.username,'new-owner');assert.equal(updated.email,'new@example.test');assert.equal(auth.session(other.id),null);assert.ok(auth.session(current.id));
+  const updated=await auth.updateAccount(admin.id,{name:'Updated Owner',username:'new-owner',email:'new@example.test',uiStyle:'oled',uiDensity:'compact',motionPreference:'reduced',currentPassword:adminInput.password,newPassword:'Another-strong-pass2',confirmPassword:'Another-strong-pass2'},current.id);
+  assert.equal(updated.username,'new-owner');assert.equal(updated.email,'new@example.test');assert.equal(updated.uiStyle,'oled');assert.equal(updated.uiDensity,'compact');assert.equal(updated.motionPreference,'reduced');assert.equal(auth.session(other.id),null);assert.ok(auth.session(current.id));
+  const unchanged=await auth.updateAccount(admin.id,{uiStyle:'unsupported',uiDensity:'unsupported',motionPreference:'unsupported'},current.id);
+  assert.equal(unchanged.uiStyle,'oled');assert.equal(unchanged.uiDensity,'compact');assert.equal(unchanged.motionPreference,'reduced');
   assert.ok(await auth.login('new@example.test','Another-strong-pass2',{ip:'10.0.0.6'}));
 }));
 test('session listing masks IP and supports other-session revocation',()=>tempAuth(async(auth)=>{

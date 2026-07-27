@@ -1,0 +1,932 @@
+:root {
+  --ui-content-max: 1540px;
+  --ui-control-height: 44px;
+  --ui-control-height-compact: 38px;
+  --ui-radius-control: 12px;
+  --ui-radius-panel: 18px;
+  --ui-radius-hero: 22px;
+  --ui-space-1: .5rem;
+  --ui-space-2: .75rem;
+  --ui-space-3: 1rem;
+  --ui-space-4: 1.5rem;
+  --ui-space-5: 2rem;
+  --ui-surface: var(--glass-surface);
+  --ui-surface-strong: var(--glass-surface-strong);
+  --ui-control-surface: var(--glass-control);
+  --ui-control-hover: var(--glass-control-hover);
+  --ui-border: var(--glass-border);
+  --ui-shadow: var(--glass-shadow);
+  --ui-backdrop-filter: var(--glass-blur);
+  --ui-overlay: color-mix(in srgb,var(--bg) 72%,transparent);
+  --ui-focus-ring: color-mix(in srgb,var(--cyan) 72%,white 8%);
+  --ui-danger: #ff7583;
+  --ui-page-background: var(--page-gradient);
+  --ui-shell-surface: color-mix(in srgb,var(--bg) 88%,transparent);
+  --ui-scroll-track: color-mix(in srgb,var(--bg) 78%,transparent);
+  --ui-scroll-thumb: color-mix(in srgb,var(--accent) 46%,var(--line));
+  --ui-scroll-thumb-hover: color-mix(in srgb,var(--accent) 68%,var(--line));
+}
+
+/*
+ * Route shells and off-canvas navigation must never widen the document.
+ * Purpose-built tab, table, and chip scrollers retain their own overflow.
+ */
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+  overflow-x: clip;
+}
+
+body {
+  background: var(--ui-page-background);
+  background-attachment: fixed;
+  color: var(--text);
+}
+
+.app-shell > aside,
+.app-shell > main > header {
+  border-color: var(--ui-border);
+  background: var(--ui-shell-surface);
+  backdrop-filter: var(--ui-backdrop-filter);
+  -webkit-backdrop-filter: var(--ui-backdrop-filter);
+}
+
+/*
+ * Presentation style and color theme are separate concerns. Glass is the
+ * current product default; these token-only variants make future style choices
+ * possible without changing route markup or engine-facing behavior.
+ */
+[data-ui-style="solid"] {
+  --glass-surface: var(--panel2);
+  --glass-surface-strong: var(--panel);
+  --glass-control: var(--input);
+  --glass-control-hover: var(--panel2);
+  --glass-control-strong: var(--panel);
+  --glass-blur: none;
+  --ui-surface: var(--panel2);
+  --ui-surface-strong: var(--panel);
+  --ui-control-surface: var(--input);
+  --ui-control-hover: var(--panel2);
+  --ui-shadow: 0 10px 26px rgba(0,0,0,.2);
+  --ui-backdrop-filter: none;
+  --ui-overlay: color-mix(in srgb,var(--bg) 92%,black 8%);
+  --ui-page-background: linear-gradient(180deg,var(--bg),color-mix(in srgb,var(--bg) 94%,black));
+  --ui-shell-surface: var(--bg);
+  --ui-scroll-track: var(--bg);
+  --ui-scroll-thumb: color-mix(in srgb,var(--accent) 38%,var(--line));
+}
+
+[data-ui-style="oled"] {
+  --glass-surface: linear-gradient(145deg,rgba(8,8,10,.96),rgba(0,0,0,.98));
+  --glass-surface-strong: linear-gradient(145deg,rgba(12,12,15,.98),#000);
+  --glass-control: rgba(18,18,22,.96);
+  --glass-control-hover: rgba(28,28,34,.98);
+  --glass-control-strong: #050506;
+  --glass-blur: none;
+  --ui-surface: linear-gradient(145deg,rgba(8,8,10,.96),rgba(0,0,0,.98));
+  --ui-surface-strong: linear-gradient(145deg,rgba(12,12,15,.98),#000);
+  --ui-control-surface: rgba(18,18,22,.96);
+  --ui-control-hover: rgba(28,28,34,.98);
+  --ui-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+  --ui-backdrop-filter: none;
+  --ui-overlay: rgba(0,0,0,.9);
+  --ui-page-background: #000;
+  --ui-shell-surface: #000;
+  --ui-scroll-track: #000;
+  --ui-scroll-thumb: color-mix(in srgb,var(--accent) 52%,#1b1b20);
+}
+
+[data-ui-style="high-contrast"] {
+  --glass-surface: var(--panel);
+  --glass-surface-strong: var(--panel);
+  --glass-control: var(--input);
+  --glass-control-hover: var(--panel2);
+  --glass-control-strong: var(--panel);
+  --glass-border: color-mix(in srgb,var(--text) 72%,var(--line));
+  --glass-blur: none;
+  --ui-surface: var(--panel);
+  --ui-surface-strong: var(--panel);
+  --ui-control-surface: var(--input);
+  --ui-control-hover: var(--panel2);
+  --ui-border: color-mix(in srgb,var(--text) 72%,var(--line));
+  --ui-shadow: none;
+  --ui-backdrop-filter: none;
+  --ui-overlay: color-mix(in srgb,var(--bg) 96%,black);
+  --ui-focus-ring: var(--text);
+  --ui-page-background: var(--bg);
+  --ui-shell-surface: var(--bg);
+  --ui-scroll-track: var(--bg);
+  --ui-scroll-thumb: var(--text);
+  --ui-scroll-thumb-hover: var(--cyan);
+}
+
+/*
+ * Non-glass styles must remove every legacy highlight and blur, including
+ * route-specific surfaces authored before presentation styles existed.
+ */
+:is(
+  [data-ui-style="solid"],
+  [data-ui-style="oled"],
+  [data-ui-style="high-contrast"]
+) :is(
+  .panel,.card,.metric,.summary,.notice,.empty,.auth-panel,.wizard-panel,.engine-form,
+  .management-record,.profile-item,.quality-option,.condition-card,.rule-summary-card,
+  .discovery-card,.storage-folder-card,.provider-list,.provider-editor,.editor-panel,
+  .react-queue-list,.react-queue-row,.wanted-card,.wanted-show,.series-season,
+  .template-card,.score-review,.template-customizer,.review-facts > div,
+  .format-score-section,.unscored-formats,fieldset,.calendar-shell,.calendar-agenda,
+  .discover-toolbar,.discover-poster,.history-summary,.react-history-domain
+) {
+  border-color: var(--ui-border) !important;
+  background: var(--ui-surface) !important;
+  box-shadow: var(--ui-shadow) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+:is(
+  [data-ui-style="solid"],
+  [data-ui-style="oled"],
+  [data-ui-style="high-contrast"]
+) :is(
+  .rename-preview-heading,.rename-preview-actions,.release-browser-heading,
+  .release-browser-toolbar,.native-release-header,.template-review-header,
+  .template-review-footer,.template-review > header,.template-review > footer,
+  .release-profile-card > .editor-heading,.release-profile-card > .editor-actions,
+  .custom-format-editor > .editor-heading,.custom-format-editor > .editor-actions
+) {
+  border-color: var(--ui-border) !important;
+  background: var(--ui-surface-strong) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+:is(
+  [data-ui-style="solid"],
+  [data-ui-style="oled"],
+  [data-ui-style="high-contrast"]
+) :is(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,textarea,.user-action,.secondary,.chip,.icon-button,.sort,.text-button,
+  .settings-tabs,.system-tabs,.wanted-segment,.management-toolbar,.template-toolbar,
+  .react-queue-toolbar,.template-family-tabs button,.purpose-chips button
+) {
+  border-color: var(--ui-border) !important;
+  background: var(--ui-control-surface) !important;
+  color: var(--text);
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+:is(
+  [data-ui-style="solid"],
+  [data-ui-style="oled"],
+  [data-ui-style="high-contrast"]
+) :is(
+  dialog,.react-dialog,.template-review-modal,.template-review,.release-profile-card,
+  .react-wanted-dialog,.vynode-rename-dialog,.vynode-release-dialog,.react-detail-dialog,
+  .react-tv-dialog,.discover-add-dialog,.discover-detail-dialog,.file-browser-dialog
+) {
+  border-color: var(--ui-border) !important;
+  background: var(--ui-surface-strong) !important;
+  box-shadow: 0 24px 70px rgba(0,0,0,.42) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+:is(
+  [data-ui-style="solid"],
+  [data-ui-style="oled"],
+  [data-ui-style="high-contrast"]
+) :is(
+  .react-library > .hero,
+  .react-library > .summary,
+  .react-library-toolbar,
+  .react-library-card
+)::after {
+  display: none;
+}
+
+[data-ui-density="compact"] {
+  --ui-control-height: 38px;
+  --ui-control-height-compact: 34px;
+  --ui-radius-control: 9px;
+  --ui-radius-panel: 15px;
+  --ui-radius-hero: 18px;
+  --ui-space-1: .35rem;
+  --ui-space-2: .55rem;
+  --ui-space-3: .75rem;
+  --ui-space-4: 1rem;
+  --ui-space-5: 1.4rem;
+}
+
+[data-ui-density="compact"] :is(.panel,.card) {
+  --route-panel-padding: 1rem;
+}
+
+[data-ui-density="compact"] :is(.data-row,.queue-row,.history-row,.session-list article,.user-list article) {
+  padding-block: .62rem;
+}
+
+[data-ui-density="compact"] :is(.grid,.rule-summary-grid,.dashboard-grid,.dashboard-panels) {
+  gap: .75rem;
+}
+
+[data-motion="reduced"] *,
+[data-motion="reduced"] *::before,
+[data-motion="reduced"] *::after {
+  scroll-behavior: auto !important;
+  transition-duration: .01ms !important;
+  animation-duration: .01ms !important;
+  animation-iteration-count: 1 !important;
+}
+
+/*
+ * Shared page chrome. Cinematic discovery and detail views intentionally keep
+ * their purpose-built layouts while settings and management pages share this
+ * stable visual contract.
+ */
+:is(
+  .react-dashboard,
+  .react-library,
+  .react-collections,
+  .react-add-media,
+  .react-wanted,
+  .react-queue,
+  .react-history,
+  .react-calendar,
+  .react-health,
+  .react-account,
+  .react-engine-management,
+  .react-engine-setup,
+  .react-system,
+  .quality-profiles-route,
+  .discover-settings-route,
+  .guide-templates-route,
+  .media-management-react-route,
+  .root-folders-react-route,
+  .provider-settings-route,
+  .selection-rules-route,
+  .management-react-route
+) > .hero {
+  min-height: calc(var(--ui-control-height) * 3);
+  margin: 0 0 var(--ui-space-3);
+  padding: clamp(1.25rem,2vw,1.8rem);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ui-space-4);
+  overflow: hidden;
+  background: var(--ui-surface-strong);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-hero);
+  box-shadow: var(--ui-shadow);
+  backdrop-filter: var(--ui-backdrop-filter);
+  -webkit-backdrop-filter: var(--ui-backdrop-filter);
+}
+
+:is(
+  .react-dashboard,
+  .react-library,
+  .react-collections,
+  .react-add-media,
+  .react-wanted,
+  .react-queue,
+  .react-history,
+  .react-calendar,
+  .react-health,
+  .react-account,
+  .react-engine-management,
+  .react-engine-setup,
+  .react-system,
+  .quality-profiles-route,
+  .discover-settings-route,
+  .guide-templates-route,
+  .media-management-react-route,
+  .root-folders-react-route,
+  .provider-settings-route,
+  .selection-rules-route,
+  .management-react-route
+) > .hero h1 {
+  margin: .15rem 0 .4rem;
+  font-size: clamp(2rem,3.5vw,3.35rem);
+  line-height: 1;
+  letter-spacing: -.045em;
+}
+
+.hero .lede {
+  max-width: 72ch;
+  margin: 0;
+}
+
+.hero-actions,
+.panel-heading,
+.toolbar,
+.modal-actions {
+  gap: var(--ui-space-2);
+}
+
+.toolbar,
+.form-actions,
+.editor-actions,
+.rule-summary-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.filters,
+.toolbar > div,
+.hero-actions,
+.form-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--ui-space-2);
+  flex-wrap: wrap;
+}
+
+.form-actions,
+.editor-actions {
+  justify-content: flex-end;
+}
+
+.panel-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.panel-heading > :first-child {
+  min-width: 0;
+}
+
+.panel-heading h2,
+.panel-heading h3 {
+  margin-top: 0;
+}
+
+.panel-heading :is(p,.control-help),
+.empty p {
+  max-width: 72ch;
+}
+
+:is(.panel,.card) > :last-child {
+  margin-bottom: 0;
+}
+
+button,
+.button,
+input:not([type="checkbox"]):not([type="radio"]),
+select {
+  min-height: var(--ui-control-height);
+  border-radius: var(--ui-radius-control);
+}
+
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea {
+  border-color: var(--ui-border);
+  background: var(--ui-control-surface);
+  color: var(--text);
+}
+
+input:not([type="checkbox"]):not([type="radio"]):hover,
+select:hover,
+textarea:hover {
+  border-color: color-mix(in srgb,var(--accent) 44%,var(--ui-border));
+}
+
+input:not([type="checkbox"]):not([type="radio"]):focus,
+select:focus,
+textarea:focus {
+  border-color: color-mix(in srgb,var(--accent) 68%,var(--ui-border));
+  background: var(--ui-control-hover);
+}
+
+button,
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .45rem;
+}
+
+:is(button,.button,input,select,textarea,a):focus-visible {
+  outline: 2px solid var(--ui-focus-ring);
+  outline-offset: 2px;
+}
+
+:is(button,.button,input,select,textarea):disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
+  filter: saturate(.55);
+  opacity: .5;
+  box-shadow: none;
+}
+
+:is(button,.button):active:not(:disabled) {
+  filter: brightness(.96);
+}
+
+:is(button,.button).danger,
+.danger-button {
+  border-color: color-mix(in srgb,var(--ui-danger) 58%,var(--ui-border));
+  color: color-mix(in srgb,var(--ui-danger) 88%,white);
+}
+
+:is(button,.button).danger:hover,
+.danger-button:hover {
+  background: color-mix(in srgb,var(--ui-danger) 15%,var(--ui-control-hover));
+}
+
+button.icon-button,
+.icon-button {
+  width: var(--ui-control-height);
+  min-width: var(--ui-control-height);
+  padding-inline: 0;
+}
+
+.settings-tabs {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: .35rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb,var(--accent) 45%,var(--line)) transparent;
+}
+
+.settings-tabs > a {
+  flex: 0 0 auto;
+  min-height: var(--ui-control-height);
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.settings-tabs > a:focus-visible {
+  outline-offset: -3px;
+}
+
+.settings-tabs::after {
+  content: "";
+  flex: 0 0 .35rem;
+}
+
+.empty {
+  min-height: 180px;
+  padding: clamp(2rem,5vw,4rem) clamp(1rem,3vw,2rem);
+  display: grid;
+  place-content: center;
+  text-align: center;
+}
+
+.empty > :first-child {
+  margin-top: 0;
+}
+
+.empty > :last-child {
+  margin-bottom: 0;
+}
+
+.react-dialog-backdrop,
+.template-review-backdrop {
+  background: var(--ui-overlay);
+  backdrop-filter: blur(8px) saturate(1.05);
+  -webkit-backdrop-filter: blur(8px) saturate(1.05);
+}
+
+/*
+ * Keep every native dialog inside the visible viewport. Short dialogs remain
+ * centered; long dialogs are capped to the viewport and scroll internally
+ * instead of extending above the browser window.
+ */
+dialog[open] {
+  position: fixed !important;
+  inset: 0 !important;
+  box-sizing: border-box;
+  max-height: calc(100dvh - 2rem);
+  margin: auto !important;
+  overflow: auto;
+}
+
+:is(
+  .react-dialog-backdrop,
+  .template-review-backdrop,
+  .root-folder-browser-backdrop,
+  .vynode-detail-modal-host
+) {
+  box-sizing: border-box;
+  max-height: 100dvh;
+  overflow: auto;
+}
+
+:is(
+  .react-dialog-backdrop,
+  .template-review-backdrop,
+  .root-folder-browser-backdrop,
+  .vynode-detail-modal-host
+) > :is(
+  [role="dialog"],
+  form,
+  section
+) {
+  box-sizing: border-box;
+  max-height: calc(100dvh - 2rem);
+}
+
+/* React owns the current library card markup. These final-layer rules prevent
+ * older generic library styles from resizing or clipping its detailed rows. */
+.react-library .library-results-grid .react-library-card {
+  border-color: var(--ui-border) !important;
+  background: var(--ui-surface) !important;
+  box-shadow: var(--ui-shadow) !important;
+  backdrop-filter: var(--ui-backdrop-filter);
+  -webkit-backdrop-filter: var(--ui-backdrop-filter);
+}
+
+.react-library .library-results-grid .react-library-card .card-body {
+  background: transparent !important;
+}
+
+.react-library .library-results-grid .react-library-card .poster,
+.react-library .library-results-grid .react-library-card .art-fallback {
+  border-color: var(--ui-border);
+  background: var(--ui-control-surface);
+}
+
+.react-library .library-results-grid:is(.view-cards,.view-compact) .react-library-card {
+  min-height: 0;
+}
+
+.react-library .library-results-grid:is(.view-cards,.view-compact) .card-body {
+  display: flex;
+  flex-direction: column;
+  padding: .85rem .9rem;
+}
+
+.react-library .library-results-grid.view-compact .react-library-card {
+  min-height: 11.5rem;
+}
+
+.react-library .library-results-grid.view-cards .react-library-overview {
+  display: block;
+  height: 2.15rem;
+  min-height: 2.15rem;
+  max-height: 2.15rem;
+  margin-block: .5rem;
+  overflow: hidden;
+  line-height: 1.075rem;
+}
+
+.react-library .library-results-grid:is(.view-cards,.view-compact) .react-library-card-actions {
+  margin-top: auto;
+  padding-top: .55rem;
+}
+
+.react-library .library-results-grid.view-compact .react-library-heading {
+  display: grid;
+  grid-template-columns: minmax(0,1fr);
+  gap: .35rem;
+}
+
+.react-library .library-results-grid.view-compact .react-library-heading h2,
+.react-library .library-results-grid.view-compact .react-library-heading h2 a {
+  display: block;
+  overflow: hidden;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.react-library .library-results-grid.view-compact .react-library-heading .library-status-badges {
+  justify-content: flex-start;
+}
+
+.react-library .library-results-grid .react-library-card-actions {
+  gap: .4rem;
+}
+
+.react-library .library-results-grid .react-library-card-actions .secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  min-width: 0;
+  min-height: 2rem;
+  padding: .35rem .65rem;
+  font-size: .72rem;
+  font-weight: 750;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.react-library .library-results-grid.view-list .react-library-card-actions .secondary {
+  min-width: 4.6rem;
+}
+
+.react-library .library-results-grid.view-list .react-library-card {
+  grid-template-columns: 5.75rem minmax(0,1fr);
+  height: auto;
+  min-height: 9rem;
+}
+
+.react-library .library-results-grid.view-list .react-library-card .card-body {
+  display: grid;
+  grid-template-columns: minmax(14rem,1.15fr) minmax(22rem,2fr) auto;
+  grid-template-areas:
+    "heading details actions"
+    "progress details actions"
+    "state details actions";
+  grid-template-rows: auto .25rem auto;
+  gap: .4rem .8rem;
+  align-content: center;
+  align-items: center;
+  min-height: 9rem;
+  padding: .7rem .8rem;
+  overflow: visible;
+}
+
+.view-list .react-library-heading { grid-area: heading; }
+.view-list .progress { grid-area: progress; }
+.view-list .detail-row { grid-area: state; margin-top: 0; }
+.view-list .react-library-list-details { grid-area: details; }
+.view-list .react-library-card-actions { grid-area: actions; }
+
+@media (max-width: 1050px) {
+  .react-library .library-results-grid.view-list .react-library-card .card-body {
+    grid-template-columns: minmax(12rem,1fr) minmax(16rem,1.2fr);
+    grid-template-areas:
+      "heading details"
+      "progress details"
+      "state details"
+      "actions actions";
+    grid-template-rows: auto .25rem auto auto;
+  }
+}
+
+@media (max-width: 760px) {
+  .react-library .library-results-grid.view-list .react-library-card {
+    grid-template-columns: 5rem minmax(0,1fr);
+    min-height: 0;
+  }
+
+  .react-library .library-results-grid.view-list .react-library-card .card-body {
+    display: block;
+    min-height: 0;
+    padding: .8rem;
+  }
+}
+
+.react-dialog,
+.template-review-modal,
+.template-review,
+.release-profile-card,
+.react-wanted-dialog,
+.vynode-rename-dialog,
+.vynode-release-dialog,
+.react-detail-dialog,
+.vynode-detail-surface,
+.file-browser-dialog {
+  background: var(--ui-surface-strong);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-panel);
+  box-shadow: 0 24px 80px rgba(0,0,0,.38),var(--ui-shadow);
+  backdrop-filter: var(--ui-backdrop-filter);
+  -webkit-backdrop-filter: var(--ui-backdrop-filter);
+}
+
+.react-wanted-dialog::backdrop,
+.vynode-rename-dialog::backdrop,
+.vynode-release-dialog::backdrop,
+.react-detail-dialog::backdrop,
+.file-browser-dialog::backdrop {
+  background: var(--ui-overlay);
+  backdrop-filter: blur(8px) saturate(1.05);
+  -webkit-backdrop-filter: blur(8px) saturate(1.05);
+}
+
+:is(
+  .rename-preview-heading,
+  .rename-preview-actions,
+  .release-browser-heading,
+  .release-browser-toolbar,
+  .native-release-header,
+  .template-review-header,
+  .template-review-footer,
+  .release-profile-card > .editor-heading,
+  .release-profile-card > .editor-actions
+) {
+  border-color: color-mix(in srgb,var(--ui-border) 74%,transparent);
+  background: var(--ui-surface-strong);
+  backdrop-filter: var(--ui-backdrop-filter);
+  -webkit-backdrop-filter: var(--ui-backdrop-filter);
+}
+
+:is(
+  .rename-folder-preview,
+  .rename-file-list article,
+  .native-release-row,
+  .file-browser-list .folder-row,
+  .react-wanted-shows > .wanted-show,
+  .wanted-segment,
+  .template-family-tabs button,
+  .purpose-chips button,
+  .template-review .review-facts div,
+  .template-change-list article
+) {
+  border-color: var(--ui-border);
+  background: var(--ui-control-surface);
+}
+
+:is(
+  .rename-file-list article,
+  .native-release-row,
+  .file-browser-list .folder-row,
+  .template-family-tabs button,
+  .purpose-chips button
+):hover {
+  border-color: color-mix(in srgb,var(--accent) 58%,var(--ui-border));
+  background: var(--ui-control-hover);
+}
+
+.template-family-tabs button.active,
+.purpose-chips button.active,
+.wanted-segment button.active {
+  border-color: color-mix(in srgb,var(--accent) 72%,var(--ui-border));
+  background: var(--tab-active);
+  color: var(--text);
+}
+
+.react-dialog > :is(header,.modal-header),
+.template-review-modal > :is(header,.template-review-header) {
+  border-bottom-color: color-mix(in srgb,var(--ui-border) 74%,transparent);
+}
+
+.react-dialog > :is(footer,.modal-actions),
+.template-review-modal > :is(footer,.template-review-footer) {
+  border-top-color: color-mix(in srgb,var(--ui-border) 74%,transparent);
+}
+
+::selection {
+  background: color-mix(in srgb,var(--accent) 42%,transparent);
+  color: var(--text);
+}
+
+* {
+  scrollbar-color: var(--ui-scroll-thumb) var(--ui-scroll-track);
+}
+
+*::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--ui-scroll-track);
+}
+
+*::-webkit-scrollbar-thumb {
+  min-height: 32px;
+  border: 3px solid var(--ui-scroll-track);
+  border-radius: 999px;
+  background: var(--ui-scroll-thumb);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--ui-scroll-thumb-hover);
+}
+
+*::-webkit-scrollbar-corner {
+  background: var(--ui-scroll-track);
+}
+
+input[type="checkbox"],
+input[type="radio"],
+input[type="range"] {
+  accent-color: var(--accent);
+}
+
+::placeholder {
+  color: color-mix(in srgb,var(--muted) 78%,transparent);
+  opacity: 1;
+}
+
+.react-discover .discover-row-controls button:not(.discover-results-more) {
+  width: 2.25rem;
+  height: 2.25rem;
+  min-height: 2.25rem;
+  padding: 0;
+  border-radius: .65rem;
+  background: color-mix(in srgb,var(--glass-control-strong) 82%,transparent);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.09);
+  font-size: 1.45rem;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.react-discover .discover-action {
+  display: inline-flex;
+  width: auto;
+  height: 2rem;
+  min-height: 2rem;
+  align-items: center;
+  gap: .28rem;
+  padding: .35rem .62rem;
+  border-radius: .55rem;
+  background: color-mix(in srgb,var(--glass-control-strong) 88%,transparent);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.11),0 6px 18px rgba(0,0,0,.28);
+  font-size: .7rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: .02em;
+}
+
+.react-discover .discover-action span {
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: .7;
+}
+
+@media (forced-colors: active) {
+  :is(button,.button,input,select,textarea,a):focus-visible {
+    outline: 2px solid CanvasText;
+  }
+
+  * {
+    scrollbar-color: CanvasText Canvas;
+  }
+}
+
+@media (max-width: 760px) {
+  :is(
+    .react-dashboard,
+    .react-library,
+    .react-collections,
+    .react-add-media,
+    .react-wanted,
+    .react-queue,
+    .react-history,
+    .react-calendar,
+    .react-health,
+    .react-account,
+    .react-engine-management,
+    .react-engine-setup,
+    .react-system,
+    .quality-profiles-route,
+    .discover-settings-route,
+    .guide-templates-route,
+    .media-management-react-route,
+    .root-folders-react-route,
+    .provider-settings-route,
+    .selection-rules-route,
+    .management-react-route
+  ) > .hero,
+  .panel-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .hero-actions {
+    width: 100%;
+  }
+
+  .hero-actions > * {
+    flex: 1 1 auto;
+  }
+
+  .toolbar {
+    align-items: stretch;
+  }
+
+  .toolbar > * {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :is(.react-dialog,.template-review-modal),
+  :is(.panel,.card,.hero,.settings-tabs) {
+    background-color: var(--panel);
+  }
+}

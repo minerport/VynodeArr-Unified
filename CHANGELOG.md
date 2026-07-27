@@ -7,6 +7,43 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.9] - 2026-07-27
+
+### Added
+
+- Added independent interface-style choices for Glass, Solid, OLED, and High
+  Contrast alongside the existing color themes.
+- Added comfortable and compact interface density preferences plus system,
+  reduced, and full motion settings.
+- Added a shared presentation foundation for page backgrounds, cards,
+  controls, dialogs, borders, scrollbars, and focus states.
+
+### Changed
+
+- Standardized page heroes, navigation, panels, forms, buttons, dropdowns,
+  cards, and modal surfaces across React and legacy-backed routes.
+- Refined Movies and TV information cards, compact grids, and detailed lists
+  with consistent themed surfaces, tighter spacing, aligned 32-pixel actions,
+  bounded summaries, and predictable title handling.
+- Improved activity-history spacing and responsive layout so labels, badges,
+  timestamps, and actions remain separated at narrower widths.
+- Account presentation preferences are now validated and persisted per user.
+
+### Fixed
+
+- Preserved the originating page position whenever a modal is opened and
+  closed, while avoiding stale restoration after intentional navigation.
+- Constrained short dialogs to the center of the visible viewport and long
+  dialogs to an internally scrollable viewport-safe area.
+- Prevented information-card summaries from being partially clipped behind
+  their actions.
+- Prevented compact-grid movie and television titles from breaking inside
+  words when status badges reduce the available heading width.
+- Corrected detailed-list card structure, metadata alignment, action sizing,
+  and theme-inconsistent card backgrounds.
+- Corrected Discover modal positioning and several overlapping or
+  edge-crowded controls across the updated routes.
+
 ## [2.0.8] - 2026-07-27
 
 ### Added
@@ -133,7 +170,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.8...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.9...HEAD
+[2.0.9]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.8...v2.0.9
 [2.0.8]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.7...v2.0.8
 [2.0.7]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.6...v2.0.7
 [2.0.6]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.5...v2.0.6

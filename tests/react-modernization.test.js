@@ -602,6 +602,10 @@ test('navigation events and route preloading have typed lifecycle ownership',asy
   assert.match(lifecycle,/addEventListener\('vynodearr:discover-details'/);
   assert.match(lifecycle,/addEventListener\('hashchange'/);
   assert.match(lifecycle,/unmountDiscover/);
+  assert.match(lifecycle,/export function shouldResetRouteScroll/);
+  assert.match(lifecycle,/previous\.key==='movie'&&next\.key==='movies'/);
+  assert.match(lifecycle,/previous\.key==='series'&&next\.key==='tv'/);
+  assert.match(lifecycle,/scrollTo\(\{top:0,left:0,behavior:'instant'\}\)/);
   assert.match(lifecycle,/querySelectorAll<HTMLAnchorElement>\('a\[href\^="#"\]'\)/);
   assert.match(lifecycle,/parseRoute\(link\.hash\)\.key/);
   assert.match(lifecycle,/requestIdleCallback/);
@@ -723,6 +727,27 @@ test('new release profiles remain drafts until explicitly saved',async()=>{
   assert.match(view,/profile\.id\?<article className="rule-summary-card"/);
 });
 
+test('movie and television detailed-list cards use bounded named layout areas',async()=>{
+  const styles=await read('apps/web/public/ui-foundation.css');
+  assert.match(styles,/library-results-grid \.react-library-card\s*\{[^}]*background:\s*var\(--ui-surface\) !important/);
+  assert.match(styles,/library-results-grid \.react-library-card \.card-body\s*\{[^}]*background:\s*transparent !important/);
+  assert.match(styles,/library-results-grid \.react-library-card-actions \.secondary\s*\{[^}]*display:\s*inline-flex;[^}]*min-height:\s*2rem/);
+  assert.match(styles,/library-results-grid\.view-compact \.react-library-card\s*\{[^}]*min-height:\s*11\.5rem/);
+  assert.match(styles,/library-results-grid\.view-list \.react-library-card\s*\{[^}]*height:\s*auto;[^}]*min-height:\s*9rem/);
+  assert.match(styles,/grid-template-areas:\s*"heading details actions"\s*"progress details actions"\s*"state details actions"/);
+  for(const area of ['heading','progress','state','details','actions']){
+    assert.match(styles,new RegExp(`grid-area:\\s*${area}`));
+  }
+  assert.match(styles,/@media \(max-width: 760px\)[\s\S]*library-results-grid\.view-list/);
+});
+
+test('new custom formats remain drafts until explicitly saved',async()=>{
+  const view=await read('apps/web/client/src/selection-rules.tsx');
+  assert.match(view,/const closeFormat=\(format:CustomFormat,index:number\)=>\{if\(!format\.id\)setFormats/);
+  assert.match(view,/onClick=\{\(\)=>closeFormat\(format,formatIndex\)\}/);
+  assert.match(view,/\{format\.id\?<button type="button" className="danger-secondary"/);
+});
+
 test('legacy shell state and shared helpers have typed ownership',async()=>{
   const [state,utils,shell]=await Promise.all([
     read('apps/web/client/src/app-state.ts'),
@@ -771,6 +796,9 @@ test('global shell controls and presentation have typed ownership',async()=>{
   for(const element of ['accountName','accountRole','avatar','documentElement']){
     assert.match(controller,new RegExp(`elements\\.${element}`));
   }
+  assert.match(controller,/dataset\.uiStyle=user\.uiStyle\|\|'glass'/);
+  assert.match(controller,/dataset\.uiDensity=user\.uiDensity\|\|'comfortable'/);
+  assert.match(controller,/dataset\.motion=user\.motionPreference\|\|'system'/);
   assert.match(controller,/export function wireShellControls/);
   assert.match(controller,/request\('\/api\/auth\/logout'/);
   assert.match(controller,/classList\.toggle\('nav-open'\)/);
@@ -841,4 +869,54 @@ test('legacy library filtering and sorting have typed ownership',async()=>{
 test('application layout reserves a stable scrollbar gutter',async()=>{
   const styles=await read('apps/web/public/styles.css');
   assert.match(styles,/html\{scrollbar-gutter:stable\}/);
+});
+
+test('all modal surfaces preserve their originating page position',async()=>{
+  const [restoration,shell]=await Promise.all([
+    read('apps/web/client/src/modal-scroll-restoration.ts'),
+    read('apps/web/client/src/app-shell.ts')
+  ]);
+  for(const selector of ['dialog\\[open\\]','role="dialog"','react-dialog-backdrop','release-profile-card']){
+    assert.match(restoration,new RegExp(selector));
+  }
+  assert.match(restoration,/prototype\.showModal/);
+  assert.match(restoration,/new runtime\.MutationObserver/);
+  assert.match(restoration,/position\.hash !== win\.location\.hash/);
+  assert.match(restoration,/win\.scrollTo\(/);
+  assert.match(shell,/import\('\.\/modal-scroll-restoration'\)/);
+  assert.match(shell,/\(\{installModalScrollRestoration\}\)=>installModalScrollRestoration\(window,document\)/);
+});
+
+test('presentation style remains separate from color theme',async()=>{
+  const [html,foundation,account,auth]=await Promise.all([
+    read('apps/web/public/index.html'),
+    read('apps/web/public/ui-foundation.css'),
+    read('apps/web/client/src/account.tsx'),
+    read('packages/platform/src/auth-service.js')
+  ]);
+  assert.match(html,/<html lang="en" data-ui-style="glass" data-ui-density="comfortable" data-motion="system">/);
+  assert.match(html,/ui-foundation\.css\?v=/);
+  assert.match(foundation,/\[data-ui-style="solid"\]/);
+  assert.match(foundation,/\[data-ui-style="oled"\]/);
+  assert.match(foundation,/\[data-ui-style="high-contrast"\]/);
+  assert.match(foundation,/--ui-page-background:/);
+  assert.match(foundation,/--ui-shell-surface:/);
+  assert.match(foundation,/--ui-scroll-thumb:/);
+  assert.match(foundation,/\*::\-webkit-scrollbar-thumb/);
+  assert.match(foundation,/backdrop-filter: none !important/);
+  assert.match(foundation,/\.template-review-footer/);
+  assert.match(foundation,/\.custom-format-editor > \.editor-actions/);
+  assert.match(foundation,/dialog\[open\][\s\S]*position: fixed !important/);
+  assert.match(foundation,/max-height: calc\(100dvh - 2rem\)/);
+  assert.match(foundation,/:focus-visible/);
+  assert.match(foundation,/@media \(forced-colors: active\)/);
+  assert.match(account,/name="uiStyle"/);
+  assert.match(account,/name="uiDensity"/);
+  assert.match(account,/name="motionPreference"/);
+  assert.match(account,/\['glass','Glass'\]/);
+  assert.match(auth,/const uiStyles=new Set\(\['glass','solid','oled','high-contrast'\]\)/);
+  assert.match(auth,/const uiDensities=new Set\(\['comfortable','compact'\]\)/);
+  assert.match(auth,/const motionPreferences=new Set\(\['system','reduced','full'\]\)/);
+  assert.match(foundation,/\[data-ui-density="compact"\]/);
+  assert.match(foundation,/\[data-motion="reduced"\]/);
 });

@@ -9,6 +9,12 @@ const normalize=(value)=>String(value||'').trim();
 const validEmail=(value)=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 const validUsername=(value)=>/^[a-zA-Z0-9._-]{3,64}$/.test(value);
 const passwordStrong=(value)=>String(value).length>=12&&/[a-z]/.test(value)&&/[A-Z]/.test(value)&&/\d/.test(value);
+const uiStyles=new Set(['glass','solid','oled','high-contrast']);
+const uiStyle=(value,fallback='glass')=>uiStyles.has(value)?value:fallback;
+const uiDensities=new Set(['comfortable','compact']);
+const uiDensity=(value,fallback='comfortable')=>uiDensities.has(value)?value:fallback;
+const motionPreferences=new Set(['system','reduced','full']);
+const motionPreference=(value,fallback='system')=>motionPreferences.has(value)?value:fallback;
 const maskIp=(ip='')=>ip.includes(':')?`${ip.split(':').slice(0,3).join(':')}:…`:ip.replace(/\.\d+$/,'.…');
 const clientInfo=(agent='')=>({
   browser:/Firefox/i.test(agent)?'Firefox':/Edg/i.test(agent)?'Edge':/Chrome/i.test(agent)?'Chrome':/Safari/i.test(agent)?'Safari':'Unknown browser',
@@ -27,7 +33,8 @@ export class AuthService {
     this.users=source.map((user)=>({
       ...user,name:user.name||user.username,email:user.email||`${user.username}@local.invalid`,
       enabled:user.enabled!==false,profileImage:user.profileImage||null,timeZone:user.timeZone||'UTC',
-      dateTimeFormat:user.dateTimeFormat||'locale',theme:user.theme||'dark',language:user.language||'en',
+      dateTimeFormat:user.dateTimeFormat||'locale',theme:user.theme||'dark',uiStyle:uiStyle(user.uiStyle),
+      uiDensity:uiDensity(user.uiDensity),motionPreference:motionPreference(user.motionPreference),language:user.language||'en',
       updatedAt:user.updatedAt||user.createdAt||new Date().toISOString()
     }));
     if(Array.isArray(users)||source.some((user)=>!user.name||!user.email))await this.#persistUsers();
@@ -51,7 +58,7 @@ export class AuthService {
     if(!(await this.setupRequired()))throw new Error('Setup is already complete');
     const value={name:normalize(input.name),username:normalize(input.username),email:normalize(input.email).toLowerCase(),password:input.password};
     this.#validateIdentity(value);if(input.password!==input.confirmPassword)throw new Error('Passwords do not match');this.#assertUnique(value.username,value.email);
-    const user={id:`user_${encode(randomBytes(12))}`,name:value.name,username:value.username,email:value.email,passwordHash:hashPassword(value.password),role:'administrator',enabled:true,profileImage:null,timeZone:'UTC',dateTimeFormat:'locale',theme:'dark',language:'en',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+    const user={id:`user_${encode(randomBytes(12))}`,name:value.name,username:value.username,email:value.email,passwordHash:hashPassword(value.password),role:'administrator',enabled:true,profileImage:null,timeZone:'UTC',dateTimeFormat:'locale',theme:'dark',uiStyle:'glass',uiDensity:'comfortable',motionPreference:'system',language:'en',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
     this.users.push(user);await this.#persistUsers();return this.publicUser(user);
   }
   publicUser(user){const {passwordHash,...safe}=user;return safe;}
@@ -85,7 +92,7 @@ export class AuthService {
     const user=this.users.find((item)=>item.id===userId);if(!user)throw new Error('User was not found');
     const username=normalize(input.username??user.username),email=normalize(input.email??user.email).toLowerCase(),name=normalize(input.name??user.name);
     this.#validateIdentity({name,username,email});this.#assertUnique(username,email,userId);
-    Object.assign(user,{name,username,email,profileImage:input.profileImage??user.profileImage,timeZone:input.timeZone||user.timeZone,dateTimeFormat:input.dateTimeFormat||user.dateTimeFormat,theme:input.theme||user.theme,language:input.language||user.language,updatedAt:new Date().toISOString()});
+    Object.assign(user,{name,username,email,profileImage:input.profileImage??user.profileImage,timeZone:input.timeZone||user.timeZone,dateTimeFormat:input.dateTimeFormat||user.dateTimeFormat,theme:input.theme||user.theme,uiStyle:uiStyle(input.uiStyle,user.uiStyle),uiDensity:uiDensity(input.uiDensity,user.uiDensity),motionPreference:motionPreference(input.motionPreference,user.motionPreference),language:input.language||user.language,updatedAt:new Date().toISOString()});
     if(input.newPassword){
       if(!verifyPassword(input.currentPassword,user.passwordHash))throw new Error('Current password was not accepted');
       if(input.newPassword!==input.confirmPassword)throw new Error('New passwords do not match');this.#validateIdentity({name,username,email,password:input.newPassword});user.passwordHash=hashPassword(input.newPassword);await this.revokeUserSessions(userId,currentSessionId);
@@ -96,7 +103,7 @@ export class AuthService {
   async createUser(input){
     const value={name:normalize(input.name),username:normalize(input.username),email:normalize(input.email).toLowerCase(),password:input.password};this.#validateIdentity(value);this.#assertUnique(value.username,value.email);
     if(!['administrator','viewer'].includes(input.role))throw new Error('Role is invalid');
-    const user={id:`user_${encode(randomBytes(12))}`,name:value.name,username:value.username,email:value.email,passwordHash:hashPassword(value.password),role:input.role,enabled:true,profileImage:null,timeZone:'UTC',dateTimeFormat:'locale',theme:'dark',language:'en',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};this.users.push(user);await this.#persistUsers();return this.publicUser(user);
+    const user={id:`user_${encode(randomBytes(12))}`,name:value.name,username:value.username,email:value.email,passwordHash:hashPassword(value.password),role:input.role,enabled:true,profileImage:null,timeZone:'UTC',dateTimeFormat:'locale',theme:'dark',uiStyle:'glass',uiDensity:'comfortable',motionPreference:'system',language:'en',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};this.users.push(user);await this.#persistUsers();return this.publicUser(user);
   }
   async administerUser(id,input,actingUserId){
     const user=this.users.find((item)=>item.id===id);if(!user)throw new Error('User was not found');

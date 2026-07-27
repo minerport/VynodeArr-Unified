@@ -57,6 +57,33 @@
 .react-history-domain {
   min-width: 0;
 }
+.react-history-domain > .panel-heading {
+  position: static;
+  height: auto;
+  align-items: center;
+  flex-direction: row;
+  gap: 1rem;
+  padding: 1rem 0;
+  backdrop-filter: none;
+}
+.react-history-domain > .panel-heading > div {
+  display: grid;
+  min-width: 0;
+  gap: 0.18rem;
+}
+.react-history-domain > .panel-heading h2 {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.react-history-domain > .panel-heading p {
+  margin: 0;
+}
+.react-history-domain > .panel-heading > .badge {
+  flex: none;
+  min-width: 2rem;
+  text-align: center;
+}
 .react-history-list {
   display: grid;
 }
@@ -66,7 +93,7 @@
   grid-template-columns: 0.5rem minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.85rem;
-  padding: 0.85rem 0;
+  padding: 0.9rem 0.15rem;
   border-top: 1px solid var(--line);
 }
 .react-history-row:first-child {
@@ -97,16 +124,19 @@
 .history-event-heading {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.55rem;
   min-width: 0;
 }
 .history-event-heading strong {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .history-event-badge {
   flex: none;
+  max-width: 100%;
   padding: 0.2rem 0.42rem;
   border: 1px solid var(--line);
   border-radius: 999px;
@@ -115,6 +145,7 @@
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  overflow-wrap: anywhere;
 }
 .history-event-badge.success {
   border-color: rgba(77, 220, 160, 0.3);
@@ -158,11 +189,27 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 0.7rem;
+  min-width: 0;
 }
 .react-history-row time {
   white-space: nowrap;
   font-size: 0.76rem;
+}
+.history-event-actions button {
+  min-height: 2.55rem;
+  padding: 0.65rem 0.85rem;
+  white-space: nowrap;
+}
+@media (max-width: 1180px) {
+  .react-history-row {
+    grid-template-columns: 0.5rem minmax(0, 1fr);
+  }
+  .history-event-actions {
+    grid-column: 2;
+    justify-content: space-between;
+  }
 }
 @media (max-width: 900px) {
   .history-summary {
@@ -189,7 +236,12 @@
   }
   .history-event-actions {
     grid-column: 2;
+    align-items: stretch;
+    flex-direction: column;
     justify-content: space-between;
+  }
+  .history-event-actions button {
+    width: 100%;
   }
   .history-event-heading {
     align-items: flex-start;

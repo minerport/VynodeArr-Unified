@@ -21,19 +21,20 @@ VynodeArr is a self-hosted media-management application with one account system,
 
 ## Current release
 
-Version **2.0.8** is ready for real-time testing on Unraid and Windows. Movie
-and television libraries now provide engine-backed sorting by title, year,
-release or first-air date, rating, content rating, duration, date added,
-library size, availability or episode completion, and attention. Random
-sorting includes an explicit reshuffle action, and every applicable sort can
-be reversed.
+Version **2.0.9** is ready for real-time testing on Unraid and Windows. The
+interface now applies one consistent presentation system across page
+backgrounds, navigation, heroes, cards, controls, dialogs, and scrollbars.
+Users can independently choose a color theme and a Glass, Solid, OLED, or High
+Contrast interface style, select comfortable or compact density, and control
+motion.
 
 The release has been validated with the complete automated test suite,
 TypeScript checking, production builds, bundle-budget checks, deployment
 validation, a fresh Docker image, connected movie and television engines, and
-browser tests covering movie and TV sorting, direction changes, and persisted
-library preferences. Unsupported playback-derived values such as plays, date
-viewed, and watch progress are intentionally not presented.
+browser tests covering every Movies and TV information-card, compact-grid, and
+detailed-list layout. Modal positioning, page-position restoration, card
+overflow, title wrapping, action alignment, and theme application were also
+verified.
 Existing installations can update with the
 `ghcr.io/minerport/vynodearr-unified:latest` image while retaining their
 persistent `/config` mapping.
@@ -50,11 +51,21 @@ See the [changelog](CHANGELOG.md) for the detailed list of changes.
 
 ### Rich movie and television libraries
 
-- Poster, list, and compact layouts remembered independently for movies and television
+- Poster, information-card, compact-grid, and detailed-list layouts remembered independently for movies and television
+- Engine-backed sorting by title, release date, rating, content rating, duration, date added, library size, availability, completion, and attention
 - Artwork-backed detail pages with monitoring, search, refresh, edit, and location controls
 - Movie filters for title, year, genre, and collection
 - Show, season, and episode monitoring with color-coded availability
 - Bulk profile, root-folder, availability, refresh, and removal actions
+
+### Personal interface presentation
+
+- Ten color themes that remain independent from layout and surface treatment
+- Glass, Solid, OLED, and High Contrast interface styles
+- Comfortable and compact information density
+- System-aware, reduced, or full motion
+- Uniform themed cards, controls, dialogs, borders, backgrounds, and scrollbars
+- Viewport-safe modals that return you to the same position on the originating page
 
 ### Search, acquire, and follow progress
 

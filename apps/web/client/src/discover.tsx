@@ -23,11 +23,11 @@ const libraryStatus=(domain:DiscoverDomain,item:LibraryItem):DiscoverLibraryStat
 
 function Card({item,status,onOpen}:{item:DiscoverItem;status?:DiscoverLibraryStatus;onOpen:(item:DiscoverItem)=>void}){
   const tracked=Boolean(status);
-  return <article className="discover-card" role="button" tabIndex={0} onClick={()=>onOpen(item)} onKeyDown={event=>{if(event.key==='Enter'||event.key===' ')onOpen(item);}}>
+  return <article className="discover-card" role="button" tabIndex={0} onClick={()=>onOpen(item)} onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();onOpen(item);}}}>
     <div className="discover-poster">{item.poster?<img src={item.poster} alt={`${item.title} poster`} loading="lazy"/>:<span className="discover-poster-fallback">{item.title[0]}</span>}
       {item.rating?<span className="discover-score">★ {item.rating.toFixed(1)}</span>:null}
       {status?<span className={`discover-library-tag${status==='pending'?' pending':''}`}>{status==='available'?'In library':'Pending'}</span>:null}
-      <button className={`discover-action${tracked?' is-library':''}`} type="button" disabled={tracked} onClick={event=>{event.stopPropagation();onOpen(item);}}>{status==='available'?'✓':status==='pending'?'…':'+'}</button>
+      {!tracked?<button className="discover-action" type="button" aria-label={`Add ${item.title}`} onClick={event=>{event.stopPropagation();onOpen(item);}}><span aria-hidden="true">+</span> Add</button>:null}
     </div>
     <div className="discover-card-copy"><h3>{item.title}</h3><p><span>{item.year||'TBA'}</span><span>{item.domain==='movie'?'Movie':'TV'}</span></p></div>
   </article>;
@@ -36,8 +36,8 @@ function Card({item,status,onOpen}:{item:DiscoverItem;status?:DiscoverLibrarySta
 function Row({title,subtitle,items,library,onOpen,onMore,onBack,grid=false}:{title:string;subtitle:string;items:DiscoverItem[];library:Map<string,DiscoverLibraryStatus>;onOpen:(item:DiscoverItem)=>void;onMore?:()=>void;onBack?:()=>void;grid?:boolean}){
   const strip=useRef<HTMLDivElement>(null);
   return <section className={`discover-row${grid?' discover-results-grid':''}`}>{onBack?<button className="discover-results-back" type="button" onClick={onBack}>← Back to Discover</button>:null}<div className="discover-row-heading"><div><h2>{title}</h2><p>{subtitle}</p></div><div className="discover-row-controls">
-    <button type="button" onClick={()=>strip.current?.scrollBy({left:-strip.current.clientWidth*.8,behavior:'smooth'})}>←</button>
-    <button type="button" onClick={()=>{strip.current?.scrollBy({left:strip.current.clientWidth*.8,behavior:'smooth'});onMore?.();}}>→</button>
+    <button type="button" aria-label={`Previous ${title}`} title="Previous" onClick={()=>strip.current?.scrollBy({left:-strip.current.clientWidth*.8,behavior:'smooth'})}>‹</button>
+    <button type="button" aria-label={`Next ${title}`} title="Next" onClick={()=>{strip.current?.scrollBy({left:strip.current.clientWidth*.8,behavior:'smooth'});onMore?.();}}>›</button>
     {grid?<button className="discover-results-more" type="button" onClick={onMore} disabled={!onMore}>{onMore?'Load more':'All loaded'}</button>:null}
   </div></div><div className="discover-strip" ref={strip}>{items.map(item=><Card key={item.id} item={item} status={library.get(libraryKey(item.domain,item.title,item.year))} onOpen={onOpen}/>)}</div></section>;
 }
@@ -46,7 +46,7 @@ function Taxonomy({title,kind,items,onSelect}:{title:string;kind:'genre'|'studio
   const strip=useRef<HTMLDivElement>(null);
   if(!items.length)return null;
   return <section className="discover-row discover-taxonomy"><div className="discover-row-heading"><div><h2>{title}</h2></div><div className="discover-row-controls">
-    <button onClick={()=>strip.current?.scrollBy({left:-700,behavior:'smooth'})}>←</button><button onClick={()=>strip.current?.scrollBy({left:700,behavior:'smooth'})}>→</button>
+    <button type="button" aria-label={`Previous ${title}`} title="Previous" onClick={()=>strip.current?.scrollBy({left:-700,behavior:'smooth'})}>‹</button><button type="button" aria-label={`Next ${title}`} title="Next" onClick={()=>strip.current?.scrollBy({left:700,behavior:'smooth'})}>›</button>
   </div></div><div className="discover-taxonomy-grid discover-strip" ref={strip}>{items.map((item,index)=><button key={`${item.domain}-${item.id}`} onClick={()=>onSelect({...item,taxonomy:kind})} style={{'--taxonomy-hue':String((index*47+(kind==='genre'?258:kind==='studio'?188:332))%360),...(item.backdrop?{'--taxonomy-image':`url("${item.backdrop}")`}:{})} as CSSProperties}><span>{kind==='genre'?'◇':kind==='studio'?'◆':'●'}</span><strong>{item.name}</strong><small>Browse all titles</small></button>)}</div></section>;
 }
 

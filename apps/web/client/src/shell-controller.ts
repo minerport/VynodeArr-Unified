@@ -20,6 +20,9 @@ export interface ShellUser{
   username?:string;
   role?:string;
   theme?:string;
+  uiStyle?:string;
+  uiDensity?:string;
+  motionPreference?:string;
   [key:string]:unknown;
 }
 
@@ -41,6 +44,9 @@ export function applyUserPresentation(
   elements.accountRole.textContent=user.role||'user';
   elements.avatar.textContent=displayName.charAt(0).toUpperCase()||'A';
   if(user.theme)elements.documentElement.dataset.theme=user.theme;
+  elements.documentElement.dataset.uiStyle=user.uiStyle||'glass';
+  elements.documentElement.dataset.uiDensity=user.uiDensity||'comfortable';
+  elements.documentElement.dataset.motion=user.motionPreference||'system';
 }
 
 interface ShellControlsOptions{

@@ -9,6 +9,11 @@ const themes=[
   ['dark','Vynode Core'],['obsidian','Obsidian'],['aurora','Aurora'],['cyber','Cyber Blue'],['nebula','Nebula'],
   ['synthwave','Synthwave'],['oceanic','Oceanic'],['ember','Ember'],['matrix','Matrix'],['frost','Frost'],
 ] as const;
+const uiStyles=[
+  ['glass','Glass'],['solid','Solid'],['oled','OLED'],['high-contrast','High Contrast']
+] as const;
+const uiDensities=[['comfortable','Comfortable'],['compact','Compact']] as const;
+const motionPreferences=[['system','Follow system'],['reduced','Reduced'],['full','Full']] as const;
 
 function AccountForm({options}:{options:AccountMountOptions}){
   const [user,setUser]=useState<AccountUser|null>(null),[saving,setSaving]=useState(false),[error,setError]=useState('');
@@ -26,8 +31,9 @@ function AccountForm({options}:{options:AccountMountOptions}){
     <div className="form-grid"><label>Display name<input name="name" defaultValue={user.name} required/></label><label>Username<input name="username" defaultValue={user.username} required/></label></div>
     <label>Email<input name="email" type="email" defaultValue={user.email} required/></label>
     <div className="form-grid"><label>Profile image URL<input name="profileImage" defaultValue={user.profileImage||''} placeholder="Optional"/></label><label>Time zone<input name="timeZone" defaultValue={user.timeZone||'UTC'}/></label></div>
-    <div className="form-grid"><label>Date/time format<select name="dateTimeFormat" defaultValue={user.dateTimeFormat||'locale'}><option value="locale">Regional default</option><option value="24h">24-hour</option><option value="12h">12-hour</option></select></label><label>Interface theme<select name="theme" defaultValue={themes.some(([value])=>value===user.theme)?user.theme:'dark'}>{themes.map(([value,label])=><option value={value} key={value}>{label}</option>)}</select><small className="theme-hint">Ten clean color systems; layout and functionality stay unchanged.</small></label></div>
-    <label>Language<select name="language" defaultValue={user.language||'en'}><option value="en">English</option></select></label>
+    <div className="form-grid"><label>Date/time format<select name="dateTimeFormat" defaultValue={user.dateTimeFormat||'locale'}><option value="locale">Regional default</option><option value="24h">24-hour</option><option value="12h">12-hour</option></select></label><label>Color theme<select name="theme" defaultValue={themes.some(([value])=>value===user.theme)?user.theme:'dark'}>{themes.map(([value,label])=><option value={value} key={value}>{label}</option>)}</select><small className="theme-hint">Choose the application color palette.</small></label></div>
+    <div className="form-grid"><label>Interface style<select name="uiStyle" defaultValue={uiStyles.some(([value])=>value===user.uiStyle)?user.uiStyle:'glass'}>{uiStyles.map(([value,label])=><option value={value} key={value}>{label}</option>)}</select><small className="theme-hint">Controls layout depth, transparency, and contrast independently from color.</small></label><label>Language<select name="language" defaultValue={user.language||'en'}><option value="en">English</option></select></label></div>
+    <div className="form-grid"><label>Interface density<select name="uiDensity" defaultValue={uiDensities.some(([value])=>value===user.uiDensity)?user.uiDensity:'comfortable'}>{uiDensities.map(([value,label])=><option value={value} key={value}>{label}</option>)}</select><small className="theme-hint">Compact fits more information on screen without removing controls.</small></label><label>Motion<select name="motionPreference" defaultValue={motionPreferences.some(([value])=>value===user.motionPreference)?user.motionPreference:'system'}>{motionPreferences.map(([value,label])=><option value={value} key={value}>{label}</option>)}</select><small className="theme-hint">Follow your device setting or reduce interface animation.</small></label></div>
     <hr/><h2>Change password</h2>
     <div className="form-grid three"><label>Current password<input name="currentPassword" type="password" autoComplete="current-password"/></label><label>New password<input name="newPassword" type="password" autoComplete="new-password"/></label><label>Confirm new password<input name="confirmPassword" type="password" autoComplete="new-password"/></label></div>
     <div className="form-actions"><button className="primary" disabled={saving} type="submit">{saving?'Saving…':'Save account'}</button></div>

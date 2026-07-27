@@ -3,6 +3,9 @@ export interface SessionUser{
   username?:string;
   role?:string;
   theme?:string;
+  uiStyle?:string;
+  uiDensity?:string;
+  motionPreference?:string;
   [key:string]:unknown;
 }
 

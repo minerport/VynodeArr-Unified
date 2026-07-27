@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-ui-style="glass" data-ui-density="comfortable" data-motion="system">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#080c16"><title>VynodeArr — Your media, one horizon</title>
@@ -35,11 +35,12 @@
     </aside>
     <main><header><button class="menu" aria-label="Open navigation">☰</button><label class="search"><span>⌕</span><input id="global-search" aria-label="Search current view" placeholder="Search your library"></label><span id="mode-badge" class="mode-badge"></span><span class="status-dot"></span><span class="status-label">Gateway ready</span></header><section id="content" aria-live="polite"></section></main>
   </div>
-  <template id="media-page"><div class="hero"><div><span class="eyebrow">YOUR LIBRARY</span><h1></h1><p class="lede"></p></div><span class="read-only">Read-only mode</span></div><div class="summary"><div><strong class="count">—</strong><span>Titles</span></div><div><strong class="monitored">—</strong><span>Monitored</span></div><div><strong class="attention">—</strong><span>Need attention</span></div><div><strong class="coverage">—</strong><span>Library coverage</span></div></div><div class="toolbar"><div class="filters"><button data-filter="all" class="chip selected">All</button><button data-filter="monitored" class="chip">Monitored</button><button data-filter="missing" class="chip">Missing</button></div><div><select class="sort" aria-label="Sort media"><option value="title">Title</option><option value="year">Year</option><option value="attention">Attention</option></select><button data-view="poster" class="icon-button selected" title="Poster grid">▦</button><button data-view="cards" class="icon-button" title="Information cards">▥</button><button data-view="compact" class="icon-button" title="Compact grid">▤</button><button data-view="list" class="icon-button" title="Detailed list">☷</button></div></div><div class="grid skeleton-grid"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div></template>
+  <template id="media-page"><div class="hero"><div><span class="eyebrow">YOUR LIBRARY</span><h1></h1><p class="lede"></p></div><span class="read-only">Read-only mode</span></div><div class="summary"><div><strong class="count">—</strong><span>Titles</span></div><div><strong class="monitored">—</strong><span>Monitored</span></div><div><strong class="attention">—</strong><span>Need attention</span></div><div><strong class="coverage">—</strong><span>Library coverage</span></div></div><div class="toolbar"><div class="filters"><button data-filter="all" class="chip selected">All</button><button data-filter="monitored" class="chip">Monitored</button><button data-filter="missing" class="chip">Missing</button></div><div><select class="sort" aria-label="Sort media"><option value="title">Title</option><option value="year">Year</option><option value="attention">Attention</option></select><button data-view="poster" class="icon-button selected" title="Poster grid" aria-label="Poster grid">▦</button><button data-view="cards" class="icon-button" title="Information cards" aria-label="Information cards">▥</button><button data-view="compact" class="icon-button" title="Compact grid" aria-label="Compact grid">▤</button><button data-view="list" class="icon-button" title="Detailed list" aria-label="Detailed list">☷</button></div></div><div class="grid skeleton-grid"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></template>
   <aside id="import-progress" class="import-progress" hidden aria-live="polite"></aside>
   <div id="toast" class="toast" hidden></div>
-  <link rel="stylesheet" href="/react/vynodearr-react.css?v=20260726-react-ts">
+  <link rel="stylesheet" href="/react/vynodearr-react.css?v=20260727-library-views">
+    <link rel="stylesheet" href="/ui-foundation.css?v=20260727-library-card-content">
   <script type="module" src="/react/vynodearr-react.js?v=20260726-react-ts"></script>
-  <script type="module" src="/react/vynodearr-app.js?v=20260726-react-ts"></script>
+  <script type="module" src="/react/vynodearr-app.js?v=20260727-modal-scroll"></script>
 </body>
 </html>

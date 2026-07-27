@@ -20,6 +20,9 @@ export interface AccountUser {
   timeZone?:string;
   dateTimeFormat?:string;
   theme?:string;
+  uiStyle?:'glass'|'solid'|'oled'|'high-contrast';
+  uiDensity?:'comfortable'|'compact';
+  motionPreference?:'system'|'reduced'|'full';
   language?:string;
 }
 

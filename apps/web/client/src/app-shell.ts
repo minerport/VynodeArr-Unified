@@ -17,6 +17,7 @@ import {parseGuideTemplateRouteFilter} from './guide-template-routing';
 import {resolveServiceSettingsAction} from './service-settings-routing';
 import {filterLibraryItems,titleInitial} from './legacy-library-filtering';
 const setupView=document.querySelector('#setup-view'),authView=document.querySelector('#auth-view'),shell=document.querySelector('#app-shell'),content=document.querySelector('#content'),toast=document.querySelector('#toast'),importProgress=document.querySelector('#import-progress');
+void import('./modal-scroll-restoration').then(({installModalScrollRestoration})=>installModalScrollRestoration(window,document));
 document.querySelector('nav a[href="#movies"]')?.insertAdjacentHTML('afterend','<a href="#collections">Collections</a>');
 const nav=[...document.querySelectorAll('nav a')],state=createAppState();
 const notify=createNotifier(toast);
