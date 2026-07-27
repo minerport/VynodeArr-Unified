@@ -181,6 +181,14 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(tvDetail,/busy==='SeriesSearch'/);
   assert.match(tvDetail,/saved\.result\?\.monitored\?\?next/);
   assert.match(tvDetail,/AbortController/);
+  assert.match(movieDetail,/ModalPortal/);
+  assert.match(tvDetail,/ModalPortal/);
+  const modalPortal=await read('apps/web/client/src/modal-portal.tsx');
+  const foundation=await read('apps/web/public/ui-foundation.css');
+  assert.match(modalPortal,/createPortal/);
+  assert.match(modalPortal,/document\.body/);
+  assert.match(foundation,/\.vynode-nested-modal-layer/);
+  assert.match(foundation,/max-height:\s*calc\(100dvh - 2rem\)/);
   assert.match(movieDetail,/Rename & organize/);
   assert.match(collections,/export function CollectionsView/);
   assert.match(collections,/CollectionBuilder/);

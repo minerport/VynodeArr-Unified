@@ -21,12 +21,14 @@ VynodeArr is a self-hosted media-management application with one account system,
 
 ## Current release
 
-Version **2.0.9** is ready for real-time testing on Unraid and Windows. The
+Version **2.0.10** is ready for real-time testing on Unraid and Windows. The
 interface now applies one consistent presentation system across page
 backgrounds, navigation, heroes, cards, controls, dialogs, and scrollbars.
 Users can independently choose a color theme and a Glass, Solid, OLED, or High
 Contrast interface style, select comfortable or compact density, and control
-motion.
+motion. Nested movie and television workflows now open in a viewport-level
+modal layer so their controls remain visible without losing the underlying
+detail view.
 
 The release has been validated with the complete automated test suite,
 TypeScript checking, production builds, bundle-budget checks, deployment

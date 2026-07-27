@@ -857,6 +857,32 @@ input[type="range"] {
   line-height: .7;
 }
 
+.vynode-nested-modal-layer {
+  position: fixed;
+  z-index: 240;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  padding: 1rem;
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: var(--ui-overlay, rgba(1, 5, 12, .72));
+  -webkit-backdrop-filter: blur(10px) saturate(1.05);
+  backdrop-filter: blur(10px) saturate(1.05);
+}
+
+.vynode-nested-modal-layer > dialog[open] {
+  position: relative !important;
+  inset: auto !important;
+  width: min(100%, 80rem);
+  max-width: 100%;
+  max-height: calc(100dvh - 2rem);
+  margin: auto !important;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
 @media (forced-colors: active) {
   :is(button,.button,input,select,textarea,a):focus-visible {
     outline: 2px solid CanvasText;

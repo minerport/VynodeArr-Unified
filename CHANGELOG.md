@@ -7,6 +7,16 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.10] - 2026-07-27
+
+### Fixed
+
+- Moved secondary movie and television dialogs into a shared viewport-level
+  modal layer so Fix Match, interactive search, rename previews, library
+  editors, and file selection cannot be clipped by their parent detail modal.
+- Bounded nested dialogs to the visible viewport with independent scrolling
+  while preserving the underlying detail dialog and its navigation state.
+
 ## [2.0.9] - 2026-07-27
 
 ### Added
@@ -170,7 +180,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.9...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.10...HEAD
+[2.0.10]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.9...v2.0.10
 [2.0.9]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.8...v2.0.9
 [2.0.8]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.7...v2.0.8
 [2.0.7]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.6...v2.0.7
