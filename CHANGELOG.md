@@ -7,6 +7,23 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.6] - 2026-07-26
+
+### Changed
+
+- Moved application route dispatch and mounted-library reuse decisions into a
+  typed resolver while preserving every React route and legacy fallback.
+- Moved hash navigation, Discover detail events, link-hover preloading, and
+  idle route preloading into a typed navigation lifecycle controller.
+- Centralized Account Settings section normalization and React host creation in
+  typed helpers, including administrator-only user-management routing.
+- Moved Guide Templates domain and resource-filter routing into a typed parser
+  so filtered Movies and TV entry points share one validated contract.
+- Moved Service Settings page selection into a typed resolver while preserving
+  administrator access checks, React mounts, and legacy fallbacks.
+- Moved the legacy Movies and TV fallback's title filtering, advanced filters,
+  initial-letter selection, and sorting into a typed pure helper.
+
 ## [2.0.5] - 2026-07-26
 
 ### Changed
@@ -88,7 +105,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.5...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.6...HEAD
+[2.0.6]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.5...v2.0.6
 [2.0.5]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.4...v2.0.5
 [2.0.4]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.3...v2.0.4
 [2.0.3]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.2...v2.0.3

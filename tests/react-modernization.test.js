@@ -235,10 +235,11 @@ test('the Node API has a compiled TypeScript migration boundary',async()=>{
 });
 
 test('library navigation preserves mounted views and safely reuses short-lived reads',async()=>{
-  const [legacy,client,appState]=await Promise.all([
+  const [legacy,client,appState,dispatch]=await Promise.all([
     read('apps/web/client/src/app-shell.ts'),
     read('apps/web/client/src/api-client.ts'),
-    read('apps/web/client/src/app-state.ts')
+    read('apps/web/client/src/app-state.ts'),
+    read('apps/web/client/src/route-dispatch.ts')
   ]);
   assert.match(client,/const responseCache=new Map<string,CachedResponse>\(\)/);
   assert.match(client,/export function cacheLifetime/);
@@ -251,7 +252,7 @@ test('library navigation preserves mounted views and safely reuses short-lived r
   assert.match(legacy,/onMutation:path/);
   assert.match(appState,/libraryStale:\{movies:false,tv:false\}/);
   assert.match(legacy,/preserveLibrary/);
-  assert.match(legacy,/if\(preserveLibrary&&!state\.libraryStale\[key\]\)return/);
+  assert.match(dispatch,/state\.preserveLibrary&&!state\.libraryStale\[key\]/);
   assert.match(legacy,/if\(!document\.querySelector\('#movies-react'\)\)await showMedia\('movies'\)/);
   assert.match(legacy,/if\(!document\.querySelector\('#tv-react'\)\)await showMedia\('tv'\)/);
 });
@@ -411,17 +412,35 @@ test('React service settings routes share one complete navigation component',asy
 });
 
 test('administrator account navigation retains access to engine API-key management',async()=>{
-  const [account,tabs,shell]=await Promise.all([
+  const [account,tabs,shell,dispatch]=await Promise.all([
     read('apps/web/client/src/account.tsx'),
     read('apps/web/client/src/account-tabs.tsx'),
-    read('apps/web/client/src/app-shell.ts')
+    read('apps/web/client/src/app-shell.ts'),
+    read('apps/web/client/src/route-dispatch.ts')
   ]);
   assert.match(account,/AccountTabs/);
   assert.match(tabs,/\{administrator\?<a className=\{active==='engines'/);
   assert.match(tabs,/href="#settings\/engines">Engines/);
-  assert.match(shell,/parts\[1\]==='engines'\?showEngineManagement\(\):showAccountReact/);
+  assert.match(dispatch,/parts\[1\]==='engines'/);
+  assert.match(shell,/case'engineManagement':return showEngineManagement\(\)/);
   assert.match(shell,/External application access/);
   assert.match(shell,/Generate new key/);
+});
+
+test('account sections and the React mount boundary have typed ownership',async()=>{
+  const [account,types,shell]=await Promise.all([
+    read('apps/web/client/src/account.tsx'),
+    read('apps/web/client/src/account-types.ts'),
+    read('apps/web/client/src/app-shell.ts')
+  ]);
+  assert.match(types,/export function normalizeAccountSection/);
+  assert.match(types,/if\(value==='sessions'\)return'sessions'/);
+  assert.match(types,/if\(value==='users'&&administrator\)return'users'/);
+  assert.match(account,/normalizeAccountSection\(options\.section,options\.administrator\)/);
+  assert.match(shell,/import \{normalizeAccountSection\} from '\.\/account-types'/);
+  assert.match(shell,/selected=normalizeAccountSection\(section,administrator\)/);
+  assert.match(shell,/host=createRouteHost\(content,'account-react'\)/);
+  assert.doesNotMatch(shell,/host=document\.createElement\('div'\);host\.id='account-react'/);
 });
 
 test('engine management uses a typed React route while retaining a legacy fallback',async()=>{
@@ -535,8 +554,9 @@ test('administrator setup and sign-in use a typed React authentication shell',as
 });
 
 test('hash navigation uses a typed route table without removing legacy route handlers',async()=>{
-  const [routing,shell]=await Promise.all([
+  const [routing,dispatch,shell]=await Promise.all([
     read('apps/web/client/src/routing.ts'),
+    read('apps/web/client/src/route-dispatch.ts'),
     read('apps/web/client/src/app-shell.ts')
   ]);
   for(const route of ['dashboard','discover','movies','tv','collections','add','wanted','movie','series','queue','history','calendar','health','service','management','settings','system','engine-setup']){
@@ -547,8 +567,50 @@ test('hash navigation uses a typed route table without removing legacy route han
   assert.match(routing,/export function preservesMountedLibrary/);
   assert.match(shell,/import \{parseRoute,preservesMountedLibrary\} from '\.\/routing'/);
   assert.match(shell,/const currentRoute=parseRoute\(location\.hash\)/);
-  assert.match(shell,/if\(key==='service'\)return showServiceSettings\(parts\[1\],parts\[2\]\)/);
-  assert.match(shell,/parts\[1\]==='engines'\?showEngineManagement\(\):showAccountReact\(parts\[1\]\)/);
+  assert.match(dispatch,/if\(key==='service'\)return\{name:'serviceSettings'/);
+  assert.match(dispatch,/parts\[1\]==='engines'/);
+  assert.match(shell,/case'serviceSettings':return showServiceSettings\(action\.section,action\.templateFilter\)/);
+  assert.match(shell,/case'account':return showAccountReact\(action\.section\)/);
+});
+
+test('route dispatch resolves typed React destinations without changing page handlers',async()=>{
+  const [dispatch,shell]=await Promise.all([
+    read('apps/web/client/src/route-dispatch.ts'),
+    read('apps/web/client/src/app-shell.ts')
+  ]);
+  assert.match(dispatch,/export type RouteAction=/);
+  assert.match(dispatch,/export function resolveRouteAction/);
+  for(const action of ['engineSetup','discover','library','collections','addMedia','wanted','movieDetail','tvDetail','queue','history','calendar','health','serviceSettings','management','engineManagement','account','system','dashboard']){
+    assert.match(dispatch,new RegExp(`name:'${action}'`));
+  }
+  assert.match(dispatch,/state\.preserveLibrary&&!state\.libraryStale\[key\]/);
+  assert.match(dispatch,/parts\[1\]==='engines'/);
+  assert.match(shell,/import \{resolveRouteAction\} from '\.\/route-dispatch'/);
+  assert.match(shell,/const action=resolveRouteAction\(currentRoute/);
+  assert.match(shell,/switch\(action\.name\)/);
+  assert.match(shell,/case'library':return showMedia\(action\.kind\)/);
+  assert.match(shell,/case'serviceSettings':return showServiceSettings\(action\.section,action\.templateFilter\)/);
+  assert.doesNotMatch(shell,/if\(key==='collections'\)return showCollectionsReact/);
+});
+
+test('navigation events and route preloading have typed lifecycle ownership',async()=>{
+  const [lifecycle,shell]=await Promise.all([
+    read('apps/web/client/src/navigation-lifecycle.ts'),
+    read('apps/web/client/src/app-shell.ts')
+  ]);
+  assert.match(lifecycle,/export function wireNavigationLifecycle/);
+  assert.match(lifecycle,/addEventListener\('vynodearr:discover-details'/);
+  assert.match(lifecycle,/addEventListener\('hashchange'/);
+  assert.match(lifecycle,/unmountDiscover/);
+  assert.match(lifecycle,/querySelectorAll<HTMLAnchorElement>\('a\[href\^="#"\]'\)/);
+  assert.match(lifecycle,/parseRoute\(link\.hash\)\.key/);
+  assert.match(lifecycle,/requestIdleCallback/);
+  assert.match(lifecycle,/preloadRoute\?\.\('dashboard'\)/);
+  assert.match(lifecycle,/preloadRoute\?\.\('discover'\)/);
+  assert.match(shell,/import \{wireNavigationLifecycle\} from '\.\/navigation-lifecycle'/);
+  assert.match(shell,/wireNavigationLifecycle\(\{window,document,bridge:\(\)=>window\.VynodeArrReact,route,onDiscoverDetails:openLiveDiscoverDetails\}\)/);
+  assert.doesNotMatch(shell,/addEventListener\('hashchange'/);
+  assert.doesNotMatch(shell,/querySelectorAll\('a\[href\^="#"\]'\)\.forEach/);
 });
 
 test('dashboard loading, caching, and refresh ownership live in typed React',async()=>{
@@ -721,4 +783,57 @@ test('global shell controls and presentation have typed ownership',async()=>{
   assert.doesNotMatch(shell,/function notify\(/);
   assert.doesNotMatch(shell,/document\.querySelector\('#logout'\)\.addEventListener/);
   assert.doesNotMatch(shell,/addEventListener\('beforeunload'/);
+});
+
+test('Guide Templates route filters have typed domain and resource ownership',async()=>{
+  const [routing,shell]=await Promise.all([
+    read('apps/web/client/src/guide-template-routing.ts'),
+    read('apps/web/client/src/app-shell.ts')
+  ]);
+  for(const resource of ['customFormat','customFormatGroup','qualityProfile','qualitySize','naming']){
+    assert.match(routing,new RegExp(`'${resource}'`));
+  }
+  assert.match(routing,/export function parseGuideTemplateRouteFilter/);
+  assert.match(routing,/requestedDomain==='tv'\?'tv':'movie'/);
+  assert.match(routing,/item is ResourceType=>resourceTypeSet\.has\(item\)/);
+  assert.match(shell,/import \{parseGuideTemplateRouteFilter\} from '\.\/guide-template-routing'/);
+  assert.match(shell,/parseGuideTemplateRouteFilter\(templateFilter\)/);
+  assert.doesNotMatch(shell,/templateFilter\.split\(':'\)/);
+  assert.doesNotMatch(shell,/const allowed=\['customFormat'/);
+});
+
+test('Service Settings page selection has typed ownership',async()=>{
+  const [routing,shell]=await Promise.all([
+    read('apps/web/client/src/service-settings-routing.ts'),
+    read('apps/web/client/src/app-shell.ts')
+  ]);
+  assert.match(routing,/export type ServiceSettingsAction=/);
+  for(const action of ['discover','mediaManagement','qualityProfiles','guideTemplates','selectionRules','providerSettings','rootFolders']){
+    assert.match(routing,new RegExp(`name:'${action}'`));
+  }
+  assert.match(routing,/section==='custom-formats'\|\|section==='release-profiles'/);
+  assert.match(routing,/kind:'downloadClients'/);
+  assert.match(shell,/import \{resolveServiceSettingsAction\} from '\.\/service-settings-routing'/);
+  assert.match(shell,/const action=resolveServiceSettingsAction\(section,templateFilter\)/);
+  assert.match(shell,/case'guideTemplates':return showGuideTemplatesReact\(action\.templateFilter\)/);
+  assert.match(shell,/case'selectionRules':return showSelectionRulesReact\(action\.section\)/);
+  assert.match(shell,/case'providerSettings':return showProviderSettingsReact\(action\.kind\)/);
+  assert.doesNotMatch(shell,/if\(section==='discover'\)return showDiscoverSettings/);
+});
+
+test('legacy library filtering and sorting have typed ownership',async()=>{
+  const [filtering,shell]=await Promise.all([
+    read('apps/web/client/src/legacy-library-filtering.ts'),
+    read('apps/web/client/src/app-shell.ts')
+  ]);
+  assert.match(filtering,/export function titleInitial/);
+  assert.match(filtering,/export function filterLibraryItems/);
+  assert.match(filtering,/options\.mode==='missing'/);
+  assert.match(filtering,/filters\.genre/);
+  assert.match(filtering,/filters\.network/);
+  assert.match(filtering,/options\.sort==='attention'/);
+  assert.match(shell,/import \{filterLibraryItems,titleInitial\} from '\.\/legacy-library-filtering'/);
+  assert.match(shell,/function filtered\(kind\)\{return filterLibraryItems\(/);
+  assert.doesNotMatch(shell,/const titleInitial=item=>/);
+  assert.doesNotMatch(shell,/function filtered\(kind\)\{const movie=/);
 });

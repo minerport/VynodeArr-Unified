@@ -1,5 +1,14 @@
 export type AccountSection='account'|'sessions'|'users';
 
+export function normalizeAccountSection(
+  value:string|undefined,
+  administrator:boolean
+):AccountSection{
+  if(value==='sessions')return'sessions';
+  if(value==='users'&&administrator)return'users';
+  return'account';
+}
+
 export interface AccountUser {
   id:string;
   name:string;

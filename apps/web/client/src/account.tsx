@@ -1,5 +1,5 @@
 import { useCallback,useEffect,useState,type FormEvent } from 'react';
-import type { AccountMountOptions,AccountSection,AccountSession,AccountUser } from './account-types';
+import {normalizeAccountSection,type AccountMountOptions,type AccountSection,type AccountSession,type AccountUser} from './account-types';
 import {AccountTabs} from './account-tabs';
 import './react-account.css';
 
@@ -57,6 +57,6 @@ function Users({options}:{options:AccountMountOptions}){
 }
 
 export function AccountView({options}:{options:AccountMountOptions}){
-  const section=options.section==='users'&&!options.administrator?'account':options.section,title=section==='sessions'?'Active Sessions':section==='users'?'Users':'My Account';
+  const section=normalizeAccountSection(options.section,options.administrator),title=section==='sessions'?'Active Sessions':section==='users'?'Users':'My Account';
   return <div className="react-account"><div className="hero"><div><span className="eyebrow">{section==='users'?'ADMINISTRATION':'SETTINGS'}</span><h1>{title}</h1><p className="lede">{section==='account'?'Your identity and VynodeArr preferences.':section==='sessions'?'Review and revoke devices signed into your account.':'Manage local access, roles, and account status.'}</p></div></div><AccountTabs active={section} administrator={options.administrator}/>{section==='account'?<AccountForm options={options}/>:section==='sessions'?<Sessions options={options}/>:<Users options={options}/>}</div>;
 }
