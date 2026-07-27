@@ -14,11 +14,11 @@ import { completedQueueItemHasArrived, completedQueueItemIsTerminal } from '../.
 import { TvFixtureAdapter } from '../.server-build/packages/tv-domain/src/fixture-adapter.js';
 
 class FakeClient{constructor(values){this.values=values;}async get(path){if(path in this.values)return structuredClone(this.values[path]);return path.startsWith('movie/')?this.values.movieDetail:path.startsWith('series/')?this.values.seriesDetail:[];}}
-const movieRecord={id:1,title:'Mapped Movie',year:2025,monitored:true,status:'released',hasFile:true,movieFile:{quality:{quality:{name:'1080p'}}},qualityProfileId:2,path:'/media',tags:[],images:[]};
-const seriesRecord={id:2,title:'Mapped Series',year:2024,monitored:true,status:'continuing',network:'Network',qualityProfileId:3,path:'/tv',tags:[],images:[],seasons:[{seasonNumber:1,monitored:true}],statistics:{episodeCount:1,episodeFileCount:1}};
+const movieRecord={id:1,title:'Mapped Movie',sortTitle:'mapped movie',year:2025,releaseDate:'2025-02-03T00:00:00Z',added:'2026-01-02T00:00:00Z',runtime:110,certification:'PG-13',ratings:{imdb:{value:7.4}},monitored:true,status:'released',hasFile:true,sizeOnDisk:1024,movieFile:{quality:{quality:{name:'1080p'}}},qualityProfileId:2,path:'/media',tags:[],images:[]};
+const seriesRecord={id:2,title:'Mapped Series',sortTitle:'mapped series',year:2024,firstAired:'2024-03-04T00:00:00Z',added:'2026-01-03T00:00:00Z',runtime:45,certification:'TV-14',ratings:{value:8.1},monitored:true,status:'continuing',network:'Network',qualityProfileId:3,path:'/tv',tags:[],images:[],seasons:[{seasonNumber:1,monitored:true}],statistics:{episodeCount:4,episodeFileCount:1,sizeOnDisk:2048}};
 test('movie adapter maps records and all read-only operational surfaces',async()=>{
   const client=new FakeClient({movie:[movieRecord],movieDetail:movieRecord,queue:{records:[]},'wanted/cutoff':{records:[]},history:{records:[]},calendar:[],health:[],'system/status':{version:'1.0'}});
-  const adapter=new MovieEngineAdapter({enabled:true},client);assert.equal((await adapter.listMovies())[0].id,'movie_1');assert.equal((await adapter.getMovie('movie_1')).quality,'1080p');assert.equal((await adapter.testConnection()).reachable,true);
+  const adapter=new MovieEngineAdapter({enabled:true},client),item=(await adapter.listMovies())[0];assert.equal(item.id,'movie_1');assert.equal(item.releaseDate,'2025-02-03T00:00:00Z');assert.equal(item.addedAt,'2026-01-02T00:00:00Z');assert.equal(item.completionPercent,100);assert.equal((await adapter.getMovie('movie_1')).quality,'1080p');assert.equal((await adapter.testConnection()).reachable,true);
 });
 test('movie adapter recognizes scanned media when the engine reports disk usage before file metadata',async()=>{
   const pendingFile={...movieRecord,hasFile:false,movieFile:null,sizeOnDisk:734003200,path:'/movies/Scanned Movie'};
@@ -88,7 +88,7 @@ test('completed queue cleanup can use the current library record',()=>{
 });
 test('TV adapter maps seasons, episodes, and operational surfaces',async()=>{
   const client=new FakeClient({series:[seriesRecord],seriesDetail:seriesRecord,episode:[{id:4,seasonNumber:1,episodeNumber:1,title:'Pilot',monitored:true,hasFile:true}],queue:{records:[]},history:{records:[]},calendar:[],health:[],'system/status':{version:'1.0'}});
-  const adapter=new TvEngineAdapter({enabled:true},client);assert.equal((await adapter.listSeries())[0].id,'series_2');assert.equal((await adapter.getSeries('series_2')).seasons[0].episodes[0].title,'Pilot');
+  const adapter=new TvEngineAdapter({enabled:true},client),item=(await adapter.listSeries())[0];assert.equal(item.id,'series_2');assert.equal(item.firstAired,'2024-03-04T00:00:00Z');assert.equal(item.addedAt,'2026-01-03T00:00:00Z');assert.equal(item.completionPercent,25);assert.equal((await adapter.getSeries('series_2')).seasons[0].episodes[0].title,'Pilot');
 });
 test('TV attention counts only monitored missing episodes',async()=>{
   const monitored={...seriesRecord,statistics:{episodeCount:4,episodeFileCount:1}};

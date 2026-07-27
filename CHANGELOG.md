@@ -7,6 +7,27 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.8] - 2026-07-27
+
+### Added
+
+- Added engine-backed Movies and TV library sorting by title, year, release or
+  first-air date, rating, content rating, duration, date added, library size,
+  availability or episode completion, attention, and random order.
+- Added ascending and descending direction controls plus an explicit reshuffle
+  action for random ordering.
+
+### Changed
+
+- Library sort choices and direction now persist independently for Movies and
+  TV.
+- Title sorting and the alphabet rail now use the engines' sort titles so
+  leading articles such as "The" are handled consistently.
+- Unavailable metadata is kept at the end of sorted results in both
+  directions.
+- Expanded the normalized movie and television summaries with the reliable
+  engine fields required by library sorting.
+
 ## [2.0.7] - 2026-07-26
 
 ### Fixed
@@ -112,7 +133,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.7...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.8...HEAD
+[2.0.8]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.7...v2.0.8
 [2.0.7]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.6...v2.0.7
 [2.0.6]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.5...v2.0.6
 [2.0.5]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.4...v2.0.5

@@ -7,6 +7,7 @@ export interface LibraryQueue { progress?:number }
 export interface LibraryItem {
   id:string;
   title:string;
+  sortTitle?:string;
   year?:number;
   overview?:string;
   artwork?:LibraryArtwork;
@@ -24,6 +25,13 @@ export interface LibraryItem {
   network?:string;
   genres?:string[];
   rating?:number;
+  certification?:string|null;
+  runtimeMinutes?:number;
+  releaseDate?:string|null;
+  firstAired?:string|null;
+  addedAt?:string|null;
+  completionPercent?:number;
+  sizeOnDisk?:number;
   queue?:LibraryQueue;
 }
 

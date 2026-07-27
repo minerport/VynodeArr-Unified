@@ -1,4 +1,7 @@
 .react-library-toolbar{flex-wrap:wrap}
+.react-library-view-controls,.react-library-sort-controls{display:flex;align-items:center;gap:.4rem}
+.react-library-sort-controls .sort{min-width:10.5rem}
+.react-library-sort-controls .sort-direction{font-size:1rem;font-weight:800}
 .react-library-search{display:flex;align-items:center;gap:.55rem;color:var(--muted);font-size:.75rem;font-weight:700}
 .react-library-search input{width:min(18rem,40vw);padding:.55rem .7rem;border:1px solid var(--line);border-radius:.5rem;background:#080e19;color:var(--text)}
 .react-library .react-library-card .card-body{position:static;z-index:auto;min-width:0}

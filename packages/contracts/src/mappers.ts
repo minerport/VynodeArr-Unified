@@ -30,7 +30,7 @@ export function movieSummary(record, context: any = {}) {
   if (!record || record.id == null || !record.title) throw new TypeError('Invalid movie record');
   const hasFile = Boolean(record.hasFile || record.movieFile || Number(record.sizeOnDisk || 0) > 0);
   return assertModel('MovieSummary', {
-    id: `movie_${record.id}`, title: record.title, year: Number(record.year || 0), genres: record.genres || [],
+    id: `movie_${record.id}`, title: record.title, sortTitle: record.sortTitle || record.title, year: Number(record.year || 0), genres: record.genres || [],
     artwork: { url:`/api/artwork/movie/movie_${record.id}/poster`,kind:'poster',width:0,height:0 }, status: record.status || 'announced',
     monitoring: monitoring(record.monitored), hasFile,
     quality: qualityName(record.movieFile) || (hasFile ? 'Detected media' : 'Not available'),
@@ -38,6 +38,10 @@ export function movieSummary(record, context: any = {}) {
     collection: record.collection?.title || record.collectionTitle || null,
     overview: record.overview || '', runtimeMinutes: Number(record.runtime || record.runtimeMinutes || 0),
     rating: Number(record.ratings?.value || record.ratings?.imdb?.value || record.ratings?.tmdb?.value || record.rating || 0) || null,
+    certification: record.certification || null,
+    releaseDate: safeDate(record.releaseDate || record.digitalRelease || record.physicalRelease || record.inCinemas),
+    addedAt: safeDate(record.added),
+    completionPercent: hasFile ? 100 : 0,
     sizeOnDisk: Number(record.sizeOnDisk || record.movieFile?.size || 0),
     tags: tags(record), state: !hasFile ? 'missing' : context.cutoffIds?.has(record.id) ? 'cutoff' : 'available',
     queue: context.queueById?.get(record.id) || null
@@ -67,9 +71,10 @@ export function seriesSummary(record, context: any = {}) {
   const statistics = record.statistics || {};
   const episodeCount = Number(statistics.episodeCount || 0);
   const fileCount = Number(statistics.episodeFileCount || 0);
+  const completionTotal = Number(statistics.episodeCount || statistics.totalEpisodeCount || 0);
   const monitoredMissing = record.monitored === false ? 0 : context.monitoredMissingBySeriesId?.get(Number(record.id));
   return assertModel('SeriesSummary', {
-    id: `series_${record.id}`, title: record.title, year: Number(record.year || 0),
+    id: `series_${record.id}`, title: record.title, sortTitle: record.sortTitle || record.title, year: Number(record.year || 0),
     network: record.network || 'Unknown network', artwork: { url:`/api/artwork/tv/series_${record.id}/poster`,kind:'poster',width:0,height:0 },
     status: record.status || 'unknown', monitoring: monitoring(record.monitored),
     seasonProgress: `${(record.seasons || []).filter((season) => season.monitored).length} / ${(record.seasons || []).length}`,
@@ -80,6 +85,10 @@ export function seriesSummary(record, context: any = {}) {
     overview: record.overview || '', genres: record.genres || [],
     runtimeMinutes: Array.isArray(record.runtime) ? Number(record.runtime[0] || 0) : Number(record.runtime || record.runtimeMinutes || 0),
     rating: Number(record.ratings?.value || record.ratings?.imdb?.value || record.ratings?.tvdb?.value || record.rating || 0) || null,
+    certification: record.certification || null,
+    firstAired: safeDate(record.firstAired),
+    addedAt: safeDate(record.added),
+    completionPercent: completionTotal ? Math.round(fileCount / completionTotal * 10000) / 100 : 0,
     sizeOnDisk: Number(statistics.sizeOnDisk || record.sizeOnDisk || 0),
     tags: tags(record), queue: context.queueById?.get(record.id) || null
   });

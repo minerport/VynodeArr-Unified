@@ -21,15 +21,19 @@ VynodeArr is a self-hosted media-management application with one account system,
 
 ## Current release
 
-Version **2.0.7** is ready for real-time testing on Unraid and Windows. It
-includes the typed routing and lifecycle migration from 2.0.6 and stabilizes
-the application scrollbar gutter so tall settings pages no longer shift
-side-to-side in Microsoft Edge while loading.
+Version **2.0.8** is ready for real-time testing on Unraid and Windows. Movie
+and television libraries now provide engine-backed sorting by title, year,
+release or first-air date, rating, content rating, duration, date added,
+library size, availability or episode completion, and attention. Random
+sorting includes an explicit reshuffle action, and every applicable sort can
+be reversed.
 
 The release has been validated with the complete automated test suite,
 TypeScript checking, production builds, bundle-budget checks, deployment
 validation, a fresh Docker image, connected movie and television engines, and
-browser smoke tests across Movies, TV, Guide Templates, and Service Settings.
+browser tests covering movie and TV sorting, direction changes, and persisted
+library preferences. Unsupported playback-derived values such as plays, date
+viewed, and watch progress are intentionally not presented.
 Existing installations can update with the
 `ghcr.io/minerport/vynodearr-unified:latest` image while retaining their
 persistent `/config` mapping.
