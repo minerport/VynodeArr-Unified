@@ -6,6 +6,6 @@ export interface TvDetail {
   nextEpisode?:{title?:string;airDateUtc?:string}|null;artwork?:{url?:string};backdrop?:{url?:string};seasons:TvSeason[];
 }
 export interface TvDetailMountOptions {
-  publicId:string;request:<T=unknown>(path:string,options?:RequestInit)=>Promise<T>;
+  publicId:string;administrator:boolean;request:<T=unknown>(path:string,options?:RequestInit)=>Promise<T>;
   notify:(message:string,tone?:string)=>void;
 }

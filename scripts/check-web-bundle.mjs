@@ -18,9 +18,10 @@ const stylesheet=sizes.find(file=>file.name==='vynodearr-react.css');
 // Keep the transitional application shell near its current minified baseline
 // while typed routes continue moving out into independently loaded chunks.
 // The shared stylesheet now includes the theme-wide glass component system and
-// the movie/TV template review editors. Keep headroom small enough to
-// catch accidental growth while accounting for those intentional surfaces.
-const limits={entry:300_000,shell:250_000,route:45_000,css:68_000};
+// the movie/TV template review editors and account page-access controls. Keep
+// headroom small enough to catch accidental growth while accounting for those
+// intentional surfaces.
+const limits={entry:300_000,shell:252_000,route:45_000,css:69_000};
 const failures=[];
 
 if(!entry)failures.push('The React entry bundle was not produced.');

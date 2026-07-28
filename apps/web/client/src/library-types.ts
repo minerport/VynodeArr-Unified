@@ -37,6 +37,7 @@ export interface LibraryItem {
 
 export interface LibraryMountOptions {
   kind:LibraryKind;
+  administrator:boolean;
   items:LibraryItem[];
   initialView:LibraryView;
   request:<T=unknown>(path:string,options?:RequestInit)=>Promise<T>;

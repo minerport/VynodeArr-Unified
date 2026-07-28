@@ -38,13 +38,16 @@ test('session listing masks IP and supports other-session revocation',()=>tempAu
   await auth.revokeOtherSessions(admin.id,current.id);assert.equal(auth.session(other.id),null);
 }));
 test('administrator creates, disables, roles, resets, forces logout, and safely deletes users',()=>tempAuth(async(auth)=>{
-  const admin=await auth.createInitialAdministrator(adminInput),viewer=await auth.createUser({name:'Viewer',username:'viewer',email:'viewer@example.test',password:'Viewer-strong-pass3',role:'viewer'});
-  const viewerSession=await auth.createSession(viewer,{ip:'127.0.0.1'});
-  assert.equal((await auth.administerUser(viewer.id,{action:'role',role:'administrator'},admin.id)).role,'administrator');
-  await auth.administerUser(viewer.id,{action:'forceLogout'},admin.id);assert.equal(auth.session(viewerSession.id),null);
-  await auth.administerUser(viewer.id,{action:'disable'},admin.id);assert.equal((await auth.listUsers()).find((item)=>item.id===viewer.id).enabled,false);
-  await auth.administerUser(viewer.id,{action:'enable'},admin.id);await auth.administerUser(viewer.id,{action:'resetPassword',password:'Reset-strong-pass4'},admin.id);
-  await auth.administerUser(viewer.id,{action:'delete'},admin.id);assert.equal((await auth.listUsers()).length,1);
+  const admin=await auth.createInitialAdministrator(adminInput),user=await auth.createUser({name:'User',username:'user',email:'user@example.test',password:'Viewer-strong-pass3',role:'user',permissions:{dashboard:true,discover:false,movies:true,tv:false,calendar:true}});
+  const userSession=await auth.createSession(user,{ip:'127.0.0.1'});
+  assert.deepEqual(user.permissions,{dashboard:true,discover:false,movies:true,tv:false,calendar:true});
+  await auth.administerUser(user.id,{action:'permissions',permissions:{discover:true,tv:true}},admin.id);
+  assert.deepEqual(auth.session(userSession.id).user.permissions,{dashboard:false,discover:true,movies:false,tv:true,calendar:false});
+  assert.equal((await auth.administerUser(user.id,{action:'role',role:'administrator'},admin.id)).role,'administrator');
+  await auth.administerUser(user.id,{action:'forceLogout'},admin.id);assert.equal(auth.session(userSession.id),null);
+  await auth.administerUser(user.id,{action:'disable'},admin.id);assert.equal((await auth.listUsers()).find((item)=>item.id===user.id).enabled,false);
+  await auth.administerUser(user.id,{action:'enable'},admin.id);await auth.administerUser(user.id,{action:'resetPassword',password:'Reset-strong-pass4'},admin.id);
+  await auth.administerUser(user.id,{action:'delete'},admin.id);assert.equal((await auth.listUsers()).length,1);
   await assert.rejects(()=>auth.administerUser(admin.id,{action:'delete'},admin.id),/own account/);
 }));
 test('durable projections hydrate and report incremental updates',async()=>{
@@ -74,6 +77,31 @@ test('dashboard API returns useful product metrics',()=>appSession({movie:new Mo
   assert.equal(value.analytics.rangeDays,30);assert.equal(value.analytics.downloadsOverTime.movie.length,30);assert.equal(value.analytics.downloadsOverTime.tv.length,30);
   assert.ok(Array.isArray(value.analytics.qualityDistribution.movie));assert.ok(Array.isArray(value.analytics.qualityDistribution.tv));
   assert.equal(value.analytics.library.movie.total,3);assert.equal(value.analytics.library.tv.total,3);
+}));
+test('user page permissions are enforced by APIs and update active sessions immediately',()=>appSession({},async({base,cookie,csrf})=>{
+  const create=await fetch(`${base}/api/admin/users`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({name:'Limited User',username:'limited',email:'limited@example.test',password:'Limited-strong-pass5',role:'user',permissions:{dashboard:false,discover:true,movies:true,tv:false,calendar:true}})});
+  assert.equal(create.status,201);const created=(await create.json()).user;
+  const login=await fetch(`${base}/api/auth/login`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({identifier:'limited',password:'Limited-strong-pass5'})});
+  assert.equal(login.status,200);const userLogin=await login.json(),userCookie=login.headers.get('set-cookie').split(';')[0];
+  assert.equal((await fetch(`${base}/api/dashboard`,{headers:{cookie:userCookie}})).status,403);
+  assert.equal((await fetch(`${base}/api/media/movies`,{headers:{cookie:userCookie}})).status,200);
+  assert.equal((await fetch(`${base}/api/media/tv`,{headers:{cookie:userCookie}})).status,403);
+  assert.equal((await fetch(`${base}/api/calendar`,{headers:{cookie:userCookie}})).status,200);
+  assert.equal((await fetch(`${base}/api/discover/status`,{headers:{cookie:userCookie}})).status,200);
+  assert.equal((await fetch(`${base}/api/settings/engines`,{headers:{cookie:userCookie}})).status,403);
+  assert.equal((await fetch(`${base}/api/collections`,{headers:{cookie:userCookie}})).status,403);
+  assert.equal((await fetch(`${base}/api/activity/history`,{headers:{cookie:userCookie}})).status,403);
+  assert.equal((await fetch(`${base}/api/system/health`,{headers:{cookie:userCookie}})).status,403);
+  assert.equal((await fetch(`${base}/api/import-jobs`,{headers:{cookie:userCookie}})).status,403);
+  assert.equal((await fetch(`${base}/api/import-jobs`,{method:'POST',headers:{cookie:userCookie,'content-type':'application/json','x-vynodearr-csrf':userLogin.csrf},body:JSON.stringify({domain:'movie',items:[{title:'Not allowed',payload:{}}]})})).status,403);
+  assert.equal((await fetch(`${base}/api/system/sync`,{method:'POST',headers:{cookie:userCookie,'x-vynodearr-csrf':userLogin.csrf}})).status,403);
+  const update=await fetch(`${base}/api/admin/users/${created.id}`,{method:'PATCH',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({action:'permissions',permissions:{dashboard:true,discover:false,movies:false,tv:true,calendar:false}})});
+  assert.equal(update.status,200);
+  assert.equal((await fetch(`${base}/api/dashboard`,{headers:{cookie:userCookie}})).status,200);
+  assert.equal((await fetch(`${base}/api/media/movies`,{headers:{cookie:userCookie}})).status,403);
+  assert.equal((await fetch(`${base}/api/media/tv`,{headers:{cookie:userCookie}})).status,200);
+  assert.equal((await fetch(`${base}/api/calendar`,{headers:{cookie:userCookie}})).status,403);
+  assert.equal((await fetch(`${base}/api/discover/status`,{headers:{cookie:userCookie}})).status,403);
 }));
 test('master-key status is administrator-only and environment-managed rotation is refused',()=>appSession({movie:new MovieFixtureAdapter(),tv:new TvFixtureAdapter()},async({base,cookie,csrf})=>{
   assert.equal((await fetch(`${base}/api/system/master-key`)).status,401);

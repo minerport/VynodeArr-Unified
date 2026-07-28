@@ -14,7 +14,8 @@ export interface AccountUser {
   name:string;
   username:string;
   email:string;
-  role:'administrator'|'viewer';
+  role:'administrator'|'user';
+  permissions?:Record<'dashboard'|'discover'|'movies'|'tv'|'calendar',boolean>;
   enabled?:boolean;
   profileImage?:string;
   timeZone?:string;

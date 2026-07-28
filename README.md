@@ -27,16 +27,15 @@ consistent experience and account system.
 
 ## Current release
 
-Version **2.0.11** is ready for real-time testing on Unraid and Windows. New
-installations now generate and persist unique credential-encryption and engine
-API keys instead of relying on shared fallback values. Administrators can
-rotate the app-managed credential key and control API-key authentication for
-each bundled engine from the interface. Existing engine keys are preserved
-during Compose upgrades so VynodeArr remains connected.
+Version **2.0.12** is ready for real-time testing on Unraid and Windows.
+Administrators can now create User accounts and independently grant access to
+Dashboard, Discover, Movies, TV, and Calendar. Library, dashboard, and calendar
+access is read-only for Users, while Discover access can include requesting
+movies and series through the connected engines.
 
-The README and Unraid installation metadata now explicitly credit Radarr and
-Sonarr and distinguish VynodeArr's Apache 2.0-licensed code from the bundled
-GPLv3 engine binaries.
+Page permissions are enforced in both the interface and API. Unavailable
+navigation is hidden, direct links are rejected, live library updates are
+filtered, and changes apply to sessions that are already signed in.
 
 The release has been validated with the complete automated test suite,
 TypeScript checking, production builds, bundle-budget checks, branding checks,
@@ -83,6 +82,23 @@ See the [changelog](CHANGELOG.md) for the detailed list of changes.
 - Sortable, filterable queue with download-client status and bulk actions
 - Unified calendar, history, health, and scheduled-task views
 
+### User access controls
+
+Administrators manage local accounts under **Account Settings → Users**. Each
+User account can be granted any combination of:
+
+- **Dashboard** — view system and library summaries
+- **Discover** — browse and request movies or television series
+- **Movies** — view the movie library and movie details
+- **TV** — view shows, seasons, episodes, and series details
+- **Calendar** — view upcoming movie and episode dates
+
+Dashboard, Movies, TV, and Calendar remain view-only for User accounts. Actions
+that alter libraries, monitoring, files, engine configuration, providers,
+activity, or system settings remain administrator-only. **My Account** is
+always available so every signed-in user can maintain their own profile,
+password, sessions, and interface preferences.
+
 ### Flexible collections
 
 Build hand-picked collections or combine smart rules such as title, year, decade, genre, monitoring state, file availability, and an existing movie collection. Preview matches, keep earlier selections while trying new rules, and remove individual movies before saving.
@@ -92,7 +108,7 @@ Build hand-picked collections or combine smart rules such as title, year, decade
 ### Administration without configuration files
 
 - First-run administrator creation and secure local accounts
-- User roles, active sessions, encrypted credentials, and engine-key controls
+- Administrator and configurable User roles, active sessions, encrypted credentials, and engine-key controls
 - Visual root-folder browser, quality profiles, indexers, and download clients
 - Review, customize, compare, and apply TRaSH guide templates independently for Movies and TV
 - Movie and television settings kept separate where their behavior differs

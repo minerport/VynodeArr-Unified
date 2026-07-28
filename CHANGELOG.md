@@ -7,6 +7,42 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.12] - 2026-07-28
+
+### Added
+
+- Added an administrator-managed **User** role with independent access choices
+  for Dashboard, Discover, Movies, TV, and Calendar.
+- Added clear page-access controls when creating a user and when editing an
+  existing user's access.
+- Discover-enabled users can browse and request movies or series through a
+  narrowly scoped engine request workflow.
+
+### Changed
+
+- Dashboard, Movies, TV, and Calendar are read-only for User accounts.
+- Navigation hides unavailable pages, direct links return users to their first
+  permitted page, and sign-in opens the first page the account may access.
+- Existing legacy Viewer accounts migrate to User accounts with all five
+  supported pages enabled to preserve prior access.
+- User permission changes are enforced immediately for existing sessions.
+
+### Security
+
+- Added server-side permission checks for page APIs, artwork, live library
+  updates, activity, collections, engine settings, and system information.
+- Live library events are filtered so users receive updates only for movie or
+  television libraries they may view.
+- Discover requests validate the selected root folder and quality profile
+  against the connected engine before adding a title.
+- Administrative background library imports remain administrator-only and are
+  not implied by Discover access.
+
+### Documentation
+
+- Documented the User role, configurable page access, view-only library
+  behavior, and Discover request capability.
+
 ## [2.0.11] - 2026-07-28
 
 ### Added
@@ -217,7 +253,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.11...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.12...HEAD
+[2.0.12]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.11...v2.0.12
 [2.0.11]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.10...v2.0.11
 [2.0.10]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.9...v2.0.10
 [2.0.9]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.8...v2.0.9

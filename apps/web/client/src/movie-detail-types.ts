@@ -6,6 +6,6 @@ export interface MovieDetail {
   artwork?:{url?:string};backdrop?:{url?:string};releaseDates?:{digital?:string};
 }
 export interface MovieDetailMountOptions {
-  publicId:string;request:<T=unknown>(path:string,options?:RequestInit)=>Promise<T>;
+  publicId:string;administrator:boolean;request:<T=unknown>(path:string,options?:RequestInit)=>Promise<T>;
   notify:(message:string,tone?:string)=>void;
 }

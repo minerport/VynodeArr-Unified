@@ -1,0 +1,8 @@
+.react-account-dialog{max-height:calc(100vh - 2rem);overflow:auto}
+.user-access-fields{display:grid;gap:.55rem;margin:1rem 0 0;padding:1rem;border:1px solid var(--line);border-radius:.75rem}
+.user-access-fields legend{padding:0 .35rem;font-weight:800}
+.user-access-fields>p{margin:0 0 .35rem;color:var(--muted);font-size:.9rem}
+.react-account-dialog .user-access-option{display:flex;align-items:flex-start;gap:.7rem;margin:0;padding:.65rem;border:1px solid color-mix(in srgb,var(--line) 72%,transparent);border-radius:.6rem}
+.react-account-dialog .user-access-option input{width:auto;margin:.2rem 0 0}
+.user-access-option span{display:grid;gap:.15rem}
+.user-access-option small{color:var(--muted);font-weight:500}

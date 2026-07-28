@@ -70,6 +70,7 @@ interface CompleteOptions extends SessionElements{
   result:AuthenticationResult;
   setup:boolean;
   applyUser:(user:SessionUser)=>void;
+  landingHash?:(user:SessionUser)=>string;
 }
 
 export function completeAuthentication(options:CompleteOptions){
@@ -79,5 +80,5 @@ export function completeAuthentication(options:CompleteOptions){
   options.setupView.hidden=true;
   options.authView.hidden=true;
   options.shell.hidden=false;
-  location.hash=options.setup?'#engine-setup':options.result.enginesConfigured?'#dashboard':'#engine-setup';
+  location.hash=options.setup?'#engine-setup':options.result.enginesConfigured?(options.landingHash?.(options.result.user)||'#dashboard'):'#engine-setup';
 }

@@ -15,6 +15,9 @@ const uiDensities=new Set(['comfortable','compact']);
 const uiDensity=(value,fallback='comfortable')=>uiDensities.has(value)?value:fallback;
 const motionPreferences=new Set(['system','reduced','full']);
 const motionPreference=(value,fallback='system')=>motionPreferences.has(value)?value:fallback;
+export const userPagePermissionNames=['dashboard','discover','movies','tv','calendar'];
+const fullPagePermissions=()=>Object.fromEntries(userPagePermissionNames.map((name)=>[name,true]));
+const normalizePagePermissions=(value={})=>Object.fromEntries(userPagePermissionNames.map((name)=>[name,value?.[name]===true]));
 const maskIp=(ip='')=>ip.includes(':')?`${ip.split(':').slice(0,3).join(':')}:…`:ip.replace(/\.\d+$/,'.…');
 const clientInfo=(agent='')=>({
   browser:/Firefox/i.test(agent)?'Firefox':/Edg/i.test(agent)?'Edge':/Chrome/i.test(agent)?'Chrome':/Safari/i.test(agent)?'Safari':'Unknown browser',
@@ -31,13 +34,15 @@ export class AuthService {
     const [users,sessions]=await Promise.all([this.userStore.read(),this.sessionStore.read()]);
     const source=Array.isArray(users)?users:(users.users||[]);
     this.users=source.map((user)=>({
-      ...user,name:user.name||user.username,email:user.email||`${user.username}@local.invalid`,
+      ...user,role:user.role==='viewer'?'user':user.role,
+      permissions:(user.role==='administrator'?fullPagePermissions():user.permissions?normalizePagePermissions(user.permissions):fullPagePermissions()),
+      name:user.name||user.username,email:user.email||`${user.username}@local.invalid`,
       enabled:user.enabled!==false,profileImage:user.profileImage||null,timeZone:user.timeZone||'UTC',
       dateTimeFormat:user.dateTimeFormat||'locale',theme:user.theme||'dark',uiStyle:uiStyle(user.uiStyle),
       uiDensity:uiDensity(user.uiDensity),motionPreference:motionPreference(user.motionPreference),language:user.language||'en',
       updatedAt:user.updatedAt||user.createdAt||new Date().toISOString()
     }));
-    if(Array.isArray(users)||source.some((user)=>!user.name||!user.email))await this.#persistUsers();
+    if(Array.isArray(users)||source.some((user)=>!user.name||!user.email||user.role==='viewer'||!user.permissions))await this.#persistUsers();
     const now=Date.now();for(const session of sessions.sessions||[])if(session.expiresAt>now)this.sessions.set(session.id,session);
     await this.#persistSessions();
   }
@@ -58,7 +63,7 @@ export class AuthService {
     if(!(await this.setupRequired()))throw new Error('Setup is already complete');
     const value={name:normalize(input.name),username:normalize(input.username),email:normalize(input.email).toLowerCase(),password:input.password};
     this.#validateIdentity(value);if(input.password!==input.confirmPassword)throw new Error('Passwords do not match');this.#assertUnique(value.username,value.email);
-    const user={id:`user_${encode(randomBytes(12))}`,name:value.name,username:value.username,email:value.email,passwordHash:hashPassword(value.password),role:'administrator',enabled:true,profileImage:null,timeZone:'UTC',dateTimeFormat:'locale',theme:'dark',uiStyle:'glass',uiDensity:'comfortable',motionPreference:'system',language:'en',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+    const user={id:`user_${encode(randomBytes(12))}`,name:value.name,username:value.username,email:value.email,passwordHash:hashPassword(value.password),role:'administrator',permissions:fullPagePermissions(),enabled:true,profileImage:null,timeZone:'UTC',dateTimeFormat:'locale',theme:'dark',uiStyle:'glass',uiDensity:'comfortable',motionPreference:'system',language:'en',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
     this.users.push(user);await this.#persistUsers();return this.publicUser(user);
   }
   publicUser(user){const {passwordHash,...safe}=user;return safe;}
@@ -102,8 +107,8 @@ export class AuthService {
   async listUsers(){return this.users.map((user)=>this.publicUser(user));}
   async createUser(input){
     const value={name:normalize(input.name),username:normalize(input.username),email:normalize(input.email).toLowerCase(),password:input.password};this.#validateIdentity(value);this.#assertUnique(value.username,value.email);
-    if(!['administrator','viewer'].includes(input.role))throw new Error('Role is invalid');
-    const user={id:`user_${encode(randomBytes(12))}`,name:value.name,username:value.username,email:value.email,passwordHash:hashPassword(value.password),role:input.role,enabled:true,profileImage:null,timeZone:'UTC',dateTimeFormat:'locale',theme:'dark',uiStyle:'glass',uiDensity:'comfortable',motionPreference:'system',language:'en',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};this.users.push(user);await this.#persistUsers();return this.publicUser(user);
+    if(!['administrator','user'].includes(input.role))throw new Error('Role is invalid');
+    const user={id:`user_${encode(randomBytes(12))}`,name:value.name,username:value.username,email:value.email,passwordHash:hashPassword(value.password),role:input.role,permissions:input.role==='administrator'?fullPagePermissions():normalizePagePermissions(input.permissions),enabled:true,profileImage:null,timeZone:'UTC',dateTimeFormat:'locale',theme:'dark',uiStyle:'glass',uiDensity:'comfortable',motionPreference:'system',language:'en',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};this.users.push(user);await this.#persistUsers();return this.publicUser(user);
   }
   async administerUser(id,input,actingUserId){
     const user=this.users.find((item)=>item.id===id);if(!user)throw new Error('User was not found');
@@ -111,7 +116,8 @@ export class AuthService {
     if(input.action==='enable')user.enabled=true;
     else if(input.action==='disable'){if(id===actingUserId)throw new Error('You cannot disable your own account');user.enabled=false;await this.revokeUserSessions(id);}
     else if(input.action==='forceLogout')await this.revokeUserSessions(id);
-    else if(input.action==='role'){if(!['administrator','viewer'].includes(input.role))throw new Error('Role is invalid');user.role=input.role;}
+    else if(input.action==='role'){if(!['administrator','user'].includes(input.role))throw new Error('Role is invalid');if(user.role==='administrator'&&input.role!=='administrator'&&this.users.filter((item)=>item.role==='administrator'&&item.enabled).length===1)throw new Error('The last enabled administrator cannot be changed to a user');user.role=input.role;user.permissions=input.role==='administrator'?fullPagePermissions():normalizePagePermissions(input.permissions||user.permissions);}
+    else if(input.action==='permissions'){if(user.role==='administrator')throw new Error('Administrator access cannot be restricted');user.permissions=normalizePagePermissions(input.permissions);}
     else if(input.action==='resetPassword'){this.#validateIdentity({...user,password:input.password});user.passwordHash=hashPassword(input.password);await this.revokeUserSessions(id);}
     else throw new Error('Administrative action is invalid');
     user.updatedAt=new Date().toISOString();await this.#persistUsers();return this.publicUser(user);

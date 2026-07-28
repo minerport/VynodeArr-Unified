@@ -212,7 +212,7 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(app,/showHealthReact/);
   assert.doesNotMatch(app,/function healthFix/);
   assert.match(manifest.scripts.verify,/check:web-bundle/);
-  assert.match(bundleBudget,/limits=\{entry:300_000,shell:250_000,route:45_000,css:68_000\}/);
+  assert.match(bundleBudget,/limits=\{entry:300_000,shell:252_000,route:45_000,css:69_000\}/);
   assert.match(unraidDockerfile,/FROM node:24-alpine AS web-build/);
   assert.match(unraidDockerfile,/apps\/web\/public\/react/);
 });
@@ -654,7 +654,7 @@ test('movie and television initial loading is owned by typed React without losin
   assert.match(library,/options\.onLoaded\?\.\(value\.items,value\.mode\)/);
   assert.match(library,/Library refresh delayed/);
   assert.match(types,/onLoaded\?:\(items:LibraryItem\[\],mode\?:string\)/);
-  assert.match(shell,/mountLibrary\(host,\{kind,items:state\[kind\]/);
+  assert.match(shell,/mountLibrary\(host,\{kind,administrator:state\.user\?\.role==='administrator',items:state\[kind\]/);
   assert.match(shell,/onLoaded:\(items,mode\)=>\{state\[kind\]=items/);
   assert.match(shell,/if\(window\.VynodeArrReact\?\.mountLibrary\).*return;/);
   assert.match(shell,/try\{const value=await api\(movie\?'\/api\/media\/movies':'\/api\/media\/tv'\)/);
@@ -788,7 +788,7 @@ test('session bootstrap and authenticated shell activation have typed ownership'
   assert.match(lifecycle,/location\.hash=options\.setup\?'#engine-setup'/);
   assert.match(shell,/import \{bootstrapSession,completeAuthentication\} from '\.\/session-lifecycle'/);
   assert.match(shell,/await bootstrapSession\(\{state,request:api,setupView,authView,shell,applyUser,startImportMonitor,route\}\)/);
-  assert.match(shell,/completeAuthentication\(\{state,result,setup,setupView,authView,shell,applyUser\}\)/);
+  assert.match(shell,/completeAuthentication\(\{state,result,setup,setupView,authView,shell,applyUser,landingHash:firstPermittedHash\}\)/);
   assert.doesNotMatch(shell,/const status=await api\('\/api\/auth\/status'\)/);
 });
 
