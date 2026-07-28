@@ -8,8 +8,8 @@
   <Privileged>false</Privileged>
   <Support>https://github.com/minerport/VynodeArr-Unified/issues</Support>
   <Project>https://github.com/minerport/VynodeArr-Unified</Project>
-  <Overview>Unified movie and television management with installation-managed engines, one account, and one web interface.</Overview>
-  <Description>VynodeArr provides one dashboard for movie and television library management while keeping engine databases and settings isolated. Choose separate media folders and one shared downloads folder.</Description>
+  <Overview>VynodeArr runs Radarr and Sonarr behind a unified movie and television management interface.</Overview>
+  <Description>VynodeArr runs Radarr and Sonarr behind one secure gateway while keeping their databases and settings isolated. Radarr and Sonarr are established open-source projects maintained by their respective contributors. Their bundled binaries remain licensed under GPLv3; VynodeArr's Apache 2.0 license applies only to VynodeArr code. Component versions, source links, and license details are provided in OPEN_SOURCE_NOTICES and THIRD_PARTY_NOTICES. Choose separate media folders and one shared downloads folder.</Description>
   <Category>MediaApp:Video</Category>
   <WebUI>http://[IP]:[PORT:8686]/</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/develop/templates/vynodearr.xml</TemplateURL>

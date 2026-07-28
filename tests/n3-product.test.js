@@ -75,6 +75,27 @@ test('dashboard API returns useful product metrics',()=>appSession({movie:new Mo
   assert.ok(Array.isArray(value.analytics.qualityDistribution.movie));assert.ok(Array.isArray(value.analytics.qualityDistribution.tv));
   assert.equal(value.analytics.library.movie.total,3);assert.equal(value.analytics.library.tv.total,3);
 }));
+test('master-key status is administrator-only and environment-managed rotation is refused',()=>appSession({movie:new MovieFixtureAdapter(),tv:new TvFixtureAdapter()},async({base,cookie,csrf})=>{
+  assert.equal((await fetch(`${base}/api/system/master-key`)).status,401);
+  const statusResponse=await fetch(`${base}/api/system/master-key`,{headers:{cookie}}),status=await statusResponse.json();
+  assert.equal(statusResponse.status,200);assert.equal(status.managed,false);assert.equal(status.canRotate,false);
+  const withoutCsrf=await fetch(`${base}/api/system/master-key/rotate`,{method:'POST',headers:{cookie}});
+  assert.equal(withoutCsrf.status,403);
+  const rotation=await fetch(`${base}/api/system/master-key/rotate`,{method:'POST',headers:{cookie,'x-vynodearr-csrf':csrf,'content-type':'application/json'},body:'{}'}),value=await rotation.json();
+  assert.equal(rotation.status,409);assert.equal(value.error.code,'master_key_environment_managed');
+}));
+test('administrators can require engine authentication independently',()=>{
+  const host=(name)=>{let value={id:1,instanceName:name,authenticationMethod:'External',authenticationRequired:'DisabledForLocalAddresses'};return{get:async path=>{assert.equal(path,'config/host');return value;},put:async(path,next)=>{assert.equal(path,'config/host');value=next;return value;}};};
+  const movieClient=host('Movies'),tvClient=host('TV'),movie=Object.assign(new MovieFixtureAdapter(),{client:movieClient}),tv=Object.assign(new TvFixtureAdapter(),{client:tvClient});
+  return appSession({movie,tv},async({base,cookie,csrf})=>{
+    const initial=await (await fetch(`${base}/api/settings/engines/authentication`,{headers:{cookie}})).json();
+    assert.equal(initial.movie.required,false);assert.equal(initial.tv.required,false);
+    const changedResponse=await fetch(`${base}/api/settings/engines/movie/authentication`,{method:'PUT',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({required:true})}),changed=await changedResponse.json();
+    assert.equal(changedResponse.status,200);assert.equal(changed.required,true);assert.equal(changed.mode,'Enabled');
+    const current=await (await fetch(`${base}/api/settings/engines/authentication`,{headers:{cookie}})).json();
+    assert.equal(current.movie.required,true);assert.equal(current.tv.required,false);
+  });
+});
 test('dashboard upcoming excludes calendar events before today',()=>{
   const yesterday=new Date(Date.now()-86400000).toISOString(),tomorrow=new Date(Date.now()+86400000).toISOString();
   const movie=Object.assign(new MovieFixtureAdapter(),{getCalendar:async()=>[

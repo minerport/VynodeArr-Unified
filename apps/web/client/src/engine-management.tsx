@@ -1,6 +1,6 @@
 import {useCallback,useEffect,useState,type FormEvent} from 'react';
 import {AccountTabs} from './account-tabs';
-import type {EngineConfiguration,EngineDomain,EngineManagementMountOptions,EngineSettings,EngineSummary,EngineSystem,EngineValidation} from './engine-management-types';
+import type {EngineAuthenticationSettings,EngineConfiguration,EngineDomain,EngineManagementMountOptions,EngineSettings,EngineSummary,EngineSystem,EngineValidation} from './engine-management-types';
 
 const errorText=(reason:unknown)=>reason instanceof Error?reason.message:'Engine management is unavailable.';
 const display=(domain:EngineDomain)=>domain==='movie'?'Movies':'TV';
@@ -28,6 +28,22 @@ function IntegrationKey({engine,managed,options}:{engine:EngineSummary;managed:b
   return <div className="integration-key-row"><strong>{engine.displayName} · {engine.domain==='movie'?'/movies':'/tv'}</strong><code>{key||'Hidden'}</code><button className="secondary" disabled={Boolean(busy)} onClick={()=>void reveal()}>{busy==='reveal'?'Loading…':key?'Hide':'Reveal'}</button><button className="secondary" disabled={!key||Boolean(busy)} onClick={()=>void copy()}>Copy</button><button className="danger" disabled={!managed||Boolean(busy)} title={managed?'':'Key generation is available only for installation-managed engines'} onClick={()=>void regenerate()}>{busy==='regenerate'?'Generating…':'Generate new key'}</button></div>;
 }
 
+function AuthenticationControls({value,options,onChange}:{value:EngineAuthenticationSettings;options:EngineManagementMountOptions;onChange:(value:EngineAuthenticationSettings)=>void}){
+  const [busy,setBusy]=useState<EngineDomain|null>(null);
+  const toggle=async(domain:EngineDomain,required:boolean)=>{
+    if(!required&&!confirm(`Allow Docker-network clients to reach the ${display(domain)} engine without authentication? API-key authentication is strongly recommended.`))return;
+    setBusy(domain);
+    try{
+      const updated=await options.request<{required:boolean;mode:string}>(`/api/settings/engines/${domain}/authentication`,{method:'PUT',body:JSON.stringify({required})});
+      onChange({...value,[domain]:{available:true,required:updated.required,mode:updated.mode}});
+      options.notify(`${display(domain)} engine authentication ${updated.required?'required':'allowed to bypass on local addresses'}.`,updated.required?'info':'error');
+    }catch(reason){options.notify(errorText(reason),'error');}
+    finally{setBusy(null);}
+  };
+  const protectedEngines=value.movie.required===true&&value.tv.required===true,unavailable=!value.movie.available||!value.tv.available;
+  return <section className="panel engine-authentication"><div className="panel-heading"><div><span className="eyebrow">NETWORK SECURITY</span><h2>Require engine authentication</h2></div><span className={`badge ${protectedEngines?'green':'warm'}`}>{protectedEngines?'Protected':unavailable?'Status unavailable':'Local bypass enabled'}</span></div><p className="muted">When enabled, every client—including other containers on the Docker network—must provide the engine API key. Disable this only for a trusted, isolated network.</p><div className="engine-authentication-grid">{(['movie','tv'] as EngineDomain[]).map(domain=><label className="config-switch" key={domain}><span><strong>{display(domain)}</strong><small>{!value[domain].available?'Connect this engine to review its setting':value[domain].required?'API key required from every address':'Local and Docker-network addresses may bypass authentication'}</small></span><input type="checkbox" checked={value[domain].required===true} disabled={busy!==null||!value[domain].available} onChange={event=>void toggle(domain,event.target.checked)}/></label>)}</div></section>;
+}
+
 export function ExternalEngineForm({domain,initial,options}:{domain:EngineDomain;initial:EngineConfiguration;options:EngineManagementMountOptions}){
   const [value,setValue]=useState<EngineConfiguration&{apiCredential:string}>({...initial,apiCredential:''}),[validation,setValidation]=useState<EngineValidation|null>(null),[busy,setBusy]=useState('');
   const update=<K extends keyof typeof value>(key:K,next:(typeof value)[K])=>{setValue(current=>({...current,[key]:next}));setValidation(null);options.onDirtyChange(true);};
@@ -46,17 +62,18 @@ export function ExternalEngineForm({domain,initial,options}:{domain:EngineDomain
 }
 
 export function EngineManagementView({options}:{options:EngineManagementMountOptions}){
-  const [system,setSystem]=useState<EngineSystem|null>(null),[settings,setSettings]=useState<EngineSettings|null>(null),[loading,setLoading]=useState(true),[repairing,setRepairing]=useState(false),[error,setError]=useState('');
-  const load=useCallback(async()=>{setLoading(true);setError('');try{const [systemValue,settingsValue]=await Promise.all([options.request<EngineSystem>('/api/system/engines'),options.request<EngineSettings>('/api/settings/engines')]);setSystem(systemValue);setSettings(settingsValue);}catch(reason){setError(errorText(reason));}finally{setLoading(false);}},[options]);
+  const [system,setSystem]=useState<EngineSystem|null>(null),[settings,setSettings]=useState<EngineSettings|null>(null),[authentication,setAuthentication]=useState<EngineAuthenticationSettings|null>(null),[loading,setLoading]=useState(true),[repairing,setRepairing]=useState(false),[error,setError]=useState('');
+  const load=useCallback(async()=>{setLoading(true);setError('');try{const [systemValue,settingsValue,authenticationValue]=await Promise.all([options.request<EngineSystem>('/api/system/engines'),options.request<EngineSettings>('/api/settings/engines'),options.request<EngineAuthenticationSettings>('/api/settings/engines/authentication')]);setSystem(systemValue);setSettings(settingsValue);setAuthentication(authenticationValue);}catch(reason){setError(errorText(reason));}finally{setLoading(false);}},[options]);
   useEffect(()=>{void load();},[load]);
   const repair=async()=>{setRepairing(true);try{await options.request('/api/settings/engines/repair',{method:'POST',body:'{}'});options.notify('Automatic engine connections repaired.');await load();}catch(reason){options.notify(errorText(reason),'error');}finally{setRepairing(false);}};
   if(loading)return <div className="panel skeleton react-route-loading">Loading engine management…</div>;
-  if(error||!system||!settings)return <div className="empty error-state"><h2>Engine management unavailable</h2><p>{error||'Engine settings could not be loaded.'}</p><button className="secondary" onClick={()=>void load()}>Try again</button></div>;
+  if(error||!system||!settings||!authentication)return <div className="empty error-state"><h2>Engine management unavailable</h2><p>{error||'Engine settings could not be loaded.'}</p><button className="secondary" onClick={()=>void load()}>Try again</button></div>;
   return <div className="react-engine-management">
     <div className="hero"><div><span className="eyebrow">ENGINE MANAGEMENT</span><h1>Media engines</h1><p className="lede">{system.managed?'Installed engines are connected and maintained automatically.':'Review connections for separately managed engines.'}</p></div>{system.managed?<button className="secondary" disabled={repairing} onClick={()=>void repair()}>{repairing?'Repairing…':'Repair automatic connections'}</button>:null}</div>
     <AccountTabs active="engines" administrator/>
     <div className="engine-status-grid">{system.engines.map(engine=><EngineCard engine={engine} key={engine.domain}/>)}</div>
     <section className="panel integration-access"><h2>External application access</h2><p className="muted">Connect Seerr and similar applications to this VynodeArr host on port <strong>8686</strong>. Use URL Base <code>/movies</code> for movies and <code>/tv</code> for television.</p>{system.engines.map(engine=><IntegrationKey engine={engine} managed={system.managed} options={options} key={engine.domain}/>)}</section>
+    <AuthenticationControls value={authentication} options={options} onChange={setAuthentication}/>
     {system.managed?<div className="notice managed-engine-notice"><strong>Engine keys are created once during installation.</strong><p>VynodeArr does not rotate them during restarts or updates. External applications such as Seerr must use the matching movie or TV engine key and must be updated after any manual key change.</p></div>:null}
     <details className="external-engine-settings"><summary><span><strong>Advanced: external engines</strong><small>Only use this when connecting engines maintained outside this installation.</small></span></summary><div className="engine-wizard"><ExternalEngineForm domain="movie" initial={settings.movie} options={options}/><ExternalEngineForm domain="tv" initial={settings.tv} options={options}/></div></details>
   </div>;

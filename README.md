@@ -11,32 +11,36 @@
 <p align="center">
   <a href="https://github.com/minerport/VynodeArr-Unified/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/minerport/VynodeArr-Unified"></a>
   <a href="https://github.com/minerport/VynodeArr-Unified/actions/workflows/verify.yml"><img alt="Verification status" src="https://github.com/minerport/VynodeArr-Unified/actions/workflows/verify.yml/badge.svg"></a>
-  <a href="LICENSE"><img alt="Apache 2.0 license" src="https://img.shields.io/badge/license-Apache%202.0-blue.svg"></a>
+  <a href="LICENSE"><img alt="VynodeArr code uses the Apache 2.0 license" src="https://img.shields.io/badge/VynodeArr%20code-Apache%202.0-blue.svg"></a>
   <img alt="Unraid and Windows" src="https://img.shields.io/badge/platforms-Unraid%20%7C%20Windows-7c5cff">
 </p>
 
-VynodeArr is a self-hosted media-management application with one account system, one interface, and dedicated movie and television services operating behind its secure gateway. It brings library management, discovery, monitoring, acquisition, activity, and administration into a consistent VynodeArr experience.
+VynodeArr is a self-hosted media-management application that runs
+[Radarr](https://github.com/Radarr/Radarr) and
+[Sonarr](https://github.com/Sonarr/Sonarr) behind a unified interface and secure
+gateway. These long-running open-source projects provide the dedicated movie
+and television engines; VynodeArr brings their library management, discovery,
+monitoring, acquisition, activity, and administration workflows into one
+consistent experience and account system.
 
 ![VynodeArr movie library](docs/screenshots/movie-library.png)
 
 ## Current release
 
-Version **2.0.10** is ready for real-time testing on Unraid and Windows. The
-interface now applies one consistent presentation system across page
-backgrounds, navigation, heroes, cards, controls, dialogs, and scrollbars.
-Users can independently choose a color theme and a Glass, Solid, OLED, or High
-Contrast interface style, select comfortable or compact density, and control
-motion. Nested movie and television workflows now open in a viewport-level
-modal layer so their controls remain visible without losing the underlying
-detail view.
+Version **2.0.11** is ready for real-time testing on Unraid and Windows. New
+installations now generate and persist unique credential-encryption and engine
+API keys instead of relying on shared fallback values. Administrators can
+rotate the app-managed credential key and control API-key authentication for
+each bundled engine from the interface. Existing engine keys are preserved
+during Compose upgrades so VynodeArr remains connected.
+
+The README and Unraid installation metadata now explicitly credit Radarr and
+Sonarr and distinguish VynodeArr's Apache 2.0-licensed code from the bundled
+GPLv3 engine binaries.
 
 The release has been validated with the complete automated test suite,
-TypeScript checking, production builds, bundle-budget checks, deployment
-validation, a fresh Docker image, connected movie and television engines, and
-browser tests covering every Movies and TV information-card, compact-grid, and
-detailed-list layout. Modal positioning, page-position restoration, card
-overflow, title wrapping, action alignment, and theme application were also
-verified.
+TypeScript checking, production builds, bundle-budget checks, branding checks,
+Docker Compose parsing, and deployment validation.
 Existing installations can update with the
 `ghcr.io/minerport/vynodearr-unified:latest` image while retaining their
 persistent `/config` mapping.
@@ -68,6 +72,8 @@ See the [changelog](CHANGELOG.md) for the detailed list of changes.
 - System-aware, reduced, or full motion
 - Uniform themed cards, controls, dialogs, borders, backgrounds, and scrollbars
 - Viewport-safe modals that return you to the same position on the originating page
+- Automatic per-installation encryption keys for saved engine credentials
+- Administrator-controlled credential-key rotation under **System → Security**
 
 ### Search, acquire, and follow progress
 
@@ -126,6 +132,38 @@ ghcr.io/minerport/vynodearr-unified:latest
 > Keep `/config` when updating or recreating the container. It contains the application state and both service databases.
 
 For normal Unraid HTTP access, leave `VYNODEARR_SECURE_COOKIES=false`. Enable secure cookies only when VynodeArr is always accessed over HTTPS.
+
+### Credential encryption and master-key rotation
+
+When neither `VYNODEARR_MASTER_KEY` nor `VYNODEARR_MASTER_KEY_FILE` is
+configured, VynodeArr generates a unique cryptographically random master key
+on first run. It is retained as `master-key` inside the persistent
+`VYNODEARR_DATA_DIR` (normally `/config/vynodearr` in the container). Keep the
+`/config` mapping to retain access to encrypted movie-engine, television-engine, and discovery
+credentials.
+
+Administrators can open **System → Security** and choose **Rotate master key**.
+VynodeArr re-encrypts the existing credential vault and persists the new key;
+this does not change the API keys configured inside either media engine. An
+interrupted rotation is completed automatically on the next startup.
+
+Installations that explicitly provide `VYNODEARR_MASTER_KEY` or
+`VYNODEARR_MASTER_KEY_FILE` remain externally managed. For those installations,
+the in-app rotation control is disabled so a container restart cannot restore
+an older environment value over an app-generated replacement.
+
+### Engine authentication on Docker networks
+
+Bundled movie and television engines require API-key authentication from every
+address by default. This includes VynodeArr, request applications, and other
+containers sharing the Docker network. VynodeArr continues using the generated
+engine API keys automatically.
+
+Administrators can review or change each engine independently under
+**Account Settings → Media Engines → Require engine authentication**. Keep the
+switch enabled unless the Docker network is trusted and isolated. When it is
+disabled, local-address rules may treat other containers as local and allow
+them to reach that engine without authentication.
 
 ### Windows
 
@@ -248,4 +286,16 @@ More documentation:
 
 ## License and acknowledgements
 
-VynodeArr source code is licensed under the [Apache License 2.0](LICENSE). Bundled third-party components retain their respective licenses and notices; see [`THIRD_PARTY_NOTICES`](THIRD_PARTY_NOTICES).
+VynodeArr's own source code is licensed under the
+[Apache License 2.0](LICENSE). That license badge applies only to VynodeArr
+code; it does not relicense bundled or separately distributed components.
+
+The Unraid image includes executable distributions of
+[Radarr](https://github.com/Radarr/Radarr) and
+[Sonarr](https://github.com/Sonarr/Sonarr), which remain licensed under the
+GNU General Public License version 3 and retain their own copyrights, licenses,
+and corresponding-source links. VynodeArr is grateful to both projects and
+their contributors for the years of work behind its movie and television
+engines. See [`OPEN_SOURCE_NOTICES`](OPEN_SOURCE_NOTICES) and
+[`THIRD_PARTY_NOTICES`](THIRD_PARTY_NOTICES) for component versions, source
+links, and additional notices.

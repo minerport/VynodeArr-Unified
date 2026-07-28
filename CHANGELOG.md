@@ -7,6 +7,43 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.11] - 2026-07-28
+
+### Added
+
+- Generate a cryptographically random credential-encryption master key on
+  first run when no environment-managed key is supplied, and retain it in the
+  persistent VynodeArr configuration directory.
+- Added **System → Security** for administrators to review master-key
+  management and safely rotate app-managed keys without changing movie- or
+  television-engine API keys.
+- Added administrator controls on the Media Engines page to require or relax
+  API-key authentication independently for the movie and television engines,
+  with a warning explaining Docker-network exposure.
+
+### Security
+
+- Removed the fixed development master key fallback.
+- Existing vaults created with the former fallback are migrated once and
+  re-encrypted with a unique persisted key.
+- Master-key rotation uses a recoverable pending key so interrupted rotations
+  can complete safely on the next startup.
+- New bundled installations require engine authentication from every address.
+  Existing bundled installations are moved to this secure default once on
+  upgrade while retaining an explicit per-engine opt-out.
+- Local Compose installations now generate independent random movie- and
+  television-engine API keys, persist them beside each engine configuration,
+  and make VynodeArr read the same files. Existing engine keys are retained
+  during upgrades.
+
+### Documentation
+
+- Added prominent Radarr and Sonarr attribution to the README and Unraid
+  installation metadata.
+- Clarified that the Apache 2.0 badge covers VynodeArr code only and that the
+  bundled Radarr and Sonarr binaries retain their GPLv3 licenses, copyrights,
+  and corresponding-source links.
+
 ## [2.0.10] - 2026-07-27
 
 ### Fixed
@@ -180,7 +217,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.10...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.11...HEAD
+[2.0.11]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.10...v2.0.11
 [2.0.10]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.9...v2.0.10
 [2.0.9]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.8...v2.0.9
 [2.0.8]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.7...v2.0.8

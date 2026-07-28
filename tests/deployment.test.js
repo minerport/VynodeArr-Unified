@@ -9,10 +9,21 @@ test('local Compose bundles private healthy engines and exposes only VynodeArr',
   assert.match(text,/MOVIE_ENGINE_HOST: movie-engine/);
   assert.match(text,/TV_ENGINE_HOST: tv-engine/);
 });
-test('Unraid template has required mappings, self-contained image, and neutral overview',async()=>{
+test('local Compose persists random engine keys and shares them with VynodeArr',async()=>{
+  const text=await readFile(new URL('../compose.yaml',import.meta.url),'utf8');
+  assert.match(text,/od -An -N16 -tx1 \/dev\/urandom/);
+  assert.match(text,/MOVIE_ENGINE_API_CREDENTIAL_FILE: \/engine-config\/movie\/api-key/);
+  assert.match(text,/TV_ENGINE_API_CREDENTIAL_FILE: \/engine-config\/tv\/api-key/);
+  assert.match(text,/cat \/movie\/api-key/);assert.match(text,/cat \/tv\/api-key/);
+  assert.doesNotMatch(text,/vynodearr-local-(?:movie|tv)-key/);
+  assert.equal((text.match(/<AuthenticationRequired>Enabled<\/AuthenticationRequired>/g)||[]).length,2);
+});
+test('Unraid template has required mappings, self-contained image, and upstream attribution',async()=>{
   const text=await readFile(new URL('../infrastructure/unraid/vynodearr.xml',import.meta.url),'utf8');
   for(const value of ['<Name>VynodeArr</Name>','ghcr.io/minerport/vynodearr-unified:latest','Target="8686"','Target="/config"','Target="/movies"','Target="/tv"','Target="/downloads"'])assert.match(text,new RegExp(value));
-  const overview=text.match(/<Overview>(.*?)<\/Overview>/s)?.[1]||'';assert.doesNotMatch(overview,/\b(radarr|sonarr)\b/i);
+  const overview=text.match(/<Overview>(.*?)<\/Overview>/s)?.[1]||'';
+  assert.match(overview,/\bRadarr\b/);assert.match(overview,/\bSonarr\b/);
+  assert.match(text,/GPLv3/);assert.match(text,/Apache 2\.0/);
 });
 test('production image is non-root and has a health check',async()=>{
   const text=await readFile(new URL('../Dockerfile',import.meta.url),'utf8');assert.match(text,/USER vynodearr/);assert.match(text,/HEALTHCHECK/);assert.match(text,/VYNODEARR_DATA_DIR=\/data/);
@@ -42,4 +53,10 @@ test('Unraid installation includes first-run and dashboard screenshots',async()=
   await access(new URL('../docs/unraid/dashboard.png',import.meta.url));
   const text=await readFile(new URL('../docs/unraid/README.md',import.meta.url),'utf8');
   assert.match(text,/first-run\.png/);assert.match(text,/dashboard\.png/);assert.match(text,/automatic file-schema migrations/i);
+});
+
+test('bundled engines require authentication from every address by default',async()=>{
+  const entrypoint=await readFile(new URL('../infrastructure/unraid/entrypoint.sh',import.meta.url),'utf8');
+  assert.equal((entrypoint.match(/<AuthenticationRequired>Enabled<\/AuthenticationRequired>/g)||[]).length,2);
+  assert.doesNotMatch(entrypoint,/DisabledForLocalAddresses/);
 });

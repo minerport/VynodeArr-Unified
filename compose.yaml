@@ -4,8 +4,8 @@ services:
     container_name: vynodearr-engine-config
     restart: "no"
     environment:
-      MOVIE_KEY: "${MOVIE_ENGINE_API_CREDENTIAL:-vynodearr-local-movie-key-2026}"
-      TV_KEY: "${TV_ENGINE_API_CREDENTIAL:-vynodearr-local-tv-key-2026}"
+      MOVIE_KEY: "${MOVIE_ENGINE_API_CREDENTIAL:-}"
+      TV_KEY: "${TV_ENGINE_API_CREDENTIAL:-}"
     volumes:
       - movie-engine-config:/movie
       - tv-engine-config:/tv
@@ -18,11 +18,22 @@ services:
         set -eu
         chown -R 1000:1000 /movies /television /downloads
         chmod 775 /movies /television /downloads
+        movie_key="$$(sed -n 's:.*<ApiKey>\([^<]*\)</ApiKey>.*:\1:p' /movie/config.xml 2>/dev/null || true)"
+        tv_key="$$(sed -n 's:.*<ApiKey>\([^<]*\)</ApiKey>.*:\1:p' /tv/config.xml 2>/dev/null || true)"
+        [ -n "$${movie_key}" ] || movie_key="$$(cat /movie/api-key 2>/dev/null || true)"
+        [ -n "$${tv_key}" ] || tv_key="$$(cat /tv/api-key 2>/dev/null || true)"
+        [ -n "$${movie_key}" ] || movie_key="$${MOVIE_KEY}"
+        [ -n "$${tv_key}" ] || tv_key="$${TV_KEY}"
+        [ -n "$${movie_key}" ] || movie_key="$$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')"
+        [ -n "$${tv_key}" ] || tv_key="$$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')"
+        printf '%s\n' "$${movie_key}" > /movie/api-key
+        printf '%s\n' "$${tv_key}" > /tv/api-key
+        chmod 644 /movie/api-key /tv/api-key
         if [ ! -f /movie/config.xml ]; then
-          printf '%s\n' '<Config><BindAddress>*</BindAddress><Port>7878</Port><EnableSsl>False</EnableSsl><LaunchBrowser>False</LaunchBrowser><ApiKey>'"$${MOVIE_KEY}"'</ApiKey><AuthenticationMethod>External</AuthenticationMethod><AuthenticationRequired>DisabledForLocalAddresses</AuthenticationRequired><LogLevel>info</LogLevel><UrlBase></UrlBase><InstanceName>VynodeArr Movies</InstanceName><UpdateMechanism>Docker</UpdateMechanism></Config>' > /movie/config.xml
+          printf '%s\n' '<Config><BindAddress>*</BindAddress><Port>7878</Port><EnableSsl>False</EnableSsl><LaunchBrowser>False</LaunchBrowser><ApiKey>'"$${movie_key}"'</ApiKey><AuthenticationMethod>External</AuthenticationMethod><AuthenticationRequired>Enabled</AuthenticationRequired><LogLevel>info</LogLevel><UrlBase></UrlBase><InstanceName>VynodeArr Movies</InstanceName><UpdateMechanism>Docker</UpdateMechanism></Config>' > /movie/config.xml
         fi
         if [ ! -f /tv/config.xml ]; then
-          printf '%s\n' '<Config><BindAddress>*</BindAddress><Port>8989</Port><EnableSsl>False</EnableSsl><LaunchBrowser>False</LaunchBrowser><ApiKey>'"$${TV_KEY}"'</ApiKey><AuthenticationMethod>External</AuthenticationMethod><AuthenticationRequired>DisabledForLocalAddresses</AuthenticationRequired><LogLevel>info</LogLevel><UrlBase></UrlBase><InstanceName>VynodeArr Television</InstanceName><UpdateMechanism>Docker</UpdateMechanism></Config>' > /tv/config.xml
+          printf '%s\n' '<Config><BindAddress>*</BindAddress><Port>8989</Port><EnableSsl>False</EnableSsl><LaunchBrowser>False</LaunchBrowser><ApiKey>'"$${tv_key}"'</ApiKey><AuthenticationMethod>External</AuthenticationMethod><AuthenticationRequired>Enabled</AuthenticationRequired><LogLevel>info</LogLevel><UrlBase></UrlBase><InstanceName>VynodeArr Television</InstanceName><UpdateMechanism>Docker</UpdateMechanism></Config>' > /tv/config.xml
         fi
 
   movie-engine:
@@ -89,10 +100,10 @@ services:
       VYNODEARR_DATA_MODE: engine
       MOVIE_ENGINE_HOST: movie-engine
       MOVIE_ENGINE_PORT: "7878"
-      MOVIE_ENGINE_API_CREDENTIAL: "${MOVIE_ENGINE_API_CREDENTIAL:-vynodearr-local-movie-key-2026}"
+      MOVIE_ENGINE_API_CREDENTIAL_FILE: /engine-config/movie/api-key
       TV_ENGINE_HOST: tv-engine
       TV_ENGINE_PORT: "8989"
-      TV_ENGINE_API_CREDENTIAL: "${TV_ENGINE_API_CREDENTIAL:-vynodearr-local-tv-key-2026}"
+      TV_ENGINE_API_CREDENTIAL_FILE: /engine-config/tv/api-key
       VYNODEARR_BOOTSTRAP_ROOT_FOLDERS: "true"
       VYNODEARR_BUNDLED_ENGINES: "true"
       TMDB_API_READ_TOKEN: "${TMDB_API_READ_TOKEN:-}"

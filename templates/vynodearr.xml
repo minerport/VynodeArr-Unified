@@ -8,7 +8,7 @@
   <Privileged>false</Privileged>
   <Support>https://github.com/minerport/VynodeArr-Unified/issues</Support>
   <Project>https://github.com/minerport/VynodeArr-Unified</Project>
-  <Overview>Unified movie and television management with installation-managed engines, one account, and one web interface.</Overview>
+  <Overview>VynodeArr runs Radarr and Sonarr behind a unified movie and television management interface.</Overview>
   <Description>VynodeArr is a unified, self-hosted movie and television library manager built for Unraid.
 
 Use one account and one polished interface to manage:
@@ -22,7 +22,7 @@ Use one account and one polished interface to manage:
 • Naming audits and selective file organization
 • Engine health, settings, backups, and restoration
 
-VynodeArr operates its movie and television engines behind one secure gateway while retaining separate engine databases and settings.
+VynodeArr runs Radarr and Sonarr behind one secure gateway while retaining separate engine databases and settings. Radarr and Sonarr are established open-source projects maintained by their respective contributors. The bundled engine binaries remain licensed under GPLv3; VynodeArr's Apache 2.0 license applies only to VynodeArr code. Component versions, source links, and license details are provided in OPEN_SOURCE_NOTICES and THIRD_PARTY_NOTICES.
 
 Existing libraries are supported. Configure separate movie and television folders plus a completed-download folder shared with your download client.</Description>
   <Category>MediaApp:Video</Category>

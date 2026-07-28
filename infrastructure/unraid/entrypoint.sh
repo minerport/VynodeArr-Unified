@@ -12,11 +12,11 @@ random_key() {
 
 if [ ! -f "$movie_config/config.xml" ]; then
   movie_key="$(random_key)"
-  printf '%s\n' "<Config><BindAddress>*</BindAddress><Port>7878</Port><EnableSsl>False</EnableSsl><LaunchBrowser>False</LaunchBrowser><ApiKey>${movie_key}</ApiKey><AuthenticationMethod>External</AuthenticationMethod><AuthenticationRequired>DisabledForLocalAddresses</AuthenticationRequired><LogLevel>info</LogLevel><UrlBase></UrlBase><InstanceName>VynodeArr Movies</InstanceName><UpdateMechanism>Docker</UpdateMechanism></Config>" > "$movie_config/config.xml"
+  printf '%s\n' "<Config><BindAddress>*</BindAddress><Port>7878</Port><EnableSsl>False</EnableSsl><LaunchBrowser>False</LaunchBrowser><ApiKey>${movie_key}</ApiKey><AuthenticationMethod>External</AuthenticationMethod><AuthenticationRequired>Enabled</AuthenticationRequired><LogLevel>info</LogLevel><UrlBase></UrlBase><InstanceName>VynodeArr Movies</InstanceName><UpdateMechanism>Docker</UpdateMechanism></Config>" > "$movie_config/config.xml"
 fi
 if [ ! -f "$tv_config/config.xml" ]; then
   tv_key="$(random_key)"
-  printf '%s\n' "<Config><BindAddress>*</BindAddress><Port>8989</Port><EnableSsl>False</EnableSsl><LaunchBrowser>False</LaunchBrowser><ApiKey>${tv_key}</ApiKey><AuthenticationMethod>External</AuthenticationMethod><AuthenticationRequired>DisabledForLocalAddresses</AuthenticationRequired><LogLevel>info</LogLevel><UrlBase></UrlBase><InstanceName>VynodeArr Television</InstanceName><UpdateMechanism>Docker</UpdateMechanism></Config>" > "$tv_config/config.xml"
+  printf '%s\n' "<Config><BindAddress>*</BindAddress><Port>8989</Port><EnableSsl>False</EnableSsl><LaunchBrowser>False</LaunchBrowser><ApiKey>${tv_key}</ApiKey><AuthenticationMethod>External</AuthenticationMethod><AuthenticationRequired>Enabled</AuthenticationRequired><LogLevel>info</LogLevel><UrlBase></UrlBase><InstanceName>VynodeArr Television</InstanceName><UpdateMechanism>Docker</UpdateMechanism></Config>" > "$tv_config/config.xml"
 fi
 
 export MOVIE_ENGINE_API_CREDENTIAL="$(sed -n 's:.*<ApiKey>\([^<]*\)</ApiKey>.*:\1:p' "$movie_config/config.xml")"

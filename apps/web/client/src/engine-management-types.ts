@@ -41,6 +41,12 @@ export interface EngineSystem {
   configured:boolean;
   engines:EngineSummary[];
 }
+export interface EngineAuthenticationSetting {available:boolean;required:boolean|null;mode:string}
+export interface EngineAuthenticationSettings {
+  managed:boolean;
+  movie:EngineAuthenticationSetting;
+  tv:EngineAuthenticationSetting;
+}
 
 export interface EngineSettings {
   configured:boolean;

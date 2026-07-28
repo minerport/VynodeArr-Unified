@@ -47,4 +47,5 @@ export class EngineSettingsService {
     await this.vault.replace('tmdb',value);return{configured:true};
   }
   async removeDiscoveryCredential(){await this.vault.remove('tmdb');return{configured:false};}
+  async rotateMasterKey(masterKey){await this.vault.rotate(masterKey);}
 }

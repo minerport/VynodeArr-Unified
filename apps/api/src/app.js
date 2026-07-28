@@ -11,6 +11,7 @@ import { SynchronizationService } from '../../../packages/platform/src/synchroni
 import { ProjectionStore } from '../../../packages/platform/src/projection-store.js';
 import { AuthService } from '../../../packages/platform/src/auth-service.js';
 import { EngineSettingsService } from '../../../packages/platform/src/engine-settings-service.js';
+import { MasterKeyService } from '../../../packages/platform/src/master-key-service.js';
 import { EngineManagementService } from '../../../packages/platform/src/engine-management-service.js';
 import { JsonStore } from '../../../packages/platform/src/json-store.js';
 import { GuideTemplateService,formatForMovieEngine } from '../../../packages/platform/src/guide-template-service.js';
@@ -106,11 +107,13 @@ export function createApplication(options={}){
   let dashboardHistorySnapshot=null,dashboardHistoryExpires=0,dashboardHistoryRun=null;
   const dataDir=resolve(env.VYNODEARR_DATA_DIR||resolve(process.cwd(),'data'));
   const auth=options.auth||new AuthService({userFile:join(dataDir,'users.json'),sessionFile:join(dataDir,'sessions.json'),secureCookies:String(env.VYNODEARR_SECURE_COOKIES||env.NODE_ENV==='production')==='true'});
-  const engineSettings=options.engineSettings||new EngineSettingsService({path:join(dataDir,'engine-settings.json'),vaultPath:join(dataDir,'credentials.enc'),masterKey:options.masterKey||loadSecret(env,'VYNODEARR_MASTER_KEY')||'local-development-key-change-me-2026',defaults:baseConfig});
+  const masterKeyService=options.masterKeyService||new MasterKeyService({path:join(dataDir,'master-key'),vaultPath:join(dataDir,'credentials.enc'),configuredKey:options.masterKey||loadSecret(env,'VYNODEARR_MASTER_KEY')});
+  const engineSettings=options.engineSettings||new EngineSettingsService({path:join(dataDir,'engine-settings.json'),vaultPath:join(dataDir,'credentials.enc'),masterKey:masterKeyService.resolve(),defaults:baseConfig});
   const projectionStore=options.projectionStore||new ProjectionStore(join(dataDir,'projections.json'));
   const auditStore=options.auditStore||new JsonStore(join(dataDir,'management-audit.json'),{version:1,entries:[]});
   const collectionStore=options.collectionStore||new JsonStore(join(dataDir,'collections.json'),{version:1,collections:[]});
   const guideTemplateStore=options.guideTemplateStore||new JsonStore(join(dataDir,'guide-templates.json'),{version:1,records:{}});
+  const engineAuthenticationStore=options.engineAuthenticationStore||new JsonStore(join(dataDir,'engine-authentication.json'),{version:1,initialized:false,movie:null,tv:null,updatedAt:null});
   const guideTemplates=options.guideTemplates||new GuideTemplateService({store:guideTemplateStore,fetcher:options.fetcher||globalThis.fetch});
   const defaultDownloadFolder=domain=>String(env[domain==='movie'?'VYNODEARR_MOVIE_DOWNLOADS_PATH':'VYNODEARR_TV_DOWNLOADS_PATH']||env.VYNODEARR_DOWNLOADS_PATH||'/downloads').replace(/\/+$/,'')||'/downloads';
   const downloadClientRemotePath=domain=>String(env[domain==='movie'?'VYNODEARR_MOVIE_DOWNLOAD_CLIENT_REMOTE_PATH':'VYNODEARR_TV_DOWNLOAD_CLIENT_REMOTE_PATH']||env.VYNODEARR_DOWNLOAD_CLIENT_REMOTE_PATH||'/data/complete').replace(/\/+$/,'')||'/data/complete';
@@ -532,6 +535,33 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
     }
     return results;
   }
+  async function engineAuthentication(){
+    const items=await Promise.all(['movie','tv'].map(async domain=>{
+      try{
+        const host=await registry.get(domain).client.get('config/host');
+        return[domain,{available:true,required:String(host.authenticationRequired||'').toLowerCase()==='enabled',mode:String(host.authenticationRequired||'DisabledForLocalAddresses')}];
+      }catch{return[domain,{available:false,required:null,mode:'Unavailable'}];}
+    }));
+    return{managed:String(env.VYNODEARR_BUNDLED_ENGINES||'false')==='true',...Object.fromEntries(items)};
+  }
+  async function setEngineAuthentication(domain,required,{record=true}={}){
+    const client=registry.get(domain).client,host=await client.get('config/host'),authenticationRequired=required?'Enabled':'DisabledForLocalAddresses';
+    if(String(host.authenticationRequired)!==authenticationRequired)await client.put('config/host',{...host,authenticationRequired});
+    if(record){
+      const value=await engineAuthenticationStore.read();
+      value.initialized=true;value[domain]={required:Boolean(required)};value.updatedAt=new Date().toISOString();
+      await engineAuthenticationStore.write(value);
+    }
+    return{domain,required:Boolean(required),mode:authenticationRequired};
+  }
+  async function ensureBundledAuthenticationDefault(){
+    if(String(env.VYNODEARR_BUNDLED_ENGINES||'false')!=='true'||mode!=='engine')return;
+    const value=await engineAuthenticationStore.read();
+    if(value.initialized)return;
+    await Promise.all(['movie','tv'].map(domain=>setEngineAuthentication(domain,true,{record:false})));
+    value.initialized=true;value.movie={required:true};value.tv={required:true};value.updatedAt=new Date().toISOString();
+    await engineAuthenticationStore.write(value);
+  }
   async function restoreBundledCredentials(){
     if(String(env.VYNODEARR_BUNDLED_ENGINES||'false')!=='true')return false;
     const configured=await engineSettings.runtime(),readKey=async domain=>{
@@ -546,6 +576,7 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
   async function initialize(){
     if(initialized)return;
     await Promise.all([auth.initialize(),engineSettings.initialize()]);
+    await masterKeyService.initialize(engineSettings);
     const storedDiscoveryCredential=await engineSettings.discoveryCredential();
     if(storedDiscoveryCredential)discovery.setToken(storedDiscoveryCredential);
     else if(discovery.configured())await engineSettings.saveDiscoveryCredential(discovery.token);
@@ -554,6 +585,7 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
     try{
       await ensureBundledRootFolders();
       await ensureBundledDownloadPathMappings();
+      await ensureBundledAuthenticationDefault();
       await sync.startup();
     }catch(error){
       console.warn('Engine startup synchronization deferred:',redact(error?.safeMessage||error?.message||'Engine unavailable'));
@@ -858,6 +890,29 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
           await engineSettings.save(engineSave[1],input,input.apiCredential);await rebuildFromSettings();await sync.startup();return json(res,200,{saved:true,settings:engineSettings.public(),validation:result});
         }
         if(url.pathname==='/api/system/application-update'&&req.method==='GET')return json(res,200,{application:'VynodeArr',installedVersion:String(env.VYNODEARR_VERSION||applicationVersion),channel:String(env.VYNODEARR_UPDATE_CHANNEL||'develop'),mechanism:'Container image',repository:'https://github.com/minerport/VynodeArr-Unified',message:'Pull the newest VynodeArr container image, then recreate the application container. Engine updates are managed separately.'});
+        if(url.pathname==='/api/system/master-key'&&req.method==='GET'){
+          if(!administrator(res,session))return;
+          return json(res,200,masterKeyService.status());
+        }
+        if(url.pathname==='/api/settings/engines/authentication'&&req.method==='GET'){
+          if(!administrator(res,session))return;
+          return json(res,200,await engineAuthentication());
+        }
+        const engineAuthenticationMatch=url.pathname.match(/^\/api\/settings\/engines\/(movie|tv)\/authentication$/);
+        if(engineAuthenticationMatch&&req.method==='PUT'){
+          if(!administrator(res,session)||!requireCsrf(req,res,session))return;
+          const input=await body(req);
+          if(typeof input.required!=='boolean')return json(res,400,{error:{code:'validation_failed',message:'Authentication required must be true or false.'}});
+          return json(res,200,await setEngineAuthentication(engineAuthenticationMatch[1],input.required));
+        }
+        if(url.pathname==='/api/system/master-key/rotate'&&req.method==='POST'){
+          if(!administrator(res,session)||!requireCsrf(req,res,session))return;
+          try{return json(res,200,{rotated:true,...await masterKeyService.rotate(engineSettings)});}
+          catch(error){
+            if(error?.code==='master_key_environment_managed')return json(res,409,{error:{code:error.code,message:error.message}});
+            throw error;
+          }
+        }
         const backupRestore=url.pathname.match(/^\/api\/system\/backups\/(movie|tv)\/(\d+)\/restore$/);
         if(backupRestore&&req.method==='POST'){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;
