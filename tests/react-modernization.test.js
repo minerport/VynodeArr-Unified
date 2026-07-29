@@ -279,12 +279,13 @@ test('poster library cards expose engine metadata without eager TMDB requests',a
 });
 
 test('Discover progressively loads and owns title details and requests through a typed React route',async()=>{
-  const [discover,detail,request,islands,legacy]=await Promise.all([
+  const [discover,detail,request,islands,legacy,styles]=await Promise.all([
     read('apps/web/client/src/discover.tsx'),
     read('apps/web/client/src/discover-detail.tsx'),
     read('apps/web/client/src/discover-request.tsx'),
     read('apps/web/client/src/react-islands.tsx'),
-    read('apps/web/client/src/app-shell.ts')
+    read('apps/web/client/src/app-shell.ts'),
+    read('apps/web/public/styles.css')
   ]);
   assert.match(discover,/export function DiscoverView/);
   assert.match(discover,/loadFeed/);
@@ -296,6 +297,9 @@ test('Discover progressively loads and owns title details and requests through a
   assert.match(request,/\/api\/discover\/import-options/);
   assert.match(request,/\/api\/discover\/request/);
   assert.match(request,/Fix movie match/);
+  assert.match(request,/discover-match-dialog/);
+  assert.match(styles,/\.discover-match-dialog\{[^}]*width:min\(42rem/);
+  assert.match(styles,/\.discover-request-match\{[^}]*width:100%;max-width:100%/);
   assert.match(request,/setResolvedItem\(candidate\)/);
   assert.match(request,/tmdbId:resolvedItem\.tmdbId/);
   assert.match(discover,/onRequested=\{requested=>/);

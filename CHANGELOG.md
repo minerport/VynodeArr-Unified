@@ -13,6 +13,9 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Fix Match no longer renders wider than its parent movie or television detail
   modal.
+- Discover request correction now uses a narrower purpose-sized dialog, and
+  its search controls, result cards, metadata, and selection buttons remain
+  inside the modal without horizontal overflow.
 - Nested detail dialogs now use a shared centered viewport layer and calculate
   their padding and borders inside the available width.
 - Nested dialogs remain fully contained on smaller screens without changing

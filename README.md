@@ -28,11 +28,11 @@ consistent experience and account system.
 ## Current release
 
 Version **2.0.15** is ready for real-time testing on Unraid, Windows, and
-standard Docker installations. Fix Match and the other nested movie and
-television detail dialogs are now constrained within the visible detail
-surface instead of becoming wider than their parent modal. Their padding and
-borders are included in the available width, with a viewport-safe mobile
-layout.
+standard Docker installations. Fix Match, Discover request correction, and
+the other nested movie and television detail dialogs are now constrained
+within their visible parent surface. Discover correction uses a compact
+purpose-sized dialog, while all matching panels include their padding and
+borders in the available width and remain viewport-safe on mobile.
 
 Discover requests resolve movie and television engine records using
 authoritative TMDB and TVDB identifiers rather than title text or search-result
