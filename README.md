@@ -27,12 +27,17 @@ consistent experience and account system.
 
 ## Current release
 
-Version **2.0.14** is ready for real-time testing on Unraid, Windows, and
-standard Docker installations. Discover requests now resolve movie and
-television engine records using authoritative TMDB and TVDB identifiers rather
-than title text or search-result order. Users granted Discover access can
-correct a movie selection before submitting the request by reviewing and
-choosing the intended TMDB record.
+Version **2.0.15** is ready for real-time testing on Unraid, Windows, and
+standard Docker installations. Fix Match and the other nested movie and
+television detail dialogs are now constrained within the visible detail
+surface instead of becoming wider than their parent modal. Their padding and
+borders are included in the available width, with a viewport-safe mobile
+layout.
+
+Discover requests resolve movie and television engine records using
+authoritative TMDB and TVDB identifiers rather than title text or search-result
+order. Users granted Discover access can correct a movie selection before
+submitting the request by reviewing and choosing the intended TMDB record.
 
 Page permissions are enforced in both the interface and API. Unavailable
 navigation is hidden, direct links are rejected, live library updates are

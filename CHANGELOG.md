@@ -7,6 +7,22 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.15] - 2026-07-29
+
+### Fixed
+
+- Fix Match no longer renders wider than its parent movie or television detail
+  modal.
+- Nested detail dialogs now use a shared centered viewport layer and calculate
+  their padding and borders inside the available width.
+- Nested dialogs remain fully contained on smaller screens without changing
+  their existing search, selection, editing, or file-management workflows.
+
+### Documentation
+
+- Updated the current-release overview with the nested-modal containment and
+  responsive-layout changes.
+
 ## [2.0.14] - 2026-07-29
 
 ### Added
@@ -323,7 +339,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.14...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.15...HEAD
+[2.0.15]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.14...v2.0.15
 [2.0.14]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.13...v2.0.14
 [2.0.13]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.12...v2.0.13
 [2.0.12]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.11...v2.0.12
