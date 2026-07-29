@@ -8,6 +8,7 @@ import { createApplication } from '../.server-build/apps/api/src/app.js';
 import { AuthService } from '../.server-build/packages/platform/src/auth-service.js';
 import { MovieFixtureAdapter } from '../.server-build/packages/movie-domain/src/fixture-adapter.js';
 import { TvFixtureAdapter } from '../.server-build/packages/tv-domain/src/fixture-adapter.js';
+import { exactEngineMatch,lookupTermsForIdentity,payloadMatchesIdentity } from '../.server-build/apps/api/src/discovery-engine-match.js';
 
 async function fixtureServer(run){
   const directory=await mkdtemp(join(tmpdir(),'vynodearr-api-'));
@@ -22,6 +23,22 @@ async function fixtureServer(run){
   }finally{await new Promise((resolve)=>server.close(resolve));await rm(directory,{recursive:true,force:true});}
 }
 const get=(base,path,cookie)=>fetch(`${base}${path}`,{headers:{cookie}});
+
+test('Discover and correction matching use external IDs and never title order',()=>{
+  const identity={tmdbId:2316,tvdbId:73244};
+  const results=[
+    {title:'The Office',year:2001,tmdbId:2996,tvdbId:78107},
+    {title:'The Office (US)',year:2005,tmdbId:2316,tvdbId:73244}
+  ];
+  assert.deepEqual(lookupTermsForIdentity('tv',identity),['tvdb:73244','tmdb:2316']);
+  assert.equal(exactEngineMatch('tv',identity,results),results[1]);
+  assert.equal(exactEngineMatch('tv',identity,[results[0]]),undefined);
+  assert.equal(exactEngineMatch('tv',identity,[{...results[0],tmdbId:2316}]),undefined);
+  assert.equal(payloadMatchesIdentity('tv',identity,results[1]),true);
+  assert.equal(payloadMatchesIdentity('tv',identity,results[0]),false);
+  assert.equal(payloadMatchesIdentity('movie',{tmdbId:550},{tmdbId:550}),true);
+  assert.equal(payloadMatchesIdentity('movie',{tmdbId:550},{tmdbId:551}),false);
+});
 
 test('setup auto-login, session validation, CSRF, and logout',()=>fixtureServer(async({base,cookie,csrf})=>{
   const status=await (await get(base,'/api/auth/status',cookie)).json();assert.equal(status.authenticated,true);assert.equal(status.user.role,'administrator');assert.equal(status.enginesConfigured,true);
@@ -66,7 +83,7 @@ test('static assets use safe caching, validation, and gzip compression',()=>fixt
 test('UI exposes login, dashboard, media, operations, settings, and responsive shell',async()=>{
   const html=await readFile(new URL('../apps/web/public/index.html',import.meta.url),'utf8');const script=await readFile(new URL('../apps/web/client/src/app-shell.ts',import.meta.url),'utf8');const loader=await readFile(new URL('../apps/web/public/app.js',import.meta.url),'utf8');const css=await readFile(new URL('../apps/web/public/styles.css',import.meta.url),'utf8');
   for(const value of ['Create Administrator','Sign in','Username or email','Remember me','Forgot password','Discover','Movies','TV','Queue','History','Calendar','Settings','System','Read-only mode'])assert.match(html,new RegExp(value));
-  for(const value of ['showDashboard','showDiscover','showDiscoverSettings','Configure Discover','/api/settings/discover','TMDB_API_READ_TOKEN','renderDiscoverRows','resolveDiscoverItem','openDiscoverDetails','addDiscoverToEngine','markLiveDiscoverRequested','scrollPositions','discoverLibraryKey','discover-taxonomy','discover-request-title','showHealthReact','mountHealth','showMedia','showDetail','showOperational','showSettings','showEngineSetup','showAccountSettings','showSessions','showUsers'])assert.match(script,new RegExp(value));
+  for(const value of ['showDashboard','showDiscoverV2','showDiscoverSettings','Configure Discover','/api/settings/discover','TMDB_API_READ_TOKEN','openLiveDiscoverDetails','addDiscoverToEngine','markLiveDiscoverRequested','scrollPositions','discoverLibraryKey','discover-taxonomy','discover-request-title','showHealthReact','mountHealth','showMedia','showDetail','showOperational','showSettings','showEngineSetup','showAccountSettings','showSessions','showUsers'])assert.match(script,new RegExp(value));
   assert.doesNotMatch(script,/requested and sent[^;]+;location\.hash/);
   assert.match(loader,/\/react\/vynodearr-app\.js/);
   assert.match(css,/@media\(max-width:760px\)/);

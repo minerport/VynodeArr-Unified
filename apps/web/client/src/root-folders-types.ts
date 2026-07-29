@@ -5,5 +5,5 @@ export interface DownloadFolders{movie?:{path?:string};tv?:{path?:string}}
 export interface RootFoldersMountOptions{
   request:<T=unknown>(path:string,options?:RequestInit)=>Promise<T>;
   notify:(message:string,tone?:string)=>void;
-  onScan:(domain:StorageDomain,root:RootFolder)=>void;
+  startImport:(domain:StorageDomain,items:Array<{title:string;payload:Record<string,unknown>}>)=>Promise<void>;
 }

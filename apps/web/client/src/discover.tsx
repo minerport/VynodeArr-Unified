@@ -1,6 +1,8 @@
 import { useCallback,useEffect,useMemo,useRef,useState,type CSSProperties } from 'react';
 import type { DiscoverCategory,DiscoverDomain,DiscoverItem,DiscoverLibraryStatus,DiscoverMountOptions,DiscoverPage,LibraryItem } from './discover-types';
 import { cachedRequest } from './query-client';
+import {DiscoverDetail} from './discover-detail';
+import {DiscoverRequest} from './discover-request';
 
 const feeds=[
   ['trending','Trending now','Movies and series people are watching today'],
@@ -11,6 +13,15 @@ const feeds=[
 ] as const;
 const normalize=(value:string)=>value.toLowerCase().replace(/[^a-z0-9]+/g,'').trim();
 const libraryKey=(domain:DiscoverDomain,title:string,year?:number|null)=>`${domain}:${normalize(title)}:${Number(year||0)}`;
+const libraryKeys=(domain:DiscoverDomain,title:string,year?:number|null)=>[
+  libraryKey(domain,title,year),
+  ...(domain==='tv'?[`${domain}:${normalize(title)}`]:[]),
+];
+const findLibraryStatus=(library:Map<string,DiscoverLibraryStatus>,item:Pick<DiscoverItem,'domain'|'title'|'year'>)=>
+  libraryKeys(item.domain,item.title,item.year).map(key=>library.get(key)).find(Boolean);
+const addLibraryStatus=(library:Map<string,DiscoverLibraryStatus>,domain:DiscoverDomain,item:Pick<LibraryItem,'title'|'year'>,status:DiscoverLibraryStatus)=>{
+  libraryKeys(domain,item.title,item.year).forEach(key=>library.set(key,status));
+};
 const mergeUnique=(pages:DiscoverPage[])=>{
   const seen=new Set<string>();
   return pages.flatMap(page=>page.results).filter(item=>!seen.has(item.id)&&Boolean(seen.add(item.id)));
@@ -39,7 +50,7 @@ function Row({title,subtitle,items,library,onOpen,onMore,onBack,grid=false}:{tit
     <button type="button" aria-label={`Previous ${title}`} title="Previous" onClick={()=>strip.current?.scrollBy({left:-strip.current.clientWidth*.8,behavior:'smooth'})}>‹</button>
     <button type="button" aria-label={`Next ${title}`} title="Next" onClick={()=>{strip.current?.scrollBy({left:strip.current.clientWidth*.8,behavior:'smooth'});onMore?.();}}>›</button>
     {grid?<button className="discover-results-more" type="button" onClick={onMore} disabled={!onMore}>{onMore?'Load more':'All loaded'}</button>:null}
-  </div></div><div className="discover-strip" ref={strip}>{items.map(item=><Card key={item.id} item={item} status={library.get(libraryKey(item.domain,item.title,item.year))} onOpen={onOpen}/>)}</div></section>;
+  </div></div><div className="discover-strip" ref={strip}>{items.map(item=><Card key={item.id} item={item} status={findLibraryStatus(library,item)} onOpen={onOpen}/>)}</div></section>;
 }
 
 function Taxonomy({title,kind,items,onSelect}:{title:string;kind:'genre'|'studio'|'network';items:DiscoverCategory[];onSelect:(item:DiscoverCategory&{taxonomy:'genre'|'studio'|'network'})=>void}){
@@ -54,6 +65,9 @@ export function DiscoverView({options}:{options:DiscoverMountOptions}){
   const [rows,setRows]=useState<Record<string,DiscoverItem[]>>({});
   const [pages,setPages]=useState<Record<string,number>>({});
   const [library,setLibrary]=useState(new Map<string,DiscoverLibraryStatus>());
+  const [libraryItems,setLibraryItems]=useState(new Map<string,LibraryItem>());
+  const [selected,setSelected]=useState<DiscoverItem|null>(null);
+  const [requesting,setRequesting]=useState<DiscoverItem|null>(null);
   const [taxonomies,setTaxonomies]=useState<{movie:DiscoverCategory[];tv:DiscoverCategory[];studios:DiscoverCategory[];networks:DiscoverCategory[]}>({movie:[],tv:[],studios:[],networks:[]});
   const [domain,setDomain]=useState<'all'|DiscoverDomain>('all');
   const [query,setQuery]=useState('');
@@ -70,10 +84,14 @@ export function DiscoverView({options}:{options:DiscoverMountOptions}){
   },[options]);
   const refreshLibrary=useCallback(async()=>{
     const [movies,tv]=await Promise.all([options.request<{items:LibraryItem[]}>('/api/media/movies'),options.request<{items:LibraryItem[]}>('/api/media/tv')]);
-    setLibrary(new Map([
-      ...movies.items.map(item=>[libraryKey('movie',item.title,item.year),libraryStatus('movie',item)] as const),
-      ...tv.items.map(item=>[libraryKey('tv',item.title,item.year),libraryStatus('tv',item)] as const),
-    ]));
+    const next=new Map<string,DiscoverLibraryStatus>();
+    const records=new Map<string,LibraryItem>();
+    movies.items.forEach(item=>addLibraryStatus(next,'movie',item,libraryStatus('movie',item)));
+    tv.items.forEach(item=>addLibraryStatus(next,'tv',item,libraryStatus('tv',item)));
+    movies.items.forEach(item=>libraryKeys('movie',item.title,item.year).forEach(key=>records.set(key,item)));
+    tv.items.forEach(item=>libraryKeys('tv',item.title,item.year).forEach(key=>records.set(key,item)));
+    setLibrary(next);
+    setLibraryItems(records);
   },[options]);
 
   useEffect(()=>{
@@ -81,7 +99,11 @@ export function DiscoverView({options}:{options:DiscoverMountOptions}){
     void refreshLibrary().catch(()=>{});
     const requested=(event:Event)=>{
       const item=(event as CustomEvent<{domain:DiscoverDomain;title:string;year?:number|null}>).detail;
-      if(item)setLibrary(current=>new Map(current).set(libraryKey(item.domain,item.title,item.year),'pending'));
+      if(item)setLibrary(current=>{
+        const next=new Map(current);
+        libraryKeys(item.domain,item.title,item.year).forEach(key=>next.set(key,'pending'));
+        return next;
+      });
     };
     const focused=()=>void refreshLibrary().catch(()=>{});
     window.addEventListener('vynodearr:discover-requested',requested);
@@ -109,7 +131,7 @@ export function DiscoverView({options}:{options:DiscoverMountOptions}){
 
   const featured=rows.trending?.find(item=>item.backdrop)||rows.trending?.[0];
   const visible=useMemo(()=>feeds.filter(([kind])=>domain==='all'||(domain==='movie'&&kind.includes('movie'))||(domain==='tv'&&kind.includes('tv'))),[domain]);
-  const open=useCallback((item:DiscoverItem)=>window.dispatchEvent(new CustomEvent('vynodearr:discover-details',{detail:item})),[]);
+  const open=useCallback((item:DiscoverItem)=>setSelected(item),[]);
   const loadBrowsePages=useCallback(async(context:BrowseContext,start:number,count:number,replace=false)=>{
     if(context.loading||start>context.totalPages)return;
     const requestId=++browseRequest.current,end=Math.min(context.totalPages,start+count-1);
@@ -149,6 +171,14 @@ export function DiscoverView({options}:{options:DiscoverMountOptions}){
   },[browseContext]);
 
   return <div className="react-discover">
+    {selected?<DiscoverDetail item={selected} libraryItem={libraryKeys(selected.domain,selected.title,selected.year).map(key=>libraryItems.get(key)).find(Boolean)} options={options} onRequest={setRequesting} onClose={()=>setSelected(null)}/>:null}
+    {requesting?<DiscoverRequest item={requesting} options={options} onClose={()=>setRequesting(null)} onRequested={requested=>{
+      setLibrary(current=>{
+        const next=new Map(current);
+        libraryKeys(requested.domain,requested.title,requested.year).forEach(key=>next.set(key,'pending'));
+        return next;
+      });
+    }}/>:null}
     {featured?<section className="discover-hero"><div className="discover-hero-backdrop">{(featured.backdrop||featured.poster)?<img src={featured.backdrop||featured.poster||''} alt=""/>:null}</div><div className="discover-hero-shade"/><div className="discover-hero-copy"><span className="eyebrow">TRENDING TODAY</span><h1>{featured.title}</h1><p>{featured.overview}</p><div className="discover-meta"><span>★ {featured.rating.toFixed(1)}</span><span>{featured.year||'TBA'}</span></div><button className="primary" onClick={()=>open(featured)}>View details</button></div></section>:<section className="discover-hero skeleton"><div className="discover-hero-copy"><span className="eyebrow">DISCOVER</span><h1>Loading trending titles…</h1></div></section>}
     <section className="discover-toolbar"><label className="discover-search"><span>⌕</span><input type="search" value={query} onChange={event=>setQuery(event.target.value)} placeholder="Search all TMDB movies and television"/></label><div className="discover-domain-filter">{(['all','movie','tv'] as const).map(value=><button className={`chip${domain===value?' selected':''}`} onClick={()=>setDomain(value)} key={value}>{value==='all'?'Everything':value==='movie'?'Movies':'TV'}</button>)}</div><span className="discover-source">Live TMDB discovery · no Plex dependency</span></section>
     <div id="discover-rows">

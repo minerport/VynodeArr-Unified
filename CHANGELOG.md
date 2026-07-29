@@ -7,6 +7,54 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.14] - 2026-07-29
+
+### Added
+
+- Added live Queue summary cards that separately report the total items from
+  the Movie engine and TV engine.
+- Discover-enabled users can correct a movie request before submission by
+  searching TMDB, reviewing the year and metadata, and selecting the intended
+  TMDB ID.
+- Added typed React ownership for Discover details and requests, background
+  import creation and monitoring, and library-import review and analysis.
+
+### Changed
+
+- Discover requests now resolve engine records using authoritative TMDB and
+  TVDB identifiers instead of title text or search-result order.
+- Movie and television match correction now applies only an exact external-ID
+  result and stops safely when the engine cannot resolve that identity.
+- Discover request review displays the authoritative TMDB and TVDB identifiers
+  before a title is sent to an engine.
+- Queue totals continue to show complete live engine counts while users filter
+  the queue table.
+- Root-folder import review now uses typed, bounded background analysis without
+  changing the existing import choices or workflows.
+
+### Fixed
+
+- Create User and Edit Access dialogs now render through the shared modal
+  portal so their headers and controls are not hidden beneath the application
+  search bar.
+- Ambiguous titles, including regional series with similar names, can no longer
+  be added or rematched merely because a title string or first search result
+  appears similar.
+- Correcting a Discover movie request updates the pending-library state for the
+  movie actually selected instead of the original search result.
+
+### Security
+
+- The server re-fetches Discover metadata and verifies submitted engine payload
+  identifiers before creating a movie or television request.
+- Discover movie correction remains limited to the pending request workflow;
+  it does not grant User accounts permission to modify existing library items.
+
+### Documentation
+
+- Updated the current-release overview for identifier-safe requests, request
+  correction, queue counts, and the continued React and TypeScript migration.
+
 ## [2.0.13] - 2026-07-28
 
 ### Fixed
@@ -275,7 +323,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.13...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.14...HEAD
+[2.0.14]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.13...v2.0.14
 [2.0.13]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.12...v2.0.13
 [2.0.12]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.11...v2.0.12
 [2.0.11]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.10...v2.0.11

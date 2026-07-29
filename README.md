@@ -27,17 +27,25 @@ consistent experience and account system.
 
 ## Current release
 
-Version **2.0.13** is ready for real-time testing on Unraid, Windows, and
-standard Docker installations. Administrators can create User accounts and
-independently grant access to Dashboard, Discover, Movies, TV, and Calendar.
-Library, dashboard, and calendar access is read-only for Users, while Discover
-access can include requesting movies and series through the connected engines.
+Version **2.0.14** is ready for real-time testing on Unraid, Windows, and
+standard Docker installations. Discover requests now resolve movie and
+television engine records using authoritative TMDB and TVDB identifiers rather
+than title text or search-result order. Users granted Discover access can
+correct a movie selection before submitting the request by reviewing and
+choosing the intended TMDB record.
 
 Page permissions are enforced in both the interface and API. Unavailable
 navigation is hidden, direct links are rejected, live library updates are
 filtered, and changes apply to sessions that are already signed in. A User
 granted Calendar access can browse monitored movie releases and television air
 dates without receiving access to administrator-only engine-management APIs.
+Correcting a pending Discover request does not grant permission to alter
+existing library items.
+
+The Queue page now shows separate live totals for the Movie and TV engines,
+along with the combined queue count. This release also continues the React and
+TypeScript migration for Discover details and requests, background import
+monitoring, and library-import review while retaining the existing workflows.
 
 The release has been validated with the complete automated test suite,
 TypeScript checking, production builds, bundle-budget checks, branding checks,
@@ -81,7 +89,8 @@ See the [changelog](CHANGELOG.md) for the detailed list of changes.
 - Automatic and interactive search for movies, shows, seasons, and individual episodes
 - Release results with quality, size, source, status, and rejection reasons
 - Wanted views grouped by show and season
-- Sortable, filterable queue with download-client status and bulk actions
+- Sortable, filterable queue with separate Movie/TV engine totals,
+  download-client status, and bulk actions
 - Unified calendar, history, health, and scheduled-task views
 
 ### User access controls

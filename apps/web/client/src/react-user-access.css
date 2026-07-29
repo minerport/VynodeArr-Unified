@@ -1,4 +1,5 @@
-.react-account-dialog{max-height:calc(100vh - 2rem);overflow:auto}
+.vynode-nested-modal-layer .react-dialog-backdrop{position:relative;inset:auto;width:100%;min-height:min-content;padding:0;background:transparent!important;backdrop-filter:none;-webkit-backdrop-filter:none}
+.react-account-dialog{width:min(500px,100%);max-height:calc(100dvh - 2rem);margin:auto;overflow:auto;overscroll-behavior:contain}
 .user-access-fields{display:grid;gap:.55rem;margin:1rem 0 0;padding:1rem;border:1px solid var(--line);border-radius:.75rem}
 .user-access-fields legend{padding:0 .35rem;font-weight:800}
 .user-access-fields>p{margin:0 0 .35rem;color:var(--muted);font-size:.9rem}

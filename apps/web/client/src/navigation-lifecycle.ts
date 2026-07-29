@@ -10,7 +10,6 @@ interface NavigationLifecycleOptions{
   document:Document;
   bridge:()=>NavigationBridge|undefined;
   route:()=>void|Promise<void>;
-  onDiscoverDetails:(detail:unknown)=>void;
 }
 
 export function shouldResetRouteScroll(previous:AppRoute,next:AppRoute):boolean{
@@ -21,9 +20,6 @@ export function shouldResetRouteScroll(previous:AppRoute,next:AppRoute):boolean{
 
 export function wireNavigationLifecycle(options:NavigationLifecycleOptions):()=>void{
   let activeRoute=parseRoute(options.window.location.hash);
-  const onDiscoverDetails=(event:Event)=>{
-    options.onDiscoverDetails((event as CustomEvent<unknown>).detail);
-  };
   const onHashChange=()=>{
     const nextRoute=parseRoute(options.window.location.hash);
     options.bridge()?.unmountDiscover?.();
@@ -38,7 +34,6 @@ export function wireNavigationLifecycle(options:NavigationLifecycleOptions):()=>
     preload:()=>void;
   }>=[];
 
-  options.window.addEventListener('vynodearr:discover-details',onDiscoverDetails);
   options.window.addEventListener('hashchange',onHashChange);
   for(const link of options.document.querySelectorAll<HTMLAnchorElement>('a[href^="#"]')){
     const preload=()=>options.bridge()?.preloadRoute?.(parseRoute(link.hash).key);
@@ -54,7 +49,6 @@ export function wireNavigationLifecycle(options:NavigationLifecycleOptions):()=>
   }
 
   return()=>{
-    options.window.removeEventListener('vynodearr:discover-details',onDiscoverDetails);
     options.window.removeEventListener('hashchange',onHashChange);
     for(const {link,preload} of preloadBindings){
       link.removeEventListener('pointerenter',preload);

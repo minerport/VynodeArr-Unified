@@ -2,6 +2,7 @@ export type DiscoverDomain='movie'|'tv';
 
 export interface DiscoverItem{
   id:string;tmdbId:number;domain:DiscoverDomain;title:string;year:number|null;
+  tvdbId?:number|null;imdbId?:string|null;
   overview:string;rating:number;poster:string|null;backdrop:string|null;
   genreIds:number[];genres?:string[];genre?:string;studio?:string|null;
   network?:string|null;runtime?:number|null;status?:string|null;

@@ -155,6 +155,10 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(history,/Activity type/);
   assert.match(history,/Find activity/);
   assert.match(queue,/Select all completed/);
+  assert.match(queue,/Queue totals/);
+  assert.match(queue,/Movie engine/);
+  assert.match(queue,/TV engine/);
+  assert.match(queue,/item\.domain==='movie'/);
   assert.match(queue,/\/api\/activity\/queue\/live/);
   assert.match(queue,/setInterval/);
   assert.match(queue,/requestSequence/);
@@ -274,24 +278,41 @@ test('poster library cards expose engine metadata without eager TMDB requests',a
   assert.doesNotMatch(library,/Promise\.all\(.*tmdb/is);
 });
 
-test('Discover progressively loads through a typed React route',async()=>{
-  const [discover,islands,legacy]=await Promise.all([
+test('Discover progressively loads and owns title details and requests through a typed React route',async()=>{
+  const [discover,detail,request,islands,legacy]=await Promise.all([
     read('apps/web/client/src/discover.tsx'),
+    read('apps/web/client/src/discover-detail.tsx'),
+    read('apps/web/client/src/discover-request.tsx'),
     read('apps/web/client/src/react-islands.tsx'),
     read('apps/web/client/src/app-shell.ts')
   ]);
   assert.match(discover,/export function DiscoverView/);
   assert.match(discover,/loadFeed/);
   assert.match(discover,/cachedRequest/);
+  assert.match(discover,/<DiscoverDetail/);
+  assert.match(detail,/export function DiscoverDetail/);
+  assert.match(detail,/\/api\/discover\/details/);
+  assert.match(request,/export function DiscoverRequest/);
+  assert.match(request,/\/api\/discover\/import-options/);
+  assert.match(request,/\/api\/discover\/request/);
+  assert.match(request,/Fix movie match/);
+  assert.match(request,/setResolvedItem\(candidate\)/);
+  assert.match(request,/tmdbId:resolvedItem\.tmdbId/);
+  assert.match(discover,/onRequested=\{requested=>/);
+  assert.match(discover,/libraryKeys\(requested\.domain,requested\.title,requested\.year\)/);
+  assert.doesNotMatch(detail,/vynodearr:discover-request/);
   assert.match(islands,/mountDiscover/);
   assert.match(islands,/preloadRoute/);
   assert.match(legacy,/vynodearr\.dashboardSnapshot/);
 });
 
 test('global import progress uses a typed React monitor with the legacy path retained as fallback',async()=>{
-  const [monitor,types,islands,legacy]=await Promise.all([
+  const [monitor,types,controller,poller,fallbackView,islands,legacy]=await Promise.all([
     read('apps/web/client/src/import-monitor.tsx'),
     read('apps/web/client/src/import-monitor-types.ts'),
+    read('apps/web/client/src/background-import.ts'),
+    read('apps/web/client/src/import-monitor-controller.ts'),
+    read('apps/web/client/src/legacy-import-monitor-view.ts'),
     read('apps/web/client/src/react-islands.tsx'),
     read('apps/web/client/src/app-shell.ts')
   ]);
@@ -303,7 +324,14 @@ test('global import progress uses a typed React monitor with the legacy path ret
   assert.match(types,/ImportJobStatus/);
   assert.match(islands,/mountImportMonitor/);
   assert.match(legacy,/window\.VynodeArrReact\?\.mountImportMonitor/);
-  assert.match(legacy,/if\(importPollTimer!=='react'\)renderImportJobs/);
+  assert.match(controller,/if\(!options\.reactMonitorActive\(\)\)options\.renderFallback/);
+  assert.match(poller,/export function createImportMonitorController/);
+  assert.match(poller,/milestones=new Map<string,number>/);
+  assert.match(poller,/options\.onMilestone\(job\)/);
+  assert.match(fallbackView,/export function createLegacyImportMonitorView/);
+  assert.match(fallbackView,/cancel-import-job/);
+  assert.match(legacy,/createImportMonitorController/);
+  assert.match(legacy,/renderFallback:legacyImportView\.render/);
 });
 
 test('advanced engine resources use a typed schema-driven React editor',async()=>{
@@ -357,10 +385,12 @@ test('media naming and importing settings use a typed React route without flatte
   assert.match(legacy,/showMediaManagementReact/);
 });
 
-test('storage folders use a typed React route while retaining the existing import review workflow',async()=>{
-  const [view,types,islands,legacy]=await Promise.all([
+test('storage folders and import review use a typed React route and analysis boundary',async()=>{
+  const [view,types,analysis,review,islands,legacy]=await Promise.all([
     read('apps/web/client/src/root-folders.tsx'),
     read('apps/web/client/src/root-folders-types.ts'),
+    read('apps/web/client/src/library-import-analysis.ts'),
+    read('apps/web/client/src/library-import-review.tsx'),
     read('apps/web/client/src/react-islands.tsx'),
     read('apps/web/client/src/app-shell.ts')
   ]);
@@ -369,15 +399,48 @@ test('storage folders use a typed React route while retaining the existing impor
   assert.match(view,/\/rootFolders/);
   assert.match(view,/\/filesystem\?/);
   assert.match(view,/Download and library paths match/);
-  assert.match(view,/options\.onScan\(domain,root\)/);
+  assert.match(view,/setScanRoot\(root\)/);
+  assert.match(view,/LibraryImportReview/);
   assert.match(types,/interface RootFoldersMountOptions/);
+  assert.match(types,/startImport:/);
   assert.match(islands,/mountRootFolders/);
   assert.match(legacy,/showRootFoldersReact/);
-  assert.match(legacy,/reviewLibraryImport\(domain,root,showRootFoldersReact\)/);
+  assert.match(legacy,/startImport:startBackgroundImport/);
+  assert.match(legacy,/async function reviewLibraryImport/);
   assert.match(legacy,/document\.body\.appendChild\(Object\.assign\(document\.createElement\('dialog'\),\{id:'detail-dialog'\}\)\)/);
-  assert.match(legacy,/duplicateFolderDetails/);
-  assert.match(legacy,/Possible duplicate/);
-  assert.match(legacy,/Newest copy/);
+  assert.match(legacy,/analyzeDuplicateFolders/);
+  assert.match(legacy,/classifyImportChoice/);
+  assert.doesNotMatch(legacy,/function scanNameParts/);
+  assert.doesNotMatch(legacy,/async function duplicateFolderDetails/);
+  assert.match(analysis,/export function scanNameParts/);
+  assert.match(analysis,/export function classifyImportChoice/);
+  assert.match(analysis,/export async function analyzeDuplicateFolders/);
+  assert.match(review,/export function LibraryImportReview/);
+  assert.match(review,/concurrentMap\(folders,4/);
+  assert.match(review,/analyzeDuplicateFolders/);
+  assert.match(review,/classifyImportChoice/);
+  assert.match(review,/Select all shown/);
+  assert.match(review,/Possible mismatches/);
+  assert.match(review,/Find match/);
+  assert.match(review,/Already imported match/);
+  assert.match(review,/options\.startImport\(domain,items\)/);
+  assert.match(review,/Possible duplicate/);
+  assert.match(review,/Newest copy/);
+});
+
+test('background import creation and monitor handoff have typed ownership',async()=>{
+  const [controller,legacy]=await Promise.all([
+    read('apps/web/client/src/background-import.ts'),
+    read('apps/web/client/src/app-shell.ts')
+  ]);
+  assert.match(controller,/export async function queueBackgroundImport/);
+  assert.match(controller,/request<\{job:ImportJob\}>\('\/api\/import-jobs'/);
+  assert.match(controller,/dismissed\.delete\(job\.id\)/);
+  assert.match(controller,/persistDismissed\(\)/);
+  assert.match(controller,/if\(!options\.reactMonitorActive\(\)\)options\.renderFallback/);
+  assert.match(controller,/queued for background import/);
+  assert.match(legacy,/queueBackgroundImport\(\{domain,items/);
+  assert.doesNotMatch(legacy,/async function startBackgroundImport/);
 });
 
 test('indexers and download clients use a typed native provider editor with connection testing',async()=>{
@@ -608,7 +671,7 @@ test('navigation events and route preloading have typed lifecycle ownership',asy
     read('apps/web/client/src/app-shell.ts')
   ]);
   assert.match(lifecycle,/export function wireNavigationLifecycle/);
-  assert.match(lifecycle,/addEventListener\('vynodearr:discover-details'/);
+  assert.doesNotMatch(lifecycle,/vynodearr:discover-details/);
   assert.match(lifecycle,/addEventListener\('hashchange'/);
   assert.match(lifecycle,/unmountDiscover/);
   assert.match(lifecycle,/export function shouldResetRouteScroll/);
@@ -621,7 +684,7 @@ test('navigation events and route preloading have typed lifecycle ownership',asy
   assert.match(lifecycle,/preloadRoute\?\.\('dashboard'\)/);
   assert.match(lifecycle,/preloadRoute\?\.\('discover'\)/);
   assert.match(shell,/import \{wireNavigationLifecycle\} from '\.\/navigation-lifecycle'/);
-  assert.match(shell,/wireNavigationLifecycle\(\{window,document,bridge:\(\)=>window\.VynodeArrReact,route,onDiscoverDetails:openLiveDiscoverDetails\}\)/);
+  assert.match(shell,/wireNavigationLifecycle\(\{window,document,bridge:\(\)=>window\.VynodeArrReact,route\}\)/);
   assert.doesNotMatch(shell,/addEventListener\('hashchange'/);
   assert.doesNotMatch(shell,/querySelectorAll\('a\[href\^="#"\]'\)\.forEach/);
 });

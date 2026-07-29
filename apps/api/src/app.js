@@ -21,6 +21,7 @@ import { MovieFixtureAdapter } from '../../../packages/movie-domain/src/fixture-
 import { TvFixtureAdapter } from '../../../packages/tv-domain/src/fixture-adapter.js';
 import { calendarItem,completedQueueItemHasArrived } from '../../../packages/contracts/src/mappers.js';
 import { TmdbDiscoveryService } from './tmdb-discovery.js';
+import { exactEngineMatch,lookupTermsForIdentity,payloadMatchesIdentity } from './discovery-engine-match.js';
 
 const applicationVersion=JSON.parse(await readFile(resolve(process.cwd(),'package.json'),'utf8')).version;
 const webRoot=resolve(process.cwd(),'apps/web/public');
@@ -207,9 +208,12 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
     if(!['movie','tv'].includes(domain)||!Number.isFinite(mediaId)||!Number.isFinite(tmdbId))throw new Error('Choose a valid TMDB match');
     if(!discovery.configured())throw new Error('Add a TMDB key in Service Settings before fixing library matches.');
     const current=await management.execute(domain,'library','GET',{id:mediaId}),metadata=await discovery.details(domain,tmdbId);
-    const lookupTerms=[`tmdb:${tmdbId}`,metadata.title].filter(Boolean);let matches=[];
-    for(const term of lookupTerms){matches=await management.execute(domain,'lookup','GET',{query:{term}});if(Array.isArray(matches)&&matches.length)break;}
-    const normalized=String(metadata.title||'').toLowerCase(),match=(Array.isArray(matches)?matches:[]).find(value=>Number(value.tmdbId)===tmdbId||(metadata.tvdbId&&Number(value.tvdbId)===Number(metadata.tvdbId)))||(Array.isArray(matches)?matches:[]).find(value=>String(value.title||'').toLowerCase()===normalized&&(!metadata.year||!value.year||Number(value.year)===Number(metadata.year)));
+    const identity={tmdbId,tvdbId:metadata.tvdbId};let match;
+    for(const term of lookupTermsForIdentity(domain,identity)){
+      const matches=await management.execute(domain,'lookup','GET',{query:{term}});
+      match=exactEngineMatch(domain,identity,Array.isArray(matches)?matches:[]);
+      if(match)break;
+    }
     if(!match)throw new Error(`The ${domain==='movie'?'movie':'television'} engine could not resolve that TMDB title. Try another match.`);
     const library=await management.execute(domain,'library','GET'),records=Array.isArray(library)?library:library?.records||[],duplicate=records.find(value=>Number(value.id)!==mediaId&&(Number(value.tmdbId)===tmdbId||(metadata.tvdbId&&Number(value.tvdbId)===Number(metadata.tvdbId))));
     if(duplicate)throw new Error(`Cannot use ${match.title} because ${duplicate.title||'that title'} is already in the ${domain==='movie'?'Movies':'Television'} library.`);
@@ -848,19 +852,26 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
         if(url.pathname==='/api/discover/browse'&&req.method==='GET'){if(!permitted(res,session,'discover'))return;return json(res,200,await discovery.browse(Object.fromEntries(url.searchParams)));}
         if(url.pathname==='/api/discover/import-options'&&req.method==='GET'){
           if(!permitted(res,session,'discover'))return;
-          const domain=url.searchParams.get('domain'),term=String(url.searchParams.get('term')||'').trim();
-          if(!['movie','tv'].includes(domain)||!term)throw new Error('Choose a movie or television title');
-          const [matches,profiles,roots]=await Promise.all([
-            management.execute(domain,'lookup','GET',{query:{term}}),
+          const domain=url.searchParams.get('domain'),tmdbId=Number(url.searchParams.get('tmdbId'));
+          if(!['movie','tv'].includes(domain)||!Number.isInteger(tmdbId)||tmdbId<=0)throw new Error('Choose a valid movie or television title');
+          const metadata=await discovery.details(domain,tmdbId),identity={tmdbId,tvdbId:metadata.tvdbId};let match;
+          for(const term of lookupTermsForIdentity(domain,identity)){
+            const matches=await management.execute(domain,'lookup','GET',{query:{term}});
+            match=exactEngineMatch(domain,identity,Array.isArray(matches)?matches:[]);
+            if(match)break;
+          }
+          const [profiles,roots]=await Promise.all([
             management.execute(domain,'profiles','GET',{}),
             management.execute(domain,'rootFolders','GET',{})
           ]);
-          return json(res,200,{matches:Array.isArray(matches)?matches:[],profiles:Array.isArray(profiles)?profiles:[],roots:Array.isArray(roots)?roots:[]});
+          return json(res,200,{match:match||null,identity:{tmdbId,tvdbId:metadata.tvdbId||null},profiles:Array.isArray(profiles)?profiles:[],roots:Array.isArray(roots)?roots:[]});
         }
         if(url.pathname==='/api/discover/request'&&req.method==='POST'){
           if(!permitted(res,session,'discover')||!requireCsrf(req,res,session))return;
-          const input=await body(req),domain=String(input.domain||''),payload=input.payload;
-          if(!['movie','tv'].includes(domain)||!payload||typeof payload!=='object')throw new Error('Choose a valid movie or television title');
+          const input=await body(req),domain=String(input.domain||''),tmdbId=Number(input.tmdbId),payload=input.payload;
+          if(!['movie','tv'].includes(domain)||!Number.isInteger(tmdbId)||tmdbId<=0||!payload||typeof payload!=='object')throw new Error('Choose a valid movie or television title');
+          const metadata=await discovery.details(domain,tmdbId),identity={tmdbId,tvdbId:metadata.tvdbId};
+          if(!payloadMatchesIdentity(domain,identity,payload))throw new Error('The engine match does not have the requested external ID. Reopen Discover and try again.');
           const [profiles,roots]=await Promise.all([management.execute(domain,'profiles','GET',{}),management.execute(domain,'rootFolders','GET',{})]);
           if(!roots.some(root=>String(root.path)===String(payload.rootFolderPath)))throw new Error('Choose a configured library folder');
           if(!profiles.some(profile=>Number(profile.id)===Number(payload.qualityProfileId)))throw new Error('Choose a configured quality profile');
