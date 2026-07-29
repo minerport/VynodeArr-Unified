@@ -19,7 +19,7 @@ import { MovieEngineAdapter } from '../../../packages/movie-domain/src/engine-ad
 import { TvEngineAdapter } from '../../../packages/tv-domain/src/engine-adapter.js';
 import { MovieFixtureAdapter } from '../../../packages/movie-domain/src/fixture-adapter.js';
 import { TvFixtureAdapter } from '../../../packages/tv-domain/src/fixture-adapter.js';
-import { completedQueueItemHasArrived } from '../../../packages/contracts/src/mappers.js';
+import { calendarItem,completedQueueItemHasArrived } from '../../../packages/contracts/src/mappers.js';
 import { TmdbDiscoveryService } from './tmdb-discovery.js';
 
 const applicationVersion=JSON.parse(await readFile(resolve(process.cwd(),'package.json'),'utf8')).version;
@@ -1312,7 +1312,21 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
         const tvMatch=url.pathname.match(/^\/api\/media\/tv\/(series_[A-Za-z0-9_-]+)$/);if(tvMatch){if(!permitted(res,session,'tv'))return;const item=await registry.tv().getSeries(tvMatch[1]);return item?json(res,200,{item,mode}):json(res,404,{error:{code:'not_found',message:'TV series was not found.'}});}
         if(url.pathname==='/api/activity/queue/live'||url.pathname==='/api/activity/queue'){if(!administrator(res,session))return;return json(res,200,{items:mode==='engine'?await liveQueue():await sync.operations('queue')});}
         if(url.pathname==='/api/activity/history'){if(!administrator(res,session))return;return json(res,200,{items:await sync.operations('history')});}
-        if(url.pathname==='/api/calendar'){if(!permitted(res,session,'calendar'))return;return json(res,200,{items:await sync.operations('calendar')});}
+        if(url.pathname==='/api/calendar'){
+          if(!permitted(res,session,'calendar'))return;
+          const start=url.searchParams.get('start'),end=url.searchParams.get('end'),movies=url.searchParams.get('movies')!=='false',tv=url.searchParams.get('tv')!=='false';
+          let items=await sync.operations('calendar');
+          if(mode==='engine'&&(start||end)){
+            const domains=[...(movies?['movie']:[]),...(tv?['tv']:[])],settled=await Promise.allSettled(domains.map(async domain=>{
+              const result=await management.execute(domain,'calendar','GET',{query:{start,end,unmonitored:false,...(domain==='tv'?{includeSeries:true}:{})}});
+              return (Array.isArray(result)?result:[]).filter(item=>item.monitored!==false).map(item=>calendarItem(item,domain));
+            }));
+            const live=settled.flatMap(result=>result.status==='fulfilled'?result.value:[]);
+            if(live.length||settled.every(result=>result.status==='fulfilled'))items=live;
+          }
+          items=items.filter(item=>(movies&&item.domain==='movie')||(tv&&item.domain==='tv')).filter(item=>(!start||String(item.dateUtc||'').slice(0,10)>=start)&&(!end||String(item.dateUtc||'').slice(0,10)<end));
+          return json(res,200,{items});
+        }
         if(url.pathname==='/api/system/health'){if(!administrator(res,session))return;return json(res,200,{items:await sync.operations('health'),sync:sync.snapshot()});}
         if(url.pathname==='/api/dashboard'){
           if(!permitted(res,session,'dashboard'))return;

@@ -7,6 +7,28 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.13] - 2026-07-28
+
+### Fixed
+
+- Calendar-enabled User accounts no longer receive an administrator-access
+  error when opening Calendar.
+- Calendar month and Movies/Television filters now use the permission-aware
+  Calendar API instead of administrator-only engine-management routes.
+- Calendar results retain normalized engine identities, artwork references,
+  and television episode context when loaded for a selected month.
+
+### Security
+
+- Regular users continue to receive only the Calendar capability explicitly
+  granted by an administrator; generic engine-management routes remain
+  administrator-only.
+
+### Documentation
+
+- Documented that independently granted Calendar access works for User
+  accounts without granting engine-administration access.
+
 ## [2.0.12] - 2026-07-28
 
 ### Added
@@ -253,7 +275,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.12...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.13...HEAD
+[2.0.13]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.12...v2.0.13
 [2.0.12]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.11...v2.0.12
 [2.0.11]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.10...v2.0.11
 [2.0.10]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.9...v2.0.10

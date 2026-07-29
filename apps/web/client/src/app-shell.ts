@@ -234,8 +234,8 @@ async function showCalendar(){
   let cursor=new Date(now.getFullYear(),now.getMonth(),1),selectedDate=dateKey(now),showMovies=true,showTv=true;
   content.innerHTML=`<div class="hero calendar-hero"><div><span class="eyebrow">SCHEDULE</span><h1>Calendar</h1><p class="lede">Monitored movie releases and television air dates.</p></div><button id="calendar-today" class="secondary">Today</button></div><div class="calendar-toolbar"><div><button id="calendar-prev" class="secondary" aria-label="Previous month">&larr;</button><button id="calendar-next" class="secondary" aria-label="Next month">&rarr;</button><strong id="calendar-title"></strong></div><div><label class="check"><input id="calendar-movies" type="checkbox" checked> Movies</label><label class="check"><input id="calendar-tv" type="checkbox" checked> Television</label></div></div><div class="calendar-layout"><div id="calendar-grid" class="calendar-shell skeleton">Loading&hellip;</div><aside id="calendar-agenda" class="calendar-agenda skeleton">Loading day&hellip;</aside></div>`;
   const host=document.querySelector('#calendar-grid'),agenda=document.querySelector('#calendar-agenda');
-  const eventDate=event=>event.domain==='movie'?(event.digitalRelease||event.physicalRelease||event.inCinemas||event.releaseDate):event.airDateUtc;
-  const eventTitle=event=>event.domain==='movie'?event.title:event.series?.title||event.title;
+  const eventDate=event=>event.dateUtc;
+  const eventTitle=event=>event.title;
   function renderAgenda(key,byDate){
     const items=(byDate.get(key)||[]).sort((a,b)=>String(eventDate(a)||'').localeCompare(String(eventDate(b)||''))),date=new Date(`${key}T12:00:00`),today=key===dateKey(new Date());
     agenda.className='calendar-agenda';
@@ -246,10 +246,7 @@ async function showCalendar(){
     const start=new Date(cursor.getFullYear(),cursor.getMonth(),1),end=new Date(cursor.getFullYear(),cursor.getMonth()+1,0),startValue=dateKey(start),endValue=dateKey(new Date(end.getFullYear(),end.getMonth(),end.getDate()+1));
     document.querySelector('#calendar-title').textContent=cursor.toLocaleDateString(undefined,{month:'long',year:'numeric'});
     try{
-      const requests=[];
-      if(showMovies)requests.push(api(`/api/manage/movie/calendar?start=${startValue}&end=${endValue}&unmonitored=false`).then(value=>(value.result||[]).filter(item=>item.monitored!==false).map(item=>({...item,domain:'movie'}))));
-      if(showTv)requests.push(api(`/api/manage/tv/calendar?start=${startValue}&end=${endValue}&unmonitored=false&includeSeries=true`).then(value=>(value.result||[]).filter(item=>item.monitored!==false).map(item=>({...item,domain:'tv'}))));
-      const events=(await Promise.all(requests)).flat(),byDate=new Map();
+      const events=(await api(`/api/calendar?start=${startValue}&end=${endValue}&movies=${showMovies}&tv=${showTv}`)).items||[],byDate=new Map();
       for(const event of events){const raw=eventDate(event);if(!raw)continue;const key=String(raw).slice(0,10);if(!byDate.has(key))byDate.set(key,[]);byDate.get(key).push(event);}
       const cells=[],firstOffset=start.getDay(),days=end.getDate(),totalCells=Math.ceil((firstOffset+days)/7)*7;
       for(let i=0;i<firstOffset;i++)cells.push('<span class="calendar-day outside" aria-hidden="true"></span>');

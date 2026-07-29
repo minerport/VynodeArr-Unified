@@ -27,15 +27,17 @@ consistent experience and account system.
 
 ## Current release
 
-Version **2.0.12** is ready for real-time testing on Unraid and Windows.
-Administrators can now create User accounts and independently grant access to
-Dashboard, Discover, Movies, TV, and Calendar. Library, dashboard, and calendar
-access is read-only for Users, while Discover access can include requesting
-movies and series through the connected engines.
+Version **2.0.13** is ready for real-time testing on Unraid, Windows, and
+standard Docker installations. Administrators can create User accounts and
+independently grant access to Dashboard, Discover, Movies, TV, and Calendar.
+Library, dashboard, and calendar access is read-only for Users, while Discover
+access can include requesting movies and series through the connected engines.
 
 Page permissions are enforced in both the interface and API. Unavailable
 navigation is hidden, direct links are rejected, live library updates are
-filtered, and changes apply to sessions that are already signed in.
+filtered, and changes apply to sessions that are already signed in. A User
+granted Calendar access can browse monitored movie releases and television air
+dates without receiving access to administrator-only engine-management APIs.
 
 The release has been validated with the complete automated test suite,
 TypeScript checking, production builds, bundle-budget checks, branding checks,

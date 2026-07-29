@@ -86,7 +86,9 @@ test('user page permissions are enforced by APIs and update active sessions imme
   assert.equal((await fetch(`${base}/api/dashboard`,{headers:{cookie:userCookie}})).status,403);
   assert.equal((await fetch(`${base}/api/media/movies`,{headers:{cookie:userCookie}})).status,200);
   assert.equal((await fetch(`${base}/api/media/tv`,{headers:{cookie:userCookie}})).status,403);
-  assert.equal((await fetch(`${base}/api/calendar`,{headers:{cookie:userCookie}})).status,200);
+  const calendarResponse=await fetch(`${base}/api/calendar?start=2026-08-01&end=2026-09-01&movies=true&tv=false`,{headers:{cookie:userCookie}});
+  assert.equal(calendarResponse.status,200);
+  assert.ok((await calendarResponse.json()).items.every(item=>item.domain==='movie'));
   assert.equal((await fetch(`${base}/api/discover/status`,{headers:{cookie:userCookie}})).status,200);
   assert.equal((await fetch(`${base}/api/settings/engines`,{headers:{cookie:userCookie}})).status,403);
   assert.equal((await fetch(`${base}/api/collections`,{headers:{cookie:userCookie}})).status,403);
