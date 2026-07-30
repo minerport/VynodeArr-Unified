@@ -157,6 +157,14 @@ test('approval-required Discover requests stay out of the engine until an admini
     assert.equal(allowance.movie.used,2);assert.equal(allowance.movie.remaining,0);assert.equal(allowance.tv.remaining,1);
     const limited=await fetch(`${base}/api/discover/request`,{method:'POST',headers:{cookie:userCookie,'content-type':'application/json','x-vynodearr-csrf':userLogin.csrf},body:JSON.stringify({domain:'movie',tmdbId:123,payload:{tmdbId:123,title:'Approval Film',year:2026,rootFolderPath:'/movies',qualityProfileId:1,monitored:true,addOptions:{searchForMovie:true}}})});
     assert.equal(limited.status,429);assert.equal((await limited.json()).error.code,'request_limit_reached');
+    const cancelled=await fetch(`${base}/api/requests/mine/${requestValue.request.id}`,{method:'DELETE',headers:{cookie:userCookie,'x-vynodearr-csrf':userLogin.csrf}});
+    assert.equal(cancelled.status,200);
+    const cancelledHistory=(await (await fetch(`${base}/api/requests/mine`,{headers:{cookie:userCookie}})).json()).items.find(item=>item.id===requestValue.request.id);
+    assert.equal(cancelledHistory.status,'canceled');assert.equal(cancelledHistory.statusLabel,'Cancelled by user');assert.equal(cancelledHistory.rejectionReason,null);
+    const allowanceAfterCancel=(await (await fetch(`${base}/api/requests/allowance`,{headers:{cookie:userCookie}})).json()).allowance;
+    assert.equal(allowanceAfterCancel.movie.used,1);assert.equal(allowanceAfterCancel.movie.remaining,1);
+    const retried=await fetch(`${base}/api/discover/request`,{method:'POST',headers:{cookie:userCookie,'content-type':'application/json','x-vynodearr-csrf':userLogin.csrf},body:JSON.stringify({domain:'movie',tmdbId:123,payload:{tmdbId:123,title:'Approval Film',year:2026,rootFolderPath:'/movies',qualityProfileId:1,monitored:true,addOptions:{searchForMovie:true}}})});
+    assert.equal(retried.status,202);
     assert.equal((await fetch(`${base}/api/manage/audit`,{headers:{cookie:userCookie}})).status,403);
     const audit=(await (await fetch(`${base}/api/manage/audit`,{headers:{cookie}})).json()).items;
     assert.ok(audit.some(item=>item.action==='user.created'&&item.metadata.targetUserId===created.id));

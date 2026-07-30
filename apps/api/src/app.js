@@ -791,6 +791,7 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
     return owned.map(record=>{
       if(record.status==='pending_approval')return{...record,payload:undefined,status:'pending_approval',statusLabel:'Awaiting approval',message:'An administrator must approve this request before it is added to the media engine.',canCorrect:true,canCancel:true,canApprove:true,canReject:true};
       if(record.status==='approving')return{...record,payload:undefined,status:'pending_approval',statusLabel:'Approval in progress',message:'This request is being validated and added to the media engine.',canCorrect:false,canCancel:false,canApprove:false,canReject:false};
+      if(record.status==='canceled'||(record.status==='rejected'&&!record.rejectedBy&&/^You cancelled this request/i.test(String(record.message||''))))return{...record,payload:undefined,status:'canceled',statusLabel:'Cancelled by user',message:'This request was cancelled by the user.',rejectionReason:null,canCorrect:false,canCancel:false};
       if(record.status==='rejected')return{...record,payload:undefined,status:'rejected',statusLabel:'Rejected',message:record.message||'This request was cancelled before it was imported.',rejectionReason:record.rejectionReason||null,canCorrect:false,canCancel:false};
       const snapshot=snapshots.get(record.domain),engineId=Number(record.engineId),media=snapshot?.library.get(engineId);
       if(!snapshot?.available)return{...record,payload:undefined,status:'requested',statusLabel:'Status unavailable',message:'The media engine is temporarily unavailable. Your request is still recorded and its status will update when the connection returns.',canCorrect:false,canCancel:false};
@@ -820,7 +821,7 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
     if(policy.period==='daily')start.setUTCHours(0,0,0,0);
     else if(policy.period==='monthly'){start.setUTCDate(1);start.setUTCHours(0,0,0,0);}
     else{const day=(start.getUTCDay()+6)%7;start.setUTCDate(start.getUTCDate()-day);start.setUTCHours(0,0,0,0);}
-    const stored=await requestStore.read(),owned=(stored.requests||[]).filter(item=>item.userId===user.id),recent=owned.filter(item=>new Date(item.requestedAt)>=start);
+    const stored=await requestStore.read(),owned=(stored.requests||[]).filter(item=>item.userId===user.id),recent=owned.filter(item=>new Date(item.requestedAt)>=start&&item.status!=='canceled'&&!(item.status==='rejected'&&!item.rejectedBy&&/^You cancelled this request/i.test(String(item.message||''))));
     const live=policy.maxPending?await liveUserRequests(user.id):[],pendingUsed=live.filter(item=>['pending_approval','requested','searching','downloading'].includes(item.status)).length;
     const allowance=(domain)=>{const limit=Number(policy[domain])||null,used=recent.filter(item=>item.domain===domain).length;return{limit,used,remaining:limit==null?null:Math.max(0,limit-used)};};
     const pendingLimit=Number(policy.maxPending)||null;
@@ -1053,7 +1054,7 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
           if(!record.canCancel)return json(res,409,{error:{code:'request_not_cancellable',message:'This request can no longer be cancelled because downloading or importing has started.'}});
           if(record.status!=='pending_approval')await management.execute(record.domain,'library','DELETE',{id:Number(record.engineId),query:record.domain==='movie'?{deleteFiles:false,addImportExclusion:false}:{deleteFiles:false,addImportListExclusion:false}});
           const updatedAt=new Date().toISOString();
-          await requestStore.update(current=>{const item=(current.requests||[]).find(value=>value.id===record.id&&value.userId===session.user.id);if(item)Object.assign(item,{status:'rejected',message:'You cancelled this request before it was approved or imported.',updatedAt,payload:undefined});});
+          await requestStore.update(current=>{const item=(current.requests||[]).find(value=>value.id===record.id&&value.userId===session.user.id);if(item)Object.assign(item,{status:'canceled',message:'This request was cancelled by the user.',cancelledAt:updatedAt,cancelledBy:session.user.id,rejectionReason:null,updatedAt,payload:undefined});});
           if(record.status!=='pending_approval')sync.invalidate(record.domain);
           await recordAudit(session,{category:'request',action:'request.canceled',target:record.title,domain:record.domain,summary:`Canceled the request for ${record.title}.`,metadata:{requestId:record.id}});
           return json(res,200,{cancelled:true});

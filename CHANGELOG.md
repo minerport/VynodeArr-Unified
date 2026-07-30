@@ -7,6 +7,25 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.18] - 2026-07-30
+
+### Changed
+
+- User-cancelled requests now have a distinct **Cancelled by user** status in
+  personal and administrator request history.
+- The administrator request-history status filter now includes user
+  cancellations.
+- Existing self-cancelled request records are recognized without requiring a
+  data migration.
+
+### Fixed
+
+- Request-limit denials remain visible inside the Discover request modal
+  instead of appearing only as a temporary notification.
+- Cancelling a request immediately removes it from period allowance usage, so
+  the user can submit another request when the cancellation brings them below
+  their configured threshold.
+
 ## [2.0.17] - 2026-07-30
 
 ### Added
@@ -417,7 +436,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.17...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.18...HEAD
+[2.0.18]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.17...v2.0.18
 [2.0.17]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.16...v2.0.17
 [2.0.16]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.15...v2.0.16
 [2.0.15]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.14...v2.0.15

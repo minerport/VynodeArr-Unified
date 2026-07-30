@@ -71,7 +71,9 @@ export function DiscoverRequest({item,options,onClose,onRequested}:{item:Discove
       close();
     }catch(reason){
       setSubmitting(false);
-      options.notify(reason instanceof Error?reason.message:'The title could not be requested.','error');
+      const message=reason instanceof Error?reason.message:'The title could not be requested.';
+      setError(message);
+      options.notify(message,'error');
     }
   };
   const findMatches=async()=>{

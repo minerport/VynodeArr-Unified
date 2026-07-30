@@ -27,11 +27,21 @@ consistent experience and account system.
 
 ## Current release
 
-Version **2.0.17** is ready for real-time testing on Unraid, Windows, and
-standard Docker installations. Administrators can now choose per User account
-whether Discover requests are added automatically or require approval.
-Approval-required requests remain in VynodeArr and do not reach the Movie or TV
-engine until an administrator approves them.
+Version **2.0.18** is ready for real-time testing on Unraid, Windows, and
+standard Docker installations. Request-limit denials now remain visible inside
+the Discover request modal so users can understand why a title was not
+submitted.
+
+Requests cancelled by their user now appear as **Cancelled by user** rather
+than rejected in both personal and administrator history. A cancellation is
+removed from the user's request-allowance usage immediately, allowing another
+request whenever it brings the user below their configured threshold. Existing
+self-cancelled history is recognized automatically.
+
+Administrators can choose per User account whether Discover requests are added
+automatically or require approval. Approval-required requests remain in
+VynodeArr and do not reach the Movie or TV engine until an administrator
+approves them.
 
 The administrator-only **User Requests** page provides per-user request history,
 search plus user, status, and media filters, and controls to approve and add or

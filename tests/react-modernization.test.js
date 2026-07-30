@@ -1002,7 +1002,7 @@ test('presentation style remains separate from color theme',async()=>{
 });
 
 test('My Requests owns request tracking, correction, cancellation, and permission-aware routing',async()=>{
-  const [view,types,islands,routing,dispatch,access,shell,server,html,styles]=await Promise.all([
+  const [view,types,islands,routing,dispatch,access,shell,server,html,styles,discoverRequest]=await Promise.all([
     read('apps/web/client/src/my-requests.tsx'),
     read('apps/web/client/src/my-requests-types.ts'),
     read('apps/web/client/src/react-islands.tsx'),
@@ -1012,7 +1012,8 @@ test('My Requests owns request tracking, correction, cancellation, and permissio
     read('apps/web/client/src/app-shell.ts'),
     read('apps/api/src/app.js'),
     read('apps/web/public/index.html'),
-    read('apps/web/public/my-requests.css')
+    read('apps/web/public/my-requests.css'),
+    read('apps/web/client/src/discover-request.tsx')
   ]);
   assert.match(html,/href="#requests">My Requests/);
   assert.match(routing,/'requests'/);
@@ -1020,13 +1021,15 @@ test('My Requests owns request tracking, correction, cancellation, and permissio
   assert.match(access,/requests:'discover'/);
   assert.match(shell,/case'requests':return showRequestsReact/);
   assert.match(islands,/mountRequests/);
-  assert.match(types,/requested.*searching.*downloading.*imported.*failed.*rejected/);
+  assert.match(types,/requested.*searching.*downloading.*imported.*failed.*rejected.*canceled/);
   assert.match(view,/\/api\/requests\/mine/);
   assert.match(view,/Correct match/);
   assert.match(view,/Cancel request/);
   assert.match(server,/user-requests\.json/);
   assert.match(server,/liveUserRequests/);
   assert.match(server,/request_not_cancellable/);
+  assert.match(server,/status:'canceled'.*Cancelled by user/);
+  assert.match(discoverRequest,/setError\(message\)/);
   assert.match(server,/request_not_correctable/);
   assert.match(server,/friendlyRequestFailure/);
   assert.match(styles,/\.my-request-card/);
