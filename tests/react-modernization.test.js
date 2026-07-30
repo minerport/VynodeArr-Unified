@@ -996,3 +996,35 @@ test('presentation style remains separate from color theme',async()=>{
   assert.match(foundation,/\[data-ui-density="compact"\]/);
   assert.match(foundation,/\[data-motion="reduced"\]/);
 });
+
+test('My Requests owns request tracking, correction, cancellation, and permission-aware routing',async()=>{
+  const [view,types,islands,routing,dispatch,access,shell,server,html,styles]=await Promise.all([
+    read('apps/web/client/src/my-requests.tsx'),
+    read('apps/web/client/src/my-requests-types.ts'),
+    read('apps/web/client/src/react-islands.tsx'),
+    read('apps/web/client/src/routing.ts'),
+    read('apps/web/client/src/route-dispatch.ts'),
+    read('apps/web/client/src/user-access.ts'),
+    read('apps/web/client/src/app-shell.ts'),
+    read('apps/api/src/app.js'),
+    read('apps/web/public/index.html'),
+    read('apps/web/public/my-requests.css')
+  ]);
+  assert.match(html,/href="#requests">My Requests/);
+  assert.match(routing,/'requests'/);
+  assert.match(dispatch,/if\(key==='requests'\)return\{name:'requests'\}/);
+  assert.match(access,/requests:'discover'/);
+  assert.match(shell,/case'requests':return showRequestsReact/);
+  assert.match(islands,/mountRequests/);
+  assert.match(types,/requested.*searching.*downloading.*imported.*failed.*rejected/);
+  assert.match(view,/\/api\/requests\/mine/);
+  assert.match(view,/Correct match/);
+  assert.match(view,/Cancel request/);
+  assert.match(server,/user-requests\.json/);
+  assert.match(server,/liveUserRequests/);
+  assert.match(server,/request_not_cancellable/);
+  assert.match(server,/request_not_correctable/);
+  assert.match(server,/friendlyRequestFailure/);
+  assert.match(styles,/\.my-request-card/);
+  assert.match(styles,/\.my-request-match-dialog/);
+});

@@ -7,6 +7,31 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.16] - 2026-07-30
+
+### Added
+
+- Added a dedicated, permission-aware **My Requests** page for users with
+  Discover access.
+- Requests now retain durable user ownership while their requested, searching,
+  downloading, imported, failed, and rejected states are derived from the live
+  Movie and TV engines.
+- Users can correct their own pending movie or television match by selecting an
+  authoritative TMDB ID, or cancel an eligible request before downloading or
+  importing begins.
+
+### Security
+
+- Request correction and cancellation validate ownership, CSRF protection, and
+  live engine eligibility on the server.
+- User-visible failures are translated into actionable explanations without
+  exposing download-client, indexer, path, host, or credential details.
+
+### Fixed
+
+- Active queue state now takes precedence over older failed history events so a
+  recovering request correctly appears as downloading.
+
 ## [2.0.15] - 2026-07-29
 
 ### Fixed
@@ -342,7 +367,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.15...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.16...HEAD
+[2.0.16]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.15...v2.0.16
 [2.0.15]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.14...v2.0.15
 [2.0.14]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.13...v2.0.14
 [2.0.13]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.12...v2.0.13

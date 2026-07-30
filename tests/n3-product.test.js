@@ -90,6 +90,7 @@ test('user page permissions are enforced by APIs and update active sessions imme
   assert.equal(calendarResponse.status,200);
   assert.ok((await calendarResponse.json()).items.every(item=>item.domain==='movie'));
   assert.equal((await fetch(`${base}/api/discover/status`,{headers:{cookie:userCookie}})).status,200);
+  assert.equal((await fetch(`${base}/api/requests/mine`,{headers:{cookie:userCookie}})).status,200);
   assert.equal((await fetch(`${base}/api/settings/engines`,{headers:{cookie:userCookie}})).status,403);
   assert.equal((await fetch(`${base}/api/collections`,{headers:{cookie:userCookie}})).status,403);
   assert.equal((await fetch(`${base}/api/activity/history`,{headers:{cookie:userCookie}})).status,403);
@@ -104,6 +105,7 @@ test('user page permissions are enforced by APIs and update active sessions imme
   assert.equal((await fetch(`${base}/api/media/tv`,{headers:{cookie:userCookie}})).status,200);
   assert.equal((await fetch(`${base}/api/calendar`,{headers:{cookie:userCookie}})).status,403);
   assert.equal((await fetch(`${base}/api/discover/status`,{headers:{cookie:userCookie}})).status,403);
+  assert.equal((await fetch(`${base}/api/requests/mine`,{headers:{cookie:userCookie}})).status,403);
 }));
 test('master-key status is administrator-only and environment-managed rotation is refused',()=>appSession({movie:new MovieFixtureAdapter(),tv:new TvFixtureAdapter()},async({base,cookie,csrf})=>{
   assert.equal((await fetch(`${base}/api/system/master-key`)).status,401);

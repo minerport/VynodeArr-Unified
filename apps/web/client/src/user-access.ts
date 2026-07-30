@@ -10,7 +10,7 @@ export interface AccessUser{
 }
 
 const routePermissions:Partial<Record<RouteKey,UserPermissionName>>={
-  dashboard:'dashboard',discover:'discover',movies:'movies',movie:'movies',
+  dashboard:'dashboard',discover:'discover',requests:'discover',movies:'movies',movie:'movies',
   tv:'tv',series:'tv',calendar:'calendar'
 };
 

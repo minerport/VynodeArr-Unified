@@ -43,7 +43,7 @@ function startBackgroundImport(domain,items){return queueBackgroundImport({domai
 async function mapWithConcurrency(items,limit,worker){const results=new Array(items.length),queue={next:0};await Promise.all(Array.from({length:Math.min(limit,items.length)},async()=>{while(queue.next<items.length){const index=queue.next++;results[index]=await worker(items[index],index);}}));return results;}
 function applyUser(user){
   applyUserPresentation(state,user,{accountName:document.querySelector('#account-name'),accountRole:document.querySelector('#account-role'),avatar:document.querySelector('#avatar'),documentElement:document.documentElement});
-  const accessByHash={dashboard:'dashboard',discover:'discover',movies:'movies',tv:'tv',calendar:'calendar'};
+  const accessByHash={dashboard:'dashboard',discover:'discover',requests:'discover',movies:'movies',tv:'tv',calendar:'calendar'};
   for(const link of nav){
     const key=link.getAttribute('href')?.replace(/^#/,'').split('/')[0]||'';
     link.hidden=user.role!=='administrator'&&!(key==='settings'||accessByHash[key]&&hasPageAccess(user,accessByHash[key]));
@@ -587,6 +587,12 @@ function wireLibraryImportReview({dialog,form,matches,movie,records=[]}){
   });
   toolbar.querySelector('.import-match-filter').onchange=applyFilter;toolbar.querySelector('.import-select-all').onchange=event=>{rows.filter(row=>!row.hidden&&!row.classList.contains('import-unmatched')).forEach(row=>row.querySelector('.import-enabled').checked=event.target.checked);applyFilter();};applyFilter();
 }
+function showRequestsReact(){
+  window.VynodeArrReact?.unmountRequests?.();
+  if(!window.VynodeArrReact?.mountRequests){content.innerHTML='<div class="panel skeleton">Loading requests…</div>';return;}
+  const host=createRouteHost(content,'requests-react');
+  window.VynodeArrReact.mountRequests(host,{request:api,notify});
+}
 async function reviewLibraryImport(domain,root,reload){
   const movie=domain==='movie',dialog=document.querySelector('#detail-dialog')||document.body.appendChild(Object.assign(document.createElement('dialog'),{id:'detail-dialog'})),normalizePath=value=>String(value||'').replaceAll('\\','/').replace(/\/+$/,'').toLowerCase();let rootPath=normalizePath(root.path);
   dialog.innerHTML=`<div class="library-import"><div class="panel-heading"><div><span class="eyebrow">SCAN EXISTING ${movie?'MOVIES':'TELEVISION'}</span><h2>${esc(root.path)}</h2></div><button class="secondary close-import" type="button">Cancel</button></div><div class="skeleton">Comparing folders with your library…</div></div>`;dialog.querySelector('.close-import').onclick=()=>dialog.close();dialog.showModal();
@@ -748,6 +754,7 @@ async function route(){
     case'skip':return;
     case'engineSetup':return showEngineSetup();
     case'discover':return showDiscoverV2();
+    case'requests':return showRequestsReact();
     case'library':return showMedia(action.kind);
     case'collections':return showCollectionsReact();
     case'addMedia':return showAddMediaReact();

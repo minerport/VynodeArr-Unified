@@ -1,0 +1,38 @@
+import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
+import {createPortal} from 'react-dom';
+import type {DiscoverItem} from './discover-types';
+import type {MyRequestsMountOptions,RequestStatus,UserRequest} from './my-requests-types';
+
+const statusOrder:RequestStatus[]=['requested','searching','downloading','imported','failed','rejected'];
+const statusCopy:Record<RequestStatus,string>={requested:'Requested',searching:'Searching',downloading:'Downloading',imported:'Imported',failed:'Needs attention',rejected:'Rejected'};
+
+function CorrectMatch({record,options,onClose,onCorrected}:{record:UserRequest;options:MyRequestsMountOptions;onClose:()=>void;onCorrected:()=>void}){
+  const dialog=useRef<HTMLDialogElement>(null),[query,setQuery]=useState(record.title),[items,setItems]=useState<DiscoverItem[]>([]),[loading,setLoading]=useState(false),[busy,setBusy]=useState(0);
+  useEffect(()=>{dialog.current?.showModal();void search();},[]);
+  const search=async()=>{if(!query.trim())return;setLoading(true);try{const value=await options.request<{results:DiscoverItem[]}>(`/api/discover/browse?domain=${record.domain}&query=${encodeURIComponent(query.trim())}&page=1`);setItems((value.results||[]).filter(item=>item.domain===record.domain).slice(0,10));}catch(reason){options.notify(reason instanceof Error?reason.message:'Matches could not be loaded.','error');}finally{setLoading(false);}};
+  const choose=async(item:DiscoverItem)=>{if(!window.confirm(`Change this request to ${item.title}${item.year?` (${item.year})`:''}?`))return;setBusy(item.tmdbId);try{await options.request(`/api/requests/mine/${record.id}/correct`,{method:'POST',body:JSON.stringify({tmdbId:item.tmdbId})});options.notify('Request match corrected.');onCorrected();dialog.current?.close();}catch(reason){options.notify(reason instanceof Error?reason.message:'The match could not be corrected.','error');}finally{setBusy(0);}};
+  return createPortal(<dialog ref={dialog} className="my-request-match-dialog" onClose={onClose} onCancel={event=>{event.preventDefault();dialog.current?.close();}}>
+    <div className="panel-heading"><div><span className="eyebrow">CORRECT REQUEST MATCH</span><h2>Choose the intended {record.domain==='movie'?'movie':'series'}</h2><p className="muted">Choose by title, year, and TMDB ID. This is available only before downloading begins.</p></div><button className="secondary" onClick={()=>dialog.current?.close()}>Close</button></div>
+    <div className="match-search"><input value={query} onChange={event=>setQuery(event.target.value)} onKeyDown={event=>{if(event.key==='Enter'){event.preventDefault();void search();}}}/><button className="primary" disabled={loading} onClick={()=>void search()}>{loading?'Searching…':'Search'}</button></div>
+    <div className="match-results">{items.map(item=><article className="match-result" key={item.tmdbId}>{item.poster?<img src={item.poster} alt="" loading="lazy"/>:<span className="art-fallback">TMDB</span>}<div><h3>{item.title} {item.year?<small>{item.year}</small>:null}</h3><p>{item.overview||'No overview available.'}</p><small>TMDB {item.tmdbId}</small></div><button className="secondary" disabled={Boolean(busy)} onClick={()=>void choose(item)}>{busy===item.tmdbId?'Updating…':'Use this match'}</button></article>)}</div>
+  </dialog>,document.body);
+}
+
+export function MyRequestsView({options}:{options:MyRequestsMountOptions}){
+  const [items,setItems]=useState<UserRequest[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[filter,setFilter]=useState<RequestStatus|''>(''),[correcting,setCorrecting]=useState<UserRequest|null>(null),[busy,setBusy]=useState('');
+  const load=useCallback(async(quiet=false)=>{if(!quiet)setLoading(true);try{const value=await options.request<{items:UserRequest[]}>('/api/requests/mine');setItems(value.items||[]);setError('');}catch(reason){setError(reason instanceof Error?reason.message:'Requests could not be loaded.');}finally{setLoading(false);}},[options]);
+  useEffect(()=>{void load();const timer=window.setInterval(()=>void load(true),10000);return()=>window.clearInterval(timer);},[load]);
+  const counts=useMemo(()=>Object.fromEntries(statusOrder.map(status=>[status,items.filter(item=>item.status===status).length])) as Record<RequestStatus,number>,[items]);
+  const visible=filter?items.filter(item=>item.status===filter):items;
+  const cancel=async(record:UserRequest)=>{if(!window.confirm(`Cancel the request for ${record.title}? It will be removed from the media engine before any files are imported.`))return;setBusy(record.id);try{await options.request(`/api/requests/mine/${record.id}`,{method:'DELETE'});options.notify('Request cancelled.');await load(true);}catch(reason){options.notify(reason instanceof Error?reason.message:'The request could not be cancelled.','error');}finally{setBusy('');}};
+  return <div className="react-my-requests">
+    <div className="hero"><div><span className="eyebrow">YOUR MEDIA REQUESTS</span><h1>My Requests</h1><p className="lede">Follow each request from the first search through library import.</p></div><button className="secondary" onClick={()=>void load()}>Refresh</button></div>
+    <div className="request-status-filters" aria-label="Filter requests by status"><button className={!filter?'selected':''} onClick={()=>setFilter('')}><strong>{items.length}</strong><span>All</span></button>{statusOrder.map(status=><button key={status} className={filter===status?'selected':''} onClick={()=>setFilter(status)}><strong>{counts[status]}</strong><span>{statusCopy[status]}</span></button>)}</div>
+    {loading?<div className="panel skeleton">Loading requests…</div>:error?<div className="panel error-state"><h2>Requests unavailable</h2><p>{error}</p></div>:!visible.length?<div className="panel empty"><h2>{filter?'No requests with this status':'No requests yet'}</h2><p>{filter?'Choose another status to continue.':'Open Discover to request a movie or television series.'}</p>{!filter?<a className="primary button-link" href="#discover">Browse Discover</a>:null}</div>:<div className="my-request-list">{visible.map(record=><article className="my-request-card panel" key={record.id}>
+      <div className={`request-domain ${record.domain}`}>{record.domain==='movie'?'MOVIE':'TV'}</div>
+      <div className="request-main"><div className="request-title"><div><h2>{record.title}</h2><p>{record.year||'Year unavailable'} · Requested {new Date(record.requestedAt).toLocaleString()}</p></div><span className={`request-state ${record.status}`}>{record.statusLabel}</span></div><p className="request-explanation">{record.message}</p><div className="request-progress" aria-label={`Request status: ${record.statusLabel}`}>{statusOrder.slice(0,5).map(status=><i key={status} className={status===record.status?'current':statusOrder.indexOf(status)<statusOrder.indexOf(record.status)&&!['failed','rejected'].includes(record.status)?'complete':''}/>)}</div></div>
+      <div className="request-actions">{record.canCorrect?<button className="secondary" disabled={busy===record.id} onClick={()=>setCorrecting(record)}>Correct match</button>:null}{record.canCancel?<button className="danger" disabled={busy===record.id} onClick={()=>void cancel(record)}>{busy===record.id?'Cancelling…':'Cancel request'}</button>:null}</div>
+    </article>)}</div>}
+    {correcting?<CorrectMatch record={correcting} options={options} onClose={()=>setCorrecting(null)} onCorrected={()=>void load(true)}/>:null}
+  </div>;
+}

@@ -27,12 +27,16 @@ consistent experience and account system.
 
 ## Current release
 
-Version **2.0.15** is ready for real-time testing on Unraid, Windows, and
-standard Docker installations. Fix Match, Discover request correction, and
-the other nested movie and television detail dialogs are now constrained
-within their visible parent surface. Discover correction uses a compact
-purpose-sized dialog, while all matching panels include their padding and
-borders in the available width and remain viewport-safe on mobile.
+Version **2.0.16** is ready for real-time testing on Unraid, Windows, and
+standard Docker installations. Users with Discover access now have a dedicated
+**My Requests** page that follows their own movie and television requests
+through requested, searching, downloading, imported, failed, and rejected
+states using live engine data.
+
+Pending requests can be corrected by selecting an authoritative TMDB match or
+cancelled before downloading or importing begins. Ownership, CSRF protection,
+and live eligibility are validated by the server, while failures are explained
+without exposing administrative engine or download-client details.
 
 Discover requests resolve movie and television engine records using
 authoritative TMDB and TVDB identifiers rather than title text or search-result
@@ -96,6 +100,10 @@ See the [changelog](CHANGELOG.md) for the detailed list of changes.
 - Wanted views grouped by show and season
 - Sortable, filterable queue with separate Movie/TV engine totals,
   download-client status, and bulk actions
+- A personal **My Requests** page showing requested, searching, downloading,
+  imported, failed, and rejected states from the live engines
+- Pending-request correction by authoritative TMDB ID and safe cancellation
+  before downloading or importing starts
 - Unified calendar, history, health, and scheduled-task views
 
 ### User access controls
@@ -108,6 +116,9 @@ User account can be granted any combination of:
 - **Movies** — view the movie library and movie details
 - **TV** — view shows, seasons, episodes, and series details
 - **Calendar** — view upcoming movie and episode dates
+
+Granting **Discover** access also exposes **My Requests**, where the user can
+track their own requests and correct or cancel only those that remain eligible.
 
 Dashboard, Movies, TV, and Calendar remain view-only for User accounts. Actions
 that alter libraries, monitoring, files, engine configuration, providers,

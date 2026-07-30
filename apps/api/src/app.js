@@ -118,6 +118,7 @@ export function createApplication(options={}){
   const projectionStore=options.projectionStore||new ProjectionStore(join(dataDir,'projections.json'));
   const auditStore=options.auditStore||new JsonStore(join(dataDir,'management-audit.json'),{version:1,entries:[]});
   const collectionStore=options.collectionStore||new JsonStore(join(dataDir,'collections.json'),{version:1,collections:[]});
+  const requestStore=options.requestStore||new JsonStore(join(dataDir,'user-requests.json'),{version:1,requests:[]});
   const guideTemplateStore=options.guideTemplateStore||new JsonStore(join(dataDir,'guide-templates.json'),{version:1,records:{}});
   const engineAuthenticationStore=options.engineAuthenticationStore||new JsonStore(join(dataDir,'engine-authentication.json'),{version:1,initialized:false,movie:null,tv:null,updatedAt:null});
   const guideTemplates=options.guideTemplates||new GuideTemplateService({store:guideTemplateStore,fetcher:options.fetcher||globalThis.fetch});
@@ -722,6 +723,55 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
     }));
     return results.flat();
   }
+  const requestEngineId=(domain,value)=>Number(domain==='movie'?(value.movieId||value.movie?.id):(value.seriesId||value.series?.id||value.episode?.seriesId));
+  const requestHistoryId=(domain,value)=>Number(domain==='movie'?(value.movieId||value.movie?.id):(value.seriesId||value.series?.id||value.episode?.seriesId));
+  const friendlyRequestFailure=value=>{
+    const message=String(value||'').toLowerCase();
+    if(message.includes('import'))return'The download finished, but the media engine could not import it. An administrator can review the library path and file permissions.';
+    if(message.includes('download'))return'The download did not complete. An administrator can review the download client and try again.';
+    if(message.includes('indexer')||message.includes('release'))return'No usable release was found. The media engine will continue checking based on its configured schedule.';
+    return'The media engine reported a problem with this request. An administrator can review the engine activity for more detail.';
+  };
+  async function liveUserRequests(userId){
+    const stored=await requestStore.read(),owned=(stored.requests||[]).filter(item=>item.userId===userId);
+    const domains=[...new Set(owned.map(item=>item.domain).filter(domain=>['movie','tv'].includes(domain)))];
+    const snapshots=new Map(await Promise.all(domains.map(async domain=>{
+      const client=registry.get(domain).client;
+      const [libraryResult,queueValue,historyValue]=await Promise.all([
+        client.get(domain==='movie'?'movie':'series').then(value=>({available:true,value})).catch(()=>({available:false,value:[]})),
+        client.get('queue',domain==='movie'?{page:1,pageSize:500,includeMovie:true}:{page:1,pageSize:500,includeSeries:true,includeEpisode:true}).catch(()=>({records:[]})),
+        client.get('history',{page:1,pageSize:500,sortKey:'date',sortDirection:'descending'}).catch(()=>({records:[]}))
+      ]);
+      return[domain,{
+        available:libraryResult.available,
+        library:new Map((Array.isArray(libraryResult.value)?libraryResult.value:[]).map(item=>[Number(item.id),item])),
+        queue:Array.isArray(queueValue?.records)?queueValue.records:[],
+        history:Array.isArray(historyValue?.records)?historyValue.records:[]
+      }];
+    })));
+    return owned.map(record=>{
+      if(record.status==='rejected')return{...record,status:'rejected',statusLabel:'Rejected',message:record.message||'This request was cancelled before it was imported.',canCorrect:false,canCancel:false};
+      const snapshot=snapshots.get(record.domain),engineId=Number(record.engineId),media=snapshot?.library.get(engineId);
+      if(!snapshot?.available)return{...record,status:'requested',statusLabel:'Status unavailable',message:'The media engine is temporarily unavailable. Your request is still recorded and its status will update when the connection returns.',canCorrect:false,canCancel:false};
+      const queued=snapshot?.queue.find(item=>requestEngineId(record.domain,item)===engineId);
+      const relatedHistory=(snapshot?.history||[]).filter(item=>requestHistoryId(record.domain,item)===engineId);
+      const failed=relatedHistory.find(item=>String(item.eventType||'').toLowerCase().includes('failed'));
+      const imported=record.domain==='movie'?Boolean(media?.hasFile||media?.movieFile):Number(media?.statistics?.episodeFileCount||0)>0;
+      let status='requested',statusLabel='Requested',message='The request is waiting for the media engine to find an eligible release.';
+      if(!media){status='rejected';statusLabel='Rejected';message='This title is no longer in the media engine library.';}
+      else if(imported){status='imported';statusLabel='Imported';message='The requested title has been imported into the library.';}
+      else if(queued){
+        const queueState=String(queued.status||queued.trackedDownloadStatus||queued.trackedDownloadState||'').toLowerCase();
+        if(/fail|warning|error/.test(queueState)){status='failed';statusLabel='Needs attention';message=friendlyRequestFailure(queueState);}
+        else{status='downloading';statusLabel='Downloading';message='A release was found and is being downloaded.';}
+      }else if(failed){status='failed';statusLabel='Needs attention';message=friendlyRequestFailure(failed.eventType||failed.data?.message);}
+      else if(Date.now()-new Date(record.requestedAt).getTime()<10*60*1000&&record.searchNow!==false){
+        status='searching';statusLabel='Searching';message='The media engine is checking configured sources for an eligible release.';
+      }
+      const pending=status==='requested'||status==='searching';
+      return{...record,status,statusLabel,message,canCorrect:pending,canCancel:pending};
+    }).sort((left,right)=>String(right.requestedAt).localeCompare(String(left.requestedAt)));
+  }
   async function dashboardHistory(days=30){
     if(mode!=='engine')return sync.operations('history');
     if(dashboardHistorySnapshot&&dashboardHistoryExpires>Date.now())return dashboardHistorySnapshot;
@@ -876,8 +926,46 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
           if(!roots.some(root=>String(root.path)===String(payload.rootFolderPath)))throw new Error('Choose a configured library folder');
           if(!profiles.some(profile=>Number(profile.id)===Number(payload.qualityProfileId)))throw new Error('Choose a configured quality profile');
           const result=await management.execute(domain,'library','POST',{payload});
+          const now=new Date().toISOString(),requestRecord={
+            id:`request_${randomUUID()}`,userId:session.user.id,domain,engineId:Number(result.id),
+            tmdbId,tvdbId:metadata.tvdbId||null,title:result.title||metadata.title||payload.title||'Untitled request',
+            year:Number(result.year||metadata.year||payload.year)||null,requestedAt:now,updatedAt:now,
+            searchNow:domain==='movie'?payload.addOptions?.searchForMovie!==false:payload.addOptions?.searchForMissingEpisodes!==false,
+            status:'requested'
+          };
+          await requestStore.update(current=>{current.requests=current.requests||[];current.requests.unshift(requestRecord);return requestRecord;});
           sync.invalidate(domain);setTimeout(()=>sync.synchronize(domain).catch(()=>{}),2_000);
-          return json(res,201,{result});
+          return json(res,201,{result,request:requestRecord});
+        }
+        if(url.pathname==='/api/requests/mine'&&req.method==='GET'){
+          if(!permitted(res,session,'discover'))return;
+          return json(res,200,{items:await liveUserRequests(session.user.id)});
+        }
+        const ownRequestMatch=url.pathname.match(/^\/api\/requests\/mine\/(request_[A-Za-z0-9_-]+)$/);
+        if(ownRequestMatch&&req.method==='DELETE'){
+          if(!permitted(res,session,'discover')||!requireCsrf(req,res,session))return;
+          const records=await liveUserRequests(session.user.id),record=records.find(item=>item.id===ownRequestMatch[1]);
+          if(!record)return json(res,404,{error:{code:'not_found',message:'Request was not found.'}});
+          if(!record.canCancel)return json(res,409,{error:{code:'request_not_cancellable',message:'This request can no longer be cancelled because downloading or importing has started.'}});
+          await management.execute(record.domain,'library','DELETE',{id:Number(record.engineId),query:record.domain==='movie'?{deleteFiles:false,addImportExclusion:false}:{deleteFiles:false,addImportListExclusion:false}});
+          const updatedAt=new Date().toISOString();
+          await requestStore.update(current=>{const item=(current.requests||[]).find(value=>value.id===record.id&&value.userId===session.user.id);if(item)Object.assign(item,{status:'rejected',message:'You cancelled this request before it was imported.',updatedAt});});
+          sync.invalidate(record.domain);
+          return json(res,200,{cancelled:true});
+        }
+        const correctRequestMatch=url.pathname.match(/^\/api\/requests\/mine\/(request_[A-Za-z0-9_-]+)\/correct$/);
+        if(correctRequestMatch&&req.method==='POST'){
+          if(!permitted(res,session,'discover')||!requireCsrf(req,res,session))return;
+          const records=await liveUserRequests(session.user.id),record=records.find(item=>item.id===correctRequestMatch[1]);
+          if(!record)return json(res,404,{error:{code:'not_found',message:'Request was not found.'}});
+          if(!record.canCorrect)return json(res,409,{error:{code:'request_not_correctable',message:'The match can only be corrected before downloading or importing starts.'}});
+          const input=await body(req),tmdbId=Number(input.tmdbId);
+          if(!Number.isInteger(tmdbId)||tmdbId<=0)throw new Error('Choose a valid TMDB match');
+          const result=await rematchMedia({domain:record.domain,mediaId:Number(record.engineId),tmdbId});
+          if(record.searchNow!==false)await management.execute(record.domain,'commands','POST',{payload:record.domain==='movie'?{name:'MoviesSearch',movieIds:[Number(result.id)]}:{name:'SeriesSearch',seriesId:Number(result.id)}}).catch(()=>{});
+          const metadata=await discovery.details(record.domain,tmdbId),updatedAt=new Date().toISOString();
+          await requestStore.update(current=>{const item=(current.requests||[]).find(value=>value.id===record.id&&value.userId===session.user.id);if(item)Object.assign(item,{engineId:Number(result.id),tmdbId,tvdbId:metadata.tvdbId||null,title:result.title||metadata.title,year:Number(metadata.year)||null,status:'requested',requestedAt:updatedAt,updatedAt});});
+          return json(res,200,{corrected:true,result});
         }
         if(url.pathname==='/api/discover/enrich'&&req.method==='GET'){
           const domain=url.searchParams.get('domain'),page=domain==='tv'?'tv':'movies';

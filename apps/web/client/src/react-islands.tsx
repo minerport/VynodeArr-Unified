@@ -9,6 +9,7 @@ import type { CalendarMountOptions } from './calendar-types';
 import type { MovieDetailMountOptions } from './movie-detail-types';
 import type { TvDetailMountOptions } from './tv-detail-types';
 import type { DiscoverMountOptions } from './discover-types';
+import type { MyRequestsMountOptions } from './my-requests-types';
 import type { CollectionsMountOptions } from './collection-types';
 import type { AddMediaMountOptions } from './add-media-types';
 import type { HealthMountOptions } from './health-types';
@@ -28,7 +29,7 @@ import type { EngineSetupMountOptions } from './engine-setup-types';
 import type { AuthenticationMountOptions } from './authentication-types';
 import { RouteErrorBoundary } from './error-boundary';
 
-let dashboardRoot:Root|null=null,dashboardElement:HTMLElement|null=null,fullDashboardRoot:Root|null=null,libraryRoot:Root|null=null,historyRoot:Root|null=null,queueRoot:Root|null=null,wantedRoot:Root|null=null,calendarRoot:Root|null=null,movieDetailRoot:Root|null=null,tvDetailRoot:Root|null=null,discoverRoot:Root|null=null,collectionsRoot:Root|null=null,addMediaRoot:Root|null=null,healthRoot:Root|null=null,accountRoot:Root|null=null,systemRoot:Root|null=null,selectionRulesRoot:Root|null=null,importMonitorRoot:Root|null=null,managementRoot:Root|null=null,mediaManagementRoot:Root|null=null,rootFoldersRoot:Root|null=null,providerSettingsRoot:Root|null=null,guideTemplatesRoot:Root|null=null,engineManagementRoot:Root|null=null,discoverSettingsRoot:Root|null=null,qualityProfilesRoot:Root|null=null,engineSetupRoot:Root|null=null,setupAuthRoot:Root|null=null,signInAuthRoot:Root|null=null;
+let dashboardRoot:Root|null=null,dashboardElement:HTMLElement|null=null,fullDashboardRoot:Root|null=null,libraryRoot:Root|null=null,historyRoot:Root|null=null,queueRoot:Root|null=null,wantedRoot:Root|null=null,calendarRoot:Root|null=null,movieDetailRoot:Root|null=null,tvDetailRoot:Root|null=null,discoverRoot:Root|null=null,requestsRoot:Root|null=null,collectionsRoot:Root|null=null,addMediaRoot:Root|null=null,healthRoot:Root|null=null,accountRoot:Root|null=null,systemRoot:Root|null=null,selectionRulesRoot:Root|null=null,importMonitorRoot:Root|null=null,managementRoot:Root|null=null,mediaManagementRoot:Root|null=null,rootFoldersRoot:Root|null=null,providerSettingsRoot:Root|null=null,guideTemplatesRoot:Root|null=null,engineManagementRoot:Root|null=null,discoverSettingsRoot:Root|null=null,qualityProfilesRoot:Root|null=null,engineSetupRoot:Root|null=null,setupAuthRoot:Root|null=null,signInAuthRoot:Root|null=null;
 const loading=(label:string)=><div className="panel skeleton react-route-loading">Loading {label}…</div>;
 
 const guarded=(children:ReactNode)=><RouteErrorBoundary>{children}</RouteErrorBoundary>;
@@ -56,6 +57,11 @@ function unmountQueue(){queueRoot?.unmount();queueRoot=null;}
 function mountQueue(element:HTMLElement,options:QueueMountOptions){
   unmountQueue();const root=createRoot(element);queueRoot=root;root.render(loading('queue'));
   void import('./queue').then(({QueueView})=>{if(queueRoot===root)root.render(<QueueView options={options}/>);});
+}
+function unmountRequests(){requestsRoot?.unmount();requestsRoot=null;}
+function mountRequests(element:HTMLElement,options:MyRequestsMountOptions){
+  unmountRequests();const root=createRoot(element);requestsRoot=root;root.render(loading('requests'));
+  void import('./my-requests').then(({MyRequestsView})=>{if(requestsRoot===root)root.render(guarded(<MyRequestsView options={options}/>));});
 }
 function unmountWanted(){wantedRoot?.unmount();wantedRoot=null;}
 function mountWanted(element:HTMLElement,options:WantedMountOptions){
@@ -168,7 +174,7 @@ function mountAuthentication(setupElement:HTMLElement,signInElement:HTMLElement,
   void import('./authentication').then(({SetupView,SignInView})=>{if(setupAuthRoot===setupRoot)setupRoot.render(guarded(<SetupView options={options}/>));if(signInAuthRoot===signInRoot)signInRoot.render(guarded(<SignInView options={options}/>));});
 }
 const routeImports:Record<string,()=>Promise<unknown>>={
-  dashboard:()=>import('./dashboard'),discover:()=>import('./discover'),collections:()=>import('./collections'),add:()=>import('./add-media'),movies:()=>import('./library'),tv:()=>import('./library'),
+  dashboard:()=>import('./dashboard'),discover:()=>import('./discover'),requests:()=>import('./my-requests'),collections:()=>import('./collections'),add:()=>import('./add-media'),movies:()=>import('./library'),tv:()=>import('./library'),
   queue:()=>import('./queue'),history:()=>import('./history'),wanted:()=>import('./wanted'),calendar:()=>import('./calendar'),health:()=>import('./health'),
   movie:()=>import('./movie-detail'),series:()=>import('./tv-detail'),settings:()=>Promise.all([import('./account'),import('./engine-management'),import('./engine-setup')]),system:()=>import('./system'),service:()=>Promise.all([import('./selection-rules'),import('./media-management'),import('./root-folders'),import('./provider-settings'),import('./guide-templates'),import('./discover-settings'),import('./quality-profiles')]),management:()=>import('./management'),
 };
@@ -181,6 +187,7 @@ declare global {
     mountLibrary:(element:HTMLElement,options:LibraryMountOptions)=>void;unmountLibrary:()=>void;
     mountHistory:(element:HTMLElement,options:HistoryMountOptions)=>void;unmountHistory:()=>void;
     mountQueue:(element:HTMLElement,options:QueueMountOptions)=>void;unmountQueue:()=>void;
+    mountRequests:(element:HTMLElement,options:MyRequestsMountOptions)=>void;unmountRequests:()=>void;
     mountWanted:(element:HTMLElement,options:WantedMountOptions)=>void;unmountWanted:()=>void;
     mountCalendar:(element:HTMLElement,options:CalendarMountOptions)=>void;unmountCalendar:()=>void;
     mountMovieDetail:(element:HTMLElement,options:MovieDetailMountOptions)=>void;unmountMovieDetail:()=>void;
@@ -206,4 +213,4 @@ declare global {
     preloadRoute:(route:string)=>void;
   }}
 }
-window.VynodeArrReact={mountDashboard,unmountDashboard,mountDashboardAnalytics,unmountDashboardAnalytics,mountLibrary,unmountLibrary,mountHistory,unmountHistory,mountQueue,unmountQueue,mountWanted,unmountWanted,mountCalendar,unmountCalendar,mountMovieDetail,unmountMovieDetail,mountTvDetail,unmountTvDetail,mountDiscover,unmountDiscover,mountCollections,unmountCollections,mountAddMedia,unmountAddMedia,mountHealth,unmountHealth,mountAccount,unmountAccount,mountSystem,unmountSystem,mountSelectionRules,unmountSelectionRules,mountImportMonitor,unmountImportMonitor,mountManagement,unmountManagement,mountMediaManagement,unmountMediaManagement,mountRootFolders,unmountRootFolders,mountProviderSettings,unmountProviderSettings,mountGuideTemplates,unmountGuideTemplates,mountEngineManagement,unmountEngineManagement,mountDiscoverSettings,unmountDiscoverSettings,mountQualityProfiles,unmountQualityProfiles,mountEngineSetup,unmountEngineSetup,mountAuthentication,unmountAuthentication,preloadRoute};
+window.VynodeArrReact={mountDashboard,unmountDashboard,mountDashboardAnalytics,unmountDashboardAnalytics,mountLibrary,unmountLibrary,mountHistory,unmountHistory,mountQueue,unmountQueue,mountRequests,unmountRequests,mountWanted,unmountWanted,mountCalendar,unmountCalendar,mountMovieDetail,unmountMovieDetail,mountTvDetail,unmountTvDetail,mountDiscover,unmountDiscover,mountCollections,unmountCollections,mountAddMedia,unmountAddMedia,mountHealth,unmountHealth,mountAccount,unmountAccount,mountSystem,unmountSystem,mountSelectionRules,unmountSelectionRules,mountImportMonitor,unmountImportMonitor,mountManagement,unmountManagement,mountMediaManagement,unmountMediaManagement,mountRootFolders,unmountRootFolders,mountProviderSettings,unmountProviderSettings,mountGuideTemplates,unmountGuideTemplates,mountEngineManagement,unmountEngineManagement,mountDiscoverSettings,unmountDiscoverSettings,mountQualityProfiles,unmountQualityProfiles,mountEngineSetup,unmountEngineSetup,mountAuthentication,unmountAuthentication,preloadRoute};

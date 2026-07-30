@@ -6,6 +6,7 @@ export type RouteAction=
   |{name:'skip'}
   |{name:'engineSetup'}
   |{name:'discover'}
+  |{name:'requests'}
   |{name:'library';kind:LibraryKind}
   |{name:'collections'}
   |{name:'addMedia'}
@@ -37,6 +38,7 @@ export function resolveRouteAction(route:AppRoute,state:RouteActionState):RouteA
       :{name:'engineSetup'};
   }
   if(key==='discover')return{name:'discover'};
+  if(key==='requests')return{name:'requests'};
   if(key==='movies'||key==='tv'){
     return state.preserveLibrary&&!state.libraryStale[key]
       ?{name:'skip'}

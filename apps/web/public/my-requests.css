@@ -1,0 +1,13 @@
+.react-my-requests{display:grid;gap:var(--space-4,1rem)}
+.request-status-filters{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:.65rem}
+.request-status-filters button{display:grid;gap:.2rem;min-height:4.5rem;padding:.8rem 1rem;text-align:left}
+.request-status-filters button strong{font-size:1.35rem}.request-status-filters button span{color:var(--muted)}
+.request-status-filters button.selected{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,transparent)}
+.my-request-list{display:grid;gap:.75rem}.my-request-card{display:grid;grid-template-columns:5rem minmax(0,1fr) auto;gap:1rem;align-items:center;padding:1rem}
+.request-domain{display:grid;place-items:center;align-self:stretch;border:1px solid var(--line);border-radius:var(--radius-md);font-weight:800;font-size:.78rem;letter-spacing:.08em}.request-domain.movie{color:#70d8ff}.request-domain.tv{color:#c89cff}
+.request-main{min-width:0}.request-title{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem}.request-title h2{margin:0;font-size:1.15rem}.request-title p,.request-explanation{margin:.25rem 0;color:var(--muted)}
+.request-state{flex:none;border:1px solid var(--line);border-radius:999px;padding:.28rem .6rem;font-size:.75rem;font-weight:800}.request-state.imported{color:var(--success)}.request-state.failed,.request-state.rejected{color:var(--danger)}
+.request-progress{display:grid;grid-template-columns:repeat(5,1fr);gap:.3rem;margin-top:.75rem}.request-progress i{height:.22rem;border-radius:999px;background:var(--line)}.request-progress i.complete{background:var(--success)}.request-progress i.current{background:var(--accent)}
+.request-actions{display:flex;gap:.5rem;flex-wrap:wrap;justify-content:flex-end}.my-request-match-dialog{width:min(44rem,calc(100vw - 2rem));max-width:44rem;max-height:calc(100dvh - 2rem);overflow:auto}
+.my-request-match-dialog .match-results{max-height:55dvh;overflow:auto}.my-request-match-dialog .match-result{grid-template-columns:4rem minmax(0,1fr) auto;min-width:0}.my-request-match-dialog .match-result p{overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+@media(max-width:900px){.request-status-filters{grid-template-columns:repeat(2,minmax(0,1fr))}.my-request-card{grid-template-columns:3.5rem minmax(0,1fr)}.request-actions{grid-column:1/-1}.request-title{display:grid}}

@@ -1,6 +1,7 @@
 export const routeKeys=[
   'dashboard',
   'discover',
+  'requests',
   'movies',
   'tv',
   'collections',
