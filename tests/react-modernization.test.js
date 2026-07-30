@@ -1054,6 +1054,20 @@ test('Discover approval policy and administrator request history have typed post
   assert.match(html,/href="#request-management">User Requests/);assert.match(styles,/\.admin-request-card/);assert.match(styles,/\.request-art img/);
 });
 
+test('request notification bell has durable role-aware request updates',async()=>{
+  const [notifications,types,islands,shell,server,html,styles]=await Promise.all([
+    read('apps/web/client/src/notifications.tsx'),read('apps/web/client/src/notification-types.ts'),read('apps/web/client/src/react-islands.tsx'),
+    read('apps/web/client/src/app-shell.ts'),read('apps/api/src/app.js'),read('apps/web/public/index.html'),read('apps/web/public/notifications.css')
+  ]);
+  assert.match(html,/id="notification-root"/);assert.match(html,/notifications\.css/);
+  assert.match(islands,/mountNotifications/);assert.match(shell,/mountNotifications/);
+  assert.match(shell,/nav-count-badge/);assert.match(notifications,/onPageBadge/);
+  assert.match(notifications,/\/api\/notifications/);assert.match(notifications,/Mark all read/);assert.match(notifications,/15_000/);
+  assert.match(types,/approval.*approved.*rejected.*failed.*imported/);
+  assert.match(server,/notificationReads/);assert.match(server,/\/api\/notifications\/read/);assert.match(server,/href:'#request-management'/);assert.match(server,/href:'#requests'/);
+  assert.match(styles,/max-height:calc\(100dvh - 6rem\)/);assert.match(styles,/overflow:auto/);assert.match(styles,/notification-bell/);assert.match(styles,/nav-count-badge/);
+});
+
 test('administrator audit coverage includes security, jobs, exports, collections, media, and system operations',async()=>{
   const server=await read('apps/api/src/app.js');
   for(const action of [

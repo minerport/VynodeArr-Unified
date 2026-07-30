@@ -7,6 +7,32 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.19] - 2026-07-30
+
+### Added
+
+- Added a global notification bell with a live unread count and request
+  activity available from every authenticated page.
+- Administrators receive notifications for requests awaiting approval.
+- Users receive notifications when requests are approved, declined, fail, or
+  finish importing.
+- Notification items link directly to **User Requests** or **My Requests** and
+  can be marked read individually or with **Mark all read**.
+- Added synchronized sidebar badges: administrators see the live
+  awaiting-approval total beside **User Requests**, and users see unread request
+  updates beside **My Requests**.
+
+### Changed
+
+- Notification read state is stored per account and persists across
+  application restarts.
+- Notification activity refreshes automatically every 15 seconds.
+
+### Fixed
+
+- The notification panel remains scrollable and viewport-contained on desktop
+  and mobile layouts.
+
 ## [2.0.18] - 2026-07-30
 
 ### Changed
@@ -436,7 +462,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.18...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.19...HEAD
+[2.0.19]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.18...v2.0.19
 [2.0.18]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.17...v2.0.18
 [2.0.17]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.16...v2.0.17
 [2.0.16]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.15...v2.0.16

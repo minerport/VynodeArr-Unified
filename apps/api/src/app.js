@@ -118,7 +118,7 @@ export function createApplication(options={}){
   const projectionStore=options.projectionStore||new ProjectionStore(join(dataDir,'projections.json'));
   const auditStore=options.auditStore||new JsonStore(join(dataDir,'management-audit.json'),{version:1,entries:[]});
   const collectionStore=options.collectionStore||new JsonStore(join(dataDir,'collections.json'),{version:1,collections:[]});
-  const requestStore=options.requestStore||new JsonStore(join(dataDir,'user-requests.json'),{version:1,requests:[]});
+  const requestStore=options.requestStore||new JsonStore(join(dataDir,'user-requests.json'),{version:1,requests:[],notificationReads:{}});
   const guideTemplateStore=options.guideTemplateStore||new JsonStore(join(dataDir,'guide-templates.json'),{version:1,records:{}});
   const engineAuthenticationStore=options.engineAuthenticationStore||new JsonStore(join(dataDir,'engine-authentication.json'),{version:1,initialized:false,movie:null,tv:null,updatedAt:null});
   const guideTemplates=options.guideTemplates||new GuideTemplateService({store:guideTemplateStore,fetcher:options.fetcher||globalThis.fetch});
@@ -827,6 +827,25 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
     const pendingLimit=Number(policy.maxPending)||null;
     return{enabled:true,period:policy.period,startAt:start.toISOString(),movie:allowance('movie'),tv:allowance('tv'),pending:{limit:pendingLimit,used:pendingUsed,remaining:pendingLimit==null?null:Math.max(0,pendingLimit-pendingUsed)}};
   }
+  async function requestNotifications(session){
+    const administratorUser=session.user.role==='administrator',records=await liveUserRequests(administratorUser?null:session.user.id),items=[];
+    if(administratorUser){
+      const users=new Map((await auth.listUsers()).map(user=>[user.id,user]));
+      for(const record of records.filter(item=>item.status==='pending_approval')){
+        const user=users.get(record.userId),name=user?.name||user?.username||'A user';
+        items.push({id:`approval:${record.id}`,type:'approval',title:`${name} requested ${record.title}`,message:`Review and decide whether to add this ${record.domain==='movie'?'movie':'television series'}.`,timestamp:record.requestedAt,href:'#request-management',requestId:record.id});
+      }
+    }else{
+      for(const record of records){
+        if(record.approvedBy)items.push({id:`approved:${record.id}`,type:'approved',title:`${record.title} was approved`,message:'An administrator approved your request and added it to the media engine.',timestamp:record.approvedAt||record.updatedAt||record.requestedAt,href:'#requests',requestId:record.id});
+        if(record.status==='rejected')items.push({id:`rejected:${record.id}`,type:'rejected',title:`${record.title} was declined`,message:record.rejectionReason||record.message||'An administrator declined this request.',timestamp:record.rejectedAt||record.updatedAt||record.requestedAt,href:'#requests',requestId:record.id});
+        if(record.status==='failed')items.push({id:`failed:${record.id}`,type:'failed',title:`${record.title} needs attention`,message:record.message||'The media engine reported a problem with this request.',timestamp:record.updatedAt||record.requestedAt,href:'#requests',requestId:record.id});
+        if(record.status==='imported')items.push({id:`imported:${record.id}`,type:'imported',title:`${record.title} is ready`,message:'Your requested title has finished importing into the library.',timestamp:record.updatedAt||record.requestedAt,href:'#requests',requestId:record.id});
+      }
+    }
+    const stored=await requestStore.read(),reads=stored.notificationReads?.[session.user.id]||{};
+    return items.sort((left,right)=>String(right.timestamp).localeCompare(String(left.timestamp))).slice(0,50).map(item=>({...item,read:Boolean(reads[item.id])}));
+  }
   function requestLimitMessage(allowance,domain){
     if(allowance.pending.limit!=null&&allowance.pending.remaining===0)return`You already have ${allowance.pending.used} pending requests. Wait for one to complete or ask an administrator to update your limit.`;
     const value=allowance[domain];if(value.limit!=null&&value.remaining===0)return`You have reached your ${allowance.period} ${domain==='movie'?'movie':'television'} request limit of ${value.limit}.`;
@@ -1010,6 +1029,17 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
         if(url.pathname==='/api/requests/allowance'&&req.method==='GET'){
           if(!permitted(res,session,'discover'))return;
           return json(res,200,{allowance:await requestAllowance(session.user)});
+        }
+        if(url.pathname==='/api/notifications'&&req.method==='GET'){
+          const items=await requestNotifications(session);
+          const unread=items.filter(item=>!item.read).length,administratorUser=session.user.role==='administrator';
+          return json(res,200,{items,unread,pageBadge:{href:administratorUser?'#request-management':'#requests',count:administratorUser?items.length:unread}});
+        }
+        if(url.pathname==='/api/notifications/read'&&req.method==='POST'){
+          if(!requireCsrf(req,res,session))return;
+          const input=await body(req),available=await requestNotifications(session),requested=Array.isArray(input.ids)?new Set(input.ids.map(String)):null,ids=available.filter(item=>!requested||requested.has(item.id)).map(item=>item.id),readAt=new Date().toISOString();
+          await requestStore.update(current=>{current.notificationReads=current.notificationReads||{};const reads=current.notificationReads[session.user.id]||{};for(const id of ids)reads[id]=readAt;current.notificationReads[session.user.id]=Object.fromEntries(Object.entries(reads).slice(-500));});
+          return json(res,200,{read:ids});
         }
         if(url.pathname==='/api/requests/mine'&&req.method==='GET'){
           if(!permitted(res,session,'discover'))return;

@@ -27,10 +27,21 @@ consistent experience and account system.
 
 ## Current release
 
-Version **2.0.18** is ready for real-time testing on Unraid, Windows, and
-standard Docker installations. Request-limit denials now remain visible inside
-the Discover request modal so users can understand why a title was not
-submitted.
+Version **2.0.19** is ready for real-time testing on Unraid, Windows, and
+standard Docker installations. A global notification bell now keeps request
+activity visible from every page. Administrators are alerted when a request
+needs approval, while users receive updates when their requests are approved,
+declined, fail, or finish importing.
+
+Unread notification state is stored per account and survives application
+restarts. The bell includes a live unread count, a scrollable desktop and
+mobile-safe activity panel, direct links to the relevant request page, and a
+**Mark all read** action. Sidebar badges remain synchronized: **User Requests**
+shows the live number awaiting approval, while **My Requests** shows unread
+status updates.
+
+Request-limit denials remain visible inside the Discover request modal so users
+can understand why a title was not submitted.
 
 Requests cancelled by their user now appear as **Cancelled by user** rather
 than rejected in both personal and administrator history. A cancellation is
