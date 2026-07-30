@@ -125,6 +125,11 @@ export function createApplication(options={}){
   const defaultDownloadFolder=domain=>String(env[domain==='movie'?'VYNODEARR_MOVIE_DOWNLOADS_PATH':'VYNODEARR_TV_DOWNLOADS_PATH']||env.VYNODEARR_DOWNLOADS_PATH||'/downloads').replace(/\/+$/,'')||'/downloads';
   const downloadClientRemotePath=domain=>String(env[domain==='movie'?'VYNODEARR_MOVIE_DOWNLOAD_CLIENT_REMOTE_PATH':'VYNODEARR_TV_DOWNLOAD_CLIENT_REMOTE_PATH']||env.VYNODEARR_DOWNLOAD_CLIENT_REMOTE_PATH||'/data/complete').replace(/\/+$/,'')||'/data/complete';
   const downloadFolderStore=options.downloadFolderStore||new JsonStore(join(dataDir,'download-folders.json'),{version:1,movie:{path:defaultDownloadFolder('movie')},tv:{path:defaultDownloadFolder('tv')},updatedAt:null});
+  async function recordAudit(session,{category='configuration',action,target='',summary='',domain=null,metadata={}}){
+    const entry={id:`audit_${randomUUID()}`,timestamp:new Date().toISOString(),userId:session.user.id,username:session.user.username,actorName:session.user.name||session.user.username,category,action,target:String(target||''),summary:String(summary||''),domain,metadata};
+    await auditStore.update(current=>{current.version=1;current.entries=Array.isArray(current.entries)?current.entries:[];current.entries.unshift(entry);current.entries=current.entries.slice(0,1000);return entry;});
+    return entry;
+  }
   const discovery=options.discovery||new TmdbDiscoveryService({token:env.TMDB_API_READ_TOKEN||env.TMDB_API_KEY});
   const artworkCache=new Map(),artworkRuns=new Map(),tvMetadataCache=new Map();let mode=baseConfig.dataMode,librarySummaryTimer=null;
   let movie=options.movie||(mode==='fixture'?new MovieFixtureAdapter(baseConfig.movie):new MovieEngineAdapter(baseConfig.movie));
@@ -786,7 +791,7 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
     return owned.map(record=>{
       if(record.status==='pending_approval')return{...record,payload:undefined,status:'pending_approval',statusLabel:'Awaiting approval',message:'An administrator must approve this request before it is added to the media engine.',canCorrect:true,canCancel:true,canApprove:true,canReject:true};
       if(record.status==='approving')return{...record,payload:undefined,status:'pending_approval',statusLabel:'Approval in progress',message:'This request is being validated and added to the media engine.',canCorrect:false,canCancel:false,canApprove:false,canReject:false};
-      if(record.status==='rejected')return{...record,payload:undefined,status:'rejected',statusLabel:'Rejected',message:record.message||'This request was cancelled before it was imported.',canCorrect:false,canCancel:false};
+      if(record.status==='rejected')return{...record,payload:undefined,status:'rejected',statusLabel:'Rejected',message:record.message||'This request was cancelled before it was imported.',rejectionReason:record.rejectionReason||null,canCorrect:false,canCancel:false};
       const snapshot=snapshots.get(record.domain),engineId=Number(record.engineId),media=snapshot?.library.get(engineId);
       if(!snapshot?.available)return{...record,payload:undefined,status:'requested',statusLabel:'Status unavailable',message:'The media engine is temporarily unavailable. Your request is still recorded and its status will update when the connection returns.',canCorrect:false,canCancel:false};
       const queued=snapshot?.queue.find(item=>requestEngineId(record.domain,item)===engineId);
@@ -807,6 +812,24 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
       const pending=status==='requested'||status==='searching';
       return{...record,payload:undefined,status,statusLabel,message,canCorrect:pending,canCancel:pending,canApprove:false,canReject:false};
     }).sort((left,right)=>String(right.requestedAt).localeCompare(String(left.requestedAt)));
+  }
+  async function requestAllowance(user){
+    const policy=user.role==='administrator'?{enabled:false,period:'weekly',movie:null,tv:null,maxPending:null}:user.requestLimits||{enabled:false,period:'weekly',movie:null,tv:null,maxPending:null};
+    if(!policy.enabled)return{enabled:false,period:policy.period||'weekly',movie:{limit:null,used:0,remaining:null},tv:{limit:null,used:0,remaining:null},pending:{limit:null,used:0,remaining:null}};
+    const now=new Date(),start=new Date(now);
+    if(policy.period==='daily')start.setUTCHours(0,0,0,0);
+    else if(policy.period==='monthly'){start.setUTCDate(1);start.setUTCHours(0,0,0,0);}
+    else{const day=(start.getUTCDay()+6)%7;start.setUTCDate(start.getUTCDate()-day);start.setUTCHours(0,0,0,0);}
+    const stored=await requestStore.read(),owned=(stored.requests||[]).filter(item=>item.userId===user.id),recent=owned.filter(item=>new Date(item.requestedAt)>=start);
+    const live=policy.maxPending?await liveUserRequests(user.id):[],pendingUsed=live.filter(item=>['pending_approval','requested','searching','downloading'].includes(item.status)).length;
+    const allowance=(domain)=>{const limit=Number(policy[domain])||null,used=recent.filter(item=>item.domain===domain).length;return{limit,used,remaining:limit==null?null:Math.max(0,limit-used)};};
+    const pendingLimit=Number(policy.maxPending)||null;
+    return{enabled:true,period:policy.period,startAt:start.toISOString(),movie:allowance('movie'),tv:allowance('tv'),pending:{limit:pendingLimit,used:pendingUsed,remaining:pendingLimit==null?null:Math.max(0,pendingLimit-pendingUsed)}};
+  }
+  function requestLimitMessage(allowance,domain){
+    if(allowance.pending.limit!=null&&allowance.pending.remaining===0)return`You already have ${allowance.pending.used} pending requests. Wait for one to complete or ask an administrator to update your limit.`;
+    const value=allowance[domain];if(value.limit!=null&&value.remaining===0)return`You have reached your ${allowance.period} ${domain==='movie'?'movie':'television'} request limit of ${value.limit}.`;
+    return'';
   }
   async function dashboardHistory(days=30){
     if(mode!=='engine')return sync.operations('history');
@@ -862,11 +885,13 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
       if(url.pathname==='/api/auth/status'&&req.method==='GET'){const session=sessionFor(req,auth);return json(res,200,{setupRequired:await auth.setupRequired(),authenticated:Boolean(session),user:session?.user||null,csrf:session?.csrf||null,enginesConfigured:enginesConfigured()});}
       if(url.pathname==='/api/auth/setup'&&req.method==='POST'){
         const input=await body(req),user=await auth.createInitialAdministrator(input),result=await auth.createSession(user,{ip:req.socket.remoteAddress,userAgent:req.headers['user-agent'],remember:true});
+        await recordAudit(result,{category:'security',action:'administrator.initialized',target:result.user.username,summary:'Created the initial administrator account.'});
         return json(res,201,{created:true,authenticated:true,user:result.user,csrf:result.csrf,enginesConfigured:enginesConfigured()},{'set-cookie':auth.cookie(result.id,false,true)});
       }
       if(url.pathname==='/api/auth/login'&&req.method==='POST'){
         const input=await body(req),result=await auth.login(input.identifier||input.username,input.password,{ip:req.socket.remoteAddress,userAgent:req.headers['user-agent'],remember:Boolean(input.remember)});
         if(!result)return json(res,401,{error:{code:'login_failed',message:'The username, email, or password was not accepted.'}});
+        if(result.user.role==='administrator')await recordAudit(result,{category:'security',action:'session.logged_in',target:result.user.username,summary:'Signed in to an administrator session.'});
         return json(res,200,{authenticated:true,user:result.user,csrf:result.csrf,enginesConfigured:enginesConfigured()},{'set-cookie':auth.cookie(result.id,false,Boolean(input.remember))});
       }
       if(url.pathname.startsWith('/api/')){
@@ -881,16 +906,16 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
           return;
         }
         if(url.pathname==='/api/import-jobs'&&req.method==='GET'){if(!administrator(res,session))return;return json(res,200,{items:[...importJobs.values()].filter(job=>job.userId===session.user.id).map(publicImportJob)});}
-        if(url.pathname==='/api/import-jobs'&&req.method==='POST'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;return json(res,202,{job:startImportJob(session.user.id,await body(req,25_000_000))});}
+        if(url.pathname==='/api/import-jobs'&&req.method==='POST'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;const job=startImportJob(session.user.id,await body(req,25_000_000));await recordAudit(session,{category:'job',action:'import.started',target:job.label||job.domain,domain:job.domain,summary:`Started ${job.label||'a library import'}.`,metadata:{jobId:job.id}});return json(res,202,{job});}
         const importJobMatch=url.pathname.match(/^\/api\/import-jobs\/(import_[A-Za-z0-9-]+)$/);
-        if(importJobMatch&&req.method==='DELETE'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;const job=importJobs.get(importJobMatch[1]);if(!job||job.userId!==session.user.id)return json(res,404,{error:{code:'not_found',message:'Import job was not found'}});if(['queued','running'].includes(job.status)){job.cancelRequested=true;job.status='canceling';job.currentTitle='Stopping after the current item';}return json(res,200,{job:publicImportJob(job)});}
+        if(importJobMatch&&req.method==='DELETE'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;const job=importJobs.get(importJobMatch[1]);if(!job||job.userId!==session.user.id)return json(res,404,{error:{code:'not_found',message:'Import job was not found'}});if(['queued','running'].includes(job.status)){job.cancelRequested=true;job.status='canceling';job.currentTitle='Stopping after the current item';}await recordAudit(session,{category:'job',action:'import.canceled',target:job.label||job.domain,domain:job.domain,summary:`Canceled ${job.label||'a library import'}.`,metadata:{jobId:job.id}});return json(res,200,{job:publicImportJob(job)});}
         if(url.pathname==='/api/search-jobs'&&req.method==='GET'){if(!administrator(res,session))return;return json(res,200,{items:[...searchJobs.values()].filter(job=>job.userId===session.user.id).map(publicSearchJob)});}
-        if(url.pathname==='/api/search-jobs'&&req.method==='POST'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;return json(res,202,{job:startMissingSearchJob(session.user.id,await body(req))});}
+        if(url.pathname==='/api/search-jobs'&&req.method==='POST'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;const job=startMissingSearchJob(session.user.id,await body(req));await recordAudit(session,{category:'job',action:'search.started',target:job.label||job.domain,domain:job.domain,summary:`Started ${job.label||'a missing-media search'}.`,metadata:{jobId:job.id}});return json(res,202,{job});}
         const searchJobMatch=url.pathname.match(/^\/api\/search-jobs\/(search_[A-Za-z0-9-]+)$/);
-        if(searchJobMatch&&req.method==='DELETE'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;const job=searchJobs.get(searchJobMatch[1]);if(!job||job.userId!==session.user.id)return json(res,404,{error:{code:'not_found',message:'Search job was not found'}});if(['queued','running'].includes(job.status)){job.cancelRequested=true;job.status='canceling';job.currentTitle='Stopping after the current batch';}return json(res,200,{job:publicSearchJob(job)});}
-        if(url.pathname==='/api/auth/logout'&&req.method==='POST'){if(!requireCsrf(req,res,session))return;await auth.logout(sessionId);return json(res,200,{authenticated:false},{'set-cookie':auth.cookie('',true)});}
+        if(searchJobMatch&&req.method==='DELETE'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;const job=searchJobs.get(searchJobMatch[1]);if(!job||job.userId!==session.user.id)return json(res,404,{error:{code:'not_found',message:'Search job was not found'}});if(['queued','running'].includes(job.status)){job.cancelRequested=true;job.status='canceling';job.currentTitle='Stopping after the current batch';}await recordAudit(session,{category:'job',action:'search.canceled',target:job.label||job.domain,domain:job.domain,summary:`Canceled ${job.label||'a missing-media search'}.`,metadata:{jobId:job.id}});return json(res,200,{job:publicSearchJob(job)});}
+        if(url.pathname==='/api/auth/logout'&&req.method==='POST'){if(!requireCsrf(req,res,session))return;if(session.user.role==='administrator')await recordAudit(session,{category:'security',action:'session.logged_out',target:session.user.username,summary:'Signed out of the administrator session.'});await auth.logout(sessionId);return json(res,200,{authenticated:false},{'set-cookie':auth.cookie('',true)});}
         if(url.pathname==='/api/account'&&req.method==='GET')return json(res,200,{user:session.user});
-        if(url.pathname==='/api/account'&&req.method==='PATCH'){if(!requireCsrf(req,res,session))return;return json(res,200,{user:await auth.updateAccount(session.user.id,await body(req),sessionId)});}
+        if(url.pathname==='/api/account'&&req.method==='PATCH'){if(!requireCsrf(req,res,session))return;const input=await body(req),user=await auth.updateAccount(session.user.id,input,sessionId);if(session.user.role==='administrator')await recordAudit(session,{category:'security',action:'account.updated',target:user.username,summary:'Updated the administrator account.',metadata:{fields:Object.keys(input).filter(key=>!['password','currentPassword','newPassword'].includes(key)),passwordChanged:Boolean(input.password||input.newPassword)}});return json(res,200,{user});}
         if(url.pathname==='/api/account/sessions'&&req.method==='GET')return json(res,200,{items:await auth.listSessions(session.user.id,sessionId)});
         if(url.pathname==='/api/discover/status'&&req.method==='GET'){if(!permitted(res,session,'discover'))return;return json(res,200,{configured:discovery.configured(),provider:'TMDB'});}
         if(url.pathname==='/api/settings/discover'&&req.method==='GET'){if(!administrator(res,session))return;return json(res,200,{configured:discovery.configured(),provider:'TMDB'});}
@@ -903,11 +928,13 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;
           const input=await body(req),candidate=new TmdbDiscoveryService({token:input.token});
           await candidate.feed('trending',1);await engineSettings.saveDiscoveryCredential(input.token);discovery.setToken(input.token);
+          await recordAudit(session,{category:'configuration',action:'discover.credential_saved',target:'TMDB discovery',summary:'Configured the TMDB discovery credential.'});
           return json(res,200,{configured:true,provider:'TMDB'});
         }
         if(url.pathname==='/api/settings/discover'&&req.method==='DELETE'){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;
           await engineSettings.removeDiscoveryCredential();discovery.setToken('');
+          await recordAudit(session,{category:'configuration',action:'discover.credential_removed',target:'TMDB discovery',summary:'Removed the TMDB discovery credential.'});
           return json(res,200,{configured:false,provider:'TMDB'});
         }
         if(url.pathname==='/api/settings/download-folders'&&req.method==='GET'){
@@ -930,6 +957,7 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
           const mappings=await ensureBundledDownloadPathMappings(domain);
           const failed=mappings?.find(item=>item.configured===false);
           if(failed)throw new Error(`Download folder saved, but the engine mapping could not be applied: ${failed.error}`);
+          await recordAudit(session,{category:'configuration',action:'download_folder.updated',target:path,domain,summary:`Updated the ${domain==='movie'?'movie':'television'} download folder.`});
           return json(res,200,{saved:true,domain,path,mappings:mappings||[]});
         }
         if(url.pathname==='/api/discover/feed'&&req.method==='GET'){if(!permitted(res,session,'discover'))return;return json(res,200,await discovery.feed(url.searchParams.get('kind'),url.searchParams.get('page')));}
@@ -955,6 +983,10 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
         if(url.pathname==='/api/discover/request'&&req.method==='POST'){
           if(!permitted(res,session,'discover')||!requireCsrf(req,res,session))return;
           const input=await body(req),domain=String(input.domain||''),tmdbId=Number(input.tmdbId),payload=input.payload;
+          if(['movie','tv'].includes(domain)){
+            const allowance=await requestAllowance(session.user),limitMessage=requestLimitMessage(allowance,domain);
+            if(limitMessage){await recordAudit(session,{category:'request',action:'request.blocked_by_limit',target:payload?.title||`${domain} request`,domain,summary:limitMessage,metadata:{allowance}});return json(res,429,{error:{code:'request_limit_reached',message:limitMessage},allowance});}
+          }
           const {metadata}=await validatedDiscoverRequest(domain,tmdbId,payload),approvalRequired=session.user.role!=='administrator'&&session.user.requestApprovalRequired===true;
           const now=new Date().toISOString(),requestRecord={
             id:`request_${randomUUID()}`,userId:session.user.id,domain,engineId:null,
@@ -964,6 +996,7 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
             status:approvalRequired?'pending_approval':'approving',payload
           };
           await requestStore.update(current=>{current.requests=current.requests||[];current.requests.unshift(requestRecord);return requestRecord;});
+          await recordAudit(session,{category:'request',action:'request.submitted',target:requestRecord.title,domain,summary:`Submitted ${requestRecord.title}${approvalRequired?' for administrator approval':''}.`,metadata:{requestId:requestRecord.id,approvalRequired}});
           if(approvalRequired)return json(res,202,{result:null,request:{...requestRecord,payload:undefined}});
           try{
             const result=await addRequestToEngine(requestRecord);
@@ -972,6 +1005,10 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
             await requestStore.update(current=>{const item=(current.requests||[]).find(value=>value.id===requestRecord.id);if(item)Object.assign(item,{status:'failed',message:'The request could not be added to the media engine.',updatedAt:new Date().toISOString(),payload:undefined});});
             throw error;
           }
+        }
+        if(url.pathname==='/api/requests/allowance'&&req.method==='GET'){
+          if(!permitted(res,session,'discover'))return;
+          return json(res,200,{allowance:await requestAllowance(session.user)});
         }
         if(url.pathname==='/api/requests/mine'&&req.method==='GET'){
           if(!permitted(res,session,'discover'))return;
@@ -989,8 +1026,11 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
           if(!record)return json(res,404,{error:{code:'not_found',message:'Request was not found.'}});
           if(record.status!=='pending_approval')return json(res,409,{error:{code:'request_already_decided',message:'This request is no longer awaiting approval.'}});
           if(action==='reject'){
-            const input=await body(req),updatedAt=new Date().toISOString(),message=String(input.reason||'').trim().slice(0,240)||'An administrator declined this request.';
-            await requestStore.update(current=>{const item=(current.requests||[]).find(value=>value.id===record.id&&value.status==='pending_approval');if(item)Object.assign(item,{status:'rejected',message,rejectedAt:updatedAt,rejectedBy:session.user.id,updatedAt,payload:undefined});});
+            const input=await body(req),updatedAt=new Date().toISOString(),rejectionReason=String(input.reason||'').trim().slice(0,240);
+            if(!rejectionReason)return json(res,400,{error:{code:'rejection_reason_required',message:'Enter a reason for declining this request.'}});
+            const message=`Declined by an administrator: ${rejectionReason}`;
+            await requestStore.update(current=>{const item=(current.requests||[]).find(value=>value.id===record.id&&value.status==='pending_approval');if(item)Object.assign(item,{status:'rejected',message,rejectionReason,rejectedAt:updatedAt,rejectedBy:session.user.id,updatedAt,payload:undefined});});
+            await recordAudit(session,{category:'request',action:'request.rejected',target:record.title,domain:record.domain,summary:`Rejected ${record.title} for the requesting user.`,metadata:{requestId:record.id,requestUserId:record.userId,reason:rejectionReason}});
             return json(res,200,{rejected:true});
           }
           const claimed=await requestStore.update(current=>{const item=(current.requests||[]).find(value=>value.id===record.id);if(!item||item.status!=='pending_approval')return false;Object.assign(item,{status:'approving',updatedAt:new Date().toISOString()});return true;});
@@ -998,6 +1038,7 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
           try{
             const result=await addRequestToEngine(record);
             await requestStore.update(current=>{const item=(current.requests||[]).find(value=>value.id===record.id);if(item)Object.assign(item,{approvedBy:session.user.id});});
+            await recordAudit(session,{category:'request',action:'request.approved',target:record.title,domain:record.domain,summary:`Approved ${record.title} and added it to the media engine.`,metadata:{requestId:record.id,requestUserId:record.userId,engineId:Number(result.id)}});
             return json(res,200,{approved:true,result});
           }catch(error){
             await requestStore.update(current=>{const item=(current.requests||[]).find(value=>value.id===record.id);if(item)Object.assign(item,{status:'pending_approval',updatedAt:new Date().toISOString()});});
@@ -1014,6 +1055,7 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
           const updatedAt=new Date().toISOString();
           await requestStore.update(current=>{const item=(current.requests||[]).find(value=>value.id===record.id&&value.userId===session.user.id);if(item)Object.assign(item,{status:'rejected',message:'You cancelled this request before it was approved or imported.',updatedAt,payload:undefined});});
           if(record.status!=='pending_approval')sync.invalidate(record.domain);
+          await recordAudit(session,{category:'request',action:'request.canceled',target:record.title,domain:record.domain,summary:`Canceled the request for ${record.title}.`,metadata:{requestId:record.id}});
           return json(res,200,{cancelled:true});
         }
         const correctRequestMatch=url.pathname.match(/^\/api\/requests\/mine\/(request_[A-Za-z0-9_-]+)\/correct$/);
@@ -1034,12 +1076,14 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
             await validatedDiscoverRequest(record.domain,tmdbId,correctedPayload);
             const updatedAt=new Date().toISOString();
             await requestStore.update(current=>{const item=(current.requests||[]).find(value=>value.id===record.id&&value.userId===session.user.id);if(item)Object.assign(item,{tmdbId,tvdbId:metadata.tvdbId||null,title:metadata.title,year:Number(metadata.year)||null,payload:correctedPayload,updatedAt,...requestMetadata(metadata)});});
+            await recordAudit(session,{category:'request',action:'request.match_corrected',target:metadata.title,domain:record.domain,summary:`Corrected the pending request match from ${record.title} to ${metadata.title}.`,metadata:{requestId:record.id,previousTmdbId:record.tmdbId,tmdbId}});
             return json(res,200,{corrected:true,result:{id:null,title:metadata.title,tmdbId}});
           }
           const result=await rematchMedia({domain:record.domain,mediaId:Number(record.engineId),tmdbId});
           if(record.searchNow!==false)await management.execute(record.domain,'commands','POST',{payload:record.domain==='movie'?{name:'MoviesSearch',movieIds:[Number(result.id)]}:{name:'SeriesSearch',seriesId:Number(result.id)}}).catch(()=>{});
           const metadata=await discovery.details(record.domain,tmdbId),updatedAt=new Date().toISOString();
           await requestStore.update(current=>{const item=(current.requests||[]).find(value=>value.id===record.id&&value.userId===session.user.id);if(item)Object.assign(item,{engineId:Number(result.id),tmdbId,tvdbId:metadata.tvdbId||null,title:result.title||metadata.title,year:Number(metadata.year)||null,status:'requested',requestedAt:updatedAt,updatedAt,...requestMetadata(metadata)});});
+          await recordAudit(session,{category:'request',action:'request.match_corrected',target:result.title||metadata.title,domain:record.domain,summary:`Corrected the request match from ${record.title} to ${result.title||metadata.title}.`,metadata:{requestId:record.id,previousTmdbId:record.tmdbId,tmdbId}});
           return json(res,200,{corrected:true,result});
         }
         if(url.pathname==='/api/discover/enrich'&&req.method==='GET'){
@@ -1050,17 +1094,17 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
         }
         const discoverDetails=url.pathname.match(/^\/api\/discover\/details\/(movie|tv)\/(\d+)$/);
         if(discoverDetails&&req.method==='GET'){if(!permitted(res,session,'discover'))return;return json(res,200,{item:await discovery.details(discoverDetails[1],discoverDetails[2])});}
-        if(url.pathname==='/api/account/sessions/others'&&req.method==='DELETE'){if(!requireCsrf(req,res,session))return;await auth.revokeOtherSessions(session.user.id,sessionId);return json(res,200,{revoked:true});}
+        if(url.pathname==='/api/account/sessions/others'&&req.method==='DELETE'){if(!requireCsrf(req,res,session))return;await auth.revokeOtherSessions(session.user.id,sessionId);if(session.user.role==='administrator')await recordAudit(session,{category:'security',action:'sessions.others_revoked',target:session.user.username,summary:'Revoked all other administrator sessions.'});return json(res,200,{revoked:true});}
         const sessionMatch=url.pathname.match(/^\/api\/account\/sessions\/([A-Za-z0-9_-]+)$/);
-        if(sessionMatch&&req.method==='DELETE'){if(!requireCsrf(req,res,session))return;const current=await auth.revokeSession(session.user.id,sessionMatch[1],sessionId);return json(res,200,{revoked:true,current},current?{'set-cookie':auth.cookie('',true)}:{});}
+        if(sessionMatch&&req.method==='DELETE'){if(!requireCsrf(req,res,session))return;const current=await auth.revokeSession(session.user.id,sessionMatch[1],sessionId);if(session.user.role==='administrator')await recordAudit(session,{category:'security',action:'session.revoked',target:session.user.username,summary:`Revoked ${current?'the current':'an administrator'} session.`,metadata:{current}});return json(res,200,{revoked:true,current},current?{'set-cookie':auth.cookie('',true)}:{});}
         if(url.pathname==='/api/admin/users'&&req.method==='GET'){if(!administrator(res,session))return;return json(res,200,{items:await auth.listUsers()});}
-        if(url.pathname==='/api/admin/users'&&req.method==='POST'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;return json(res,201,{user:await auth.createUser(await body(req))});}
+        if(url.pathname==='/api/admin/users'&&req.method==='POST'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;const user=await auth.createUser(await body(req));await recordAudit(session,{category:'user',action:'user.created',target:user.username,summary:`Created user ${user.name} (@${user.username}).`,metadata:{targetUserId:user.id,role:user.role,requestLimits:user.requestLimits}});return json(res,201,{user});}
         const userMatch=url.pathname.match(/^\/api\/admin\/users\/(user_[A-Za-z0-9_-]+)$/);
-        if(userMatch&&req.method==='PATCH'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;return json(res,200,{user:await auth.administerUser(userMatch[1],await body(req),session.user.id)});}
+        if(userMatch&&req.method==='PATCH'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;const input=await body(req),before=(await auth.listUsers()).find(item=>item.id===userMatch[1]),user=await auth.administerUser(userMatch[1],input,session.user.id);await recordAudit(session,{category:'user',action:`user.${String(input.action||'updated')}`,target:user?.username||before?.username||userMatch[1],summary:`Updated ${user?.name||before?.name||'user'} (@${user?.username||before?.username||'deleted'}): ${String(input.action||'account updated')}.`,metadata:{targetUserId:user?.id||before?.id||userMatch[1],role:user?.role||before?.role}});if(input.action==='permissions'&&user)await recordAudit(session,{category:'user',action:user.requestLimits?.enabled?'user.request_limits_updated':'user.request_limits_removed',target:user.username,summary:`${user.requestLimits?.enabled?'Updated':'Removed'} request limits for ${user.name}.`,metadata:{targetUserId:user.id,previous:before?.requestLimits||null,current:user.requestLimits}});return json(res,200,{user});}
         if(url.pathname==='/api/settings/engines'&&req.method==='GET'){if(!administrator(res,session))return;return json(res,200,engineSettings.public());}
         if(url.pathname==='/api/settings/engines/repair'&&req.method==='POST'){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;
-          return json(res,200,{repaired:await repairBundledConnections(),at:new Date().toISOString()});
+          const repaired=await repairBundledConnections();await recordAudit(session,{category:'configuration',action:'engines.repaired',target:'Engine connections',summary:'Repaired installation-managed engine connections.'});return json(res,200,{repaired,at:new Date().toISOString()});
         }
         const engineKey=url.pathname.match(/^\/api\/settings\/engines\/(movie|tv)\/api-key$/);
         if(engineKey&&req.method==='GET'){
@@ -1088,6 +1132,7 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
             await new Promise(resolve=>setTimeout(resolve,500));
           }
           if(!connection?.reachable||!connection?.authenticated||!connection?.compatible)throw new Error(`${domain==='movie'?'Movie':'TV'} engine did not reconnect with the new API key`);
+          await recordAudit(session,{category:'security',action:'engine.api_key_regenerated',target:`${domain} engine API key`,domain,summary:`Regenerated the ${domain==='movie'?'movie':'television'} engine API key.`});
           return json(res,200,{domain,apiKey,regenerated:true});
         }
         const engineTest=url.pathname.match(/^\/api\/settings\/engines\/(movie|tv)\/test$/);
@@ -1095,7 +1140,7 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
         const engineSave=url.pathname.match(/^\/api\/settings\/engines\/(movie|tv)$/);
         if(engineSave&&req.method==='PUT'){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;const input=await body(req),result=await testEngine(engineSave[1],input);if(!result.validated)return json(res,422,{error:{code:'engine_validation_failed',message:result.connection.safeError||'Engine validation did not succeed.'}});
-          await engineSettings.save(engineSave[1],input,input.apiCredential);await rebuildFromSettings();await sync.startup();return json(res,200,{saved:true,settings:engineSettings.public(),validation:result});
+          await engineSettings.save(engineSave[1],input,input.apiCredential);await rebuildFromSettings();await sync.startup();await recordAudit(session,{category:'configuration',action:'engine.connection_saved',target:`${engineSave[1]} engine`,domain:engineSave[1],summary:`Updated and validated the ${engineSave[1]==='movie'?'movie':'television'} engine connection.`});return json(res,200,{saved:true,settings:engineSettings.public(),validation:result});
         }
         if(url.pathname==='/api/system/application-update'&&req.method==='GET'){if(!administrator(res,session))return;return json(res,200,{application:'VynodeArr',installedVersion:String(env.VYNODEARR_VERSION||applicationVersion),channel:String(env.VYNODEARR_UPDATE_CHANNEL||'develop'),mechanism:'Container image',repository:'https://github.com/minerport/VynodeArr-Unified',message:'Pull the newest VynodeArr container image, then recreate the application container. Engine updates are managed separately.'});}
         if(url.pathname==='/api/system/master-key'&&req.method==='GET'){
@@ -1111,11 +1156,11 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;
           const input=await body(req);
           if(typeof input.required!=='boolean')return json(res,400,{error:{code:'validation_failed',message:'Authentication required must be true or false.'}});
-          return json(res,200,await setEngineAuthentication(engineAuthenticationMatch[1],input.required));
+          const result=await setEngineAuthentication(engineAuthenticationMatch[1],input.required);await recordAudit(session,{category:'configuration',action:'engine.authentication_updated',target:`${engineAuthenticationMatch[1]} engine`,domain:engineAuthenticationMatch[1],summary:`${input.required?'Required':'Disabled'} authentication for the ${engineAuthenticationMatch[1]==='movie'?'movie':'television'} engine.`});return json(res,200,result);
         }
         if(url.pathname==='/api/system/master-key/rotate'&&req.method==='POST'){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;
-          try{return json(res,200,{rotated:true,...await masterKeyService.rotate(engineSettings)});}
+          try{const result=await masterKeyService.rotate(engineSettings);await recordAudit(session,{category:'security',action:'master_key.rotated',target:'VynodeArr master key',summary:'Rotated the application master key and re-encrypted saved credentials.'});return json(res,200,{rotated:true,...result});}
           catch(error){
             if(error?.code==='master_key_environment_managed')return json(res,409,{error:{code:error.code,message:error.message}});
             throw error;
@@ -1127,7 +1172,7 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
           const domain=backupRestore[1],id=backupRestore[2],client=registry.get(domain).client,before=await client.get('system/status');
           await client.post(`system/backup/restore/${id}`,{});
           await client.post('command',{name:'Restart'});
-          await completeEngineRestore(domain,before.startTime);return json(res,200,{restored:true,domain,backupId:id});
+          await completeEngineRestore(domain,before.startTime);await recordAudit(session,{category:'backup',action:'backup.restored',target:`${domain} backup ${id}`,domain,summary:`Restored ${domain==='movie'?'Movies':'Television'} from backup ${id}.`,metadata:{backupId:id}});return json(res,200,{restored:true,domain,backupId:id});
         }
         const backupDownload=url.pathname.match(/^\/api\/system\/backups\/(movie|tv)\/(\d+)\/download$/);
         if(backupDownload&&req.method==='GET'){
@@ -1138,6 +1183,7 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
           const response=await fetch(downloadUrl,{headers:{'x-api-key':config.apiCredential},signal:AbortSignal.timeout(30000)});
           if(!response.ok)throw new Error('The backup could not be downloaded');
           const extension=(String(backup.name||backup.path||'').match(/\.(zip|db|xml)$/i)||[])[0]||'.zip',stamp=new Date(backup.time||Date.now()).toISOString().replace(/\.\d{3}Z$/,'Z').replace(/:/g,'-'),filename=`VynodeArr_${domain==='movie'?'Movies':'Television'}_Backup_${stamp}${extension.toLowerCase()}`;
+          await recordAudit(session,{category:'backup',action:'backup.downloaded',target:backup.name||filename,domain,summary:`Downloaded a ${domain==='movie'?'Movies':'Television'} configuration backup.`,metadata:{backupId:backupDownload[2]}});
           res.writeHead(200,{'content-type':'application/zip','content-disposition':`attachment; filename="${filename}"`,'cache-control':'no-store','x-content-type-options':'nosniff'});return res.end(Buffer.from(await response.arrayBuffer()));
         }
         const backupUpload=url.pathname.match(/^\/api\/system\/backups\/(movie|tv)\/upload$/);
@@ -1150,9 +1196,9 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
           upload.append('file',file,file.name);
           const response=await fetch(uploadUrl,{method:'POST',headers:{'x-api-key':config.apiCredential},body:upload,signal:AbortSignal.timeout(120000)});
           if(!response.ok)throw new Error('The engine rejected the uploaded backup');
-          await client.post('command',{name:'Restart'});await completeEngineRestore(domain,before.startTime);return json(res,200,{restored:true,domain,uploaded:true});
+          await client.post('command',{name:'Restart'});await completeEngineRestore(domain,before.startTime);await recordAudit(session,{category:'backup',action:'backup.uploaded_and_restored',target:file.name,domain,summary:`Uploaded and restored a ${domain==='movie'?'Movies':'Television'} backup.`,metadata:{fileName:file.name,fileSize:file.size}});return json(res,200,{restored:true,domain,uploaded:true});
         }
-        if(url.pathname==='/api/system/sync'&&req.method==='POST'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;const results=await sync.startup();return json(res,200,{synchronized:true,results:results.map((item)=>item.status),state:sync.snapshot()});}
+        if(url.pathname==='/api/system/sync'&&req.method==='POST'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;const results=await sync.startup();await recordAudit(session,{category:'system',action:'synchronization.started',target:'Application synchronization',summary:'Manually synchronized both media engines.',metadata:{results:results.map(item=>item.status)}});return json(res,200,{synchronized:true,results:results.map((item)=>item.status),state:sync.snapshot()});}
         if(url.pathname==='/api/collections'&&req.method==='GET'){
           if(!administrator(res,session))return;
           const stored=await collectionStore.read(),movies=await sync.list('movie'),collections=(stored.collections||[]).map(collection=>{
@@ -1173,7 +1219,7 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
           const stored=await collectionStore.read(),collections=stored.collections||[];
           if(collections.some(collection=>collection.name.toLowerCase()===name.toLowerCase()))throw new Error('A collection with this name already exists');
           const collection={id:`collection_${randomUUID()}`,name,type,rules:type==='smart'?rules:{},movieIds:type==='custom'?[...new Set((input.movieIds||[]).map(String))]:[],includedMovieIds:type==='smart'?[...new Set((input.includedMovieIds||[]).map(String))]:[],excludedMovieIds:type==='smart'?[...new Set((input.excludedMovieIds||[]).map(String))]:[],createdAt:new Date().toISOString()};
-          collections.push(collection);await collectionStore.write({version:1,collections});return json(res,201,{item:collection});
+          collections.push(collection);await collectionStore.write({version:1,collections});await recordAudit(session,{category:'collection',action:'collection.created',target:name,domain:'movie',summary:`Created the ${type} collection ${name}.`,metadata:{collectionId:collection.id,type}});return json(res,201,{item:collection});
         }
         const collectionMatch=url.pathname.match(/^\/api\/collections\/(collection_[A-Za-z0-9-]+)$/);
         if(collectionMatch&&req.method==='PUT'){
@@ -1189,15 +1235,15 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
           }
           if(collections.some((collection,collectionIndex)=>collectionIndex!==index&&collection.name.toLowerCase()===name.toLowerCase()))throw new Error('A collection with this name already exists');
           collections[index]={...collections[index],name,type,rules:type==='smart'?rules:{},movieIds:type==='custom'?[...new Set((input.movieIds||[]).map(String))]:[],includedMovieIds:type==='smart'?[...new Set((input.includedMovieIds||[]).map(String))]:[],excludedMovieIds:type==='smart'?[...new Set((input.excludedMovieIds||[]).map(String))]:[],updatedAt:new Date().toISOString()};
-          await collectionStore.write({version:1,collections});return json(res,200,{item:collections[index]});
+          await collectionStore.write({version:1,collections});await recordAudit(session,{category:'collection',action:'collection.updated',target:name,domain:'movie',summary:`Updated the ${type} collection ${name}.`,metadata:{collectionId:collections[index].id,type}});return json(res,200,{item:collections[index]});
         }
         if(collectionMatch&&req.method==='DELETE'){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;
-          const stored=await collectionStore.read(),collections=(stored.collections||[]).filter(collection=>collection.id!==collectionMatch[1]);
-          await collectionStore.write({version:1,collections});return json(res,200,{deleted:true});
+          const stored=await collectionStore.read(),removed=(stored.collections||[]).find(collection=>collection.id===collectionMatch[1]),collections=(stored.collections||[]).filter(collection=>collection.id!==collectionMatch[1]);
+          await collectionStore.write({version:1,collections});await recordAudit(session,{category:'collection',action:'collection.deleted',target:removed?.name||collectionMatch[1],domain:'movie',summary:`Deleted the collection ${removed?.name||collectionMatch[1]}.`,metadata:{collectionId:collectionMatch[1]}});return json(res,200,{deleted:true});
         }
-        if(url.pathname==='/api/media-files/reassign'&&req.method==='POST'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;return json(res,200,{reassigned:true,result:await reassignMediaFile(await body(req))});}
-        if(url.pathname==='/api/media-match'&&req.method==='POST'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;return json(res,200,{matched:true,result:await rematchMedia(await body(req))});}
+        if(url.pathname==='/api/media-files/reassign'&&req.method==='POST'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;const input=await body(req),result=await reassignMediaFile(input),domain=String(input.domain||'');await recordAudit(session,{category:'media',action:'media_file.reassigned',target:String(input.path||input.fileId||'Media file'),domain:['movie','tv'].includes(domain)?domain:null,summary:'Reassigned a media file to a different library item.',metadata:{fileId:input.fileId||null,mediaId:input.mediaId||null}});return json(res,200,{reassigned:true,result});}
+        if(url.pathname==='/api/media-match'&&req.method==='POST'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;const input=await body(req),result=await rematchMedia(input),domain=String(input.domain||'');await recordAudit(session,{category:'media',action:'media.rematched',target:String(result?.title||input.title||input.mediaId||'Library item'),domain:['movie','tv'].includes(domain)?domain:null,summary:'Changed the external metadata match for a library item.',metadata:{mediaId:input.mediaId||null,tmdbId:input.tmdbId||null}});return json(res,200,{matched:true,result});}
         if(url.pathname==='/api/media-files/naming-audit'&&req.method==='POST'){
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;
           const input=await body(req),domain=String(input.domain||'');
@@ -1205,7 +1251,7 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
           const active=[...namingAuditJobs.values()].find(job=>job.domain===domain&&job.status==='running');
           if(active)return json(res,202,{job:publicNamingAuditJob(active)});
           const job={id:randomUUID(),domain,status:'running',total:0,completed:0,matching:0,failed:0,currentTitle:'',results:[],errors:[],createdAt:new Date().toISOString(),finishedAt:null};
-          namingAuditJobs.set(job.id,job);void runNamingAudit(job);return json(res,202,{job:publicNamingAuditJob(job)});
+          namingAuditJobs.set(job.id,job);void runNamingAudit(job);await recordAudit(session,{category:'job',action:'naming_audit.started',target:`${domain} naming audit`,domain,summary:`Started a ${domain==='movie'?'movie':'television'} naming audit.`,metadata:{jobId:job.id}});return json(res,202,{job:publicNamingAuditJob(job)});
         }
         const namingAuditMatch=url.pathname.match(/^\/api\/media-files\/naming-audit\/([0-9a-f-]+)$/i);
         if(namingAuditMatch&&req.method==='GET'){
@@ -1214,8 +1260,8 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
           return json(res,200,{job:publicNamingAuditJob(job)});
         }
         if(url.pathname==='/api/media-files/rename'&&req.method==='GET'){if(!administrator(res,session))return;return json(res,200,{preview:await renameMediaPreview(Object.fromEntries(url.searchParams))});}
-        if(url.pathname==='/api/media-files/rename'&&req.method==='POST'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;return json(res,202,{queued:true,result:await renameMedia(await body(req))});}
-        if(url.pathname==='/api/media-files/rename/file'&&req.method==='DELETE'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;return json(res,200,{result:await deleteRenamePreviewFile(await body(req))});}
+        if(url.pathname==='/api/media-files/rename'&&req.method==='POST'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;const input=await body(req),result=await renameMedia(input),domain=String(input.domain||'');await recordAudit(session,{category:'media',action:'media.rename_queued',target:String(input.title||input.mediaId||'Library item'),domain:['movie','tv'].includes(domain)?domain:null,summary:'Queued media files for renaming.',metadata:{mediaId:input.mediaId||null}});return json(res,202,{queued:true,result});}
+        if(url.pathname==='/api/media-files/rename/file'&&req.method==='DELETE'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;const input=await body(req),result=await deleteRenamePreviewFile(input),domain=String(input.domain||'');await recordAudit(session,{category:'media',action:'media.preview_file_deleted',target:String(input.path||input.fileId||'Preview file'),domain:['movie','tv'].includes(domain)?domain:null,summary:'Deleted a file from the rename preview.',metadata:{fileId:input.fileId||null}});return json(res,200,{result});}
         if(url.pathname==='/api/guide-templates/catalog'&&req.method==='GET'){
           if(!administrator(res,session))return;
           return json(res,200,await guideTemplates.catalog({refresh:url.searchParams.get('refresh')==='true'}));
@@ -1256,6 +1302,7 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
             if(!['implement','reject'].includes(input.decision))throw new Error('Choose whether to implement or reject this template.');
             if(input.decision==='reject'){
               await guideTemplates.recordDecision(template,{decision:'rejected',username:session.user.username});
+              await recordAudit(session,{category:'configuration',action:'guide_template.rejected',target:template.template?.name||template.title,domain,summary:`Rejected the ${template.template?.name||template.title} Guide Template without changing engine settings.`,metadata:{trashId:template.trashId}});
               return json(res,200,{message:`${template.template?.name||template.title} rejected. No ${engineLabel}-engine settings were changed.`,comparison:{status:'new',existing:null,record:null,sourceOfTruth:`${domain}-engine`,observedAt:new Date().toISOString()}});
             }
             const previewChanges=[];
@@ -1347,6 +1394,7 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
           let radarrId=before.existing?.id||null,message;
           if(input.decision==='reject'){
             await guideTemplates.recordDecision(template,{decision:'rejected',radarrId,username:session.user.username});
+            await recordAudit(session,{category:'configuration',action:'guide_template.rejected',target:template.format.name,domain,summary:`Rejected the ${template.format.name} Guide Template without changing engine settings.`,metadata:{resourceId:radarrId,trashId:template.trashId}});
             message=`${template.format.name} rejected. No ${engineLabel}-engine settings were changed.`;
           }else if(input.decision==='implement'){
             const schemasValue=await management.execute(domain,'customFormatSchemas','GET'),schemas=Array.isArray(schemasValue)?schemasValue:[];
@@ -1380,9 +1428,7 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
             }
             await guideTemplates.recordDecision(template,{decision:'implemented',radarrId,username:session.user.username});
             clearReleaseCache(domain);
-            const audit=await auditStore.read(),entries=Array.isArray(audit.entries)?audit.entries:[];
-            entries.unshift({id:`change_${randomUUID()}`,timestamp:new Date().toISOString(),userId:session.user.id,username:session.user.username,domain,resource:'guideTemplate',method:before.existing?'PUT':'POST',resourceId:radarrId,trashId:template.trashId});
-            await auditStore.write({version:1,entries:entries.slice(0,1000)});
+            await recordAudit(session,{category:'configuration',action:'guide_template.implemented',target:payload.name,domain,summary:`Implemented ${payload.name} in the ${engineLabel} engine.`,metadata:{resourceId:radarrId,trashId:template.trashId}});
             message=`${payload.name} implemented in the ${engineLabel} engine${profileIds.length?` and scored in ${profileIds.length} quality profile${profileIds.length===1?'':'s'}`:''}.`;
             input.appliedChanges=plan.changes;
           }else throw new Error('Choose whether to implement or reject this template.');
@@ -1402,6 +1448,7 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
           accepted.sort(compareReleases);
           const selected=accepted[0],result=await management.execute(domain,'releases','POST',{payload:await reacquireRelease(domain,selected)});
           clearReleaseCache(domain);
+          await recordAudit(session,{category:'media',action:'automatic_search.grabbed',target:selected.title,domain,summary:`Automatically selected and grabbed an accepted ${domain==='movie'?'movie':'television'} release.`,metadata:{mediaId:query.movieId??query.episodeId,acceptedCandidates:accepted.length}});
           return json(res,201,{result,selection:{title:selected.title,quality:selected.quality?.quality?.name||selected.quality?.name||'Unknown',size:Number(selected.size||0),acceptedCandidates:accepted.length}});
         }
         if(url.pathname==='/api/manage/queue/bulk-delete'&&req.method==='POST'){
@@ -1419,6 +1466,7 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
             if(result.status==='fulfilled')removed.push({domain:item.domain,id:item.id});
             else failed.push({domain:item.domain,id:item.id,message:result.reason instanceof Error?result.reason.message:String(result.reason)});
           });
+          await recordAudit(session,{category:'media',action:'queue.bulk_deleted',target:`${removed.length} queue item${removed.length===1?'':'s'}`,summary:`Removed ${removed.length} queue item${removed.length===1?'':'s'}${failed.length?`; ${failed.length} failed`:''}.`,metadata:{removed,failedCount:failed.length,removeFromClient:input.removeFromClient!==false,blocklist:input.blocklist===true}});
           return json(res,failed.length?207:200,{removed,failed,items:mode==='engine'?await liveQueue():await sync.operations('queue')});
         }
         const managementMatch=url.pathname.match(/^\/api\/manage\/(movie|tv)\/([A-Za-z][A-Za-z0-9]*)(?:\/([A-Za-z0-9_-]+))?$/);
@@ -1441,9 +1489,8 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
           }
           if(method!=='GET'){
             if(['releases','indexers','profiles','customFormats','delayProfiles','restrictions','releaseProfiles'].includes(managementMatch[2]))clearReleaseCache(managementMatch[1]);
-            const audit=await auditStore.read(),entries=Array.isArray(audit.entries)?audit.entries:[];
-            entries.unshift({id:`change_${randomUUID()}`,timestamp:new Date().toISOString(),userId:session.user.id,username:session.user.username,domain:managementMatch[1],resource:managementMatch[2],method,resourceId:managementMatch[3]||null});
-            await auditStore.write({version:1,entries:entries.slice(0,1000)});
+            const commandName=managementMatch[2]==='commands'?String(input.name||'command'):'',backupCommand=commandName.toLowerCase()==='backup';
+            await recordAudit(session,{category:backupCommand?'backup':'engine',action:backupCommand?'backup.created':`engine.${managementMatch[2]}.${method.toLowerCase()}`,target:backupCommand?`${managementMatch[1]} configuration backup`:`${managementMatch[1]} ${managementMatch[2]}`,domain:managementMatch[1],summary:backupCommand?`Queued a ${managementMatch[1]==='movie'?'Movies':'Television'} configuration backup.`:`${method} ${managementMatch[2]} in the ${managementMatch[1]==='movie'?'movie':'television'} engine.`,metadata:{resourceId:managementMatch[3]||null,...(commandName?{command:commandName}:{})}});
             if(['library','libraryEditor'].includes(managementMatch[2])){
               sync.invalidate(managementMatch[1]);
               if(mode==='engine'){void sync.synchronize(managementMatch[1]).catch(()=>{});for(const delay of [5_000,20_000])setTimeout(()=>sync.synchronize(managementMatch[1]).catch(()=>{}),delay);}

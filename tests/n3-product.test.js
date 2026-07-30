@@ -108,6 +108,11 @@ test('user page permissions are enforced by APIs and update active sessions imme
   assert.equal((await fetch(`${base}/api/calendar`,{headers:{cookie:userCookie}})).status,403);
   assert.equal((await fetch(`${base}/api/discover/status`,{headers:{cookie:userCookie}})).status,403);
   assert.equal((await fetch(`${base}/api/requests/mine`,{headers:{cookie:userCookie}})).status,403);
+  assert.equal((await fetch(`${base}/api/system/sync`,{method:'POST',headers:{cookie,'x-vynodearr-csrf':csrf}})).status,200);
+  const audit=(await (await fetch(`${base}/api/manage/audit`,{headers:{cookie}})).json()).items;
+  assert.ok(audit.some(item=>item.action==='synchronization.started'));
+  assert.ok(audit.some(item=>item.action==='user.permissions'&&item.metadata.targetUserId===created.id));
+  assert.ok(audit.some(item=>item.action==='user.request_limits_removed'&&item.metadata.targetUserId===created.id));
 }));
 test('approval-required Discover requests stay out of the engine until an administrator approves them',()=>{
   const library=[],posts=[];
@@ -126,8 +131,8 @@ test('approval-required Discover requests stay out of the engine until an admini
   };
   const discovery={token:'test-discovery-token',configured:()=>true,setToken:()=>{},details:async()=>({tmdbId:123,tvdbId:null,title:'Approval Film',year:2026,poster:'https://image.test/poster.jpg',backdrop:'https://image.test/backdrop.jpg',overview:'A request awaiting a deliberate decision.',rating:8.4,genres:['Drama'],runtime:112,certification:'PG-13'})};
   return appSession({movie:Object.assign(new MovieFixtureAdapter(),{client:movieClient}),tv:new TvFixtureAdapter(),discovery},async({base,cookie,csrf})=>{
-    const create=await fetch(`${base}/api/admin/users`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({name:'Approval User',username:'approval-user',email:'approval@example.test',password:'Approval-strong-pass6',role:'user',permissions:{discover:true},requestApprovalRequired:true})});
-    const created=(await create.json()).user;assert.equal(created.requestApprovalRequired,true);
+    const create=await fetch(`${base}/api/admin/users`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({name:'Approval User',username:'approval-user',email:'approval@example.test',password:'Approval-strong-pass6',role:'user',permissions:{discover:true},requestApprovalRequired:true,requestLimits:{enabled:true,period:'weekly',movie:2,tv:1,maxPending:null}})});
+    const created=(await create.json()).user;assert.equal(created.requestApprovalRequired,true);assert.equal(created.requestLimits.movie,2);
     const login=await fetch(`${base}/api/auth/login`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({identifier:'approval-user',password:'Approval-strong-pass6'})}),userLogin=await login.json(),userCookie=login.headers.get('set-cookie').split(';')[0];
     const requested=await fetch(`${base}/api/discover/request`,{method:'POST',headers:{cookie:userCookie,'content-type':'application/json','x-vynodearr-csrf':userLogin.csrf},body:JSON.stringify({domain:'movie',tmdbId:123,payload:{tmdbId:123,title:'Approval Film',year:2026,rootFolderPath:'/movies',qualityProfileId:1,monitored:true,addOptions:{searchForMovie:true}}})}),requestValue=await requested.json();
     assert.equal(requested.status,202);assert.equal(requestValue.request.status,'pending_approval');assert.equal(posts.length,0);
@@ -141,6 +146,23 @@ test('approval-required Discover requests stay out of the engine until an admini
     assert.equal(duplicate.status,409);assert.equal(posts.length,1);
     const updated=(await (await fetch(`${base}/api/requests/mine`,{headers:{cookie:userCookie}})).json()).items[0];
     assert.equal(updated.status,'searching');assert.equal(updated.engineId,99);
+    const secondRequest=await fetch(`${base}/api/discover/request`,{method:'POST',headers:{cookie:userCookie,'content-type':'application/json','x-vynodearr-csrf':userLogin.csrf},body:JSON.stringify({domain:'movie',tmdbId:123,payload:{tmdbId:123,title:'Approval Film',year:2026,rootFolderPath:'/movies',qualityProfileId:1,monitored:true,addOptions:{searchForMovie:true}}})}),secondValue=await secondRequest.json();
+    const emptyReason=await fetch(`${base}/api/requests/${secondValue.request.id}/reject`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({reason:'   '})});
+    assert.equal(emptyReason.status,400);
+    const rejected=await fetch(`${base}/api/requests/${secondValue.request.id}/reject`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({reason:'Already available on another service.'})});
+    assert.equal(rejected.status,200);
+    const rejectedHistory=(await (await fetch(`${base}/api/requests/mine`,{headers:{cookie:userCookie}})).json()).items.find(item=>item.id===secondValue.request.id);
+    assert.equal(rejectedHistory.status,'rejected');assert.equal(rejectedHistory.rejectionReason,'Already available on another service.');assert.match(rejectedHistory.message,/Declined by an administrator/);
+    const allowance=(await (await fetch(`${base}/api/requests/allowance`,{headers:{cookie:userCookie}})).json()).allowance;
+    assert.equal(allowance.movie.used,2);assert.equal(allowance.movie.remaining,0);assert.equal(allowance.tv.remaining,1);
+    const limited=await fetch(`${base}/api/discover/request`,{method:'POST',headers:{cookie:userCookie,'content-type':'application/json','x-vynodearr-csrf':userLogin.csrf},body:JSON.stringify({domain:'movie',tmdbId:123,payload:{tmdbId:123,title:'Approval Film',year:2026,rootFolderPath:'/movies',qualityProfileId:1,monitored:true,addOptions:{searchForMovie:true}}})});
+    assert.equal(limited.status,429);assert.equal((await limited.json()).error.code,'request_limit_reached');
+    assert.equal((await fetch(`${base}/api/manage/audit`,{headers:{cookie:userCookie}})).status,403);
+    const audit=(await (await fetch(`${base}/api/manage/audit`,{headers:{cookie}})).json()).items;
+    assert.ok(audit.some(item=>item.action==='user.created'&&item.metadata.targetUserId===created.id));
+    assert.ok(audit.some(item=>item.action==='request.approved'&&item.metadata.requestId===requestValue.request.id));
+    assert.ok(audit.some(item=>item.action==='request.rejected'&&item.metadata.reason==='Already available on another service.'));
+    assert.ok(audit.some(item=>item.action==='request.blocked_by_limit'));
   });
 });
 test('master-key status is administrator-only and environment-managed rotation is refused',()=>appSession({movie:new MovieFixtureAdapter(),tv:new TvFixtureAdapter()},async({base,cookie,csrf})=>{
@@ -187,6 +209,11 @@ test('smart collections combine rules with retained and excluded movie choices',
   assert.equal(updated.status,200);
   const edited=(await (await fetch(`${base}/api/collections`,{headers:{cookie}})).json()).items[0];
   assert.deepEqual(edited.movieIds,[first.id]);
+  const removed=await fetch(`${base}/api/collections/${collection.id}`,{method:'DELETE',headers:{cookie,'x-vynodearr-csrf':csrf}});assert.equal(removed.status,200);
+  const audit=(await (await fetch(`${base}/api/manage/audit`,{headers:{cookie}})).json()).items;
+  assert.ok(audit.some(item=>item.action==='collection.created'&&item.metadata.collectionId===collection.id));
+  assert.ok(audit.some(item=>item.action==='collection.updated'&&item.metadata.collectionId===collection.id));
+  assert.ok(audit.some(item=>item.action==='collection.deleted'&&item.metadata.collectionId===collection.id));
 }));
 test('engine wizard validates actual read-only HTTP capabilities and saves only successful connections',async()=>{
   const engine=createServer((req,res)=>{

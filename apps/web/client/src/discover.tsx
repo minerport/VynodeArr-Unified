@@ -1,5 +1,6 @@
 import { useCallback,useEffect,useMemo,useRef,useState,type CSSProperties } from 'react';
 import type { DiscoverCategory,DiscoverDomain,DiscoverItem,DiscoverLibraryStatus,DiscoverMountOptions,DiscoverPage,LibraryItem } from './discover-types';
+import type {RequestAllowance} from './my-requests-types';
 import { cachedRequest } from './query-client';
 import {DiscoverDetail} from './discover-detail';
 import {DiscoverRequest} from './discover-request';
@@ -74,7 +75,7 @@ export function DiscoverView({options}:{options:DiscoverMountOptions}){
   const [searchResults,setSearchResults]=useState<DiscoverItem[]|null>(null);
   const [resultTitle,setResultTitle]=useState('');
   const [browseContext,setBrowseContext]=useState<BrowseContext|null>(null);
-  const [error,setError]=useState('');
+  const [error,setError]=useState(''),[allowance,setAllowance]=useState<RequestAllowance|null>(null);
   const browseRequest=useRef(0);
 
   const loadFeed=useCallback(async(kind:string,page=1)=>{
@@ -97,6 +98,7 @@ export function DiscoverView({options}:{options:DiscoverMountOptions}){
   useEffect(()=>{
     let active=true;
     void refreshLibrary().catch(()=>{});
+    void options.request<{allowance:RequestAllowance}>('/api/requests/allowance').then(value=>{if(active)setAllowance(value.allowance);}).catch(()=>{});
     const requested=(event:Event)=>{
       const item=(event as CustomEvent<{domain:DiscoverDomain;title:string;year?:number|null}>).detail;
       if(item)setLibrary(current=>{
@@ -178,7 +180,9 @@ export function DiscoverView({options}:{options:DiscoverMountOptions}){
         libraryKeys(requested.domain,requested.title,requested.year).forEach(key=>next.set(key,'pending'));
         return next;
       });
+      void options.request<{allowance:RequestAllowance}>('/api/requests/allowance').then(value=>setAllowance(value.allowance)).catch(()=>{});
     }}/>:null}
+    {allowance?.enabled?<div className="request-allowance-banner"><strong>Your request allowance</strong><span>{allowance.movie.limit==null?'Movies unlimited':`${allowance.movie.remaining} of ${allowance.movie.limit} movies remaining`} · {allowance.tv.limit==null?'TV unlimited':`${allowance.tv.remaining} of ${allowance.tv.limit} TV series remaining`} · {allowance.pending.limit==null?'Pending unlimited':`${allowance.pending.remaining} pending slots available`} · Resets {allowance.period}</span></div>:null}
     {featured?<section className="discover-hero"><div className="discover-hero-backdrop">{(featured.backdrop||featured.poster)?<img src={featured.backdrop||featured.poster||''} alt=""/>:null}</div><div className="discover-hero-shade"/><div className="discover-hero-copy"><span className="eyebrow">TRENDING TODAY</span><h1>{featured.title}</h1><p>{featured.overview}</p><div className="discover-meta"><span>★ {featured.rating.toFixed(1)}</span><span>{featured.year||'TBA'}</span></div><button className="primary" onClick={()=>open(featured)}>View details</button></div></section>:<section className="discover-hero skeleton"><div className="discover-hero-copy"><span className="eyebrow">DISCOVER</span><h1>Loading trending titles…</h1></div></section>}
     <section className="discover-toolbar"><label className="discover-search"><span>⌕</span><input type="search" value={query} onChange={event=>setQuery(event.target.value)} placeholder="Search all TMDB movies and television"/></label><div className="discover-domain-filter">{(['all','movie','tv'] as const).map(value=><button className={`chip${domain===value?' selected':''}`} onClick={()=>setDomain(value)} key={value}>{value==='all'?'Everything':value==='movie'?'Movies':'TV'}</button>)}</div><span className="discover-source">Live TMDB discovery · no Plex dependency</span></section>
     <div id="discover-rows">

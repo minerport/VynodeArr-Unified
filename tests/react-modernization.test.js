@@ -117,6 +117,10 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(app,/showAccountReact/);
   assert.match(system,/SystemView/);
   assert.match(system,/Create both backups/);
+  assert.match(system,/AuditLog/);
+  assert.match(system,/\/api\/manage\/audit/);
+  assert.match(system,/All administrators/);
+  assert.match(system,/administrator activity/);
   assert.match(system,/Automatic schedules are active/);
   assert.match(system,/Find events/);
   assert.match(system,/storageSize/);
@@ -1037,8 +1041,25 @@ test('Discover approval policy and administrator request history have typed post
     read('packages/platform/src/auth-service.js'),read('apps/web/public/index.html'),read('apps/web/public/my-requests.css')
   ]);
   assert.match(account,/Require administrator approval/);assert.match(accountTypes,/requestApprovalRequired/);assert.match(auth,/requestApprovalRequired/);
-  assert.match(types,/pending_approval/);assert.match(types,/poster/);assert.match(adminRequests,/Approve & add/);assert.match(adminRequests,/\/api\/requests/);
+  assert.match(account,/Discover request limits/);assert.match(account,/Maximum pending/);assert.match(account,/requestLimitsEnabled/);assert.match(accountTypes,/requestLimits/);assert.match(auth,/normalizeRequestLimits/);
+  assert.match(types,/pending_approval/);assert.match(types,/poster/);assert.match(types,/rejectionReason/);assert.match(adminRequests,/Approve & add/);assert.match(adminRequests,/\/api\/requests/);
+  assert.match(adminRequests,/type="search"/);assert.match(adminRequests,/All statuses/);assert.match(adminRequests,/Movies and television/);assert.match(adminRequests,/Decline request/);
+  assert.match(styles,/\.request-decline-dialog\{[^}]*max-height:[^}]*overflow:auto/);
   assert.match(routing,/'request-management'/);assert.match(dispatch,/requestManagement/);assert.match(shell,/showRequestManagementReact/);assert.match(islands,/mountRequestManagement/);
-  assert.match(server,/validatedDiscoverRequest/);assert.match(server,/request_already_decided/);assert.match(server,/approvedBy/);assert.match(server,/requestMetadata/);
+  assert.match(server,/validatedDiscoverRequest/);assert.match(server,/request_already_decided/);assert.match(server,/approvedBy/);assert.match(server,/requestMetadata/);assert.match(server,/rejection_reason_required/);
+  assert.match(server,/requestAllowance/);assert.match(server,/request_limit_reached/);assert.match(server,/request\.blocked_by_limit/);
   assert.match(html,/href="#request-management">User Requests/);assert.match(styles,/\.admin-request-card/);assert.match(styles,/\.request-art img/);
+});
+
+test('administrator audit coverage includes security, jobs, exports, collections, media, and system operations',async()=>{
+  const server=await read('apps/api/src/app.js');
+  for(const action of [
+    'administrator.initialized','session.logged_in','session.logged_out','account.updated','sessions.others_revoked','session.revoked',
+    'engines.repaired','engine.api_key_regenerated','backup.downloaded','synchronization.started',
+    'import.started','import.canceled','search.started','search.canceled','naming_audit.started',
+    'collection.created','collection.updated','collection.deleted','media_file.reassigned','media.rematched',
+    'media.rename_queued','media.preview_file_deleted','automatic_search.grabbed','queue.bulk_deleted',
+    'guide_template.rejected','request.submitted','request.canceled','request.match_corrected'
+  ])assert.match(server,new RegExp(action.replaceAll('.','\\.')),action);
+  assert.doesNotMatch(server,/recordAudit\(session,\{[^}]+(?:apiCredential|password|currentPassword|newPassword):/);
 });

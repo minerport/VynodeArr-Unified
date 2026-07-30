@@ -34,9 +34,22 @@ Approval-required requests remain in VynodeArr and do not reach the Movie or TV
 engine until an administrator approves them.
 
 The administrator-only **User Requests** page provides per-user request history,
-an awaiting-approval filter, and controls to approve and add or decline pending
-titles. Both administrator and user request pages display posters, overviews,
-ratings, genres, runtime, certification, and authoritative external IDs.
+search plus user, status, and media filters, and controls to approve and add or
+decline pending titles with a required reason. Both administrator and user
+request pages display posters, overviews, ratings, genres, runtime,
+certification, and authoritative external IDs.
+
+Administrators can also set independent daily, weekly, or monthly request
+allowances for each User account, including separate Movie and TV limits and a
+maximum number of pending requests. Limits can be changed, disabled, or left
+unlimited at any time, are enforced by the server, and show users their
+remaining allowance in Discover and My Requests.
+
+The new administrator-only **System Audit** view makes security-sensitive and
+operational activity reviewable in one place. It supports search and category
+or administrator filtering across request decisions, account and access
+changes, configuration, engines, backups, security, jobs, collections, media,
+synchronization, exports, and guide-template operations.
 
 Pending requests can be corrected by selecting an authoritative TMDB match or
 cancelled before approval, downloading, or importing begins. Approval,
@@ -125,6 +138,10 @@ User account can be granted any combination of:
 
 Granting **Discover** access also exposes **My Requests**, where the user can
 track their own requests and correct or cancel only those that remain eligible.
+For each User, administrators can choose automatic approval or administrator
+approval and optionally enforce daily, weekly, or monthly total, Movie, TV, and
+pending-request limits. Blank allowance fields are unlimited, and limits can be
+updated or disabled from the same account editor.
 
 Dashboard, Movies, TV, and Calendar remain view-only for User accounts. Actions
 that alter libraries, monitoring, files, engine configuration, providers,
@@ -146,6 +163,8 @@ Build hand-picked collections or combine smart rules such as title, year, decade
 - Review, customize, compare, and apply TRaSH guide templates independently for Movies and TV
 - Movie and television settings kept separate where their behavior differs
 - Backup creation, download, upload, and restore from the VynodeArr interface
+- Searchable and filterable System Audit history for administrative, request,
+  security, configuration, engine, backup, job, collection, and media activity
 - Actionable health issues with direct links to the setting that needs attention
 
 ## Install

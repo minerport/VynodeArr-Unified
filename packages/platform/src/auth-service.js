@@ -18,6 +18,8 @@ const motionPreference=(value,fallback='system')=>motionPreferences.has(value)?v
 export const userPagePermissionNames=['dashboard','discover','movies','tv','calendar'];
 const fullPagePermissions=()=>Object.fromEntries(userPagePermissionNames.map((name)=>[name,true]));
 const normalizePagePermissions=(value={})=>Object.fromEntries(userPagePermissionNames.map((name)=>[name,value?.[name]===true]));
+const normalizeLimit=value=>value==null||value===''?null:Math.max(1,Math.min(10000,Math.trunc(Number(value)||0)))||null;
+const normalizeRequestLimits=(value={})=>({enabled:value?.enabled===true,period:['daily','weekly','monthly'].includes(value?.period)?value.period:'weekly',movie:normalizeLimit(value?.movie),tv:normalizeLimit(value?.tv),maxPending:normalizeLimit(value?.maxPending)});
 const maskIp=(ip='')=>ip.includes(':')?`${ip.split(':').slice(0,3).join(':')}:…`:ip.replace(/\.\d+$/,'.…');
 const clientInfo=(agent='')=>({
   browser:/Firefox/i.test(agent)?'Firefox':/Edg/i.test(agent)?'Edge':/Chrome/i.test(agent)?'Chrome':/Safari/i.test(agent)?'Safari':'Unknown browser',
@@ -37,13 +39,14 @@ export class AuthService {
       ...user,role:user.role==='viewer'?'user':user.role,
       permissions:(user.role==='administrator'?fullPagePermissions():user.permissions?normalizePagePermissions(user.permissions):fullPagePermissions()),
       requestApprovalRequired:user.role==='administrator'?false:user.requestApprovalRequired===true,
+      requestLimits:user.role==='administrator'?normalizeRequestLimits():normalizeRequestLimits(user.requestLimits),
       name:user.name||user.username,email:user.email||`${user.username}@local.invalid`,
       enabled:user.enabled!==false,profileImage:user.profileImage||null,timeZone:user.timeZone||'UTC',
       dateTimeFormat:user.dateTimeFormat||'locale',theme:user.theme||'dark',uiStyle:uiStyle(user.uiStyle),
       uiDensity:uiDensity(user.uiDensity),motionPreference:motionPreference(user.motionPreference),language:user.language||'en',
       updatedAt:user.updatedAt||user.createdAt||new Date().toISOString()
     }));
-    if(Array.isArray(users)||source.some((user)=>!user.name||!user.email||user.role==='viewer'||!user.permissions||user.requestApprovalRequired==null))await this.#persistUsers();
+    if(Array.isArray(users)||source.some((user)=>!user.name||!user.email||user.role==='viewer'||!user.permissions||user.requestApprovalRequired==null||user.requestLimits==null))await this.#persistUsers();
     const now=Date.now();for(const session of sessions.sessions||[])if(session.expiresAt>now)this.sessions.set(session.id,session);
     await this.#persistSessions();
   }
@@ -64,7 +67,7 @@ export class AuthService {
     if(!(await this.setupRequired()))throw new Error('Setup is already complete');
     const value={name:normalize(input.name),username:normalize(input.username),email:normalize(input.email).toLowerCase(),password:input.password};
     this.#validateIdentity(value);if(input.password!==input.confirmPassword)throw new Error('Passwords do not match');this.#assertUnique(value.username,value.email);
-    const user={id:`user_${encode(randomBytes(12))}`,name:value.name,username:value.username,email:value.email,passwordHash:hashPassword(value.password),role:'administrator',permissions:fullPagePermissions(),requestApprovalRequired:false,enabled:true,profileImage:null,timeZone:'UTC',dateTimeFormat:'locale',theme:'dark',uiStyle:'glass',uiDensity:'comfortable',motionPreference:'system',language:'en',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+    const user={id:`user_${encode(randomBytes(12))}`,name:value.name,username:value.username,email:value.email,passwordHash:hashPassword(value.password),role:'administrator',permissions:fullPagePermissions(),requestApprovalRequired:false,requestLimits:normalizeRequestLimits(),enabled:true,profileImage:null,timeZone:'UTC',dateTimeFormat:'locale',theme:'dark',uiStyle:'glass',uiDensity:'comfortable',motionPreference:'system',language:'en',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
     this.users.push(user);await this.#persistUsers();return this.publicUser(user);
   }
   publicUser(user){const {passwordHash,...safe}=user;return safe;}
@@ -110,7 +113,7 @@ export class AuthService {
     const value={name:normalize(input.name),username:normalize(input.username),email:normalize(input.email).toLowerCase(),password:input.password};this.#validateIdentity(value);this.#assertUnique(value.username,value.email);
     if(!['administrator','user'].includes(input.role))throw new Error('Role is invalid');
     const permissions=input.role==='administrator'?fullPagePermissions():normalizePagePermissions(input.permissions);
-    const user={id:`user_${encode(randomBytes(12))}`,name:value.name,username:value.username,email:value.email,passwordHash:hashPassword(value.password),role:input.role,permissions,requestApprovalRequired:input.role==='user'&&permissions.discover&&input.requestApprovalRequired===true,enabled:true,profileImage:null,timeZone:'UTC',dateTimeFormat:'locale',theme:'dark',uiStyle:'glass',uiDensity:'comfortable',motionPreference:'system',language:'en',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};this.users.push(user);await this.#persistUsers();return this.publicUser(user);
+    const user={id:`user_${encode(randomBytes(12))}`,name:value.name,username:value.username,email:value.email,passwordHash:hashPassword(value.password),role:input.role,permissions,requestApprovalRequired:input.role==='user'&&permissions.discover&&input.requestApprovalRequired===true,requestLimits:input.role==='user'?normalizeRequestLimits(input.requestLimits):normalizeRequestLimits(),enabled:true,profileImage:null,timeZone:'UTC',dateTimeFormat:'locale',theme:'dark',uiStyle:'glass',uiDensity:'comfortable',motionPreference:'system',language:'en',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};this.users.push(user);await this.#persistUsers();return this.publicUser(user);
   }
   async administerUser(id,input,actingUserId){
     const user=this.users.find((item)=>item.id===id);if(!user)throw new Error('User was not found');
@@ -118,8 +121,8 @@ export class AuthService {
     if(input.action==='enable')user.enabled=true;
     else if(input.action==='disable'){if(id===actingUserId)throw new Error('You cannot disable your own account');user.enabled=false;await this.revokeUserSessions(id);}
     else if(input.action==='forceLogout')await this.revokeUserSessions(id);
-    else if(input.action==='role'){if(!['administrator','user'].includes(input.role))throw new Error('Role is invalid');if(user.role==='administrator'&&input.role!=='administrator'&&this.users.filter((item)=>item.role==='administrator'&&item.enabled).length===1)throw new Error('The last enabled administrator cannot be changed to a user');user.role=input.role;user.permissions=input.role==='administrator'?fullPagePermissions():normalizePagePermissions(input.permissions||user.permissions);user.requestApprovalRequired=input.role==='user'&&input.requestApprovalRequired===true;}
-    else if(input.action==='permissions'){if(user.role==='administrator')throw new Error('Administrator access cannot be restricted');user.permissions=normalizePagePermissions(input.permissions);user.requestApprovalRequired=user.permissions.discover&&input.requestApprovalRequired===true;}
+    else if(input.action==='role'){if(!['administrator','user'].includes(input.role))throw new Error('Role is invalid');if(user.role==='administrator'&&input.role!=='administrator'&&this.users.filter((item)=>item.role==='administrator'&&item.enabled).length===1)throw new Error('The last enabled administrator cannot be changed to a user');user.role=input.role;user.permissions=input.role==='administrator'?fullPagePermissions():normalizePagePermissions(input.permissions||user.permissions);user.requestApprovalRequired=input.role==='user'&&input.requestApprovalRequired===true;user.requestLimits=input.role==='user'?normalizeRequestLimits(input.requestLimits||user.requestLimits):normalizeRequestLimits();}
+    else if(input.action==='permissions'){if(user.role==='administrator')throw new Error('Administrator access cannot be restricted');user.permissions=normalizePagePermissions(input.permissions);user.requestApprovalRequired=user.permissions.discover&&input.requestApprovalRequired===true;user.requestLimits=normalizeRequestLimits(input.requestLimits);}
     else if(input.action==='resetPassword'){this.#validateIdentity({...user,password:input.password});user.passwordHash=hashPassword(input.password);await this.revokeUserSessions(id);}
     else throw new Error('Administrative action is invalid');
     user.updatedAt=new Date().toISOString();await this.#persistUsers();return this.publicUser(user);

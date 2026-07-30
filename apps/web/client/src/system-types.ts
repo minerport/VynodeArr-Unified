@@ -1,5 +1,5 @@
 export type SystemDomain='movie'|'tv';
-export type SystemView='status'|'tasks'|'backups'|'updates'|'security'|'events';
+export type SystemView='status'|'tasks'|'backups'|'updates'|'security'|'events'|'audit';
 
 export interface DiskSpace {path:string;freeSpace:number;totalSpace:number}
 export interface SystemRecord {
@@ -19,6 +19,11 @@ export interface SystemRecord {
 }
 export interface ApplicationUpdate {installedVersion:string;channel:string;mechanism:string;repository:string;message:string}
 export interface MasterKeyStatus {managed:boolean;source:string;canRotate:boolean;storage:string}
+export interface AuditEntry {
+  id:string;timestamp:string;userId:string;username:string;actorName?:string;
+  category?:string;action?:string;target?:string;summary?:string;domain?:SystemDomain|null;
+  resource?:string;method?:string;resourceId?:string|number|null;metadata?:Record<string,unknown>;
+}
 export interface SystemMountOptions {
   request:<T=unknown>(path:string,options?:RequestInit)=>Promise<T>;
   notify:(message:string,type?:string)=>void;

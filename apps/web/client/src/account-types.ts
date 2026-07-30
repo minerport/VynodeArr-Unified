@@ -17,6 +17,7 @@ export interface AccountUser {
   role:'administrator'|'user';
   permissions?:Record<'dashboard'|'discover'|'movies'|'tv'|'calendar',boolean>;
   requestApprovalRequired?:boolean;
+  requestLimits?:{enabled:boolean;period:'daily'|'weekly'|'monthly';movie:number|null;tv:number|null;maxPending:number|null};
   enabled?:boolean;
   profileImage?:string;
   timeZone?:string;

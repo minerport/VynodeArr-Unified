@@ -17,6 +17,17 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   approval filters, and controls to approve and add or decline pending titles.
 - User and administrator request cards now include posters, overviews, ratings,
   genres, runtime, certification, and authoritative TMDB/TVDB identifiers.
+- Added request search plus user, status, and media-type filters for
+  administrators.
+- Added optional per-user daily, weekly, or monthly request allowances,
+  separate Movie and TV limits, and a maximum-pending-request limit.
+- Discover and **My Requests** now show each user their remaining request
+  allowance.
+- Added an administrator-only **System Audit** view with search, category, and
+  administrator filters.
+- Audit history now covers request decisions and limit blocks, accounts,
+  access, configuration, engines, backups, security, jobs, collections, media,
+  synchronization, exports, and guide-template operations.
 
 ### Changed
 
@@ -26,6 +37,15 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Existing request history is enriched with TMDB presentation metadata when it
   is first viewed and metadata is available.
 - Users can correct or cancel their own request while it is awaiting approval.
+- Declining a request now requires a reason that is retained and shown in both
+  administrator and user request history.
+- Request-limit settings can be updated, disabled, or left unlimited from the
+  existing User account editor; administrator accounts remain unlimited.
+
+### Fixed
+
+- Request-decline and User account dialogs remain scrollable and contained on
+  short or narrow viewports.
 
 ### Security
 
@@ -34,6 +54,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   quality profile before adding the title to an engine.
 - Atomic approval claiming prevents concurrent administrators from adding the
   same request more than once.
+- Request allowances are enforced by the server before a request reaches an
+  engine, and blocked attempts are recorded in the audit log.
 
 ## [2.0.16] - 2026-07-30
 

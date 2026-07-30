@@ -1,28 +1,44 @@
-import {useCallback,useEffect,useMemo,useState} from 'react';
-import type {MyRequestsMountOptions,UserRequest} from './my-requests-types';
+import {useCallback,useEffect,useMemo,useState,type FormEvent} from 'react';
+import type {MyRequestsMountOptions,RequestStatus,UserRequest} from './my-requests-types';
 
 const message=(reason:unknown)=>reason instanceof Error?reason.message:'The request could not be updated.';
 
 export function RequestManagementView({options}:{options:MyRequestsMountOptions}){
-  const [items,setItems]=useState<UserRequest[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[userId,setUserId]=useState(''),[pendingOnly,setPendingOnly]=useState(false),[busy,setBusy]=useState('');
+  const [items,setItems]=useState<UserRequest[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[query,setQuery]=useState(''),[userId,setUserId]=useState(''),[status,setStatus]=useState<RequestStatus|''>(''),[domain,setDomain]=useState<''|'movie'|'tv'>(''),[busy,setBusy]=useState(''),[rejecting,setRejecting]=useState<UserRequest|null>(null);
   const load=useCallback(async(quiet=false)=>{if(!quiet)setLoading(true);try{const value=await options.request<{items:UserRequest[]}>('/api/requests');setItems(value.items||[]);setError('');}catch(reason){setError(message(reason));}finally{setLoading(false);}},[options]);
   useEffect(()=>{void load();const timer=window.setInterval(()=>void load(true),10000);return()=>window.clearInterval(timer);},[load]);
   const users=useMemo(()=>[...new Map(items.filter(item=>item.user).map(item=>[item.userId,item.user!])).values()].sort((a,b)=>a.name.localeCompare(b.name)),[items]);
-  const visible=items.filter(item=>(!userId||item.userId===userId)&&(!pendingOnly||item.status==='pending_approval'));
-  const decide=async(record:UserRequest,action:'approve'|'reject')=>{
-    let body='{}';
-    if(action==='approve'&&!window.confirm(`Approve ${record.title} for ${record.user?.name||'this user'} and add it to the media engine?`))return;
-    if(action==='reject'){const reason=window.prompt(`Why is ${record.title} being declined?`,'This request was not approved.');if(reason==null)return;body=JSON.stringify({reason});}
+  const normalizedQuery=query.trim().toLocaleLowerCase();
+  const visible=items.filter(item=>(!userId||item.userId===userId)&&(!status||item.status===status)&&(!domain||item.domain===domain)&&(!normalizedQuery||[item.title,item.year,item.tmdbId,item.tvdbId,item.user?.name,item.user?.username].some(value=>String(value||'').toLocaleLowerCase().includes(normalizedQuery))));
+  const approve=async(record:UserRequest)=>{
+    if(!window.confirm(`Approve ${record.title} for ${record.user?.name||'this user'} and add it to the media engine?`))return;
     setBusy(record.id);
-    try{await options.request(`/api/requests/${record.id}/${action}`,{method:'POST',body});options.notify(action==='approve'?'Request approved and added.':'Request declined.');await load(true);}catch(reason){options.notify(message(reason),'error');}finally{setBusy('');}
+    try{await options.request(`/api/requests/${record.id}/approve`,{method:'POST',body:'{}'});options.notify('Request approved and added.');await load(true);}catch(reason){options.notify(message(reason),'error');}finally{setBusy('');}
   };
+  const reject=async(event:FormEvent<HTMLFormElement>)=>{
+    event.preventDefault();if(!rejecting)return;
+    const reason=String(new FormData(event.currentTarget).get('reason')||'').trim();
+    if(!reason){options.notify('Enter a reason for declining this request.','error');return;}
+    setBusy(rejecting.id);
+    try{await options.request(`/api/requests/${rejecting.id}/reject`,{method:'POST',body:JSON.stringify({reason})});options.notify('Request declined.');setRejecting(null);await load(true);}catch(cause){options.notify(message(cause),'error');}finally{setBusy('');}
+  };
+  const clearFilters=()=>{setQuery('');setUserId('');setStatus('');setDomain('');};
   return <div className="react-request-management">
     <div className="hero"><div><span className="eyebrow">DISCOVER ADMINISTRATION</span><h1>User Requests</h1><p className="lede">Review request history by user and decide which approval-required titles are added.</p></div><button className="secondary" onClick={()=>void load()}>Refresh</button></div>
-    <div className="management-toolbar request-management-toolbar"><label>User<select value={userId} onChange={event=>setUserId(event.target.value)}><option value="">All users</option>{users.map(user=><option value={user.id} key={user.id}>{user.name} ({user.username})</option>)}</select></label><label className="check"><input type="checkbox" checked={pendingOnly} onChange={event=>setPendingOnly(event.target.checked)}/> Awaiting approval only</label><span className="badge warm">{items.filter(item=>item.status==='pending_approval').length} awaiting approval</span></div>
+    <div className="management-toolbar request-management-toolbar">
+      <label className="request-search">Search<input type="search" value={query} onChange={event=>setQuery(event.target.value)} placeholder="Title, user, TMDB or TVDB ID"/></label>
+      <label>User<select value={userId} onChange={event=>setUserId(event.target.value)}><option value="">All users</option>{users.map(user=><option value={user.id} key={user.id}>{user.name} ({user.username})</option>)}</select></label>
+      <label>Status<select value={status} onChange={event=>setStatus(event.target.value as RequestStatus|'')}><option value="">All statuses</option><option value="pending_approval">Awaiting approval</option><option value="requested">Requested</option><option value="searching">Searching</option><option value="downloading">Downloading</option><option value="imported">Imported</option><option value="failed">Needs attention</option><option value="rejected">Rejected</option></select></label>
+      <label>Media<select value={domain} onChange={event=>setDomain(event.target.value as ''|'movie'|'tv')}><option value="">Movies and television</option><option value="movie">Movies</option><option value="tv">Television</option></select></label>
+      <button className="secondary clear-request-filters" type="button" onClick={clearFilters} disabled={!query&&!userId&&!status&&!domain}>Clear</button>
+      <span className="badge warm">{items.filter(item=>item.status==='pending_approval').length} awaiting approval</span>
+    </div>
+    <p className="request-results-summary">{visible.length} of {items.length} requests shown</p>
     {loading?<div className="panel skeleton">Loading user requests…</div>:error?<div className="panel error-state"><h2>Requests unavailable</h2><p>{error}</p></div>:!visible.length?<div className="panel empty"><h2>No matching requests</h2><p>Change the filters or wait for a user to submit a request.</p></div>:<div className="admin-request-list">{visible.map(record=><article className="admin-request-card panel" key={record.id}>
       <div className="admin-request-poster">{record.poster?<img src={record.poster} alt="" loading="lazy"/>:<span>{record.domain==='movie'?'MOVIE':'TV'}</span>}</div>
-      <div className="admin-request-copy"><div className="request-title"><div><span className="eyebrow">{record.user?.name||'Deleted user'} · @{record.user?.username||'deleted'}</span><h2>{record.title} {record.year?<small>({record.year})</small>:null}</h2><p>{record.genres?.join(', ')||'Genre unavailable'} · Requested {new Date(record.requestedAt).toLocaleString()}</p></div><span className={`request-state ${record.status}`}>{record.statusLabel}</span></div><p className="admin-request-overview">{record.overview||'No overview is available for this title.'}</p><div className="request-facts">{record.rating?<span>★ {record.rating.toFixed(1)}</span>:null}{record.runtime?<span>{record.runtime} min</span>:null}{record.certification?<span>{record.certification}</span>:null}<span>TMDB {record.tmdbId}</span>{record.tvdbId?<span>TVDB {record.tvdbId}</span>:null}<span>{record.domain==='movie'?'Movie':'Television'}</span></div><p className="request-explanation">{record.message}</p></div>
-      <div className="request-actions">{record.canApprove?<button className="primary" disabled={busy===record.id} onClick={()=>void decide(record,'approve')}>{busy===record.id?'Adding…':'Approve & add'}</button>:null}{record.canReject?<button className="danger" disabled={busy===record.id} onClick={()=>void decide(record,'reject')}>Decline</button>:null}</div>
+      <div className="admin-request-copy"><div className="request-title"><div><span className="eyebrow">{record.user?.name||'Deleted user'} · @{record.user?.username||'deleted'}</span><h2>{record.title} {record.year?<small>({record.year})</small>:null}</h2><p>{record.genres?.join(', ')||'Genre unavailable'} · Requested {new Date(record.requestedAt).toLocaleString()}</p></div><span className={`request-state ${record.status}`}>{record.statusLabel}</span></div><p className="admin-request-overview">{record.overview||'No overview is available for this title.'}</p><div className="request-facts">{record.rating?<span>★ {record.rating.toFixed(1)}</span>:null}{record.runtime?<span>{record.runtime} min</span>:null}{record.certification?<span>{record.certification}</span>:null}<span>TMDB {record.tmdbId}</span>{record.tvdbId?<span>TVDB {record.tvdbId}</span>:null}<span>{record.domain==='movie'?'Movie':'Television'}</span></div>{record.rejectionReason?<p className="request-rejection-reason"><strong>Rejection reason:</strong> {record.rejectionReason}</p>:<p className="request-explanation">{record.message}</p>}</div>
+      <div className="request-actions">{record.canApprove?<button className="primary" disabled={busy===record.id} onClick={()=>void approve(record)}>{busy===record.id?'Adding…':'Approve & add'}</button>:null}{record.canReject?<button className="danger" disabled={busy===record.id} onClick={()=>setRejecting(record)}>Decline</button>:null}</div>
     </article>)}</div>}
+    {rejecting?<div className="request-decline-backdrop" role="presentation" onMouseDown={event=>{if(event.target===event.currentTarget)setRejecting(null);}}><form className="panel request-decline-dialog" role="dialog" aria-modal="true" aria-labelledby="request-decline-title" onSubmit={reject}><h2 id="request-decline-title">Decline {rejecting.title}</h2><p className="muted">This reason will be saved in request history and shown to {rejecting.user?.name||'the user'}.</p><label>Reason<textarea name="reason" required maxLength={240} rows={4} autoFocus placeholder="Explain why this request was not approved."/></label><div className="form-actions"><button type="button" className="secondary" onClick={()=>setRejecting(null)}>Cancel</button><button type="submit" className="danger" disabled={busy===rejecting.id}>{busy===rejecting.id?'Declining…':'Decline request'}</button></div></form></div>:null}
   </div>;
 }
