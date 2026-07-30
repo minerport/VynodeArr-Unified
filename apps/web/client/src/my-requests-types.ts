@@ -1,8 +1,12 @@
-export type RequestStatus='requested'|'searching'|'downloading'|'imported'|'failed'|'rejected';
+export type RequestStatus='pending_approval'|'requested'|'searching'|'downloading'|'imported'|'failed'|'rejected';
 export interface UserRequest {
-  id:string;domain:'movie'|'tv';engineId:number;tmdbId:number;tvdbId?:number|null;
+  id:string;userId:string;domain:'movie'|'tv';engineId:number|null;tmdbId:number;tvdbId?:number|null;
   title:string;year?:number|null;requestedAt:string;updatedAt:string;
+  poster?:string|null;backdrop?:string|null;overview?:string;rating?:number;genres?:string[];
+  runtime?:number|null;certification?:string|null;
   status:RequestStatus;statusLabel:string;message:string;canCorrect:boolean;canCancel:boolean;
+  canApprove?:boolean;canReject?:boolean;
+  user?:{id:string;name:string;username:string};
 }
 export interface MyRequestsMountOptions {
   request:<T=unknown>(path:string,options?:RequestInit)=>Promise<T>;

@@ -1028,3 +1028,17 @@ test('My Requests owns request tracking, correction, cancellation, and permissio
   assert.match(styles,/\.my-request-card/);
   assert.match(styles,/\.my-request-match-dialog/);
 });
+
+test('Discover approval policy and administrator request history have typed poster-rich interfaces',async()=>{
+  const [account,accountTypes,adminRequests,types,islands,routing,dispatch,shell,server,auth,html,styles]=await Promise.all([
+    read('apps/web/client/src/account.tsx'),read('apps/web/client/src/account-types.ts'),read('apps/web/client/src/request-management.tsx'),
+    read('apps/web/client/src/my-requests-types.ts'),read('apps/web/client/src/react-islands.tsx'),read('apps/web/client/src/routing.ts'),
+    read('apps/web/client/src/route-dispatch.ts'),read('apps/web/client/src/app-shell.ts'),read('apps/api/src/app.js'),
+    read('packages/platform/src/auth-service.js'),read('apps/web/public/index.html'),read('apps/web/public/my-requests.css')
+  ]);
+  assert.match(account,/Require administrator approval/);assert.match(accountTypes,/requestApprovalRequired/);assert.match(auth,/requestApprovalRequired/);
+  assert.match(types,/pending_approval/);assert.match(types,/poster/);assert.match(adminRequests,/Approve & add/);assert.match(adminRequests,/\/api\/requests/);
+  assert.match(routing,/'request-management'/);assert.match(dispatch,/requestManagement/);assert.match(shell,/showRequestManagementReact/);assert.match(islands,/mountRequestManagement/);
+  assert.match(server,/validatedDiscoverRequest/);assert.match(server,/request_already_decided/);assert.match(server,/approvedBy/);assert.match(server,/requestMetadata/);
+  assert.match(html,/href="#request-management">User Requests/);assert.match(styles,/\.admin-request-card/);assert.match(styles,/\.request-art img/);
+});

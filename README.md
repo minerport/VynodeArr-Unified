@@ -27,16 +27,22 @@ consistent experience and account system.
 
 ## Current release
 
-Version **2.0.16** is ready for real-time testing on Unraid, Windows, and
-standard Docker installations. Users with Discover access now have a dedicated
-**My Requests** page that follows their own movie and television requests
-through requested, searching, downloading, imported, failed, and rejected
-states using live engine data.
+Version **2.0.17** is ready for real-time testing on Unraid, Windows, and
+standard Docker installations. Administrators can now choose per User account
+whether Discover requests are added automatically or require approval.
+Approval-required requests remain in VynodeArr and do not reach the Movie or TV
+engine until an administrator approves them.
+
+The administrator-only **User Requests** page provides per-user request history,
+an awaiting-approval filter, and controls to approve and add or decline pending
+titles. Both administrator and user request pages display posters, overviews,
+ratings, genres, runtime, certification, and authoritative external IDs.
 
 Pending requests can be corrected by selecting an authoritative TMDB match or
-cancelled before downloading or importing begins. Ownership, CSRF protection,
-and live eligibility are validated by the server, while failures are explained
-without exposing administrative engine or download-client details.
+cancelled before approval, downloading, or importing begins. Approval,
+ownership, CSRF protection, current folder/profile configuration, and live
+eligibility are validated by the server, while failures are explained without
+exposing administrative engine or download-client details.
 
 Discover requests resolve movie and television engine records using
 authoritative TMDB and TVDB identifiers rather than title text or search-result

@@ -65,8 +65,8 @@ export function DiscoverRequest({item,options,onClose,onRequested}:{item:Discove
     };
     setSubmitting(true);
     try{
-      await options.request('/api/discover/request',{method:'POST',body:JSON.stringify({domain:resolvedItem.domain,tmdbId:resolvedItem.tmdbId,payload})});
-      options.notify(`${source.title||resolvedItem.title} requested and sent to the ${movie?'movie':'TV'} engine.`);
+      const response=await options.request<{request?:{status?:string}}>('/api/discover/request',{method:'POST',body:JSON.stringify({domain:resolvedItem.domain,tmdbId:resolvedItem.tmdbId,payload})});
+      options.notify(response.request?.status==='pending_approval'?`${source.title||resolvedItem.title} requested and is awaiting administrator approval.`:`${source.title||resolvedItem.title} requested and sent to the ${movie?'movie':'TV'} engine.`);
       onRequested(resolvedItem);
       close();
     }catch(reason){

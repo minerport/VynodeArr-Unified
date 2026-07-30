@@ -38,11 +38,13 @@ test('session listing masks IP and supports other-session revocation',()=>tempAu
   await auth.revokeOtherSessions(admin.id,current.id);assert.equal(auth.session(other.id),null);
 }));
 test('administrator creates, disables, roles, resets, forces logout, and safely deletes users',()=>tempAuth(async(auth)=>{
-  const admin=await auth.createInitialAdministrator(adminInput),user=await auth.createUser({name:'User',username:'user',email:'user@example.test',password:'Viewer-strong-pass3',role:'user',permissions:{dashboard:true,discover:false,movies:true,tv:false,calendar:true}});
+  const admin=await auth.createInitialAdministrator(adminInput),user=await auth.createUser({name:'User',username:'user',email:'user@example.test',password:'Viewer-strong-pass3',role:'user',permissions:{dashboard:true,discover:false,movies:true,tv:false,calendar:true},requestApprovalRequired:true});
   const userSession=await auth.createSession(user,{ip:'127.0.0.1'});
   assert.deepEqual(user.permissions,{dashboard:true,discover:false,movies:true,tv:false,calendar:true});
-  await auth.administerUser(user.id,{action:'permissions',permissions:{discover:true,tv:true}},admin.id);
+  assert.equal(user.requestApprovalRequired,false);
+  await auth.administerUser(user.id,{action:'permissions',permissions:{discover:true,tv:true},requestApprovalRequired:true},admin.id);
   assert.deepEqual(auth.session(userSession.id).user.permissions,{dashboard:false,discover:true,movies:false,tv:true,calendar:false});
+  assert.equal(auth.session(userSession.id).user.requestApprovalRequired,true);
   assert.equal((await auth.administerUser(user.id,{action:'role',role:'administrator'},admin.id)).role,'administrator');
   await auth.administerUser(user.id,{action:'forceLogout'},admin.id);assert.equal(auth.session(userSession.id),null);
   await auth.administerUser(user.id,{action:'disable'},admin.id);assert.equal((await auth.listUsers()).find((item)=>item.id===user.id).enabled,false);
@@ -64,7 +66,7 @@ async function appSession(options,run){
   try{
     const setup=await fetch(`${base}/api/auth/setup`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(adminInput)}),result=await setup.json(),cookie=setup.headers.get('set-cookie').split(';')[0];
     await run({base,cookie,csrf:result.csrf,app});
-  }finally{await new Promise((resolve)=>server.close(resolve));app.sync.stopPolling();await rm(directory,{recursive:true,force:true});}
+  }finally{server.closeAllConnections?.();await new Promise((resolve)=>server.close(resolve));app.sync.stopPolling();await rm(directory,{recursive:true,force:true});}
 }
 test('authenticated artwork proxy caches binary responses without exposing engine URLs',()=>appSession({
   movie:Object.assign(new MovieFixtureAdapter(),{getArtwork:async()=>({body:Buffer.from('image-data'),contentType:'image/jpeg'})}),tv:new TvFixtureAdapter()
@@ -107,6 +109,40 @@ test('user page permissions are enforced by APIs and update active sessions imme
   assert.equal((await fetch(`${base}/api/discover/status`,{headers:{cookie:userCookie}})).status,403);
   assert.equal((await fetch(`${base}/api/requests/mine`,{headers:{cookie:userCookie}})).status,403);
 }));
+test('approval-required Discover requests stay out of the engine until an administrator approves them',()=>{
+  const library=[],posts=[];
+  const movieClient={
+    get:async(path)=>{
+      if(path==='qualityprofile')return[{id:1,name:'HD'}];
+      if(path==='rootfolder')return[{id:1,path:'/movies'}];
+      if(path==='movie')return library;
+      if(path==='queue'||path==='history')return{records:[]};
+      throw new Error(`Unexpected movie GET ${path}`);
+    },
+    post:async(path,payload)=>{
+      assert.equal(path,'movie');posts.push(payload);const result={...payload,id:99,title:payload.title||'Approval Film',year:2026,hasFile:false};library.push(result);return result;
+    },
+    delete:async()=>({})
+  };
+  const discovery={token:'test-discovery-token',configured:()=>true,setToken:()=>{},details:async()=>({tmdbId:123,tvdbId:null,title:'Approval Film',year:2026,poster:'https://image.test/poster.jpg',backdrop:'https://image.test/backdrop.jpg',overview:'A request awaiting a deliberate decision.',rating:8.4,genres:['Drama'],runtime:112,certification:'PG-13'})};
+  return appSession({movie:Object.assign(new MovieFixtureAdapter(),{client:movieClient}),tv:new TvFixtureAdapter(),discovery},async({base,cookie,csrf})=>{
+    const create=await fetch(`${base}/api/admin/users`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({name:'Approval User',username:'approval-user',email:'approval@example.test',password:'Approval-strong-pass6',role:'user',permissions:{discover:true},requestApprovalRequired:true})});
+    const created=(await create.json()).user;assert.equal(created.requestApprovalRequired,true);
+    const login=await fetch(`${base}/api/auth/login`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({identifier:'approval-user',password:'Approval-strong-pass6'})}),userLogin=await login.json(),userCookie=login.headers.get('set-cookie').split(';')[0];
+    const requested=await fetch(`${base}/api/discover/request`,{method:'POST',headers:{cookie:userCookie,'content-type':'application/json','x-vynodearr-csrf':userLogin.csrf},body:JSON.stringify({domain:'movie',tmdbId:123,payload:{tmdbId:123,title:'Approval Film',year:2026,rootFolderPath:'/movies',qualityProfileId:1,monitored:true,addOptions:{searchForMovie:true}}})}),requestValue=await requested.json();
+    assert.equal(requested.status,202);assert.equal(requestValue.request.status,'pending_approval');assert.equal(posts.length,0);
+    const mine=(await (await fetch(`${base}/api/requests/mine`,{headers:{cookie:userCookie}})).json()).items;
+    assert.equal(mine[0].status,'pending_approval');assert.equal(mine[0].poster,'https://image.test/poster.jpg');assert.equal('payload'in mine[0],false);
+    const administered=(await (await fetch(`${base}/api/requests`,{headers:{cookie}})).json()).items;
+    assert.equal(administered[0].user.id,created.id);assert.equal(administered[0].canApprove,true);
+    const approved=await fetch(`${base}/api/requests/${requestValue.request.id}/approve`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:'{}'});
+    assert.equal(approved.status,200);assert.equal(posts.length,1);
+    const duplicate=await fetch(`${base}/api/requests/${requestValue.request.id}/approve`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:'{}'});
+    assert.equal(duplicate.status,409);assert.equal(posts.length,1);
+    const updated=(await (await fetch(`${base}/api/requests/mine`,{headers:{cookie:userCookie}})).json()).items[0];
+    assert.equal(updated.status,'searching');assert.equal(updated.engineId,99);
+  });
+});
 test('master-key status is administrator-only and environment-managed rotation is refused',()=>appSession({movie:new MovieFixtureAdapter(),tv:new TvFixtureAdapter()},async({base,cookie,csrf})=>{
   assert.equal((await fetch(`${base}/api/system/master-key`)).status,401);
   const statusResponse=await fetch(`${base}/api/system/master-key`,{headers:{cookie}}),status=await statusResponse.json();

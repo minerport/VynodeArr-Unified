@@ -7,6 +7,34 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.17] - 2026-07-30
+
+### Added
+
+- Administrators can require approval for Discover requests independently for
+  each User account.
+- Added an administrator-only **User Requests** page with per-user history,
+  approval filters, and controls to approve and add or decline pending titles.
+- User and administrator request cards now include posters, overviews, ratings,
+  genres, runtime, certification, and authoritative TMDB/TVDB identifiers.
+
+### Changed
+
+- Approval-required requests remain in VynodeArr and are not submitted to the
+  Movie or TV engine until an administrator approves them.
+- Existing User accounts retain automatic request approval by default.
+- Existing request history is enriched with TMDB presentation metadata when it
+  is first viewed and metadata is available.
+- Users can correct or cancel their own request while it is awaiting approval.
+
+### Security
+
+- Approval and rejection require administrator access and CSRF validation.
+- Approval revalidates the stored external identity, current root folder, and
+  quality profile before adding the title to an engine.
+- Atomic approval claiming prevents concurrent administrators from adding the
+  same request more than once.
+
 ## [2.0.16] - 2026-07-30
 
 ### Added
@@ -367,7 +395,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.16...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.17...HEAD
+[2.0.17]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.16...v2.0.17
 [2.0.16]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.15...v2.0.16
 [2.0.15]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.14...v2.0.15
 [2.0.14]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.13...v2.0.14

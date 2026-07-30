@@ -732,9 +732,43 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
     if(message.includes('indexer')||message.includes('release'))return'No usable release was found. The media engine will continue checking based on its configured schedule.';
     return'The media engine reported a problem with this request. An administrator can review the engine activity for more detail.';
   };
-  async function liveUserRequests(userId){
-    const stored=await requestStore.read(),owned=(stored.requests||[]).filter(item=>item.userId===userId);
-    const domains=[...new Set(owned.map(item=>item.domain).filter(domain=>['movie','tv'].includes(domain)))];
+  const requestMetadata=metadata=>({
+    metadataVersion:1,
+    poster:metadata.poster||null,backdrop:metadata.backdrop||null,overview:metadata.overview||'',
+    rating:Number(metadata.rating||0),genres:Array.isArray(metadata.genres)?metadata.genres.slice(0,8):[],
+    runtime:Number(metadata.runtime||0)||null,certification:metadata.certification||null
+  });
+  async function validatedDiscoverRequest(domain,tmdbId,payload){
+    if(!['movie','tv'].includes(domain)||!Number.isInteger(tmdbId)||tmdbId<=0||!payload||typeof payload!=='object')throw new Error('Choose a valid movie or television title');
+    const metadata=await discovery.details(domain,tmdbId),identity={tmdbId,tvdbId:metadata.tvdbId};
+    if(!payloadMatchesIdentity(domain,identity,payload))throw new Error('The engine match does not have the requested external ID. Reopen Discover and try again.');
+    const [profiles,roots]=await Promise.all([management.execute(domain,'profiles','GET',{}),management.execute(domain,'rootFolders','GET',{})]);
+    if(!roots.some(root=>String(root.path)===String(payload.rootFolderPath)))throw new Error('Choose a configured library folder');
+    if(!profiles.some(profile=>Number(profile.id)===Number(payload.qualityProfileId)))throw new Error('Choose a configured quality profile');
+    return{metadata,payload};
+  }
+  async function addRequestToEngine(record){
+    const {metadata,payload}=await validatedDiscoverRequest(record.domain,Number(record.tmdbId),record.payload);
+    const result=await management.execute(record.domain,'library','POST',{payload});
+    const updatedAt=new Date().toISOString();
+    await requestStore.update(current=>{
+      const item=(current.requests||[]).find(value=>value.id===record.id);
+      if(item)Object.assign(item,{engineId:Number(result.id),title:result.title||metadata.title||item.title,year:Number(result.year||metadata.year)||null,status:'requested',approvedAt:updatedAt,updatedAt,...requestMetadata(metadata),payload:undefined});
+    });
+    sync.invalidate(record.domain);setTimeout(()=>sync.synchronize(record.domain).catch(()=>{}),2_000);
+    return result;
+  }
+  async function liveUserRequests(userId=null){
+    const stored=await requestStore.read();let owned=(stored.requests||[]).filter(item=>userId==null||item.userId===userId);
+    const legacy=owned.filter(item=>item.metadataVersion!==1&&['movie','tv'].includes(item.domain)&&Number.isInteger(Number(item.tmdbId)));
+    if(legacy.length&&discovery.configured()){
+      const enriched=new Map((await Promise.all(legacy.map(async item=>[item.id,await discovery.details(item.domain,Number(item.tmdbId)).then(requestMetadata).catch(()=>null)]))).filter(([,value])=>value));
+      if(enriched.size){
+        await requestStore.update(current=>{for(const item of current.requests||[]){const metadata=enriched.get(item.id);if(metadata)Object.assign(item,metadata);}});
+        owned=owned.map(item=>enriched.has(item.id)?{...item,...enriched.get(item.id)}:item);
+      }
+    }
+    const domains=[...new Set(owned.filter(item=>Number.isFinite(Number(item.engineId))).map(item=>item.domain).filter(domain=>['movie','tv'].includes(domain)))];
     const snapshots=new Map(await Promise.all(domains.map(async domain=>{
       const client=registry.get(domain).client;
       const [libraryResult,queueValue,historyValue]=await Promise.all([
@@ -750,9 +784,11 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
       }];
     })));
     return owned.map(record=>{
-      if(record.status==='rejected')return{...record,status:'rejected',statusLabel:'Rejected',message:record.message||'This request was cancelled before it was imported.',canCorrect:false,canCancel:false};
+      if(record.status==='pending_approval')return{...record,payload:undefined,status:'pending_approval',statusLabel:'Awaiting approval',message:'An administrator must approve this request before it is added to the media engine.',canCorrect:true,canCancel:true,canApprove:true,canReject:true};
+      if(record.status==='approving')return{...record,payload:undefined,status:'pending_approval',statusLabel:'Approval in progress',message:'This request is being validated and added to the media engine.',canCorrect:false,canCancel:false,canApprove:false,canReject:false};
+      if(record.status==='rejected')return{...record,payload:undefined,status:'rejected',statusLabel:'Rejected',message:record.message||'This request was cancelled before it was imported.',canCorrect:false,canCancel:false};
       const snapshot=snapshots.get(record.domain),engineId=Number(record.engineId),media=snapshot?.library.get(engineId);
-      if(!snapshot?.available)return{...record,status:'requested',statusLabel:'Status unavailable',message:'The media engine is temporarily unavailable. Your request is still recorded and its status will update when the connection returns.',canCorrect:false,canCancel:false};
+      if(!snapshot?.available)return{...record,payload:undefined,status:'requested',statusLabel:'Status unavailable',message:'The media engine is temporarily unavailable. Your request is still recorded and its status will update when the connection returns.',canCorrect:false,canCancel:false};
       const queued=snapshot?.queue.find(item=>requestEngineId(record.domain,item)===engineId);
       const relatedHistory=(snapshot?.history||[]).filter(item=>requestHistoryId(record.domain,item)===engineId);
       const failed=relatedHistory.find(item=>String(item.eventType||'').toLowerCase().includes('failed'));
@@ -769,7 +805,7 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
         status='searching';statusLabel='Searching';message='The media engine is checking configured sources for an eligible release.';
       }
       const pending=status==='requested'||status==='searching';
-      return{...record,status,statusLabel,message,canCorrect:pending,canCancel:pending};
+      return{...record,payload:undefined,status,statusLabel,message,canCorrect:pending,canCancel:pending,canApprove:false,canReject:false};
     }).sort((left,right)=>String(right.requestedAt).localeCompare(String(left.requestedAt)));
   }
   async function dashboardHistory(days=30){
@@ -919,27 +955,54 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
         if(url.pathname==='/api/discover/request'&&req.method==='POST'){
           if(!permitted(res,session,'discover')||!requireCsrf(req,res,session))return;
           const input=await body(req),domain=String(input.domain||''),tmdbId=Number(input.tmdbId),payload=input.payload;
-          if(!['movie','tv'].includes(domain)||!Number.isInteger(tmdbId)||tmdbId<=0||!payload||typeof payload!=='object')throw new Error('Choose a valid movie or television title');
-          const metadata=await discovery.details(domain,tmdbId),identity={tmdbId,tvdbId:metadata.tvdbId};
-          if(!payloadMatchesIdentity(domain,identity,payload))throw new Error('The engine match does not have the requested external ID. Reopen Discover and try again.');
-          const [profiles,roots]=await Promise.all([management.execute(domain,'profiles','GET',{}),management.execute(domain,'rootFolders','GET',{})]);
-          if(!roots.some(root=>String(root.path)===String(payload.rootFolderPath)))throw new Error('Choose a configured library folder');
-          if(!profiles.some(profile=>Number(profile.id)===Number(payload.qualityProfileId)))throw new Error('Choose a configured quality profile');
-          const result=await management.execute(domain,'library','POST',{payload});
+          const {metadata}=await validatedDiscoverRequest(domain,tmdbId,payload),approvalRequired=session.user.role!=='administrator'&&session.user.requestApprovalRequired===true;
           const now=new Date().toISOString(),requestRecord={
-            id:`request_${randomUUID()}`,userId:session.user.id,domain,engineId:Number(result.id),
-            tmdbId,tvdbId:metadata.tvdbId||null,title:result.title||metadata.title||payload.title||'Untitled request',
-            year:Number(result.year||metadata.year||payload.year)||null,requestedAt:now,updatedAt:now,
+            id:`request_${randomUUID()}`,userId:session.user.id,domain,engineId:null,
+            tmdbId,tvdbId:metadata.tvdbId||null,title:metadata.title||payload.title||'Untitled request',
+            year:Number(metadata.year||payload.year)||null,requestedAt:now,updatedAt:now,...requestMetadata(metadata),
             searchNow:domain==='movie'?payload.addOptions?.searchForMovie!==false:payload.addOptions?.searchForMissingEpisodes!==false,
-            status:'requested'
+            status:approvalRequired?'pending_approval':'approving',payload
           };
           await requestStore.update(current=>{current.requests=current.requests||[];current.requests.unshift(requestRecord);return requestRecord;});
-          sync.invalidate(domain);setTimeout(()=>sync.synchronize(domain).catch(()=>{}),2_000);
-          return json(res,201,{result,request:requestRecord});
+          if(approvalRequired)return json(res,202,{result:null,request:{...requestRecord,payload:undefined}});
+          try{
+            const result=await addRequestToEngine(requestRecord);
+            return json(res,201,{result,request:{...requestRecord,engineId:Number(result.id),status:'requested',payload:undefined}});
+          }catch(error){
+            await requestStore.update(current=>{const item=(current.requests||[]).find(value=>value.id===requestRecord.id);if(item)Object.assign(item,{status:'failed',message:'The request could not be added to the media engine.',updatedAt:new Date().toISOString(),payload:undefined});});
+            throw error;
+          }
         }
         if(url.pathname==='/api/requests/mine'&&req.method==='GET'){
           if(!permitted(res,session,'discover'))return;
           return json(res,200,{items:await liveUserRequests(session.user.id)});
+        }
+        if(url.pathname==='/api/requests'&&req.method==='GET'){
+          if(!administrator(res,session))return;
+          const users=new Map((await auth.listUsers()).map(user=>[user.id,{id:user.id,name:user.name,username:user.username}]));
+          return json(res,200,{items:(await liveUserRequests()).map(item=>({...item,user:users.get(item.userId)||{id:item.userId,name:'Deleted user',username:'deleted'}}))});
+        }
+        const administerRequestMatch=url.pathname.match(/^\/api\/requests\/(request_[A-Za-z0-9_-]+)\/(approve|reject)$/);
+        if(administerRequestMatch&&req.method==='POST'){
+          if(!administrator(res,session)||!requireCsrf(req,res,session))return;
+          const [,requestId,action]=administerRequestMatch,stored=await requestStore.read(),record=(stored.requests||[]).find(item=>item.id===requestId);
+          if(!record)return json(res,404,{error:{code:'not_found',message:'Request was not found.'}});
+          if(record.status!=='pending_approval')return json(res,409,{error:{code:'request_already_decided',message:'This request is no longer awaiting approval.'}});
+          if(action==='reject'){
+            const input=await body(req),updatedAt=new Date().toISOString(),message=String(input.reason||'').trim().slice(0,240)||'An administrator declined this request.';
+            await requestStore.update(current=>{const item=(current.requests||[]).find(value=>value.id===record.id&&value.status==='pending_approval');if(item)Object.assign(item,{status:'rejected',message,rejectedAt:updatedAt,rejectedBy:session.user.id,updatedAt,payload:undefined});});
+            return json(res,200,{rejected:true});
+          }
+          const claimed=await requestStore.update(current=>{const item=(current.requests||[]).find(value=>value.id===record.id);if(!item||item.status!=='pending_approval')return false;Object.assign(item,{status:'approving',updatedAt:new Date().toISOString()});return true;});
+          if(!claimed)return json(res,409,{error:{code:'request_already_decided',message:'This request is already being handled.'}});
+          try{
+            const result=await addRequestToEngine(record);
+            await requestStore.update(current=>{const item=(current.requests||[]).find(value=>value.id===record.id);if(item)Object.assign(item,{approvedBy:session.user.id});});
+            return json(res,200,{approved:true,result});
+          }catch(error){
+            await requestStore.update(current=>{const item=(current.requests||[]).find(value=>value.id===record.id);if(item)Object.assign(item,{status:'pending_approval',updatedAt:new Date().toISOString()});});
+            throw error;
+          }
         }
         const ownRequestMatch=url.pathname.match(/^\/api\/requests\/mine\/(request_[A-Za-z0-9_-]+)$/);
         if(ownRequestMatch&&req.method==='DELETE'){
@@ -947,10 +1010,10 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
           const records=await liveUserRequests(session.user.id),record=records.find(item=>item.id===ownRequestMatch[1]);
           if(!record)return json(res,404,{error:{code:'not_found',message:'Request was not found.'}});
           if(!record.canCancel)return json(res,409,{error:{code:'request_not_cancellable',message:'This request can no longer be cancelled because downloading or importing has started.'}});
-          await management.execute(record.domain,'library','DELETE',{id:Number(record.engineId),query:record.domain==='movie'?{deleteFiles:false,addImportExclusion:false}:{deleteFiles:false,addImportListExclusion:false}});
+          if(record.status!=='pending_approval')await management.execute(record.domain,'library','DELETE',{id:Number(record.engineId),query:record.domain==='movie'?{deleteFiles:false,addImportExclusion:false}:{deleteFiles:false,addImportListExclusion:false}});
           const updatedAt=new Date().toISOString();
-          await requestStore.update(current=>{const item=(current.requests||[]).find(value=>value.id===record.id&&value.userId===session.user.id);if(item)Object.assign(item,{status:'rejected',message:'You cancelled this request before it was imported.',updatedAt});});
-          sync.invalidate(record.domain);
+          await requestStore.update(current=>{const item=(current.requests||[]).find(value=>value.id===record.id&&value.userId===session.user.id);if(item)Object.assign(item,{status:'rejected',message:'You cancelled this request before it was approved or imported.',updatedAt,payload:undefined});});
+          if(record.status!=='pending_approval')sync.invalidate(record.domain);
           return json(res,200,{cancelled:true});
         }
         const correctRequestMatch=url.pathname.match(/^\/api\/requests\/mine\/(request_[A-Za-z0-9_-]+)\/correct$/);
@@ -961,10 +1024,22 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
           if(!record.canCorrect)return json(res,409,{error:{code:'request_not_correctable',message:'The match can only be corrected before downloading or importing starts.'}});
           const input=await body(req),tmdbId=Number(input.tmdbId);
           if(!Number.isInteger(tmdbId)||tmdbId<=0)throw new Error('Choose a valid TMDB match');
+          if(record.status==='pending_approval'){
+            const stored=await requestStore.read(),source=(stored.requests||[]).find(item=>item.id===record.id&&item.userId===session.user.id);
+            if(!source?.payload)throw new Error('The pending request options are no longer available.');
+            const metadata=await discovery.details(record.domain,tmdbId),identity={tmdbId,tvdbId:metadata.tvdbId},payload={...source.payload,tmdbId,...(record.domain==='tv'?{tvdbId:metadata.tvdbId}:{})};let match;
+            for(const term of lookupTermsForIdentity(record.domain,identity)){const matches=await management.execute(record.domain,'lookup','GET',{query:{term}});match=exactEngineMatch(record.domain,identity,Array.isArray(matches)?matches:[]);if(match)break;}
+            if(!match)throw new Error('The media engine could not resolve that TMDB title. Try another match.');
+            const correctedPayload={...match,rootFolderPath:payload.rootFolderPath,qualityProfileId:payload.qualityProfileId,monitored:payload.monitored,addOptions:payload.addOptions,...(record.domain==='movie'?{minimumAvailability:payload.minimumAvailability}:{monitor:payload.monitor,seriesType:payload.seriesType,seasonFolder:true})};
+            await validatedDiscoverRequest(record.domain,tmdbId,correctedPayload);
+            const updatedAt=new Date().toISOString();
+            await requestStore.update(current=>{const item=(current.requests||[]).find(value=>value.id===record.id&&value.userId===session.user.id);if(item)Object.assign(item,{tmdbId,tvdbId:metadata.tvdbId||null,title:metadata.title,year:Number(metadata.year)||null,payload:correctedPayload,updatedAt,...requestMetadata(metadata)});});
+            return json(res,200,{corrected:true,result:{id:null,title:metadata.title,tmdbId}});
+          }
           const result=await rematchMedia({domain:record.domain,mediaId:Number(record.engineId),tmdbId});
           if(record.searchNow!==false)await management.execute(record.domain,'commands','POST',{payload:record.domain==='movie'?{name:'MoviesSearch',movieIds:[Number(result.id)]}:{name:'SeriesSearch',seriesId:Number(result.id)}}).catch(()=>{});
           const metadata=await discovery.details(record.domain,tmdbId),updatedAt=new Date().toISOString();
-          await requestStore.update(current=>{const item=(current.requests||[]).find(value=>value.id===record.id&&value.userId===session.user.id);if(item)Object.assign(item,{engineId:Number(result.id),tmdbId,tvdbId:metadata.tvdbId||null,title:result.title||metadata.title,year:Number(metadata.year)||null,status:'requested',requestedAt:updatedAt,updatedAt});});
+          await requestStore.update(current=>{const item=(current.requests||[]).find(value=>value.id===record.id&&value.userId===session.user.id);if(item)Object.assign(item,{engineId:Number(result.id),tmdbId,tvdbId:metadata.tvdbId||null,title:result.title||metadata.title,year:Number(metadata.year)||null,status:'requested',requestedAt:updatedAt,updatedAt,...requestMetadata(metadata)});});
           return json(res,200,{corrected:true,result});
         }
         if(url.pathname==='/api/discover/enrich'&&req.method==='GET'){
