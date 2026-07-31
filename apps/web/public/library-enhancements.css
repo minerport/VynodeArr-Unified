@@ -268,22 +268,42 @@
 
 @media (max-width: 720px) {
   .calendar-shell {
-    overflow: auto;
+    overflow: hidden;
   }
 
   .calendar-weekdays,
   .calendar-grid {
-    min-width: 44rem;
+    min-width: 0;
   }
+
+  .calendar-weekdays span { overflow: hidden; padding: .55rem 0; font-size: 0; }
+  .calendar-weekdays span::first-letter { font-size: .68rem; }
+  .calendar-day { min-height: 3.35rem; padding: .38rem; text-align: center; }
+  .calendar-date { display: grid; width: 1.8rem; height: 1.8rem; margin: 0 auto; place-items: center; border-radius: 50%; font-size: .75rem; }
+  .calendar-day.today .calendar-date { width: 1.8rem; height: 1.8rem; }
+  .calendar-count { top: .2rem; right: .2rem; min-width: 1rem; padding: .05rem .25rem; font-size: .55rem; }
+  .calendar-day-events { display: flex; min-height: .35rem; align-items: center; justify-content: center; gap: .18rem; margin-top: .18rem; }
+  .calendar-day-event { width: .32rem; height: .32rem; padding: 0; border: 0; border-radius: 50%; background: #4d8dff !important; font-size: 0; }
+  .calendar-day-event.tv { background: var(--green) !important; }
+  .calendar-day-events small { display: none; }
 
   .calendar-agenda-list {
     grid-template-columns: 1fr;
   }
 
+  .calendar-agenda { padding: .85rem; }
+  .calendar-agenda-card { grid-template-columns: 2.6rem minmax(0,1fr) auto; min-height: 4.75rem; padding: .6rem; }
+  .calendar-agenda-card img { width: 2.6rem; height: 3.8rem; }
+
   .calendar-toolbar {
-    align-items: flex-start;
+    align-items: stretch;
     flex-direction: column;
   }
+
+  .calendar-toolbar > div:first-child { display: grid; grid-template-columns: 44px minmax(0,1fr) 44px; width: 100%; }
+  .calendar-toolbar > div:first-child strong { min-width: 0; }
+  .calendar-toolbar > div:last-child { display: grid !important; grid-template-columns: 1fr 1fr; width: 100%; gap: .5rem !important; }
+  .calendar-toolbar > div:last-child .check { justify-content: center; padding: .45rem .65rem; border: 1px solid var(--line); border-radius: .65rem; background: var(--panel2); }
 }
 
 .attention-breakdown {

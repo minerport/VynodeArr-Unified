@@ -60,6 +60,20 @@ interface ShellControlsOptions{
 }
 
 export function wireShellControls(options:ShellControlsOptions){
+  const sidebar=document.querySelector<HTMLElement>('#primary-sidebar');
+  const scrim=document.querySelector<HTMLButtonElement>('.nav-scrim');
+  let lastFocused:HTMLElement|null=null;
+  const setNavigation=(open:boolean)=>{
+    if(document.body.classList.contains('nav-open')!==open)document.body.classList.toggle('nav-open');
+    options.menuButton.setAttribute('aria-expanded',String(open));
+    options.menuButton.setAttribute('aria-label',open?'Close navigation':'Open navigation');
+    if(open){
+      lastFocused=document.activeElement instanceof HTMLElement?document.activeElement:null;
+      window.requestAnimationFrame(()=>sidebar?.querySelector<HTMLElement>('a,button')?.focus());
+    }else if(lastFocused&&document.contains(lastFocused)){
+      lastFocused.focus();
+    }
+  };
   options.logoutButton.addEventListener('click',async()=>{
     await options.request('/api/auth/logout',{method:'POST'});
     options.state.csrf=null;
@@ -68,7 +82,24 @@ export function wireShellControls(options:ShellControlsOptions){
     options.state.sessionMessage='Signed out successfully.';
     await options.bootstrap();
   });
-  options.menuButton.addEventListener('click',()=>document.body.classList.toggle('nav-open'));
+  options.menuButton.addEventListener('click',()=>setNavigation(!document.body.classList.contains('nav-open')));
+  scrim?.addEventListener('click',()=>setNavigation(false));
+  sidebar?.addEventListener('click',event=>{
+    if((event.target as Element).closest('a[href]'))setNavigation(false);
+  });
+  document.addEventListener('keydown',event=>{
+    if(event.key==='Escape'&&document.body.classList.contains('nav-open')){
+      event.preventDefault();
+      setNavigation(false);
+      return;
+    }
+    if(event.key!=='Tab'||!document.body.classList.contains('nav-open')||!sidebar)return;
+    const focusable=[...sidebar.querySelectorAll<HTMLElement>('a[href],button:not([disabled]),select,input')].filter(element=>element.offsetParent!==null);
+    if(!focusable.length)return;
+    const first=focusable[0],last=focusable.at(-1)!;
+    if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}
+    else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
+  });
   options.globalSearch.addEventListener('input',()=>{
     options.state.query=options.globalSearch.value.toLowerCase();
     const route=location.hash.slice(1);

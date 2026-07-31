@@ -27,8 +27,18 @@ consistent experience and account system.
 
 ## Current release
 
-Version **2.0.19** is ready for real-time testing on Unraid, Windows, and
-standard Docker installations. A global notification bell now keeps request
+Version **2.0.20** is ready for real-time testing on Unraid, Windows, and
+standard Docker installations. The authenticated interface is now optimized
+for phone-sized displays without removing desktop capabilities or information.
+Navigation, settings sections, media libraries, detail views, queue controls,
+forms, and dialogs use touch-friendly responsive layouts with safe-area support.
+
+The Calendar now shows the complete month without horizontal scrolling on a
+phone. Compact date cells preserve Movie and TV activity through event counts
+and color-coded dots, while the selected-day agenda retains posters and full
+event details.
+
+A global notification bell keeps request
 activity visible from every page. Administrators are alerted when a request
 needs approval, while users receive updates when their requests are approved,
 declined, fail, or finish importing.

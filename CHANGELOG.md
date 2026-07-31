@@ -7,6 +7,36 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.20] - 2026-07-31
+
+### Added
+
+- Added an accessible mobile navigation drawer with a backdrop, outside-click
+  and Escape closing, focus containment, and accurate expanded-state labels.
+- Added safe-area support for notched phones and devices with home indicators.
+- Calendar dates now expose complete accessible labels including the date and
+  number of scheduled items.
+
+### Changed
+
+- Account, Service Settings, and System navigation now becomes a visible
+  two-column control on phones instead of hiding destinations in a long tab
+  scroller.
+- Mobile library filters, sorting, view controls, poster actions, queue cards,
+  media details, forms, and modal actions now use touch-friendly sizing and
+  compact responsive layouts without removing capabilities or information.
+- The mobile Calendar now shows the complete month without horizontal
+  scrolling, using compact date cells, event counts, Movie/TV activity dots,
+  segmented filters, and a poster-rich selected-day agenda.
+- Long mobile dialogs use bounded scrolling and sticky action footers.
+
+### Fixed
+
+- Fixed undersized mobile menu, notification, poster-action, sort, checkbox,
+  and queue-selection targets.
+- Fixed hidden mobile section destinations and page-level horizontal overflow
+  across administrative and user-facing routes.
+
 ## [2.0.19] - 2026-07-30
 
 ### Added
@@ -462,7 +492,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.19...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.20...HEAD
+[2.0.20]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.19...v2.0.20
 [2.0.19]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.18...v2.0.19
 [2.0.18]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.17...v2.0.18
 [2.0.17]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.16...v2.0.17

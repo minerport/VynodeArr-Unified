@@ -62,3 +62,15 @@
 .vynode-detail-surface>.detail-backdrop img{object-fit:cover;object-position:center}
 .vynode-detail-surface>.detail-hero:after{content:none}
 .vynode-detail-surface .detail-copy{background:none!important}
+@media(max-width:720px){
+  .vynode-detail-modal-host{padding:0}
+  .vynode-detail-surface{width:100%;max-height:100dvh;border-radius:0}
+  .vynode-detail-surface>.detail-hero{grid-template-columns:4.5rem minmax(0,1fr);padding-top:4.8rem}
+  .vynode-detail-surface .detail-art{width:4.5rem}
+  .vynode-detail-surface .detail-copy .lede{font-size:.78rem;-webkit-line-clamp:3}
+  .vynode-detail-surface .detail-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));max-height:9.5rem;padding-bottom:.25rem;overflow-y:auto}
+  .vynode-detail-surface .detail-actions button{min-width:0;min-height:44px;padding:.55rem .45rem}
+  .vynode-detail-surface>.fact-grid div{min-width:0}
+  .vynode-detail-surface>.fact-grid strong{overflow-wrap:anywhere}
+  .enrichment-facts{grid-template-columns:repeat(2,minmax(0,1fr))}
+}

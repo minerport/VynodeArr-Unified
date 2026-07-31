@@ -18,18 +18,19 @@ const stylesheet=sizes.find(file=>file.name==='vynodearr-react.css');
 // Keep the transitional application shell near its current minified baseline
 // while typed routes continue moving out into independently loaded chunks.
 // The shared stylesheet now includes the theme-wide glass component system and
-// the movie/TV template review editors and account page-access controls. Keep
-// headroom small enough to catch accidental growth while accounting for those
-// intentional surfaces.
+// the movie/TV template review editors, account page-access controls, and the
+// shared mobile interaction system. Keep headroom small enough to catch
+// accidental growth while accounting for those intentional surfaces.
 const limits={entry:300_000,shell:252_000,route:45_000,css:69_000};
+const mobileAllowance={shell:1_000,css:3_000};
 const failures=[];
 
 if(!entry)failures.push('The React entry bundle was not produced.');
 else if(entry.bytes>limits.entry)failures.push(`React entry is ${entry.bytes} bytes (limit ${limits.entry}).`);
 if(!shell)failures.push('The TypeScript application shell bundle was not produced.');
-else if(shell.bytes>limits.shell)failures.push(`Application shell is ${shell.bytes} bytes (limit ${limits.shell}).`);
+else if(shell.bytes>limits.shell+mobileAllowance.shell)failures.push(`Application shell is ${shell.bytes} bytes (limit ${limits.shell+mobileAllowance.shell}).`);
 for(const chunk of routeChunks)if(chunk.bytes>limits.route)failures.push(`${chunk.name} is ${chunk.bytes} bytes (route limit ${limits.route}).`);
-if(stylesheet&&stylesheet.bytes>limits.css)failures.push(`React stylesheet is ${stylesheet.bytes} bytes (limit ${limits.css}).`);
+if(stylesheet&&stylesheet.bytes>limits.css+mobileAllowance.css)failures.push(`React stylesheet is ${stylesheet.bytes} bytes (limit ${limits.css+mobileAllowance.css}).`);
 
 if(failures.length){
   console.error(`Web bundle budget failed:\n- ${failures.join('\n- ')}`);
