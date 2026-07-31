@@ -77,3 +77,8 @@
   .react-poster-quick-actions .react-poster-quality{min-height:32px}
   .react-library-card-actions :is(a,button){min-height:44px}
 }
+@media(max-width:760px){
+  .react-poster-quick-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.35rem}
+  .react-poster-quick-actions a,.react-poster-quick-actions button{width:100%;min-width:0;min-height:44px;padding:.45rem .3rem;border-radius:.55rem;font-size:.66rem}
+  .react-poster-quick-actions .react-poster-quality{grid-column:1/-1;min-height:28px;padding:.3rem .45rem}
+}

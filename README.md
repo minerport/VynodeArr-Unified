@@ -38,6 +38,12 @@ phone. Compact date cells preserve Movie and TV activity through event counts
 and color-coded dots, while the selected-day agenda retains posters and full
 event details.
 
+Real-device refinements keep detail modals inside the phone viewport, preserve
+2:3 request and Wanted poster artwork, prevent library-card actions from
+overlapping, and keep the navigation rail independently scrollable. History can
+be narrowed to Movies or Television, while mobile headings and request-status
+cards retain consistent spacing and alignment.
+
 A global notification bell keeps request
 activity visible from every page. Administrators are alerted when a request
 needs approval, while users receive updates when their requests are approved,

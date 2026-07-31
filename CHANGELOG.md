@@ -28,6 +28,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - The mobile Calendar now shows the complete month without horizontal
   scrolling, using compact date cells, event counts, Movie/TV activity dots,
   segmented filters, and a poster-rich selected-day agenda.
+- History now includes a media-library selector so long activity timelines can
+  be narrowed to Movies or Television without losing the combined view.
 - Long mobile dialogs use bounded scrolling and sticky action footers.
 
 ### Fixed
@@ -36,6 +38,12 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   and queue-selection targets.
 - Fixed hidden mobile section destinations and page-level horizontal overflow
   across administrative and user-facing routes.
+- Fixed the Calendar selected-day agenda being treated as the mobile navigation
+  sidebar and shifted off-screen.
+- Fixed mobile media-detail modals escaping the viewport, stretched request and
+  Wanted posters, crowded library-card actions, and non-scrollable navigation.
+- Fixed mobile page-heading letter collisions and aligned request-status card
+  numbers and labels into consistent rows.
 
 ## [2.0.19] - 2026-07-30
 

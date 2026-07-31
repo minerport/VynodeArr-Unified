@@ -8,6 +8,7 @@ import "./react-history.css";
 
 type HistoryCategory =
   "all" | "imported" | "grabbed" | "failed" | "changed" | "deleted" | "other";
+type HistoryDomainFilter = "all" | HistoryDomain;
 type EventPresentation = {
   category: Exclude<HistoryCategory, "all">;
   label: string;
@@ -202,6 +203,7 @@ export function HistoryView({ options }: { options: HistoryMountOptions }) {
   const [items, setItems] = useState(options.items || []),
     [query, setQuery] = useState(""),
     [category, setCategory] = useState<HistoryCategory>("all"),
+    [domain, setDomain] = useState<HistoryDomainFilter>("all"),
     [refreshing, setRefreshing] = useState(false),
     [loading, setLoading] = useState(!options.items),
     [loadError, setLoadError] = useState("");
@@ -320,6 +322,19 @@ export function HistoryView({ options }: { options: HistoryMountOptions }) {
       </div>
       <div className="react-history-toolbar">
         <label>
+          Media library
+          <select
+            value={domain}
+            onChange={(event) =>
+              setDomain(event.target.value as HistoryDomainFilter)
+            }
+          >
+            <option value="all">Movies &amp; television</option>
+            <option value="movie">Movies only</option>
+            <option value="tv">Television only</option>
+          </select>
+        </label>
+        <label>
           Find activity
           <input
             value={query}
@@ -345,16 +360,16 @@ export function HistoryView({ options }: { options: HistoryMountOptions }) {
         </label>
       </div>
       <div className="system-domain-grid">
-        <HistorySection
+        {domain !== "tv" ? <HistorySection
           domain="movie"
           items={filtered.filter((item) => item.domain === "movie")}
           options={options}
-        />
-        <HistorySection
+        /> : null}
+        {domain !== "movie" ? <HistorySection
           domain="tv"
           items={filtered.filter((item) => item.domain === "tv")}
           options={options}
-        />
+        /> : null}
       </div>
     </div>
   );

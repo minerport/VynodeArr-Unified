@@ -1134,3 +1134,37 @@ input[type="range"] {
     background-color: var(--panel);
   }
 }
+
+/* Keep scrolling on the actual navigation rail without capturing route asides. */
+.app-shell > aside {
+  height: 100dvh;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+@media (max-width: 760px) {
+  .hero h1,
+  .detail-hero h1 {
+    max-width: 100%;
+    margin-top: .35rem;
+    font-size: clamp(2rem, 9vw, 2.35rem);
+    line-height: 1.08;
+    letter-spacing: -.03rem;
+    overflow-wrap: anywhere;
+    text-rendering: optimizeLegibility;
+  }
+
+  .react-calendar .calendar-agenda {
+    position: static;
+    inset: auto;
+    width: auto;
+    height: auto;
+    max-height: none;
+    padding: .85rem;
+    transform: none;
+    overflow: visible;
+    border-right: 1px solid var(--line);
+  }
+}
