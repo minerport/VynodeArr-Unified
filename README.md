@@ -27,9 +27,21 @@ consistent experience and account system.
 
 ## Current release
 
-Version **2.0.20** is ready for real-time testing on Unraid, Windows, and
-standard Docker installations. The authenticated interface is now optimized
-for phone-sized displays without removing desktop capabilities or information.
+Version **2.0.21** is available for production use on Unraid, Windows, and
+standard Docker installations. Discover now identifies existing library titles
+by authoritative TMDB, TVDB, and IMDb identifiers, preventing alternate titles
+or localized names from appearing available to request when they are already
+managed.
+
+Administrators now have a **Library Health** diagnostic overview under Media
+Management. It reports identity, duplicate, metadata, artwork, storage,
+monitoring, missing-media, and quality-cutoff findings, then routes each finding
+to the existing title, Wanted, or Root Folders workflow that can resolve it.
+Diagnostics remain available independently from engine media-management
+settings and clearly explain when the connected engine cannot provide them.
+
+The authenticated interface remains optimized for phone-sized displays without
+removing desktop capabilities or information.
 Navigation, settings sections, media libraries, detail views, queue controls,
 forms, and dialogs use touch-friendly responsive layouts with safe-area support.
 
@@ -209,7 +221,7 @@ Build hand-picked collections or combine smart rules such as title, year, decade
 | Platform | Best for | Start here |
 |---|---|---|
 | Unraid | Always-on media servers | Use the Community Apps template or [`templates/vynodearr.xml`](templates/vynodearr.xml) |
-| Windows 10/11 x64 | Desktop testing or a Windows host | Download the Windows archive from the [latest release](https://github.com/minerport/VynodeArr-Unified/releases/latest) |
+| Windows 10/11 x64 | Desktop installation or a Windows host | Download the Windows archive from the [latest release](https://github.com/minerport/VynodeArr-Unified/releases/latest) |
 
 ### Unraid
 

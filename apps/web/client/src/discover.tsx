@@ -18,10 +18,18 @@ const libraryKeys=(domain:DiscoverDomain,title:string,year?:number|null)=>[
   libraryKey(domain,title,year),
   ...(domain==='tv'?[`${domain}:${normalize(title)}`]:[]),
 ];
-const findLibraryStatus=(library:Map<string,DiscoverLibraryStatus>,item:Pick<DiscoverItem,'domain'|'title'|'year'>)=>
-  libraryKeys(item.domain,item.title,item.year).map(key=>library.get(key)).find(Boolean);
-const addLibraryStatus=(library:Map<string,DiscoverLibraryStatus>,domain:DiscoverDomain,item:Pick<LibraryItem,'title'|'year'>,status:DiscoverLibraryStatus)=>{
-  libraryKeys(domain,item.title,item.year).forEach(key=>library.set(key,status));
+const identityKeys=(domain:DiscoverDomain,item:Pick<DiscoverItem,'tmdbId'|'tvdbId'|'imdbId'>|Pick<LibraryItem,'tmdbId'|'tvdbId'|'imdbId'>)=>[
+  ...(item.tmdbId?[`${domain}:tmdb:${item.tmdbId}`]:[]),
+  ...(domain==='tv'&&item.tvdbId?[`${domain}:tvdb:${item.tvdbId}`]:[]),
+  ...(item.imdbId?[`${domain}:imdb:${String(item.imdbId).toLowerCase()}`]:[]),
+];
+const allLibraryKeys=(domain:DiscoverDomain,item:Pick<LibraryItem,'title'|'year'|'tmdbId'|'tvdbId'|'imdbId'>)=>[
+  ...identityKeys(domain,item),...libraryKeys(domain,item.title,item.year),
+];
+const findLibraryStatus=(library:Map<string,DiscoverLibraryStatus>,item:DiscoverItem)=>
+  [...identityKeys(item.domain,item),...libraryKeys(item.domain,item.title,item.year)].map(key=>library.get(key)).find(Boolean);
+const addLibraryStatus=(library:Map<string,DiscoverLibraryStatus>,domain:DiscoverDomain,item:LibraryItem,status:DiscoverLibraryStatus)=>{
+  allLibraryKeys(domain,item).forEach(key=>library.set(key,status));
 };
 const mergeUnique=(pages:DiscoverPage[])=>{
   const seen=new Set<string>();
@@ -84,13 +92,11 @@ export function DiscoverView({options}:{options:DiscoverMountOptions}){
     setPages(current=>({...current,[kind]:value.page}));
   },[options]);
   const refreshLibrary=useCallback(async()=>{
-    const [movies,tv]=await Promise.all([options.request<{items:LibraryItem[]}>('/api/media/movies'),options.request<{items:LibraryItem[]}>('/api/media/tv')]);
+    const value=await options.request<{items:(LibraryItem&{domain:DiscoverDomain})[]}>('/api/discover/library-presence');
     const next=new Map<string,DiscoverLibraryStatus>();
     const records=new Map<string,LibraryItem>();
-    movies.items.forEach(item=>addLibraryStatus(next,'movie',item,libraryStatus('movie',item)));
-    tv.items.forEach(item=>addLibraryStatus(next,'tv',item,libraryStatus('tv',item)));
-    movies.items.forEach(item=>libraryKeys('movie',item.title,item.year).forEach(key=>records.set(key,item)));
-    tv.items.forEach(item=>libraryKeys('tv',item.title,item.year).forEach(key=>records.set(key,item)));
+    value.items.forEach(item=>addLibraryStatus(next,item.domain,item,item.status||libraryStatus(item.domain,item)));
+    value.items.forEach(item=>allLibraryKeys(item.domain,item).forEach(key=>records.set(key,item)));
     setLibrary(next);
     setLibraryItems(records);
   },[options]);
@@ -173,7 +179,7 @@ export function DiscoverView({options}:{options:DiscoverMountOptions}){
   },[browseContext]);
 
   return <div className="react-discover">
-    {selected?<DiscoverDetail item={selected} libraryItem={libraryKeys(selected.domain,selected.title,selected.year).map(key=>libraryItems.get(key)).find(Boolean)} options={options} onRequest={setRequesting} onClose={()=>setSelected(null)}/>:null}
+    {selected?<DiscoverDetail item={selected} libraryItem={[...identityKeys(selected.domain,selected),...libraryKeys(selected.domain,selected.title,selected.year)].map(key=>libraryItems.get(key)).find(Boolean)} options={options} onRequest={setRequesting} onClose={()=>setSelected(null)}/>:null}
     {requesting?<DiscoverRequest item={requesting} options={options} onClose={()=>setRequesting(null)} onRequested={requested=>{
       setLibrary(current=>{
         const next=new Map(current);

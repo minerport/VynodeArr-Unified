@@ -12,6 +12,8 @@ export interface DiscoverPage{page:number;totalPages:number;totalResults:number;
 export interface DiscoverCategory{id:number;name:string;domain:DiscoverDomain;backdrop:string|null}
 export interface LibraryItem{
   id:string|number;title:string;year?:number;hasFile?:boolean;sizeOnDisk?:number;
+  tmdbId?:number|null;tvdbId?:number|null;imdbId?:string|null;
+  status?:DiscoverLibraryStatus;canView?:boolean;
   episodeProgress?:string;artwork?:{url?:string};backdrop?:{url?:string};
 }
 export type DiscoverLibraryStatus='pending'|'available';

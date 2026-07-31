@@ -1,4 +1,6 @@
 export type MediaManagementDomain='movie'|'tv';
+export type LibraryDiagnostic={domain:MediaManagementDomain;mediaId:string;title:string;href:string;actionLabel:string;code:string;severity:'critical'|'warning'|'info';summary:string;details:string;recommendation:string};
+export type LibraryDiagnostics={generatedAt:string;summary:{total:number;critical:number;warning:number;info:number};items:LibraryDiagnostic[]};
 export type NamingAuditFile={id?:number;existingPath:string;newPath:string};
 export type NamingAuditResult={domain:MediaManagementDomain;mediaId:number;title:string;currentPath:string;destinationPath:string;folderChange:boolean;files:NamingAuditFile[]};
 export type NamingAuditJob={id:string;domain:MediaManagementDomain;status:'running'|'completed'|'failed';total:number;completed:number;matching:number;mismatched:number;failed:number;currentTitle:string;results:NamingAuditResult[];errors:Array<{title:string;message:string}>};

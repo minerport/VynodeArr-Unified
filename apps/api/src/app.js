@@ -743,10 +743,16 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
     rating:Number(metadata.rating||0),genres:Array.isArray(metadata.genres)?metadata.genres.slice(0,8):[],
     runtime:Number(metadata.runtime||0)||null,certification:metadata.certification||null
   });
+  async function existingLibraryItem(domain,identity){
+    const value=await management.execute(domain,'library','GET',{}),items=Array.isArray(value)?value:value?.records||[];
+    const tmdbId=Number(identity.tmdbId||0),tvdbId=Number(identity.tvdbId||0),imdbId=String(identity.imdbId||'').toLowerCase();
+    return items.find(item=>(tmdbId&&Number(item.tmdbId)===tmdbId)||(domain==='tv'&&tvdbId&&Number(item.tvdbId)===tvdbId)||(imdbId&&String(item.imdbId||'').toLowerCase()===imdbId))||null;
+  }
   async function validatedDiscoverRequest(domain,tmdbId,payload){
     if(!['movie','tv'].includes(domain)||!Number.isInteger(tmdbId)||tmdbId<=0||!payload||typeof payload!=='object')throw new Error('Choose a valid movie or television title');
-    const metadata=await discovery.details(domain,tmdbId),identity={tmdbId,tvdbId:metadata.tvdbId};
+    const metadata=await discovery.details(domain,tmdbId),identity={tmdbId,tvdbId:metadata.tvdbId,imdbId:metadata.imdbId};
     if(!payloadMatchesIdentity(domain,identity,payload))throw new Error('The engine match does not have the requested external ID. Reopen Discover and try again.');
+    if(await existingLibraryItem(domain,identity))throw new Error(`${metadata.title||'This title'} is already in your library.`);
     const [profiles,roots]=await Promise.all([management.execute(domain,'profiles','GET',{}),management.execute(domain,'rootFolders','GET',{})]);
     if(!roots.some(root=>String(root.path)===String(payload.rootFolderPath)))throw new Error('Choose a configured library folder');
     if(!profiles.some(profile=>Number(profile.id)===Number(payload.qualityProfileId)))throw new Error('Choose a configured quality profile');
@@ -984,6 +990,42 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
         if(url.pathname==='/api/discover/genres'&&req.method==='GET'){if(!permitted(res,session,'discover'))return;return json(res,200,{items:await discovery.genres(url.searchParams.get('domain'))});}
         if(url.pathname==='/api/discover/categories'&&req.method==='GET'){if(!permitted(res,session,'discover'))return;return json(res,200,{items:await discovery.categories(url.searchParams.get('type'))});}
         if(url.pathname==='/api/discover/browse'&&req.method==='GET'){if(!permitted(res,session,'discover'))return;return json(res,200,await discovery.browse(Object.fromEntries(url.searchParams)));}
+        if(url.pathname==='/api/discover/library-presence'&&req.method==='GET'){
+          if(!permitted(res,session,'discover'))return;
+          const [movies,tvItems]=await Promise.all([sync.list('movie'),sync.list('tv')]);
+          const presence=(domain,item)=>({
+            id:item.id,domain,title:item.title,year:item.year||null,tmdbId:item.tmdbId||null,tvdbId:item.tvdbId||null,imdbId:item.imdbId||null,
+            status:domain==='movie'?(item.hasFile||Number(item.sizeOnDisk||0)>0?'available':'pending'):(Number.parseInt(item.episodeProgress||'0',10)>0||Number(item.sizeOnDisk||0)>0?'available':'pending'),
+            canView:session.user.role==='administrator'||session.user.permissions?.[domain==='movie'?'movies':'tv']===true
+          });
+          return json(res,200,{items:[...movies.map(item=>presence('movie',item)),...tvItems.map(item=>presence('tv',item))]});
+        }
+        if(url.pathname==='/api/library/diagnostics'&&req.method==='GET'){
+          if(!administrator(res,session))return;
+          const requestedDomain=url.searchParams.get('domain'),domains=['movie','tv'].filter(value=>!requestedDomain||value===requestedDomain);
+          if(requestedDomain&&!domains.length)return json(res,400,{error:{code:'validation_failed',message:'Choose Movies or Television.'}});
+          const findings=[];
+          for(const domain of domains){
+            const [items,roots]=await Promise.all([sync.list(domain),management.execute(domain,'rootFolders','GET',{}).catch(()=>[])]),identityOwners=new Map();
+            const rootPaths=new Set((Array.isArray(roots)?roots:[]).filter(root=>root.accessible!==false).map(root=>String(root.path||'').replace(/[\\/]+$/,'').toLowerCase()));
+            for(const item of items){
+              const mediaId=String(item.id),href=`#${domain==='movie'?'movie':'series'}/${mediaId}`,base={domain,mediaId,title:item.title||'Untitled media',href,actionLabel:'Open details'};
+              const identities=[['tmdbId',item.tmdbId],['tvdbId',domain==='tv'?item.tvdbId:null],['imdbId',item.imdbId]].filter(([,value])=>value);
+              if(!identities.length)findings.push({...base,code:'missing_identity',severity:'critical',summary:'External identity is missing',details:'This title cannot be matched reliably with Discover or metadata providers.',recommendation:'Open details and correct the external metadata match.'});
+              for(const [kind,value] of identities){const key=`${kind}:${String(value).toLowerCase()}`,owner=identityOwners.get(key);if(owner)findings.push({...base,code:'duplicate_identity',severity:'critical',summary:`Duplicate ${kind.replace('Id','').toUpperCase()} identity`,details:`This identity is also assigned to ${owner.title}.`,recommendation:'Review both titles and correct the mismatched external identity.'});else identityOwners.set(key,item);}
+              if(!item.year)findings.push({...base,code:'missing_year',severity:'warning',summary:'Release year is missing',details:'Sorting and fallback matching may be less accurate.',recommendation:'Refresh metadata or correct the external match.'});
+              if(!item.artwork?.url)findings.push({...base,code:'missing_artwork',severity:'warning',summary:'Poster artwork is missing',details:'The library cannot display a poster for this title.',recommendation:'Refresh the title metadata.'});
+              const root=String(item.rootFolder||'').replace(/[\\/]+$/,'').toLowerCase();
+              if(!root)findings.push({...base,href:'#service/root-folders',actionLabel:'Manage folders',code:'missing_root',severity:'critical',summary:'Library folder is missing',details:'The title has no configured root-library location.',recommendation:'Assign an accessible root folder.'});
+              else if(rootPaths.size&&!rootPaths.has(root))findings.push({...base,href:'#service/root-folders',actionLabel:'Manage folders',code:'invalid_root',severity:'critical',summary:'Library folder is not configured',details:item.rootFolder,recommendation:'Move the title to a configured root folder or restore that folder.'});
+              if(domain==='movie'&&!item.hasFile||domain==='tv'&&Number(item.missingEpisodes||0)>0)findings.push({...base,href:'#wanted',actionLabel:'Review Wanted',code:'missing_media',severity:'warning',summary:domain==='movie'?'Movie file is missing':`${Number(item.missingEpisodes||0)} monitored episodes are missing`,details:'The monitored library does not currently contain all expected media.',recommendation:'Review Wanted and search for missing releases.'});
+              if(item.monitoring==='none')findings.push({...base,code:'unmonitored',severity:'info',summary:'Title is not monitored',details:'Automatic searches and future availability checks are disabled.',recommendation:'Enable monitoring if this title should remain maintained.'});
+              if(item.state==='cutoff'||Number(item.cutoffUnmetEpisodes||0)>0)findings.push({...base,href:'#wanted',actionLabel:'Review upgrades',code:'cutoff_unmet',severity:'info',summary:'Quality cutoff is unmet',details:'A higher-quality release is still eligible under the assigned profile.',recommendation:'Review Wanted or run an upgrade search.'});
+            }
+          }
+          const order={critical:0,warning:1,info:2};findings.sort((left,right)=>order[left.severity]-order[right.severity]||left.title.localeCompare(right.title));
+          return json(res,200,{generatedAt:new Date().toISOString(),summary:{total:findings.length,critical:findings.filter(item=>item.severity==='critical').length,warning:findings.filter(item=>item.severity==='warning').length,info:findings.filter(item=>item.severity==='info').length},items:findings});
+        }
         if(url.pathname==='/api/discover/import-options'&&req.method==='GET'){
           if(!permitted(res,session,'discover'))return;
           const domain=url.searchParams.get('domain'),tmdbId=Number(url.searchParams.get('tmdbId'));

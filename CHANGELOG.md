@@ -7,6 +7,36 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.21] - 2026-07-31
+
+### Added
+
+- Added an administrator-only Library Health overview for missing or duplicate
+  external identities, incomplete metadata or artwork, invalid library folders,
+  missing monitored media, disabled monitoring, and unmet quality cutoffs.
+- Added finding-specific actions that lead administrators to the existing title
+  details, Wanted, or Root Folders workflow without silently changing files or
+  starting downloads.
+
+### Changed
+
+- Discover library-presence checks now use authoritative TMDB, TVDB, and IMDb
+  identities before falling back to normalized title and year matching.
+- Discover access can determine that a title is already managed without exposing
+  library details the user is not permitted to view.
+- Library diagnostics load independently from native media-management settings,
+  allowing health findings to remain available when an engine does not expose
+  that settings resource.
+
+### Fixed
+
+- Fixed existing movies or series with alternate, localized, or changed titles
+  appearing available to request in Discover.
+- Fixed duplicate Discover submissions reaching an engine when the title text
+  differed but the authoritative external identity already existed.
+- Fixed Library Health remaining stuck on an inspection message when diagnostics
+  or engine management settings were unavailable.
+
 ## [2.0.20] - 2026-07-31
 
 ### Added
@@ -500,7 +530,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.20...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.21...HEAD
+[2.0.21]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.20...v2.0.21
 [2.0.20]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.19...v2.0.20
 [2.0.19]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.18...v2.0.19
 [2.0.18]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.17...v2.0.18

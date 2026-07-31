@@ -79,6 +79,8 @@ test('dashboard API returns useful product metrics',()=>appSession({movie:new Mo
   assert.equal(value.analytics.rangeDays,30);assert.equal(value.analytics.downloadsOverTime.movie.length,30);assert.equal(value.analytics.downloadsOverTime.tv.length,30);
   assert.ok(Array.isArray(value.analytics.qualityDistribution.movie));assert.ok(Array.isArray(value.analytics.qualityDistribution.tv));
   assert.equal(value.analytics.library.movie.total,3);assert.equal(value.analytics.library.tv.total,3);
+  const diagnostics=await (await fetch(`${base}/api/library/diagnostics?domain=movie`,{headers:{cookie}})).json();
+  assert.equal(diagnostics.summary.total,diagnostics.items.length);assert.ok(diagnostics.items.every(item=>item.domain==='movie'&&['#movie/','#wanted','#service/root-folders'].some(prefix=>item.href.startsWith(prefix))&&item.actionLabel));
 }));
 test('user page permissions are enforced by APIs and update active sessions immediately',()=>appSession({},async({base,cookie,csrf})=>{
   const create=await fetch(`${base}/api/admin/users`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({name:'Limited User',username:'limited',email:'limited@example.test',password:'Limited-strong-pass5',role:'user',permissions:{dashboard:false,discover:true,movies:true,tv:false,calendar:true}})});
@@ -92,11 +94,16 @@ test('user page permissions are enforced by APIs and update active sessions imme
   assert.equal(calendarResponse.status,200);
   assert.ok((await calendarResponse.json()).items.every(item=>item.domain==='movie'));
   assert.equal((await fetch(`${base}/api/discover/status`,{headers:{cookie:userCookie}})).status,200);
+  const presenceResponse=await fetch(`${base}/api/discover/library-presence`,{headers:{cookie:userCookie}}),presence=await presenceResponse.json();
+  assert.equal(presenceResponse.status,200);assert.equal(presence.items.length,6);
+  assert.ok(presence.items.filter(item=>item.domain==='movie').every(item=>item.canView===true));
+  assert.ok(presence.items.filter(item=>item.domain==='tv').every(item=>item.canView===false));
   assert.equal((await fetch(`${base}/api/requests/mine`,{headers:{cookie:userCookie}})).status,200);
   assert.equal((await fetch(`${base}/api/settings/engines`,{headers:{cookie:userCookie}})).status,403);
   assert.equal((await fetch(`${base}/api/collections`,{headers:{cookie:userCookie}})).status,403);
   assert.equal((await fetch(`${base}/api/activity/history`,{headers:{cookie:userCookie}})).status,403);
   assert.equal((await fetch(`${base}/api/system/health`,{headers:{cookie:userCookie}})).status,403);
+  assert.equal((await fetch(`${base}/api/library/diagnostics`,{headers:{cookie:userCookie}})).status,403);
   assert.equal((await fetch(`${base}/api/import-jobs`,{headers:{cookie:userCookie}})).status,403);
   assert.equal((await fetch(`${base}/api/import-jobs`,{method:'POST',headers:{cookie:userCookie,'content-type':'application/json','x-vynodearr-csrf':userLogin.csrf},body:JSON.stringify({domain:'movie',items:[{title:'Not allowed',payload:{}}]})})).status,403);
   assert.equal((await fetch(`${base}/api/system/sync`,{method:'POST',headers:{cookie:userCookie,'x-vynodearr-csrf':userLogin.csrf}})).status,403);
@@ -107,6 +114,7 @@ test('user page permissions are enforced by APIs and update active sessions imme
   assert.equal((await fetch(`${base}/api/media/tv`,{headers:{cookie:userCookie}})).status,200);
   assert.equal((await fetch(`${base}/api/calendar`,{headers:{cookie:userCookie}})).status,403);
   assert.equal((await fetch(`${base}/api/discover/status`,{headers:{cookie:userCookie}})).status,403);
+  assert.equal((await fetch(`${base}/api/discover/library-presence`,{headers:{cookie:userCookie}})).status,403);
   assert.equal((await fetch(`${base}/api/requests/mine`,{headers:{cookie:userCookie}})).status,403);
   assert.equal((await fetch(`${base}/api/system/sync`,{method:'POST',headers:{cookie,'x-vynodearr-csrf':csrf}})).status,200);
   const audit=(await (await fetch(`${base}/api/manage/audit`,{headers:{cookie}})).json()).items;
@@ -129,7 +137,7 @@ test('approval-required Discover requests stay out of the engine until an admini
     },
     delete:async()=>({})
   };
-  const discovery={token:'test-discovery-token',configured:()=>true,setToken:()=>{},details:async()=>({tmdbId:123,tvdbId:null,title:'Approval Film',year:2026,poster:'https://image.test/poster.jpg',backdrop:'https://image.test/backdrop.jpg',overview:'A request awaiting a deliberate decision.',rating:8.4,genres:['Drama'],runtime:112,certification:'PG-13'})};
+  const discovery={token:'test-discovery-token',configured:()=>true,setToken:()=>{},details:async(_domain,id)=>({tmdbId:Number(id),tvdbId:null,title:Number(id)===123?'Approval Film':`Approval Film ${id}`,year:2026,poster:'https://image.test/poster.jpg',backdrop:'https://image.test/backdrop.jpg',overview:'A request awaiting a deliberate decision.',rating:8.4,genres:['Drama'],runtime:112,certification:'PG-13'})};
   return appSession({movie:Object.assign(new MovieFixtureAdapter(),{client:movieClient}),tv:new TvFixtureAdapter(),discovery},async({base,cookie,csrf})=>{
     const create=await fetch(`${base}/api/admin/users`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({name:'Approval User',username:'approval-user',email:'approval@example.test',password:'Approval-strong-pass6',role:'user',permissions:{discover:true},requestApprovalRequired:true,requestLimits:{enabled:true,period:'weekly',movie:2,tv:1,maxPending:null}})});
     const created=(await create.json()).user;assert.equal(created.requestApprovalRequired,true);assert.equal(created.requestLimits.movie,2);
@@ -148,9 +156,11 @@ test('approval-required Discover requests stay out of the engine until an admini
     assert.equal(approved.status,200);assert.equal(posts.length,1);
     const duplicate=await fetch(`${base}/api/requests/${requestValue.request.id}/approve`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:'{}'});
     assert.equal(duplicate.status,409);assert.equal(posts.length,1);
+    const duplicateSubmission=await fetch(`${base}/api/discover/request`,{method:'POST',headers:{cookie:userCookie,'content-type':'application/json','x-vynodearr-csrf':userLogin.csrf},body:JSON.stringify({domain:'movie',tmdbId:123,payload:{tmdbId:123,title:'Alternate Approval Film Title',year:2025,rootFolderPath:'/movies',qualityProfileId:1,monitored:true,addOptions:{searchForMovie:true}}})});
+    assert.equal(duplicateSubmission.status,400);assert.match((await duplicateSubmission.json()).error.message,/already in your library/i);assert.equal(posts.length,1);
     const updated=(await (await fetch(`${base}/api/requests/mine`,{headers:{cookie:userCookie}})).json()).items[0];
     assert.equal(updated.status,'searching');assert.equal(updated.engineId,99);
-    const secondRequest=await fetch(`${base}/api/discover/request`,{method:'POST',headers:{cookie:userCookie,'content-type':'application/json','x-vynodearr-csrf':userLogin.csrf},body:JSON.stringify({domain:'movie',tmdbId:123,payload:{tmdbId:123,title:'Approval Film',year:2026,rootFolderPath:'/movies',qualityProfileId:1,monitored:true,addOptions:{searchForMovie:true}}})}),secondValue=await secondRequest.json();
+    const secondRequest=await fetch(`${base}/api/discover/request`,{method:'POST',headers:{cookie:userCookie,'content-type':'application/json','x-vynodearr-csrf':userLogin.csrf},body:JSON.stringify({domain:'movie',tmdbId:124,payload:{tmdbId:124,title:'Approval Film 124',year:2026,rootFolderPath:'/movies',qualityProfileId:1,monitored:true,addOptions:{searchForMovie:true}}})}),secondValue=await secondRequest.json();
     const emptyReason=await fetch(`${base}/api/requests/${secondValue.request.id}/reject`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({reason:'   '})});
     assert.equal(emptyReason.status,400);
     const rejected=await fetch(`${base}/api/requests/${secondValue.request.id}/reject`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({reason:'Already available on another service.'})});
@@ -163,7 +173,7 @@ test('approval-required Discover requests stay out of the engine until an admini
     assert.equal(userNotifications.pageBadge.href,'#requests');assert.equal(userNotifications.pageBadge.count,userNotifications.unread);
     const allowance=(await (await fetch(`${base}/api/requests/allowance`,{headers:{cookie:userCookie}})).json()).allowance;
     assert.equal(allowance.movie.used,2);assert.equal(allowance.movie.remaining,0);assert.equal(allowance.tv.remaining,1);
-    const limited=await fetch(`${base}/api/discover/request`,{method:'POST',headers:{cookie:userCookie,'content-type':'application/json','x-vynodearr-csrf':userLogin.csrf},body:JSON.stringify({domain:'movie',tmdbId:123,payload:{tmdbId:123,title:'Approval Film',year:2026,rootFolderPath:'/movies',qualityProfileId:1,monitored:true,addOptions:{searchForMovie:true}}})});
+    const limited=await fetch(`${base}/api/discover/request`,{method:'POST',headers:{cookie:userCookie,'content-type':'application/json','x-vynodearr-csrf':userLogin.csrf},body:JSON.stringify({domain:'movie',tmdbId:125,payload:{tmdbId:125,title:'Approval Film 125',year:2026,rootFolderPath:'/movies',qualityProfileId:1,monitored:true,addOptions:{searchForMovie:true}}})});
     assert.equal(limited.status,429);assert.equal((await limited.json()).error.code,'request_limit_reached');
     const cancelled=await fetch(`${base}/api/requests/mine/${requestValue.request.id}`,{method:'DELETE',headers:{cookie:userCookie,'x-vynodearr-csrf':userLogin.csrf}});
     assert.equal(cancelled.status,200);
@@ -171,7 +181,7 @@ test('approval-required Discover requests stay out of the engine until an admini
     assert.equal(cancelledHistory.status,'canceled');assert.equal(cancelledHistory.statusLabel,'Cancelled by user');assert.equal(cancelledHistory.rejectionReason,null);
     const allowanceAfterCancel=(await (await fetch(`${base}/api/requests/allowance`,{headers:{cookie:userCookie}})).json()).allowance;
     assert.equal(allowanceAfterCancel.movie.used,1);assert.equal(allowanceAfterCancel.movie.remaining,1);
-    const retried=await fetch(`${base}/api/discover/request`,{method:'POST',headers:{cookie:userCookie,'content-type':'application/json','x-vynodearr-csrf':userLogin.csrf},body:JSON.stringify({domain:'movie',tmdbId:123,payload:{tmdbId:123,title:'Approval Film',year:2026,rootFolderPath:'/movies',qualityProfileId:1,monitored:true,addOptions:{searchForMovie:true}}})});
+    const retried=await fetch(`${base}/api/discover/request`,{method:'POST',headers:{cookie:userCookie,'content-type':'application/json','x-vynodearr-csrf':userLogin.csrf},body:JSON.stringify({domain:'movie',tmdbId:125,payload:{tmdbId:125,title:'Approval Film 125',year:2026,rootFolderPath:'/movies',qualityProfileId:1,monitored:true,addOptions:{searchForMovie:true}}})});
     assert.equal(retried.status,202);
     assert.equal((await fetch(`${base}/api/manage/audit`,{headers:{cookie:userCookie}})).status,403);
     const audit=(await (await fetch(`${base}/api/manage/audit`,{headers:{cookie}})).json()).items;

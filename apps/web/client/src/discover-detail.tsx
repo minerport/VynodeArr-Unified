@@ -53,7 +53,8 @@ export function DiscoverDetail({item,libraryItem,options,onClose,onRequest}:Disc
         <div className="discover-detail-genres">{genres.map(value=><span className="badge" key={value}>{value}</span>)}</div>
         <div className="discover-detail-facts">{facts.map(([label,value])=><div key={label}><small>{label}</small><strong>{value}</strong></div>)}</div>
         <div className="form-actions">
-          {inLibrary?<button className="primary discover-view-library" type="button" onClick={()=>{close();location.hash=`#${detail.domain==='movie'?'movie':'series'}/${libraryItem?.id}`;}}>View in library</button>
+          {inLibrary&&libraryItem?.canView!==false?<button className="primary discover-view-library" type="button" onClick={()=>{close();location.hash=`#${detail.domain==='movie'?'movie':'series'}/${libraryItem?.id}`;}}>View in library</button>
+            :inLibrary?<span className="badge green">Already in library</span>
             :<button className="primary discover-request-title" type="button" onClick={()=>{onRequest(detail);close();}}>Request {detail.domain==='movie'?'movie':'series'}</button>}
           <button className="secondary discover-detail-cancel" type="button" onClick={close}>Close</button>
         </div>

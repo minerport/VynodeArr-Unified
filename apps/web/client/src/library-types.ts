@@ -9,6 +9,9 @@ export interface LibraryItem {
   title:string;
   sortTitle?:string;
   year?:number;
+  tmdbId?:number|null;
+  tvdbId?:number|null;
+  imdbId?:string|null;
   overview?:string;
   artwork?:LibraryArtwork;
   monitoring?:string;

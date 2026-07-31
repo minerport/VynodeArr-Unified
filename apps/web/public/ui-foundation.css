@@ -1135,6 +1135,9 @@ input[type="range"] {
   }
 }
 
+.library-diagnostics{margin-bottom:1rem}.diagnostic-controls{display:flex;align-items:end;justify-content:space-between;gap:1rem;margin-bottom:1rem}.diagnostic-controls label{display:grid;gap:.35rem}.diagnostic-controls select{min-width:12rem}.diagnostic-controls small{color:var(--muted)}.diagnostic-list{display:grid;gap:.65rem}.diagnostic-list article{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:.85rem;padding:.85rem;border:1px solid var(--line);border-left-width:3px;border-radius:.7rem;background:color-mix(in srgb,var(--panel2) 70%,transparent)}.diagnostic-list article.diagnostic-critical{border-left-color:var(--danger)}.diagnostic-list article.diagnostic-warning{border-left-color:var(--warm)}.diagnostic-list article.diagnostic-info{border-left-color:var(--cyan)}.diagnostic-severity{padding:.2rem .45rem;border:1px solid currentColor;border-radius:999px;font-size:.62rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase}.diagnostic-critical .diagnostic-severity{color:var(--danger)}.diagnostic-warning .diagnostic-severity{color:var(--warm)}.diagnostic-info .diagnostic-severity{color:var(--cyan)}.diagnostic-list h3,.diagnostic-list p{margin:.12rem 0}.diagnostic-list h3{font-size:.9rem}.diagnostic-list p,.diagnostic-list small{color:var(--muted)}
+@media(max-width:700px){.diagnostic-controls{align-items:stretch;flex-direction:column}.diagnostic-controls select{width:100%}.diagnostic-list article{grid-template-columns:1fr}.diagnostic-list article .button-link{width:100%;text-align:center}}
+
 /* Keep scrolling on the actual navigation rail without capturing route asides. */
 .app-shell > aside {
   height: 100dvh;
