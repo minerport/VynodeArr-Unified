@@ -6,6 +6,7 @@ const fix=(item:HealthItem):[string,string]=>{
   if(/root folder|rootfolder|path does not exist|missing root/.test(text))return['Review root folders','#service/root-folders'];
   if(/download client|sabnzbd|nzbget|qbittorrent|transmission|deluge/.test(text))return['Review download clients','#service/download-clients'];
   if(/indexer|rss sync/.test(text))return['Review indexers','#service/indexers'];
+  if(/import list|importlist|lists unavailable/.test(text))return['Review import lists','#service/import-lists'];
   if(/quality profile|qualityprofile|custom format/.test(text))return['Review quality profiles','#service/profiles'];
   if(/disk|space|storage/.test(text))return['Review storage','#system'];
   return['Review advanced settings','#management'];

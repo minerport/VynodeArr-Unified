@@ -7,6 +7,20 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.22] - 2026-07-31
+
+### Added
+
+- Added a dedicated administrator Import Lists subpage for Movies and
+  Television with native provider selection, create, edit, enable/disable,
+  connection testing, deletion, manual synchronization, advanced fields, and
+  complete engine configuration access.
+
+### Changed
+
+- Import-list health warnings now lead directly to Import Lists instead of the
+  general Advanced settings page.
+
 ## [2.0.21] - 2026-07-31
 
 ### Added
@@ -533,7 +547,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.21...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.22...HEAD
+[2.0.22]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.21...v2.0.22
 [2.0.21]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.20...v2.0.21
 [2.0.20]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.19...v2.0.20
 [2.0.19]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.18...v2.0.19

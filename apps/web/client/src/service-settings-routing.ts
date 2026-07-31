@@ -5,7 +5,7 @@ export type ServiceSettingsAction=
   |{name:'qualityProfiles'}
   |{name:'guideTemplates';templateFilter:string}
   |{name:'selectionRules';section:'custom-formats'|'release-profiles'}
-  |{name:'providerSettings';kind:'indexers'|'downloadClients'}
+  |{name:'providerSettings';kind:'indexers'|'downloadClients'|'importLists'}
   |{name:'rootFolders'};
 
 export function resolveServiceSettingsAction(
@@ -22,5 +22,6 @@ export function resolveServiceSettingsAction(
   }
   if(section==='indexers')return{name:'providerSettings',kind:'indexers'};
   if(section==='download-clients')return{name:'providerSettings',kind:'downloadClients'};
+  if(section==='import-lists')return{name:'providerSettings',kind:'importLists'};
   return{name:'rootFolders'};
 }

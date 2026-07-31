@@ -27,8 +27,14 @@ consistent experience and account system.
 
 ## Current release
 
-Version **2.0.21** is available for production use on Unraid, Windows, and
-standard Docker installations. Discover now identifies existing library titles
+Version **2.0.22** is available for production use on Unraid, Windows, and
+standard Docker installations. Administrators now have a dedicated **Import
+Lists** page for Movies and Television with native provider setup, editing,
+enable/disable controls, connection testing, deletion, manual synchronization,
+advanced fields, and complete engine configuration access. Related health
+warnings lead directly to the affected settings.
+
+Discover identifies existing library titles
 by authoritative TMDB, TVDB, and IMDb identifiers, preventing alternate titles
 or localized names from appearing available to request when they are already
 managed.
@@ -149,6 +155,8 @@ See the [changelog](CHANGELOG.md) for the detailed list of changes.
 - Movie filters for title, year, genre, and collection
 - Show, season, and episode monitoring with color-coded availability
 - Bulk profile, root-folder, availability, refresh, and removal actions
+- Native Movie and Television Import Lists with guided provider setup, testing,
+  enable/disable controls, manual synchronization, editing, and removal
 
 ### Personal interface presentation
 

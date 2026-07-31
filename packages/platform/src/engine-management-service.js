@@ -9,6 +9,7 @@ const sharedResources=Object.freeze({
   downloadClients:{path:'downloadclient',methods:['GET','POST','PUT','DELETE']},
   notifications:{path:'notification',methods:['GET','POST','PUT','DELETE']},
   importLists:{path:'importlist',methods:['GET','POST','PUT','DELETE']},
+  importListTest:{path:'importlist/test',methods:['POST']},
   naming:{path:'config/naming',methods:['GET','PUT']},
   mediaManagement:{path:'config/mediamanagement',methods:['GET','PUT']},
   downloadClientSettings:{path:'config/downloadclient',methods:['GET','PUT']},

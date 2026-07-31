@@ -1,4 +1,4 @@
-export type ServiceSection='root-folders'|'library-health'|'media-management'|'profiles'|'custom-formats'|'guide-templates'|'release-profiles'|'indexers'|'download-clients'|'discover'|'advanced';
+export type ServiceSection='root-folders'|'library-health'|'media-management'|'profiles'|'custom-formats'|'guide-templates'|'release-profiles'|'indexers'|'download-clients'|'import-lists'|'discover'|'advanced';
 
 const tabs:Array<{section:ServiceSection;label:string;href:string}>=[
   {section:'root-folders',label:'Root Folders',href:'#service/root-folders'},
@@ -10,6 +10,7 @@ const tabs:Array<{section:ServiceSection;label:string;href:string}>=[
   {section:'release-profiles',label:'Release Profiles',href:'#service/release-profiles'},
   {section:'indexers',label:'Indexers',href:'#service/indexers'},
   {section:'download-clients',label:'Download Clients',href:'#service/download-clients'},
+  {section:'import-lists',label:'Import Lists',href:'#service/import-lists'},
   {section:'discover',label:'Discover',href:'#service/discover'},
   {section:'advanced',label:'Advanced',href:'#management'}
 ];

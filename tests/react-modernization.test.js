@@ -471,6 +471,10 @@ test('indexers and download clients use a typed native provider editor with conn
   assert.match(legacy,/showProviderSettingsReact/);
   assert.match(gateway,/indexerTest:\{path:'indexer\/test'/);
   assert.match(gateway,/downloadClientTest:\{path:'downloadclient\/test'/);
+  assert.match(gateway,/importListTest:\{path:'importlist\/test'/);
+  assert.match(view,/Import Lists/);
+  assert.match(view,/ImportListSync/);
+  assert.match(view,/Complete native configuration/);
 });
 
 test('React service settings routes share one complete navigation component',async()=>{
@@ -482,7 +486,7 @@ test('React service settings routes share one complete navigation component',asy
     read('apps/web/client/src/root-folders.tsx'),
     read('apps/web/client/src/selection-rules.tsx')
   ]);
-  for(const href of ['#service/root-folders','#service/library-health','#service/media-management','#service/profiles','#service/custom-formats','#service/guide-templates','#service/release-profiles','#service/indexers','#service/download-clients','#service/discover','#management']){
+  for(const href of ['#service/root-folders','#service/library-health','#service/media-management','#service/profiles','#service/custom-formats','#service/guide-templates','#service/release-profiles','#service/indexers','#service/download-clients','#service/import-lists','#service/discover','#management']){
     assert.match(tabs,new RegExp(href.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
   }
   for(const route of routes){
