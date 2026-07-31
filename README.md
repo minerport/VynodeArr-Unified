@@ -33,8 +33,8 @@ by authoritative TMDB, TVDB, and IMDb identifiers, preventing alternate titles
 or localized names from appearing available to request when they are already
 managed.
 
-Administrators now have a **Library Health** diagnostic overview under Media
-Management. It reports identity, duplicate, metadata, artwork, storage,
+Administrators now have a dedicated **Library Health** subpage under Service
+Settings. It reports identity, duplicate, metadata, artwork, storage,
 monitoring, missing-media, and quality-cutoff findings, then routes each finding
 to the existing title, Wanted, or Root Folders workflow that can resolve it.
 Diagnostics remain available independently from engine media-management

@@ -1,7 +1,8 @@
-export type ServiceSection='root-folders'|'media-management'|'profiles'|'custom-formats'|'guide-templates'|'release-profiles'|'indexers'|'download-clients'|'discover'|'advanced';
+export type ServiceSection='root-folders'|'library-health'|'media-management'|'profiles'|'custom-formats'|'guide-templates'|'release-profiles'|'indexers'|'download-clients'|'discover'|'advanced';
 
 const tabs:Array<{section:ServiceSection;label:string;href:string}>=[
   {section:'root-folders',label:'Root Folders',href:'#service/root-folders'},
+  {section:'library-health',label:'Library Health',href:'#service/library-health'},
   {section:'media-management',label:'Media Management',href:'#service/media-management'},
   {section:'profiles',label:'Quality Profiles',href:'#service/profiles'},
   {section:'custom-formats',label:'Custom Formats',href:'#service/custom-formats'},

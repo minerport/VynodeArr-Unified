@@ -30,7 +30,7 @@ import type { AuthenticationMountOptions } from './authentication-types';
 import type { NotificationMountOptions } from './notification-types';
 import { RouteErrorBoundary } from './error-boundary';
 
-let dashboardRoot:Root|null=null,dashboardElement:HTMLElement|null=null,fullDashboardRoot:Root|null=null,libraryRoot:Root|null=null,historyRoot:Root|null=null,queueRoot:Root|null=null,wantedRoot:Root|null=null,calendarRoot:Root|null=null,movieDetailRoot:Root|null=null,tvDetailRoot:Root|null=null,discoverRoot:Root|null=null,requestsRoot:Root|null=null,requestManagementRoot:Root|null=null,collectionsRoot:Root|null=null,addMediaRoot:Root|null=null,healthRoot:Root|null=null,accountRoot:Root|null=null,systemRoot:Root|null=null,selectionRulesRoot:Root|null=null,importMonitorRoot:Root|null=null,managementRoot:Root|null=null,mediaManagementRoot:Root|null=null,rootFoldersRoot:Root|null=null,providerSettingsRoot:Root|null=null,guideTemplatesRoot:Root|null=null,engineManagementRoot:Root|null=null,discoverSettingsRoot:Root|null=null,qualityProfilesRoot:Root|null=null,engineSetupRoot:Root|null=null,setupAuthRoot:Root|null=null,signInAuthRoot:Root|null=null,notificationsRoot:Root|null=null;
+let dashboardRoot:Root|null=null,dashboardElement:HTMLElement|null=null,fullDashboardRoot:Root|null=null,libraryRoot:Root|null=null,historyRoot:Root|null=null,queueRoot:Root|null=null,wantedRoot:Root|null=null,calendarRoot:Root|null=null,movieDetailRoot:Root|null=null,tvDetailRoot:Root|null=null,discoverRoot:Root|null=null,requestsRoot:Root|null=null,requestManagementRoot:Root|null=null,collectionsRoot:Root|null=null,addMediaRoot:Root|null=null,healthRoot:Root|null=null,accountRoot:Root|null=null,systemRoot:Root|null=null,selectionRulesRoot:Root|null=null,importMonitorRoot:Root|null=null,managementRoot:Root|null=null,mediaManagementRoot:Root|null=null,libraryHealthRoot:Root|null=null,rootFoldersRoot:Root|null=null,providerSettingsRoot:Root|null=null,guideTemplatesRoot:Root|null=null,engineManagementRoot:Root|null=null,discoverSettingsRoot:Root|null=null,qualityProfilesRoot:Root|null=null,engineSetupRoot:Root|null=null,setupAuthRoot:Root|null=null,signInAuthRoot:Root|null=null,notificationsRoot:Root|null=null;
 const loading=(label:string)=><div className="panel skeleton react-route-loading">Loading {label}…</div>;
 
 const guarded=(children:ReactNode)=><RouteErrorBoundary>{children}</RouteErrorBoundary>;
@@ -179,6 +179,11 @@ function mountAuthentication(setupElement:HTMLElement,signInElement:HTMLElement,
   unmountAuthentication();const setupRoot=createRoot(setupElement),signInRoot=createRoot(signInElement);setupAuthRoot=setupRoot;signInAuthRoot=signInRoot;
   void import('./authentication').then(({SetupView,SignInView})=>{if(setupAuthRoot===setupRoot)setupRoot.render(guarded(<SetupView options={options}/>));if(signInAuthRoot===signInRoot)signInRoot.render(guarded(<SignInView options={options}/>));});
 }
+function unmountLibraryHealth(){libraryHealthRoot?.unmount();libraryHealthRoot=null;}
+function mountLibraryHealth(element:HTMLElement,options:MediaManagementMountOptions){
+  unmountLibraryHealth();const root=createRoot(element);libraryHealthRoot=root;root.render(loading('library health'));
+  void import('./library-health').then(({LibraryHealthView})=>{if(libraryHealthRoot===root)root.render(guarded(<LibraryHealthView options={options}/>));});
+}
 function mountNotifications(element:HTMLElement,options:NotificationMountOptions){
   notificationsRoot?.unmount();const root=createRoot(element);notificationsRoot=root;
   void import('./notifications').then(({Notifications})=>{if(notificationsRoot===root)root.render(guarded(<Notifications options={options}/>));});
@@ -186,7 +191,7 @@ function mountNotifications(element:HTMLElement,options:NotificationMountOptions
 const routeImports:Record<string,()=>Promise<unknown>>={
   dashboard:()=>import('./dashboard'),discover:()=>import('./discover'),requests:()=>import('./my-requests'),'request-management':()=>import('./request-management'),collections:()=>import('./collections'),add:()=>import('./add-media'),movies:()=>import('./library'),tv:()=>import('./library'),
   queue:()=>import('./queue'),history:()=>import('./history'),wanted:()=>import('./wanted'),calendar:()=>import('./calendar'),health:()=>import('./health'),
-  movie:()=>import('./movie-detail'),series:()=>import('./tv-detail'),settings:()=>Promise.all([import('./account'),import('./engine-management'),import('./engine-setup')]),system:()=>import('./system'),service:()=>Promise.all([import('./selection-rules'),import('./media-management'),import('./root-folders'),import('./provider-settings'),import('./guide-templates'),import('./discover-settings'),import('./quality-profiles')]),management:()=>import('./management'),
+  movie:()=>import('./movie-detail'),series:()=>import('./tv-detail'),settings:()=>Promise.all([import('./account'),import('./engine-management'),import('./engine-setup')]),system:()=>import('./system'),service:()=>Promise.all([import('./selection-rules'),import('./media-management'),import('./library-health'),import('./root-folders'),import('./provider-settings'),import('./guide-templates'),import('./discover-settings'),import('./quality-profiles')]),management:()=>import('./management'),
 };
 function preloadRoute(route:string){void routeImports[route]?.();}
 
@@ -213,6 +218,7 @@ declare global {
     mountImportMonitor:(element:HTMLElement,options:ImportMonitorOptions)=>void;unmountImportMonitor:()=>void;
     mountManagement:(element:HTMLElement,options:ManagementMountOptions)=>void;unmountManagement:()=>void;
     mountMediaManagement:(element:HTMLElement,options:MediaManagementMountOptions)=>void;unmountMediaManagement:()=>void;
+    mountLibraryHealth:(element:HTMLElement,options:MediaManagementMountOptions)=>void;unmountLibraryHealth:()=>void;
     mountRootFolders:(element:HTMLElement,options:RootFoldersMountOptions)=>void;unmountRootFolders:()=>void;
     mountProviderSettings:(element:HTMLElement,options:ProviderSettingsMountOptions)=>void;unmountProviderSettings:()=>void;
     mountGuideTemplates:(element:HTMLElement,options:GuideTemplatesMountOptions)=>void;unmountGuideTemplates:()=>void;
@@ -225,4 +231,4 @@ declare global {
     preloadRoute:(route:string)=>void;
   }}
 }
-window.VynodeArrReact={mountDashboard,unmountDashboard,mountDashboardAnalytics,unmountDashboardAnalytics,mountLibrary,unmountLibrary,mountHistory,unmountHistory,mountQueue,unmountQueue,mountRequests,unmountRequests,mountRequestManagement,unmountRequestManagement,mountWanted,unmountWanted,mountCalendar,unmountCalendar,mountMovieDetail,unmountMovieDetail,mountTvDetail,unmountTvDetail,mountDiscover,unmountDiscover,mountCollections,unmountCollections,mountAddMedia,unmountAddMedia,mountHealth,unmountHealth,mountAccount,unmountAccount,mountSystem,unmountSystem,mountSelectionRules,unmountSelectionRules,mountImportMonitor,unmountImportMonitor,mountManagement,unmountManagement,mountMediaManagement,unmountMediaManagement,mountRootFolders,unmountRootFolders,mountProviderSettings,unmountProviderSettings,mountGuideTemplates,unmountGuideTemplates,mountEngineManagement,unmountEngineManagement,mountDiscoverSettings,unmountDiscoverSettings,mountQualityProfiles,unmountQualityProfiles,mountEngineSetup,unmountEngineSetup,mountAuthentication,unmountAuthentication,mountNotifications,preloadRoute};
+window.VynodeArrReact={mountDashboard,unmountDashboard,mountDashboardAnalytics,unmountDashboardAnalytics,mountLibrary,unmountLibrary,mountHistory,unmountHistory,mountQueue,unmountQueue,mountRequests,unmountRequests,mountRequestManagement,unmountRequestManagement,mountWanted,unmountWanted,mountCalendar,unmountCalendar,mountMovieDetail,unmountMovieDetail,mountTvDetail,unmountTvDetail,mountDiscover,unmountDiscover,mountCollections,unmountCollections,mountAddMedia,unmountAddMedia,mountHealth,unmountHealth,mountAccount,unmountAccount,mountSystem,unmountSystem,mountSelectionRules,unmountSelectionRules,mountImportMonitor,unmountImportMonitor,mountManagement,unmountManagement,mountMediaManagement,unmountMediaManagement,mountLibraryHealth,unmountLibraryHealth,mountRootFolders,unmountRootFolders,mountProviderSettings,unmountProviderSettings,mountGuideTemplates,unmountGuideTemplates,mountEngineManagement,unmountEngineManagement,mountDiscoverSettings,unmountDiscoverSettings,mountQualityProfiles,unmountQualityProfiles,mountEngineSetup,unmountEngineSetup,mountAuthentication,unmountAuthentication,mountNotifications,preloadRoute};

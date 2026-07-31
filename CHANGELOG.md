@@ -20,6 +20,9 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Moved Library Health to its own Service Settings subpage so the existing Media
+  Management naming, auditing, importing, and file-handling controls remain
+  immediately accessible.
 - Discover library-presence checks now use authoritative TMDB, TVDB, and IMDb
   identities before falling back to normalized title and year matching.
 - Discover access can determine that a title is already managed without exposing

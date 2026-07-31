@@ -24,6 +24,7 @@ const unmountMethods=[
   'unmountSelectionRules',
   'unmountManagement',
   'unmountMediaManagement',
+  'unmountLibraryHealth',
   'unmountRootFolders',
   'unmountProviderSettings',
   'unmountGuideTemplates'
