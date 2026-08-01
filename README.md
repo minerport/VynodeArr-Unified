@@ -27,12 +27,25 @@ consistent experience and account system.
 
 ## Current release
 
-Version **2.0.25** is available for production use on Unraid, Windows, and
-standard Docker installations. Administrators now have a persistent **Search
-Activity** center inside the notification bell for Movie and Television
-automatic searches. It shows the real path from queued and searching through
-grabbed, downloading, and imported, with posters, engine status, bulk-search
-counts, and direct links to Queue and title details.
+Version **2.0.26** is available for production use on Unraid, Windows, and
+standard Docker installations. The global notification center now provides a
+durable Inbox and History for request decisions, downloads, imports, engine
+health, security, and automatic searches. Operational alerts are deduplicated,
+remain available after reading, and resolve in place when the underlying issue
+clears.
+
+Users can choose notification categories, minimum severity, and UTC quiet
+hours. Administrators can define defaults and configure encrypted external
+delivery through Discord webhooks, Telegram, or Gotify. Each channel supports
+category routing, masked credentials, test delivery, failure history, and
+manual retry. External provider outages never interrupt media operations or
+the in-app activity center.
+
+Administrators also have a persistent **Search Activity** center inside the
+notification bell for Movie and Television automatic searches. It shows the
+real path from queued and searching through grabbed, downloading, and imported,
+with posters, engine status, bulk-search counts, and direct links to Queue and
+title details.
 
 Search Activity follows matching engine Queue and History records through
 download completion and confirmed library import. Completed commands continue

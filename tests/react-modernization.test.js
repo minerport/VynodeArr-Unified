@@ -1068,8 +1068,17 @@ test('request notification bell has durable role-aware request updates',async()=
   assert.match(islands,/mountNotifications/);assert.match(shell,/mountNotifications/);
   assert.match(shell,/nav-count-badge/);assert.match(notifications,/onPageBadge/);
   assert.match(notifications,/\/api\/notifications/);assert.match(notifications,/Mark all read/);assert.match(notifications,/15_000/);
+  assert.match(notifications,/Notification history/);assert.match(notifications,/Read and resolved notifications will remain here/);assert.match(notifications,/tab==='inbox'/);
   assert.match(types,/approval.*approved.*rejected.*failed.*imported/);
   assert.match(server,/notificationReads/);assert.match(server,/\/api\/notifications\/read/);assert.match(server,/href:'#request-management'/);assert.match(server,/href:'#requests'/);
+  assert.match(server,/notification-events\.json/);assert.match(server,/notificationStore\.update/);assert.match(server,/recipientUserId/);
+  for(const value of ['synchronizeOperationalNotifications','operationalInitializedAt','queue-problem','engine-health','search-no-result',"client.get('queue'","client.get('history'","sync.operations('health')"])assert.ok(server.includes(value),value);
+  for(const value of ['/api/notifications/preferences','notificationPreferenceDefaults','minimumSeverity','quietHours','/api/notifications/test','notification_preferences.updated'])assert.ok(server.includes(value),value);
+  for(const value of ['Notification preferences','In-app notifications','Minimum severity','Quiet hours','Send test','Set admin defaults'])assert.ok(notifications.includes(value),value);
+  for(const value of ['/api/notifications/channels','discord','telegram','gotify','sendExternalNotification','recordExternalDelivery','notification_channel.saved'])assert.ok(server.includes(value),value);
+  for(const value of ['External delivery','Discord webhook','Telegram','Gotify','Route categories','Delivery history','Retry'])assert.ok(notifications.includes(value),value);
+  assert.doesNotMatch(notifications,/Email delivery|SMTP/);
+  assert.match(notifications,/createPortal/);assert.match(notifications,/panel\.current\?\.contains/);assert.match(styles,/\.notification-panel\{position:fixed;z-index:30/);
   assert.match(server,/item\.status==='pending_approval'\|\|item\.approvedBy\|\|item\.rejectedBy/);assert.match(server,/items\.filter\(item=>item\.actionable\)\.length/);
   assert.match(styles,/max-height:calc\(100dvh - 6rem\)/);assert.match(styles,/overflow:auto/);assert.match(styles,/notification-bell/);assert.match(styles,/nav-count-badge/);
 });

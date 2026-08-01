@@ -7,6 +7,37 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.26] - 2026-08-01
+
+### Added
+
+- Added a durable notification Inbox and History with categorized request,
+  download, import, health, security, and automatic-search events.
+- Added administrator operational alerts for stalled or failed Queue items,
+  import successes and failures, engine health issues, and automatic searches
+  that finish without finding a download.
+- Added per-user category filters, severity thresholds, in-app delivery controls,
+  UTC quiet hours, administrator defaults, and a test-notification action.
+- Added encrypted external notification delivery for Discord webhooks, Telegram,
+  and Gotify, including per-category routing, masked credentials, delivery
+  history, provider error details, and manual retry.
+
+### Changed
+
+- Operational alerts are deduplicated and resolve in place when the underlying
+  Queue, health, or search condition clears.
+- Notification provider failures are isolated from media requests and in-app
+  activity so an unavailable external service cannot interrupt VynodeArr.
+- The notification settings experience uses compact, touch-friendly layouts on
+  phones while preserving every desktop control.
+
+### Fixed
+
+- Fixed the notification panel being positioned outside the phone viewport when
+  rendered inside the sticky, blurred application header.
+- Fixed the document-level mobile panel losing its desktop bell alignment by
+  giving desktop and mobile layouts explicit viewport anchors.
+
 ## [2.0.25] - 2026-08-01
 
 ### Changed
@@ -625,7 +656,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.25...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.26...HEAD
+[2.0.26]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.25...v2.0.26
 [2.0.25]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.24...v2.0.25
 [2.0.24]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.23...v2.0.24
 [2.0.23]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.22...v2.0.23

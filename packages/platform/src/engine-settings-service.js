@@ -47,5 +47,8 @@ export class EngineSettingsService {
     await this.vault.replace('tmdb',value);return{configured:true};
   }
   async removeDiscoveryCredential(){await this.vault.remove('tmdb');return{configured:false};}
+  async notificationCredential(id){return await this.vault.get(`notification:${id}`)||'';}
+  async saveNotificationCredential(id,credential){const value=String(credential||'').trim();if(!value)throw new Error('Notification credential is required');await this.vault.replace(`notification:${id}`,value);}
+  async removeNotificationCredential(id){await this.vault.remove(`notification:${id}`);}
   async rotateMasterKey(masterKey){await this.vault.rotate(masterKey);}
 }
