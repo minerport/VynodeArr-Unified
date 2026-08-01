@@ -189,8 +189,11 @@ test('approval-required Discover requests stay out of the engine until an admini
     assert.equal(requested.status,202);assert.equal(requestValue.request.status,'pending_approval');assert.equal(posts.length,0);
     const adminNotifications=await (await fetch(`${base}/api/notifications`,{headers:{cookie}})).json();
     assert.equal(adminNotifications.unread,1);assert.equal(adminNotifications.items[0].type,'approval');assert.equal(adminNotifications.items[0].href,'#request-management');assert.deepEqual(adminNotifications.pageBadge,{href:'#request-management',count:1});
-    const readNotification=await fetch(`${base}/api/notifications/read`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({ids:[adminNotifications.items[0].id]})});
-    assert.equal(readNotification.status,200);assert.equal((await (await fetch(`${base}/api/notifications`,{headers:{cookie}})).json()).unread,0);
+    const testNotification=await fetch(`${base}/api/notifications/test`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:'{}'});assert.equal(testNotification.status,201);
+    const reviewedAdminRequests=await fetch(`${base}/api/notifications/review-requests`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:'{}'}),reviewedAdminValue=await reviewedAdminRequests.json();
+    assert.equal(reviewedAdminRequests.status,200);assert.deepEqual(reviewedAdminValue.reviewed,[adminNotifications.items[0].id]);
+    const reviewedAdminNotifications=await (await fetch(`${base}/api/notifications`,{headers:{cookie}})).json();
+    assert.equal(reviewedAdminNotifications.unread,1);assert.deepEqual(reviewedAdminNotifications.pageBadge,{href:'#request-management',count:0});
     const mine=(await (await fetch(`${base}/api/requests/mine`,{headers:{cookie:userCookie}})).json()).items;
     assert.equal(mine[0].status,'pending_approval');assert.equal(mine[0].poster,'https://image.test/poster.jpg');assert.equal('payload'in mine[0],false);
     const administered=(await (await fetch(`${base}/api/requests`,{headers:{cookie}})).json()).items;
@@ -215,7 +218,9 @@ test('approval-required Discover requests stay out of the engine until an admini
     const userNotifications=await (await fetch(`${base}/api/notifications`,{headers:{cookie:userCookie}})).json();
     assert.ok(userNotifications.items.some(item=>item.type==='approved'&&item.requestId===requestValue.request.id));
     assert.ok(userNotifications.items.some(item=>item.type==='rejected'&&item.requestId===secondValue.request.id&&item.href==='#requests'));
-    assert.equal(userNotifications.pageBadge.href,'#requests');assert.equal(userNotifications.pageBadge.count,userNotifications.unread);
+    assert.equal(userNotifications.pageBadge.href,'#requests');assert.equal(userNotifications.pageBadge.count,userNotifications.items.filter(item=>item.category==='request'&&item.href==='#requests'&&!item.read).length);
+    const reviewedUserRequests=await fetch(`${base}/api/notifications/review-requests`,{method:'POST',headers:{cookie:userCookie,'content-type':'application/json','x-vynodearr-csrf':userLogin.csrf},body:'{}'});assert.equal(reviewedUserRequests.status,200);
+    const reviewedUserNotifications=await (await fetch(`${base}/api/notifications`,{headers:{cookie:userCookie}})).json();assert.equal(reviewedUserNotifications.pageBadge.count,0);
     const allowance=(await (await fetch(`${base}/api/requests/allowance`,{headers:{cookie:userCookie}})).json()).allowance;
     assert.equal(allowance.movie.used,2);assert.equal(allowance.movie.remaining,0);assert.equal(allowance.tv.remaining,1);
     const limited=await fetch(`${base}/api/discover/request`,{method:'POST',headers:{cookie:userCookie,'content-type':'application/json','x-vynodearr-csrf':userLogin.csrf},body:JSON.stringify({domain:'movie',tmdbId:125,payload:{tmdbId:125,title:'Approval Film 125',year:2026,rootFolderPath:'/movies',qualityProfileId:1,monitored:true,addOptions:{searchForMovie:true}}})});

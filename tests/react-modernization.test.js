@@ -1059,6 +1059,7 @@ test('Discover approval policy and administrator request history have typed post
   assert.match(types,/pending_approval/);assert.match(types,/poster/);assert.match(types,/rejectionReason/);assert.match(adminRequests,/Approve & add/);assert.match(adminRequests,/\/api\/requests/);
   assert.match(adminRequests,/type="search"/);assert.match(adminRequests,/All statuses/);assert.match(adminRequests,/Movies and television/);assert.match(adminRequests,/Decline request/);
   assert.match(adminRequests,/Mark all read/);assert.match(adminRequests,/request-mark-read/);assert.match(adminRequests,/vynodearr:notifications-changed/);assert.match(styles,/admin-request-card\.unread/);
+  assert.match(adminRequests,/\/api\/notifications\/review-requests/);
   assert.match(styles,/\.request-decline-dialog\{[^}]*max-height:[^}]*overflow:auto/);
   assert.match(routing,/'request-management'/);assert.match(dispatch,/requestManagement/);assert.match(shell,/showRequestManagementReact/);assert.match(islands,/mountRequestManagement/);
   assert.match(server,/validatedDiscoverRequest/);assert.match(server,/request_already_decided/);assert.match(server,/approvedBy/);assert.match(server,/requestMetadata/);assert.match(server,/rejection_reason_required/);
@@ -1090,7 +1091,8 @@ test('request notification bell has durable role-aware request updates',async()=
   for(const value of ['defaultChannelTemplate','sanitizeChannelTemplate','renderNotificationJson','channelPayload','invalid_notification_json'])assert.ok(server.includes(value),value);
   assert.doesNotMatch(notifications,/Email delivery|SMTP/);
   assert.match(notifications,/createPortal/);assert.match(notifications,/panel\.current\?\.contains/);assert.match(styles,/\.notification-panel\{position:fixed;z-index:30/);
-  assert.match(server,/item\.status==='pending_approval'\|\|item\.approvedBy\|\|item\.rejectedBy/);assert.match(server,/items\.filter\(item=>item\.actionable\)\.length/);
+  assert.match(server,/item\.status==='pending_approval'\|\|item\.approvedBy\|\|item\.rejectedBy/);assert.match(server,/item\.category==='request'&&item\.href===requestHref&&!item\.read/);
+  assert.match(server,/\/api\/notifications\/review-requests/);
   assert.match(styles,/max-height:calc\(100dvh - 6rem\)/);assert.match(styles,/overflow:auto/);assert.match(styles,/notification-bell/);assert.match(styles,/nav-count-badge/);
 });
 

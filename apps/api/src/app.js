@@ -1232,8 +1232,8 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
         }
         if(url.pathname==='/api/notifications'&&req.method==='GET'){
           const preferenceValue=await notificationPreferences(session.user.id),items=filterNotifications(await requestNotifications(session),preferenceValue.preferences),quietHoursActive=notificationQuietNow(preferenceValue.preferences);
-          const unread=quietHoursActive?0:items.filter(item=>!item.read).length,administratorUser=session.user.role==='administrator';
-          return json(res,200,{items,unread,quietHoursActive,pageBadge:{href:administratorUser?'#request-management':'#requests',count:quietHoursActive?0:administratorUser?items.filter(item=>item.actionable).length:unread}});
+          const unread=quietHoursActive?0:items.filter(item=>!item.read).length,administratorUser=session.user.role==='administrator',requestHref=administratorUser?'#request-management':'#requests',requestUnread=items.filter(item=>item.category==='request'&&item.href===requestHref&&!item.read).length;
+          return json(res,200,{items,unread,quietHoursActive,pageBadge:{href:requestHref,count:quietHoursActive?0:requestUnread}});
         }
         if(url.pathname==='/api/notifications/preferences'&&req.method==='GET')return json(res,200,await notificationPreferences(session.user.id));
         if(url.pathname==='/api/notifications/preferences'&&req.method==='PATCH'){
@@ -1262,6 +1262,10 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
           const input=await body(req),available=await requestNotifications(session),requested=Array.isArray(input.ids)?new Set(input.ids.map(String)):null,ids=available.filter(item=>!requested||requested.has(item.id)).map(item=>item.id),readAt=new Date().toISOString();
           await notificationStore.update(current=>{current.reads=current.reads||{};const reads=current.reads[session.user.id]||{};for(const id of ids)reads[id]=readAt;current.reads[session.user.id]=Object.fromEntries(Object.entries(reads).slice(-1000));});
           return json(res,200,{read:ids});
+        }
+        if(url.pathname==='/api/notifications/review-requests'&&req.method==='POST'){
+          if(!requireCsrf(req,res,session))return;const href=session.user.role==='administrator'?'#request-management':'#requests',available=await requestNotifications(session),ids=available.filter(item=>item.category==='request'&&item.href===href&&!item.read).map(item=>item.id),readAt=new Date().toISOString();
+          if(ids.length)await notificationStore.update(current=>{current.reads=current.reads||{};const reads=current.reads[session.user.id]||{};for(const id of ids)reads[id]=readAt;current.reads[session.user.id]=Object.fromEntries(Object.entries(reads).slice(-1000));});return json(res,200,{reviewed:ids});
         }
         if(url.pathname==='/api/requests/mine'&&req.method==='GET'){
           if(!permitted(res,session,'discover'))return;

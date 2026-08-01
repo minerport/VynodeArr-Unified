@@ -27,8 +27,13 @@ consistent experience and account system.
 
 ## Current release
 
-Version **2.0.29** is available for production use on Unraid, Windows, and
-standard Docker installations. The new administrator Validation Center checks
+Version **2.0.30** is available for production use on Unraid, Windows, and
+standard Docker installations. User Requests and My Requests navigation
+counters now show only unread request updates and clear when their corresponding
+page is reviewed, without removing the underlying request or notification
+history.
+
+The administrator Validation Center checks
 engine connectivity, storage, acquisition providers, scheduled automation,
 credentials, notifications, and application data after startup, updates, and
 restores. It provides guided fixes plus guarded re-synchronization and managed
