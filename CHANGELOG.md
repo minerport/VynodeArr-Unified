@@ -7,6 +7,24 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.28] - 2026-08-01
+
+### Added
+
+- Added password-encrypted VynodeArr application backups under **System →
+  Backups** for users and permissions, application settings, collections,
+  requests, notification channels and templates, credentials, and the
+  application-managed encryption key. Search Activity and administrator audit
+  history can be included or omitted.
+- Added guarded application recovery with archive inspection, a contents and
+  compatibility preview, exact confirmation, and an automatic encrypted
+  pre-restore safety backup.
+
+### Changed
+
+- Clarified that native Movies and Television engine backups are independent
+  from the portable VynodeArr application archive.
+
 ## [2.0.27] - 2026-08-01
 
 ### Added
@@ -694,7 +712,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.27...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.28...HEAD
+[2.0.28]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.27...v2.0.28
 [2.0.27]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.26...v2.0.27
 [2.0.26]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.25...v2.0.26
 [2.0.25]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.24...v2.0.25

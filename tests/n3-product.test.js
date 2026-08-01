@@ -82,6 +82,20 @@ test('dashboard API returns useful product metrics',()=>appSession({movie:new Mo
   const diagnostics=await (await fetch(`${base}/api/library/diagnostics?domain=movie`,{headers:{cookie}})).json();
   assert.equal(diagnostics.summary.total,diagnostics.items.length);assert.ok(diagnostics.items.every(item=>item.domain==='movie'&&['#movie/','#wanted','#service/root-folders'].some(prefix=>item.href.startsWith(prefix))&&item.actionLabel));
 }));
+test('encrypted application backups can be downloaded once and inspected before restore',()=>appSession({movie:new MovieFixtureAdapter(),tv:new TvFixtureAdapter()},async({base,cookie,csrf})=>{
+  const password='Portable-backup-passphrase-27';
+  const created=await fetch(`${base}/api/system/application-backup`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({password,includeHistory:false,includeAudit:true})}),createdValue=await created.json();
+  assert.equal(created.status,201);assert.match(createdValue.filename,/\.vynodearr-backup$/);
+  const downloaded=await fetch(`${base}${createdValue.downloadUrl}`,{headers:{cookie}}),archive=await downloaded.arrayBuffer();
+  assert.equal(downloaded.status,200);assert.ok(archive.byteLength>100);
+  assert.equal((await fetch(`${base}${createdValue.downloadUrl}`,{headers:{cookie}})).status,404,'application backup download must be one-time');
+  const inspectForm=new FormData();inspectForm.append('file',new Blob([archive]),createdValue.filename);inspectForm.append('password',password);
+  const inspected=await fetch(`${base}/api/system/application-backup/inspect`,{method:'POST',headers:{cookie,'x-vynodearr-csrf':csrf},body:inspectForm}),summary=(await inspected.json()).summary;
+  assert.equal(inspected.status,200);assert.equal(summary.groups.identity,true);assert.equal(summary.groups.audit,true);assert.equal(summary.groups.history,false);assert.ok(summary.fileCount>=2);
+  const wrongForm=new FormData();wrongForm.append('file',new Blob([archive]),createdValue.filename);wrongForm.append('password','Incorrect-backup-password-27');
+  const wrong=await fetch(`${base}/api/system/application-backup/inspect`,{method:'POST',headers:{cookie,'x-vynodearr-csrf':csrf},body:wrongForm});
+  assert.equal(wrong.status,400);assert.match((await wrong.json()).error.message,/incorrect|damaged/i);
+}));
 test('interactive movie grabs create search activity and an in-app notification',()=>{
   const release={title:'Review.Movie.2026.1080p.WEB-DL',guid:'review-guid',indexerId:4,mappedMovieId:7,size:2147483648,quality:{quality:{name:'WEBDL-1080p'}}},posts=[];
   const client={get:async(path)=>{if(path==='release')return[release];if(path==='movie/7')return{id:7,title:'Review Movie'};if(path==='queue')return{records:[{id:91,movieId:7,status:'downloading'}]};if(path==='history')return{records:[]};throw new Error(`Unexpected movie GET ${path}`);},post:async(path,payload)=>{assert.equal(path,'release');posts.push(payload);return{id:91};},delete:async()=>({})};

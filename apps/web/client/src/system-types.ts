@@ -19,6 +19,7 @@ export interface SystemRecord {
 }
 export interface ApplicationUpdate {installedVersion:string;channel:string;mechanism:string;repository:string;message:string}
 export interface MasterKeyStatus {managed:boolean;source:string;canRotate:boolean;storage:string}
+export interface ApplicationBackupSummary {fileName:string;createdAt:string;applicationVersion:string;fileCount:number;masterKeyManaged:boolean;groups:Record<'identity'|'credentials'|'masterKey'|'notifications'|'requests'|'collections'|'history'|'audit',boolean>;warnings:string[]}
 export interface AuditEntry {
   id:string;timestamp:string;userId:string;username:string;actorName?:string;
   category?:string;action?:string;target?:string;summary?:string;domain?:SystemDomain|null;

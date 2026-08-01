@@ -1171,3 +1171,31 @@ input[type="range"] {
     border-right: 1px solid var(--line);
   }
 }
+/* Encrypted application backup and recovery */
+.application-backup-card{margin-bottom:1rem;background:linear-gradient(135deg,rgba(38,104,255,.11),rgba(21,215,183,.06) 55%,transparent)}
+.application-backup-card>.form-actions{display:flex;flex-wrap:wrap;gap:.75rem;margin-top:1rem}
+.application-backup-backdrop{position:fixed;inset:0;z-index:240;display:grid;place-items:center;padding:1rem;background:rgba(2,6,16,.78);backdrop-filter:blur(10px)}
+.application-backup-dialog{display:flex;flex-direction:column;width:min(42rem,calc(100vw - 2rem));max-height:calc(100dvh - 2rem);overflow:hidden;border:1px solid var(--line,#28446f);border-radius:1rem;background:var(--panel,#07111f);box-shadow:0 24px 80px rgba(0,0,0,.55)}
+.application-backup-dialog>header,.application-backup-dialog>footer{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 1.25rem;background:rgba(9,22,41,.97)}
+.application-backup-dialog>header{border-bottom:1px solid var(--line,#28446f)}
+.application-backup-dialog>footer{justify-content:flex-end;border-top:1px solid var(--line,#28446f)}
+.application-backup-dialog h2{margin:.15rem 0 0}
+.application-backup-body{display:grid;gap:1rem;overflow-y:auto;padding:1.25rem;overscroll-behavior:contain}
+.application-backup-body>label{display:grid;gap:.45rem;font-weight:700}
+.application-backup-body label small{font-weight:400;color:var(--muted,#8fa4c1)}
+.application-backup-body fieldset{display:grid;gap:.7rem;padding:1rem;border:1px solid var(--line,#28446f);border-radius:.75rem}
+.application-backup-body .check{display:flex;align-items:center;gap:.65rem;font-weight:500}
+.application-backup-body .check input{width:1.15rem;height:1.15rem}
+.application-backup-summary{display:grid;gap:.5rem;padding:1rem;border:1px solid rgba(21,215,183,.38);border-radius:.75rem;background:rgba(21,215,183,.06)}
+.application-backup-summary>div{display:flex;flex-wrap:wrap;gap:.45rem;margin-top:.35rem}
+.application-backup-error{margin:0;padding:.75rem 1.25rem;border-top:1px solid rgba(255,91,118,.35)}
+@media(max-width:700px){
+  .application-backup-card>.form-actions>*{flex:1 1 100%;min-height:2.8rem}
+  .application-backup-backdrop{align-items:end;padding:0}
+  .application-backup-dialog{width:100%;max-height:94dvh;border-width:1px 0 0;border-radius:1rem 1rem 0 0}
+  .application-backup-dialog>header,.application-backup-dialog>footer{padding:.9rem 1rem}
+  .application-backup-dialog>header .secondary{min-width:4.5rem}
+  .application-backup-dialog>footer{padding-bottom:max(.9rem,env(safe-area-inset-bottom))}
+  .application-backup-dialog>footer button{flex:1;min-height:2.8rem}
+  .application-backup-body{padding:1rem}
+}

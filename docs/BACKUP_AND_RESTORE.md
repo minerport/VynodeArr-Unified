@@ -1,12 +1,46 @@
 # Backup and Restore
 
-VynodeArr manages Movies and TV backups separately because each connected
-engine has its own configuration database, settings, and backup history.
+VynodeArr provides two complementary backup types. The encrypted application
+archive protects VynodeArr's own configuration and identity data. Native Movies
+and Television backups protect each engine's database and settings.
+
+## Create an encrypted VynodeArr application backup
+
+1. Open **System → Backups** and select **Download application backup**.
+2. Enter and confirm a password of at least 12 characters. VynodeArr cannot
+   recover this password.
+3. Choose whether to include Search Activity and administrator audit history.
+4. Select **Create & download**, then store the `.vynodearr-backup` file and its
+   password separately outside the server.
+
+The archive includes users and permissions, application and connection
+settings, requests and approvals, notification channels and templates,
+encrypted provider credentials, the application-managed credential master
+key, collections, and engine-authentication metadata. Active login sessions,
+native Movies and Television databases, and library media are excluded.
+
+If the master key is supplied by an environment variable or secret file, it is
+not copied into the archive. Restore that archive only with the same external
+key configured.
+
+## Inspect and restore an application backup
+
+1. Open **System → Backups** and select **Inspect & restore**.
+2. Choose the `.vynodearr-backup` file and enter its password.
+3. Inspect the creation time, application version, protected data groups, and
+   any credential warnings before continuing.
+4. Type `RESTORE` and select **Restore application**.
+5. Restart VynodeArr to load the restored users, permissions, settings, and
+   credentials.
+
+Immediately before replacement, VynodeArr writes an encrypted pre-restore
+safety archive under the persistent application data directory. Restore uses
+atomic file replacement and does not restore old active sessions.
 
 ## Create VynodeArr-managed engine backups
 
 1. Open **System → Backups**.
-2. Select **Create both backups**.
+2. Select **Create both engine backups**.
 3. Wait for the Movies and Television backups to appear in their respective
    sections.
 4. Download both files and keep copies outside the container.

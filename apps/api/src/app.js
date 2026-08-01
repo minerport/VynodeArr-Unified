@@ -1,10 +1,10 @@
-import { readFile } from 'node:fs/promises';
-import { createHash,randomUUID } from 'node:crypto';
+import { mkdir,readFile,rename,writeFile } from 'node:fs/promises';
+import { createCipheriv,createDecipheriv,createHash,randomBytes,randomUUID,scryptSync } from 'node:crypto';
 import { request as httpRequest } from 'node:http';
 import { request as httpsRequest } from 'node:https';
 import { extname,join,normalize,resolve } from 'node:path';
 import { promisify } from 'node:util';
-import { gzip } from 'node:zlib';
+import { gunzip,gzip } from 'node:zlib';
 import { MediaEngineRegistry } from '../../../packages/platform/src/engine-registry.js';
 import { loadEngineConfiguration,loadSecret,publicEngineConfiguration } from '../../../packages/platform/src/engine-config.js';
 import { SynchronizationService } from '../../../packages/platform/src/synchronization-service.js';
@@ -27,6 +27,7 @@ const applicationVersion=JSON.parse(await readFile(resolve(process.cwd(),'packag
 const webRoot=resolve(process.cwd(),'apps/web/public');
 const mime={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.ico':'image/x-icon'};
 const gzipAsync=promisify(gzip);
+const gunzipAsync=promisify(gunzip);
 const compressible=new Set(['.html','.css','.js','.svg']);
 export function televisionAddPayload(input={}){
   const addOptions=input.addOptions||{},monitor=String(addOptions.monitor||input.monitor||(input.monitored===false?'none':'all'));
@@ -131,6 +132,32 @@ export function createApplication(options={}){
   const defaultDownloadFolder=domain=>String(env[domain==='movie'?'VYNODEARR_MOVIE_DOWNLOADS_PATH':'VYNODEARR_TV_DOWNLOADS_PATH']||env.VYNODEARR_DOWNLOADS_PATH||'/downloads').replace(/\/+$/,'')||'/downloads';
   const downloadClientRemotePath=domain=>String(env[domain==='movie'?'VYNODEARR_MOVIE_DOWNLOAD_CLIENT_REMOTE_PATH':'VYNODEARR_TV_DOWNLOAD_CLIENT_REMOTE_PATH']||env.VYNODEARR_DOWNLOAD_CLIENT_REMOTE_PATH||'/data/complete').replace(/\/+$/,'')||'/data/complete';
   const downloadFolderStore=options.downloadFolderStore||new JsonStore(join(dataDir,'download-folders.json'),{version:1,movie:{path:defaultDownloadFolder('movie')},tv:{path:defaultDownloadFolder('tv')},updatedAt:null});
+  const applicationBackupFiles=['users.json','engine-settings.json','credentials.enc','master-key','collections.json','user-requests.json','notification-events.json','guide-templates.json','engine-authentication.json','download-folders.json'];
+  const applicationHistoryFiles=['search-activity.json'];
+  const applicationAuditFiles=['management-audit.json'];
+  const applicationBackupKey=(password,salt)=>scryptSync(String(password),salt,32);
+  async function applicationBackupPayload(input={}){
+    const password=String(input.password||'');if(password.length<12)throw new Error('Use a backup password with at least 12 characters');
+    const names=[...applicationBackupFiles,...(input.includeHistory===false?[]:applicationHistoryFiles),...(input.includeAudit===false?[]:applicationAuditFiles)],files={};
+    for(const name of names){const value=await readFile(join(dataDir,name)).catch(()=>null);if(value)files[name]=value.toString('base64');}
+    const createdAt=new Date().toISOString(),payload={format:'vynodearr-application-backup',version:1,applicationVersion,createdAt,options:{history:input.includeHistory!==false,audit:input.includeAudit!==false},masterKeyManaged:masterKeyService.status().managed,files};
+    const salt=randomBytes(16),iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',applicationBackupKey(password,salt),iv),encrypted=Buffer.concat([cipher.update(JSON.stringify(payload),'utf8'),cipher.final()]),envelope={format:payload.format,version:1,kdf:'scrypt',cipher:'aes-256-gcm',salt:salt.toString('base64'),iv:iv.toString('base64'),tag:cipher.getAuthTag().toString('base64'),data:encrypted.toString('base64')};
+    return{buffer:await gzipAsync(Buffer.from(JSON.stringify(envelope))),payload};
+  }
+  async function inspectApplicationBackup(file,password){
+    if(!(file instanceof File)||!file.size||file.size>100_000_000)throw new Error('Choose a VynodeArr application backup smaller than 100 MB');
+    if(!/\.vynodearr-backup$/i.test(file.name))throw new Error('Choose a .vynodearr-backup file');
+    if(String(password||'').length<12)throw new Error('Enter the password used to create this backup');
+    let envelope,payload;try{envelope=JSON.parse((await gunzipAsync(Buffer.from(await file.arrayBuffer()))).toString('utf8'));if(envelope?.format!=='vynodearr-application-backup'||envelope.version!==1||envelope.kdf!=='scrypt'||envelope.cipher!=='aes-256-gcm'||![envelope.salt,envelope.iv,envelope.tag,envelope.data].every(value=>typeof value==='string'&&value.length))throw new Error('unsupported');const decipher=createDecipheriv('aes-256-gcm',applicationBackupKey(password,Buffer.from(envelope.salt,'base64')),Buffer.from(envelope.iv,'base64'));decipher.setAuthTag(Buffer.from(envelope.tag,'base64'));payload=JSON.parse(Buffer.concat([decipher.update(Buffer.from(envelope.data,'base64')),decipher.final()]).toString('utf8'));}catch{throw new Error('The backup password is incorrect or the archive is damaged');}
+    if(envelope.format!=='vynodearr-application-backup'||payload?.format!==envelope.format||payload.version!==1||!payload.files||typeof payload.files!=='object')throw new Error('This is not a supported VynodeArr application backup');
+    const allowed=new Set([...applicationBackupFiles,...applicationHistoryFiles,...applicationAuditFiles]),names=Object.keys(payload.files);if(names.some(name=>!allowed.has(name)))throw new Error('The backup contains an unsupported application file');
+    for(const [name,value]of Object.entries(payload.files)){const decoded=Buffer.from(String(value),'base64');if(name.endsWith('.json'))try{JSON.parse(decoded.toString('utf8'));}catch{throw new Error(`${name} is not valid JSON`);}}
+    const groups={identity:names.includes('users.json'),credentials:names.includes('credentials.enc'),masterKey:names.includes('master-key'),notifications:names.includes('notification-events.json'),requests:names.includes('user-requests.json'),collections:names.includes('collections.json'),history:names.includes('search-activity.json'),audit:names.includes('management-audit.json')};
+    return{payload,summary:{fileName:file.name,createdAt:payload.createdAt,applicationVersion:payload.applicationVersion,fileCount:names.length,groups,masterKeyManaged:payload.masterKeyManaged,warnings:[...(payload.masterKeyManaged?[]:['This backup used an environment-managed master key. Restore it only with the same configured key.']),...(!groups.credentials||(payload.masterKeyManaged&&!groups.masterKey)?['Credential material is incomplete. Saved external connections may require reconfiguration.']:[])]}};
+  }
+  async function restoreApplicationBackup(payload){
+    const restored=[];for(const[name,value]of Object.entries(payload.files)){const target=join(dataDir,name),temporary=`${target}.restore-${randomUUID()}`;await writeFile(temporary,Buffer.from(String(value),'base64'),{mode:name==='master-key'||name==='credentials.enc'?0o600:0o640});await rename(temporary,target);restored.push(name);}return restored;
+  }
   async function recordAudit(session,{category='configuration',action,target='',summary='',domain=null,metadata={}}){
     const entry={id:`audit_${randomUUID()}`,timestamp:new Date().toISOString(),userId:session.user.id,username:session.user.username,actorName:session.user.name||session.user.username,category,action,target:String(target||''),summary:String(summary||''),domain,metadata};
     await auditStore.update(current=>{current.version=1;current.entries=Array.isArray(current.entries)?current.entries:[];current.entries.unshift(entry);current.entries=current.entries.slice(0,1000);return entry;});
@@ -144,7 +171,7 @@ export function createApplication(options={}){
   const sync=options.sync||new SynchronizationService({movie,tv,maxItems:baseConfig.cacheMaxItems,pollIntervalMs:baseConfig.pollIntervalMs,projectionStore});
   const enginesConfigured=()=>mode==='fixture'||engineSettings.configured();
   const management=new EngineManagementService(registry);
-const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),completedQueueRefreshes=new Map(),completedQueueCleanups=new Map(),completedUpgradeRenames=new Map(),completedLibraryImports=new Map(),libraryReconciliations=new Map(),libraryEventClients=new Set(),interactiveReleaseCache=new Map(),renamePlans=new Map();
+const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),completedQueueRefreshes=new Map(),completedQueueCleanups=new Map(),completedUpgradeRenames=new Map(),completedLibraryImports=new Map(),libraryReconciliations=new Map(),libraryEventClients=new Set(),interactiveReleaseCache=new Map(),renamePlans=new Map(),applicationBackupDownloads=new Map();
   let initialized=false,queueCompletionTimer=null;
   function importIdentityKeys(value={}){
     const keys=[],title=String(value.title||value.name||'').trim().toLowerCase(),year=Number(value.year||0);
@@ -1345,6 +1372,19 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
             if(error?.code==='master_key_environment_managed')return json(res,409,{error:{code:error.code,message:error.message}});
             throw error;
           }
+        }
+        if(url.pathname==='/api/system/application-backup'&&req.method==='POST'){
+          if(!administrator(res,session)||!requireCsrf(req,res,session))return;const input=await body(req),result=await applicationBackupPayload(input),stamp=result.payload.createdAt.replace(/\.\d{3}Z$/,'Z').replace(/:/g,'-'),filename=`VynodeArr_Application_Backup_${stamp}.vynodearr-backup`;
+          await recordAudit(session,{category:'backup',action:'application_backup.downloaded',target:filename,summary:'Created and downloaded an encrypted VynodeArr application backup.',metadata:{history:result.payload.options.history,audit:result.payload.options.audit,fileCount:Object.keys(result.payload.files).length}});
+          const downloadId=randomUUID();applicationBackupDownloads.set(downloadId,{buffer:result.buffer,filename,userId:session.user.id,expiresAt:Date.now()+5*60_000});for(const[id,item]of applicationBackupDownloads)if(item.expiresAt<Date.now())applicationBackupDownloads.delete(id);return json(res,201,{downloadUrl:`/api/system/application-backup/${downloadId}/download`,filename,expiresInSeconds:300});
+        }
+        const applicationBackupDownload=url.pathname.match(/^\/api\/system\/application-backup\/([a-f0-9-]+)\/download$/i);
+        if(applicationBackupDownload&&req.method==='GET'){if(!administrator(res,session))return;const item=applicationBackupDownloads.get(applicationBackupDownload[1]);applicationBackupDownloads.delete(applicationBackupDownload[1]);if(!item||item.expiresAt<Date.now()||item.userId!==session.user.id)return json(res,404,{error:{code:'backup_download_expired',message:'This backup download expired. Create a new backup.'}});res.writeHead(200,{'content-type':'application/octet-stream','content-disposition':`attachment; filename="${item.filename}"`,'content-length':item.buffer.length,'cache-control':'no-store','x-content-type-options':'nosniff'});return res.end(item.buffer);}
+        if(url.pathname==='/api/system/application-backup/inspect'&&req.method==='POST'){
+          if(!administrator(res,session)||!requireCsrf(req,res,session))return;const incoming=new Request('http://vynodearr.local/application-backup/inspect',{method:'POST',headers:req.headers,body:req,duplex:'half'}),form=await incoming.formData(),file=form.get('file'),password=String(form.get('password')||''),inspection=await inspectApplicationBackup(file,password);return json(res,200,{summary:inspection.summary});
+        }
+        if(url.pathname==='/api/system/application-backup/restore'&&req.method==='POST'){
+          if(!administrator(res,session)||!requireCsrf(req,res,session))return;const incoming=new Request('http://vynodearr.local/application-backup/restore',{method:'POST',headers:req.headers,body:req,duplex:'half'}),form=await incoming.formData(),file=form.get('file'),password=String(form.get('password')||''),confirmation=String(form.get('confirmation')||'');if(confirmation!=='RESTORE')return json(res,400,{error:{code:'confirmation_required',message:'Type RESTORE to confirm application recovery.'}});const inspection=await inspectApplicationBackup(file,password),safety=await applicationBackupPayload({password,includeHistory:true,includeAudit:true}),directory=join(dataDir,'application-backups');await mkdir(directory,{recursive:true});await writeFile(join(directory,`pre-restore-${new Date().toISOString().replace(/[:.]/g,'-')}.vynodearr-backup`),safety.buffer,{mode:0o600});const restored=await restoreApplicationBackup(inspection.payload);await recordAudit(session,{category:'backup',action:'application_backup.restored',target:file.name,summary:'Restored an encrypted VynodeArr application backup. An application restart is required.',metadata:{fileCount:restored.length,sourceVersion:inspection.payload.applicationVersion}});return json(res,200,{restored:true,restartRequired:true,files:restored.length,preRestoreBackup:true});
         }
         const backupRestore=url.pathname.match(/^\/api\/system\/backups\/(movie|tv)\/(\d+)\/restore$/);
         if(backupRestore&&req.method==='POST'){

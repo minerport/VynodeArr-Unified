@@ -27,8 +27,16 @@ consistent experience and account system.
 
 ## Current release
 
-Version **2.0.27** is available for production use on Unraid, Windows, and
-standard Docker installations. Discord, Telegram, and Gotify delivery now
+Version **2.0.28** is available for production use on Unraid, Windows, and
+standard Docker installations. Administrators can now download a portable,
+password-encrypted VynodeArr application backup containing accounts,
+permissions, requests, notification configuration and templates, protected
+credentials, collections, and application settings. Recovery includes a
+contents preview, explicit confirmation, and an automatic encrypted
+pre-restore safety archive. Native Movies and Television backups remain
+separate so both application and engine state can be recovered intentionally.
+
+Discord, Telegram, and Gotify delivery
 includes a visual template builder with friendly title and message fields,
 reusable event tokens, live previews, and an optional validated JSON editor for
 provider-specific payloads. Discord supports custom accent colors and Gotify
@@ -386,8 +394,13 @@ Administrators can reveal or generate the individual API keys under **Account Se
 
 - On Unraid, update the container to pull the newest image.
 - Never remove the persistent `/config` mapping during an update.
-- Create and download both backups from **System → Backups** before uninstalling.
-- A new installation can upload and restore downloaded backup files.
+- Download an encrypted **VynodeArr application backup** from **System →
+  Backups** before uninstalling. It protects accounts, permissions, requests,
+  notification channels and templates, saved credentials, collections, and
+  application settings. Keep its password separately; it cannot be recovered.
+- Create and download both native engine backups from the same page. A new
+  installation can inspect and restore the application archive, then upload
+  the Movies and Television backups to their matching sections.
 - Library media remains in `/movies` and `/tv`; it is not stored inside the application container.
 
 ### Restore existing movie and TV engine backups
@@ -402,8 +415,10 @@ Native backups from an existing installation can be restored through
 
 The backups are restored separately and must be uploaded to their matching
 sections. Supported uploads are `.zip`, `.db`, and `.xml` files up to 500 MB.
-Restoring replaces the selected engine's current configuration but does not
-restore VynodeArr accounts or application-level settings.
+Restoring an engine backup replaces only that engine's configuration. Restore
+accounts and application-level settings from the separate encrypted VynodeArr
+application archive; it deliberately excludes active login sessions and media
+files, and requires an application restart after recovery.
 
 After restoring, verify root folders and download paths because paths from the
 old installation must also exist inside the new container or be remapped.

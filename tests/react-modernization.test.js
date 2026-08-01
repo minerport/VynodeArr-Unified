@@ -116,7 +116,8 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(accountTypes,/AccountMountOptions/);
   assert.match(app,/showAccountReact/);
   assert.match(system,/SystemView/);
-  assert.match(system,/Create both backups/);
+  assert.match(system,/Create both engine backups/);
+  for(const workflow of ['ApplicationBackups','Download application backup','Inspect & restore','.vynodearr-backup','Type RESTORE','/api/system/application-backup'])assert.match(system,new RegExp(workflow.replace(/[&]/g,'&')));
   assert.match(system,/AuditLog/);
   assert.match(system,/\/api\/manage\/audit/);
   assert.match(system,/All administrators/);

@@ -1,6 +1,6 @@
 {
   "name": "vynodearr",
-  "version": "2.0.27",
+  "version": "2.0.28",
   "private": true,
   "type": "module",
   "engines": { "node": ">=20" },
