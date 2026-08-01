@@ -27,8 +27,8 @@ VynodeArr runs Radarr and Sonarr behind one secure gateway while retaining separ
 Existing libraries are supported. Configure separate movie and television folders plus a completed-download folder shared with your download client.</Description>
   <Category>MediaApp:Video</Category>
   <WebUI>http://[IP]:[PORT:8686]/</WebUI>
-  <TemplateURL>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/develop/templates/vynodearr.xml</TemplateURL>
-  <Icon>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/develop/assets/branding/VynodeArr.png</Icon>
+  <TemplateURL>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/templates/vynodearr.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/assets/branding/VynodeArr.png</Icon>
   <ExtraParams>--user 99:100 --stop-timeout 60</ExtraParams>
   <PostArgs/>
   <CPUset/>

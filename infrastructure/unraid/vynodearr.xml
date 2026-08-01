@@ -12,8 +12,8 @@
   <Description>VynodeArr runs Radarr and Sonarr behind one secure gateway while keeping their databases and settings isolated. Radarr and Sonarr are established open-source projects maintained by their respective contributors. Their bundled binaries remain licensed under GPLv3; VynodeArr's Apache 2.0 license applies only to VynodeArr code. Component versions, source links, and license details are provided in OPEN_SOURCE_NOTICES and THIRD_PARTY_NOTICES. Choose separate media folders and one shared downloads folder.</Description>
   <Category>MediaApp:Video</Category>
   <WebUI>http://[IP]:[PORT:8686]/</WebUI>
-  <TemplateURL>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/develop/templates/vynodearr.xml</TemplateURL>
-  <Icon>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/develop/assets/branding/VynodeArr.png</Icon>
+  <TemplateURL>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/templates/vynodearr.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/assets/branding/VynodeArr.png</Icon>
   <ExtraParams>--user 99:100 --stop-timeout 60</ExtraParams>
   <PostArgs/>
   <CPUset/>
