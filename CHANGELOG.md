@@ -7,6 +7,29 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.25] - 2026-08-01
+
+### Changed
+
+- Search Activity now reconciles matching Movie and Television Queue and History
+  records, advancing through grabbed, downloading, waiting for import, and
+  imported states using authoritative engine data.
+- Completed search commands remain eligible for Queue and History reconciliation
+  for seven days so delayed grabs and imports continue updating.
+- Administrator Search Activity includes automatic searches initiated through
+  user Discover requests as well as searches started directly by an
+  administrator.
+
+### Fixed
+
+- Fixed Search Activity stopping after a download instead of advancing when the
+  media engine confirmed the library import.
+- Fixed administrator request notifications disappearing after approval or
+  rejection; they now remain as durable decision history.
+- Fixed read notifications becoming difficult to see on phone-sized displays.
+- Kept the User Requests sidebar badge limited to requests that still require an
+  administrator decision, rather than counting retained notification history.
+
 ## [2.0.24] - 2026-08-01
 
 ### Added
@@ -602,7 +625,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.24...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.25...HEAD
+[2.0.25]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.24...v2.0.25
 [2.0.24]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.23...v2.0.24
 [2.0.23]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.22...v2.0.23
 [2.0.22]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.21...v2.0.22

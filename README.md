@@ -27,12 +27,19 @@ consistent experience and account system.
 
 ## Current release
 
-Version **2.0.24** is available for production use on Unraid, Windows, and
+Version **2.0.25** is available for production use on Unraid, Windows, and
 standard Docker installations. Administrators now have a persistent **Search
 Activity** center inside the notification bell for Movie and Television
 automatic searches. It shows the real path from queued and searching through
 grabbed, downloading, and imported, with posters, engine status, bulk-search
 counts, and direct links to Queue and title details.
+
+Search Activity follows matching engine Queue and History records through
+download completion and confirmed library import. Completed commands continue
+reconciling for delayed results, and searches initiated by user requests remain
+visible to administrators. Request notifications also remain as readable
+history after approval or rejection while sidebar badges count only decisions
+that still require action.
 
 Automatic-search activity covers new library additions, Discover requests,
 whole-show, season, episode, Wanted, and Search All Missing workflows. Native

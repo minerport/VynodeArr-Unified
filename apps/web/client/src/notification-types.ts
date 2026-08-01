@@ -7,6 +7,7 @@ export interface NotificationItem{
   href:'#request-management'|'#requests';
   requestId:string;
   read:boolean;
+  actionable?:boolean;
 }
 
 export interface NotificationMountOptions{

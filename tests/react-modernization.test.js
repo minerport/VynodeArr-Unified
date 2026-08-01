@@ -1070,6 +1070,7 @@ test('request notification bell has durable role-aware request updates',async()=
   assert.match(notifications,/\/api\/notifications/);assert.match(notifications,/Mark all read/);assert.match(notifications,/15_000/);
   assert.match(types,/approval.*approved.*rejected.*failed.*imported/);
   assert.match(server,/notificationReads/);assert.match(server,/\/api\/notifications\/read/);assert.match(server,/href:'#request-management'/);assert.match(server,/href:'#requests'/);
+  assert.match(server,/item\.status==='pending_approval'\|\|item\.approvedBy\|\|item\.rejectedBy/);assert.match(server,/items\.filter\(item=>item\.actionable\)\.length/);
   assert.match(styles,/max-height:calc\(100dvh - 6rem\)/);assert.match(styles,/overflow:auto/);assert.match(styles,/notification-bell/);assert.match(styles,/nav-count-badge/);
 });
 
@@ -1080,6 +1081,7 @@ test('administrator search activity visualizes every automatic-search entry poin
   ]);
   assert.match(html,/search-activity\.css/);assert.match(types,/interface SearchActivity/);assert.match(shell,/administrator:user\.role==='administrator'/);
   for(const value of ['/api/search-activities','searchActivityStore','createSearchActivity','reconcileSearchActivities','SeriesSearch','SeasonSearch','EpisodeSearch','MoviesSearch','searchForMissingEpisodes','searchForMovie'])assert.match(server,new RegExp(value.replaceAll('/','\\/')),value);
+  for(const value of ["client.get('queue'","client.get('history'",'status:\'downloading\'','status:\'imported\'','waiting for the media engine to import','download finished and was imported'])assert.ok(server.includes(value),value);
   for(const value of ['Search activity','Queued','Searching','Grabbed','Downloading','Imported','Open Queue','Open title'])assert.match(notifications,new RegExp(value),value);
   assert.match(notifications,/5_000/);assert.match(styles,/search-stage-track/);assert.match(styles,/bottom:0/);assert.match(styles,/aspect-ratio:2\/3/);
   assert.match(notifications,/artwork\/movie\/movie_\$\{item\.movieId\}\/poster/);assert.match(notifications,/#movie\/movie_\$\{item\.movieId\}/);

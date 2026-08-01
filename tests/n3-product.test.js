@@ -154,6 +154,8 @@ test('approval-required Discover requests stay out of the engine until an admini
     assert.equal(administered[0].user.id,created.id);assert.equal(administered[0].canApprove,true);
     const approved=await fetch(`${base}/api/requests/${requestValue.request.id}/approve`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:'{}'});
     assert.equal(approved.status,200);assert.equal(posts.length,1);
+    const retainedAdminNotifications=await (await fetch(`${base}/api/notifications`,{headers:{cookie}})).json();
+    assert.equal(retainedAdminNotifications.items.some(item=>item.id===adminNotifications.items[0].id),true);assert.equal(retainedAdminNotifications.items.find(item=>item.id===adminNotifications.items[0].id).type,'approved');assert.deepEqual(retainedAdminNotifications.pageBadge,{href:'#request-management',count:0});
     const duplicate=await fetch(`${base}/api/requests/${requestValue.request.id}/approve`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:'{}'});
     assert.equal(duplicate.status,409);assert.equal(posts.length,1);
     const duplicateSubmission=await fetch(`${base}/api/discover/request`,{method:'POST',headers:{cookie:userCookie,'content-type':'application/json','x-vynodearr-csrf':userLogin.csrf},body:JSON.stringify({domain:'movie',tmdbId:123,payload:{tmdbId:123,title:'Alternate Approval Film Title',year:2025,rootFolderPath:'/movies',qualityProfileId:1,monitored:true,addOptions:{searchForMovie:true}}})});
