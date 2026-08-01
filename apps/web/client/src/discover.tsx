@@ -65,9 +65,10 @@ function Row({title,subtitle,items,library,onOpen,onMore,onBack,grid=false}:{tit
 function Taxonomy({title,kind,items,onSelect}:{title:string;kind:'genre'|'studio'|'network';items:DiscoverCategory[];onSelect:(item:DiscoverCategory&{taxonomy:'genre'|'studio'|'network'})=>void}){
   const strip=useRef<HTMLDivElement>(null);
   if(!items.length)return null;
+  const genreMark=(name:string)=>({action:'⚡',adventure:'⌖',animation:'✦',comedy:'☺',crime:'⌁',documentary:'◉',drama:'◐',family:'★',fantasy:'✧',history:'⌛',horror:'◬',music:'♪',mystery:'?',romance:'♥','science fiction':'⊙','sci-fi & fantasy':'⊙','tv movie':'▣',thriller:'!',war:'⛨',western:'✶'}[name.toLowerCase()]||'◇');
   return <section className="discover-row discover-taxonomy"><div className="discover-row-heading"><div><h2>{title}</h2></div><div className="discover-row-controls">
     <button type="button" aria-label={`Previous ${title}`} title="Previous" onClick={()=>strip.current?.scrollBy({left:-700,behavior:'smooth'})}>‹</button><button type="button" aria-label={`Next ${title}`} title="Next" onClick={()=>strip.current?.scrollBy({left:700,behavior:'smooth'})}>›</button>
-  </div></div><div className="discover-taxonomy-grid discover-strip" ref={strip}>{items.map((item,index)=><button key={`${item.domain}-${item.id}`} onClick={()=>onSelect({...item,taxonomy:kind})} style={{'--taxonomy-hue':String((index*47+(kind==='genre'?258:kind==='studio'?188:332))%360),...(item.backdrop?{'--taxonomy-image':`url("${item.backdrop}")`}:{})} as CSSProperties}><span>{kind==='genre'?'◇':kind==='studio'?'◆':'●'}</span><strong>{item.name}</strong><small>Browse all titles</small></button>)}</div></section>;
+  </div></div><div className="discover-taxonomy-grid discover-strip" ref={strip}>{items.map((item,index)=><button className={`taxonomy-${kind}`} key={`${item.domain}-${item.id}`} onClick={()=>onSelect({...item,taxonomy:kind})} style={{'--taxonomy-hue':String((index*47+(kind==='genre'?258:kind==='studio'?188:332))%360)} as CSSProperties}><span className="taxonomy-art" aria-hidden="true">{kind==='genre'?<i>{genreMark(item.name)}</i>:item.logo?<img src={item.logo} alt="" loading="lazy"/>:<i>{item.name.slice(0,2).toUpperCase()}</i>}</span><strong>{item.name}</strong><small>Browse all titles</small></button>)}</div></section>;
 }
 
 export function DiscoverView({options}:{options:DiscoverMountOptions}){
@@ -121,8 +122,8 @@ export function DiscoverView({options}:{options:DiscoverMountOptions}){
     void Promise.all([
       cachedRequest('discover:genres:movie',()=>options.request<{items:DiscoverCategory[]}>('/api/discover/genres?domain=movie'),6*60*60_000),
       cachedRequest('discover:genres:tv',()=>options.request<{items:DiscoverCategory[]}>('/api/discover/genres?domain=tv'),6*60*60_000),
-      cachedRequest('discover:studios',()=>options.request<{items:DiscoverCategory[]}>('/api/discover/categories?type=studios'),6*60*60_000),
-      cachedRequest('discover:networks',()=>options.request<{items:DiscoverCategory[]}>('/api/discover/categories?type=networks'),6*60*60_000),
+      cachedRequest('discover:studios:logos',()=>options.request<{items:DiscoverCategory[]}>('/api/discover/categories?type=studios'),6*60*60_000),
+      cachedRequest('discover:networks:logos',()=>options.request<{items:DiscoverCategory[]}>('/api/discover/categories?type=networks'),6*60*60_000),
     ]).then(([movie,tv,studios,networks])=>{if(active)setTaxonomies({movie:movie.items,tv:tv.items,studios:studios.items,networks:networks.items});}).catch(()=>{});
     return()=>{active=false;window.clearInterval(timer);window.removeEventListener('focus',focused);window.removeEventListener('vynodearr:discover-requested',requested);};
   },[loadFeed,options,refreshLibrary]);

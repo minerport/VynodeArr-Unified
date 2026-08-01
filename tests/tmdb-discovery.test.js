@@ -26,6 +26,16 @@ test('TMDB browse uses category parameters and fixed Seerr category counts',asyn
   assert.equal(studios.length,11);assert.equal(networks.length,22);
 });
 
+test('TMDB studio and network categories use official brand logos',async()=>{
+  const service=new TmdbDiscoveryService({token:'test-token',fetcher:async url=>{
+    const path=new URL(url).pathname;
+    if(path.endsWith('/images'))return response({logos:[{file_path:'/brand.png',iso_639_1:'en',vote_average:9}]});
+    return response({page:1,total_pages:1,total_results:1,results:[{id:10,title:'Film',backdrop_path:'/film-bg.jpg'}]});
+  }});
+  const items=await service.categories('studios');
+  assert.match(items[0].logo,/image\.tmdb\.org\/t\/p\/w500\/brand\.png/);
+});
+
 test('TMDB enrichment resolves a library title and maps credits, trailers, and external links',async()=>{
   const service=new TmdbDiscoveryService({token:'test-token',fetcher:async url=>{
     const path=new URL(url).pathname;

@@ -25,7 +25,7 @@
 .vynode-nested-modal-layer{position:fixed;z-index:120;inset:0;display:grid;place-items:center;padding:3vh 3vw}
 .react-detail-dialog{position:relative;inset:auto;box-sizing:border-box;width:min(64rem,100%);max-height:94vh;margin:0;padding:1.25rem;border:1px solid var(--line);border-radius:.9rem;background:#080e19;overflow:auto}.react-detail-editor{max-width:38rem}.react-detail-editor form{display:grid;gap:1rem}.react-detail-editor label:not(.check){display:grid;gap:.45rem;color:var(--muted)}.react-detail-editor select{width:100%;padding:.8rem;border:1px solid var(--line);border-radius:.55rem;background:var(--panel);color:var(--text)}
 .file-browser-dialog{max-width:48rem}.file-browser-actions{margin:.75rem 0}.file-browser-list{display:grid;gap:.45rem}.file-browser-list .folder-row{display:grid;grid-template-columns:1.5rem minmax(0,1fr);gap:.15rem .65rem;width:100%;padding:.7rem .8rem;border:1px solid var(--line);border-radius:.55rem;background:#0d1626;color:var(--text);text-align:left;cursor:pointer}.file-browser-list .folder-row:hover{border-color:var(--accent);background:#141e33}.file-browser-list .folder-row>span{grid-row:1/3;color:var(--cyan)}.file-browser-list .folder-row>small{grid-column:2;color:var(--muted);overflow-wrap:anywhere}
-@media(max-width:720px){.vynode-detail-modal-host{padding:0}.react-movie-detail,.react-tv-detail{max-height:100vh}.vynode-detail-surface{max-height:100vh;border-radius:0}.vynode-detail-surface>.detail-hero{grid-template-columns:6rem 1fr;padding:7rem 1rem 1rem}.vynode-detail-surface .detail-art{width:6rem}.vynode-detail-surface .detail-copy h1{font-size:1.55rem}.vynode-detail-surface>.fact-grid,.vynode-detail-surface>.panel{margin-right:1rem;margin-left:1rem}.vynode-detail-surface>.fact-grid{grid-template-columns:repeat(2,1fr)}.vynode-detail-surface>.fact-grid div{border-bottom:1px solid var(--line)}.vynode-detail-surface .movie-information-grid,.enrichment-facts{grid-template-columns:repeat(2,1fr)}.tmdb-unavailable{align-items:stretch;flex-direction:column}.vynode-nested-modal-layer{padding:1rem}.react-detail-dialog{width:100%;max-height:calc(100vh - 2rem)}.react-detail-dialog .release-row{grid-template-columns:1fr}}
+@media(max-width:720px){.react-movie-detail,.react-tv-detail{max-height:100vh}.vynode-detail-surface>.fact-grid div{border-bottom:1px solid var(--line)}.vynode-detail-surface .movie-information-grid,.enrichment-facts{grid-template-columns:repeat(2,1fr)}.tmdb-unavailable{align-items:stretch;flex-direction:column}.vynode-nested-modal-layer{padding:1rem}.react-detail-dialog{width:100%;max-height:calc(100vh - 2rem)}.react-detail-dialog .release-row{grid-template-columns:1fr}}
 .react-movie-detail.enrichment-pending .tmdb-unavailable{display:none}
 .react-movie-detail .tmdb-enrichment-loading{display:flex;align-items:center;gap:18px;min-height:96px}
 .react-movie-detail .tmdb-enrichment-loading .skeleton{width:64px;height:64px;flex:0 0 64px;border-radius:14px}
@@ -37,7 +37,6 @@
 .vynode-detail-surface>.detail-backdrop:after{background:linear-gradient(90deg,rgba(5,9,16,.56),transparent 38%,transparent 68%,rgba(5,9,16,.36)),linear-gradient(0deg,#0b111d 0,transparent 58%)}
 .vynode-detail-surface>.detail-hero{min-height:19rem;padding:5.4rem 1.5rem 1rem;grid-template-columns:7.5rem minmax(0,1fr);gap:1rem}
 .vynode-detail-surface .detail-art{width:7.5rem;border-color:#52617a;border-radius:.7rem;box-shadow:0 14px 38px #000c}
-.vynode-detail-surface .detail-copy{padding:.85rem 1rem;border-color:rgba(111,132,168,.38);border-radius:.85rem;background:linear-gradient(110deg,rgba(7,12,21,.88),rgba(10,16,28,.68));box-shadow:0 14px 38px #0007;backdrop-filter:blur(14px) saturate(1.2)}
 .vynode-detail-surface .detail-copy h1{margin:.15rem 0 .35rem;font-size:1.85rem}
 .vynode-detail-surface .detail-copy .lede{margin:.4rem 0;-webkit-line-clamp:2}
 .vynode-detail-surface .detail-actions{gap:.38rem;margin-top:.65rem}
@@ -65,11 +64,11 @@
 @media(max-width:720px){
   .vynode-detail-modal-host{padding:0}
   .vynode-detail-surface{width:100%;max-height:100dvh;border-radius:0}
-  .vynode-detail-surface>.detail-hero{grid-template-columns:4.5rem minmax(0,1fr);padding-top:4.8rem}
-  .vynode-detail-surface .detail-art{width:4.5rem}
+  .vynode-detail-surface>.detail-hero{clear:both;grid-template-columns:5.2rem minmax(0,1fr);padding-top:5.8rem;align-items:start}
+  .vynode-detail-surface .detail-art{width:5.2rem}
   .vynode-detail-surface .detail-copy .lede{font-size:.78rem;-webkit-line-clamp:3}
-  .vynode-detail-surface .detail-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));max-height:9.5rem;padding-bottom:.25rem;overflow-y:auto}
-  .vynode-detail-surface .detail-actions button{min-width:0;min-height:44px;padding:.55rem .45rem}
+  .vynode-detail-surface .detail-actions{flex-wrap:nowrap;width:calc(100% + 6rem);margin-left:-6rem;overflow-x:auto}
+  .vynode-detail-surface .detail-actions button{flex:none;min-height:42px;padding:.55rem .75rem;white-space:nowrap}
   .vynode-detail-surface>.fact-grid div{min-width:0}
   .vynode-detail-surface>.fact-grid strong{overflow-wrap:anywhere}
   .enrichment-facts{grid-template-columns:repeat(2,minmax(0,1fr))}

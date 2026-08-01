@@ -7,6 +7,30 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.23] - 2026-08-01
+
+### Changed
+
+- Refined phone-sized movie and television detail headers with correctly aligned
+  artwork and copy, an unclipped horizontally scrollable action rail, and no
+  horizontal page overflow.
+- Reworked mobile television seasons so season management and episode actions
+  expand only when requested while availability, monitoring, quality, and
+  progress remain visible.
+- Replaced changing title backdrops on Discover studio and network cards with
+  official TMDB brand logos and safe branded fallbacks.
+- Added stable custom artwork, symbols, and color treatments for Discover genre
+  cards instead of borrowing artwork from currently popular titles.
+
+### Fixed
+
+- Prevented the floating detail Back control from narrowing and breaking the
+  mobile title layout.
+- Removed the nested phone scroll region from television seasons so the page
+  scroll remains predictable.
+- Invalidated old cached Discover taxonomy artwork so the new studio and network
+  logos appear immediately after upgrading.
+
 ## [2.0.22] - 2026-07-31
 
 ### Added
@@ -547,7 +571,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.22...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.23...HEAD
+[2.0.23]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.22...v2.0.23
 [2.0.22]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.21...v2.0.22
 [2.0.21]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.20...v2.0.21
 [2.0.20]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.19...v2.0.20

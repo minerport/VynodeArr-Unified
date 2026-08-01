@@ -103,9 +103,10 @@ export class TmdbDiscoveryService{
     if(!source)throw new Error('Unknown discovery category');
     const domain=type==='studios'?'movie':'tv',key=type==='studios'?'company':'network';
     const values=await Promise.all(source.map(async entry=>{
-      const page=await this.browse({domain,[key]:entry.id,page:1});
+      const [page,art]=await Promise.all([this.browse({domain,[key]:entry.id,page:1}),this.request(`/${type==='studios'?'company':'network'}/${entry.id}/images`).catch(()=>({logos:[]}))]);
       const backdrops=page.results.map(item=>item.backdrop).filter(Boolean);
-      return{...entry,domain,backdrop:backdrops[4]||backdrops.at(-1)||null};
+      const logos=(art.logos||[]).filter(value=>value.file_path).sort((left,right)=>Number(right.vote_average||0)-Number(left.vote_average||0)),preferred=logos.find(value=>value.iso_639_1==='en')||logos.find(value=>!value.iso_639_1)||logos[0];
+      return{...entry,domain,logo:image(preferred?.file_path,'w500'),backdrop:backdrops[4]||backdrops.at(-1)||null};
     }));
     return values;
   }

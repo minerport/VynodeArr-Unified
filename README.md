@@ -27,12 +27,15 @@ consistent experience and account system.
 
 ## Current release
 
-Version **2.0.22** is available for production use on Unraid, Windows, and
-standard Docker installations. Administrators now have a dedicated **Import
-Lists** page for Movies and Television with native provider setup, editing,
-enable/disable controls, connection testing, deletion, manual synchronization,
-advanced fields, and complete engine configuration access. Related health
-warnings lead directly to the affected settings.
+Version **2.0.23** is available for production use on Unraid, Windows, and
+standard Docker installations. Phone-sized movie and television details now
+keep artwork, title information, and controls aligned without clipping. All
+title actions remain available through a compact horizontal rail, while
+television season and episode controls expand only when requested.
+
+Discover now uses official TMDB company and network logos for studio and
+network browsing. Genre cards use stable custom artwork and color treatments
+instead of changing whenever a different title becomes popular.
 
 Discover identifies existing library titles
 by authoritative TMDB, TVDB, and IMDb identifiers, preventing alternate titles

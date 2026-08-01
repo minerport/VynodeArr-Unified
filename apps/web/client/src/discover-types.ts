@@ -9,7 +9,7 @@ export interface DiscoverItem{
   certification?:string|null;
 }
 export interface DiscoverPage{page:number;totalPages:number;totalResults:number;results:DiscoverItem[]}
-export interface DiscoverCategory{id:number;name:string;domain:DiscoverDomain;backdrop:string|null}
+export interface DiscoverCategory{id:number;name:string;domain:DiscoverDomain;logo?:string|null;backdrop:string|null}
 export interface LibraryItem{
   id:string|number;title:string;year?:number;hasFile?:boolean;sizeOnDisk?:number;
   tmdbId?:number|null;tvdbId?:number|null;imdbId?:string|null;
