@@ -5,6 +5,7 @@ import { ReleaseBrowser,type ReleaseRecord } from './release-browser';
 import { RenamePreview,type RenamePreviewRecord } from './rename-preview';
 import { MatchBrowser,type MatchCandidate } from './match-browser';
 import { ModalPortal } from './modal-portal';
+import { MediaCollectionControl } from './media-collection-control';
 import './react-movie-detail.css';
 
 const errorMessage=(reason:unknown)=>reason instanceof Error?reason.message:'The operation failed.';
@@ -14,6 +15,7 @@ type BrowserEntry={name?:string;path:string};
 
 export function MovieDetailView({options}:{options:MovieDetailMountOptions}){
   const engineId=Number(options.publicId.replace(/^movie_/,''));
+  const collectionMediaId=Number.isFinite(engineId)?engineId:options.publicId;
   const [item,setItem]=useState<MovieDetail|null>(null);
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState('');
@@ -71,7 +73,7 @@ export function MovieDetailView({options}:{options:MovieDetailMountOptions}){
       <button className={`secondary${busy==='edit'?' is-working':''}`} disabled={Boolean(busy)} onClick={()=>void edit()}>{busy==='edit'?'Loading…':'Edit'}</button>
       <button className="secondary" disabled={Boolean(busy)} onClick={()=>setFixingMatch(true)}>Fix match</button>
       <button className={`danger${busy==='delete'?' is-working':''}`} disabled={Boolean(busy)} onClick={()=>void remove()}>{busy==='delete'?'Removing…':'Delete'}</button>
-    </div>:null}</div></section>
+    </div>:null}</div></section><MediaCollectionControl domain="movie" mediaId={collectionMediaId} title={item.title} request={options.request} notify={options.notify}/>
     {enrichmentLoading?<section className="panel tmdb-enrichment-loading"><div className="skeleton"/><div><span className="eyebrow">EXTENDED DETAILS</span><h2>Loading cast, trailers, and links…</h2></div></section>:null}
     <div className="fact-grid">{facts.map(([label,value])=><div key={label}><small>{label}</small><strong>{value}</strong></div>)}</div>
     <section className="panel movie-information"><h2>Movie information</h2><div className="movie-information-grid">{information.map(([label,value])=><div key={label}><small>{label}</small><strong>{value}</strong></div>)}</div></section>

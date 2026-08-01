@@ -27,7 +27,8 @@ export interface NotificationPreferences{
 }
 
 export interface NotificationChannel{
-  id:string;type:'discord'|'telegram'|'gotify';name:string;enabled:boolean;categories:string[];chatId?:string;endpoint?:string;credential?:string;credentialConfigured?:boolean;template?:NotificationChannelTemplate;
+  id:string;type:'discord'|'telegram'|'gotify'|'pushover';name:string;enabled:boolean;categories:string[];chatId?:string;endpoint?:string;credential?:string;credentialConfigured?:boolean;template?:NotificationChannelTemplate;
+  userKey?:string;encryptionKey?:string;devices?:string[];pushoverPriority?:number;retry?:number;expire?:number;ttl?:number;sound?:string;
 }
 
 export interface NotificationChannelTemplate{title:string;message:string;includeLink:boolean;accentColor:string;priority:number;json:string;}
@@ -41,4 +42,4 @@ export interface SearchActivity{
   status:'queued'|'searching'|'grabbed'|'downloading'|'imported'|'completed'|'failed'|'canceled';message:string;createdAt:string;updatedAt:string;finishedAt:string|null;
   selection?:{title:string;quality:string;size:number}|null;counts?:{total:number;completed:number;failed:number}|null;
 }
-export interface DownloadDecision{ id:string;domain:'movie'|'tv';mediaId:number|null;source:'interactive'|'automatic';title:string;indexer:string;protocol:string;decision:'selected'|'accepted'|'rejected';reasons:string[];quality:string;customFormatScore:number;preferredWordScore:number;size:number;ageDays:number|null;seeders:number|null;upgradeEligible:boolean|null;observedAt:string;selectedAt:string|null; }
+export interface DownloadDecision{ id:string;domain:'movie'|'tv';mediaId:number|null;source:'interactive'|'automatic';title:string;indexer:string;protocol:string;decision:'selected'|'accepted'|'rejected';reasons:string[];quality:string;customFormatScore:number;preferredWordScore:number;size:number;ageDays:number|null;seeders:number|null;upgradeEligible:boolean|null;observedAt:string;selectedAt:string|null;requesters?:Array<{id:string;name:string;username:string;requestedAt?:string|null}>; }

@@ -14,6 +14,7 @@ export function DiscoverDetail({item,libraryItem,options,onClose,onRequest}:Disc
   const dialog=useRef<HTMLDialogElement>(null);
   const [detail,setDetail]=useState(item);
   const [loading,setLoading]=useState(true);
+  const [collectionState,setCollectionState]=useState<{included:boolean;canRemove:boolean}>({included:false,canRemove:false}),[savingCollection,setSavingCollection]=useState(false);
 
   useEffect(()=>{
     dialog.current?.showModal();
@@ -22,10 +23,12 @@ export function DiscoverDetail({item,libraryItem,options,onClose,onRequest}:Disc
       .then(value=>{if(active&&value.item)setDetail(current=>({...current,...value.item}));})
       .catch(()=>{})
       .finally(()=>{if(active)setLoading(false);});
+    if(libraryItem)void options.request<{included:boolean;canRemove:boolean}>(`/api/user-collections/contains?domain=${item.domain}&mediaId=${libraryItem.id}`).then(value=>{if(active)setCollectionState(value);}).catch(()=>{});
     return()=>{active=false;};
   },[item,options]);
 
   const close=()=>dialog.current?.close();
+  const changeCollection=async()=>{if(!libraryItem||savingCollection||collectionState.included&&!collectionState.canRemove)return;setSavingCollection(true);try{if(collectionState.canRemove){await options.request(`/api/user-collections/items/${item.domain}/${libraryItem.id}`,{method:'DELETE'});setCollectionState({included:false,canRemove:false});options.notify(`${detail.title} was removed from your collection.`);}else{await options.request('/api/user-collections/items',{method:'POST',body:JSON.stringify({domain:item.domain,mediaId:libraryItem.id})});setCollectionState({included:true,canRemove:true});options.notify(`${detail.title} was added to your collection.`);}}catch(error){options.notify(error instanceof Error?error.message:'Your collection could not be updated.','error');}finally{setSavingCollection(false);}};
   const inLibrary=Boolean(libraryItem);
   const poster=detail.poster||libraryItem?.artwork?.url;
   const backdrop=detail.backdrop||libraryItem?.backdrop?.url;
@@ -56,6 +59,7 @@ export function DiscoverDetail({item,libraryItem,options,onClose,onRequest}:Disc
           {inLibrary&&libraryItem?.canView!==false?<button className="primary discover-view-library" type="button" onClick={()=>{close();location.hash=`#${detail.domain==='movie'?'movie':'series'}/${libraryItem?.id}`;}}>View in library</button>
             :inLibrary?<span className="badge green">Already in library</span>
             :<button className="primary discover-request-title" type="button" onClick={()=>{onRequest(detail);close();}}>Request {detail.domain==='movie'?'movie':'series'}</button>}
+          {inLibrary?<button className="secondary discover-save-collection" type="button" disabled={savingCollection||collectionState.included&&!collectionState.canRemove} onClick={()=>void changeCollection()}>{savingCollection?'Updating…':collectionState.canRemove?'Remove from my collection':collectionState.included?'In my collection':'Add to my collection'}</button>:null}
           <button className="secondary discover-detail-cancel" type="button" onClick={close}>Close</button>
         </div>
       </div>

@@ -27,11 +27,13 @@ consistent experience and account system.
 
 ## Current release
 
-Version **2.0.30** is available for production use on Unraid, Windows, and
-standard Docker installations. User Requests and My Requests navigation
-counters now show only unread request updates and clear when their corresponding
-page is reviewed, without removing the underlying request or notification
-history.
+Version **2.0.31** is available for production use on Unraid, Windows, and
+standard Docker installations. It adds private and shared user collections,
+collection statistics, sorting, bulk management, request-to-import timelines,
+JSON/CSV transfer, library-detail ownership controls, and requester attribution
+through Queue, History, Wanted, and download decisions. Native Pushover delivery
+also joins Discord, Telegram, and Gotify with protected credentials and advanced
+delivery controls.
 
 The administrator Validation Center checks
 engine connectivity, storage, acquisition providers, scheduled automation,
@@ -60,6 +62,12 @@ provider-specific payloads. Discord supports custom accent colors and Gotify
 supports adjustable priority, while credentials and Telegram chat routing stay
 protected by the server.
 
+Pushover delivery adds protected application and user keys, optional device
+targeting, Silent through Emergency priorities, emergency retry controls,
+message expiration, custom sounds, and optional Sonarr-compatible end-to-end
+encryption. It shares the same category routing, visual templates, testing,
+delivery history, retry, backup, restore, validation, and audit workflows.
+
 The responsive builder is a full desktop dialog and a compact mobile bottom
 sheet with sticky actions, internal scrolling, and safe-area support. Its
 preview remains completely visible at phone widths, including when advanced
@@ -70,6 +78,17 @@ and bulk mark-read controls. Read state synchronizes across both surfaces while
 preserving durable history. Releases selected through Movie interactive search
 also enter Search Activity, generate a grabbed notification, and continue
 through Queue and History reconciliation toward import.
+
+Collections can also be viewed by requester. Administrators can select
+Everything, saved Collections, or an individual user, while regular users see
+only their own requested and saved Movies and Television. Existing library
+titles can be added to a personal collection without creating another download
+request, and request attribution remains synchronized with corrected matches.
+User collection owners can keep their shelf private, share it with the household
+or selected users, sort and search it, review completion and storage statistics,
+run permission-aware bulk library actions, inspect the full request-to-import
+timeline, and transfer matching titles through JSON or CSV. Requester attribution
+also follows matching media through Queue, History, Wanted, and download decisions.
 
 The desktop activity drawer provides a wider, overflow-safe settings workspace
 with an explicit close action and responsive channel rows. Movie organization

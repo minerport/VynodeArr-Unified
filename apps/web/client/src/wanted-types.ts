@@ -6,6 +6,7 @@ export interface WantedItem {
   movie?:{title?:string;year?:number;runtime?:number;studio?:string;genres?:string[];qualityProfileId?:number};
   series?:{title?:string;tvdbId?:number;year?:number;network?:string;genres?:string[]};
   qualityProfile?:{name?:string};
+  requesters?:Array<{id:string;name:string;username:string;requestedAt?:string|null}>;
 }
 export interface WantedLibraryItem {id:number;domain:WantedDomain;title?:string;tvdbId?:number;year?:number;network?:string;studio?:string;genres?:string[];qualityProfile?:string}
 export interface SearchJob {id:string;domain:WantedDomain;label:string;status:string;total:number;completed:number;failed:number;currentTitle?:string;createdAt:string}

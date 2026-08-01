@@ -7,6 +7,23 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.31] - 2026-08-01
+
+- Completed user collection ownership tools with add/remove controls and requester attribution on movie and television details, plus title search and Movies/Television filtering on Collections.
+- Expanded user collections with private, household, and selected-user sharing; sortable shelves; availability and storage statistics; bulk search, monitoring, profile, and removal actions; request-to-import timelines; and JSON/CSV transfer.
+- Added requester attribution to Queue, History, Wanted, and the Download Decision Center so administrators can follow ownership throughout the media lifecycle.
+
+### Added
+
+- Added native Pushover delivery with protected application and user keys,
+  device targeting, all five priority levels, emergency retry and expiration,
+  message TTL, custom sounds, visual templates, test and retry history, and
+  optional Sonarr-compatible end-to-end title and message encryption.
+- Added request-derived user collections for Movies and Television, an
+  Everything/Collections/user selector, private self-service views for regular
+  users, and an idempotent Add to my collection action for titles already in
+  the library without starting another download.
+
 ## [2.0.30] - 2026-08-01
 
 ### Fixed
@@ -738,7 +755,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.30...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.31...HEAD
+[2.0.31]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.30...v2.0.31
 [2.0.30]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.29...v2.0.30
 [2.0.29]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.28...v2.0.29
 [2.0.28]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.27...v2.0.28

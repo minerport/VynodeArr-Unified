@@ -8,6 +8,7 @@ export interface QueueItem {
   clientStatus?:string; status?:string; trackedDownloadStatus?:string; trackedDownloadState?:string;
   clientPercentage?:number; size?:number; sizeleft?:number; clientTimeLeft?:string; clientSpeed?:string;
   statusMessages?:Array<{messages?:string[]}>;
+  requesters?:Array<{id:string;name:string;username:string;requestedAt?:string|null}>;
 }
 export interface QueueMountOptions {
   request:<T=unknown>(path:string,options?:RequestInit)=>Promise<T>;

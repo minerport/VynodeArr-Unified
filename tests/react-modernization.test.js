@@ -4,6 +4,15 @@ import test from 'node:test';
 
 const read=(path)=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
+test('library titles can be attributed to a user without creating another download request',async()=>{
+  const [detail,collections,server,queue,history,wanted,notifications]=await Promise.all([read('apps/web/client/src/discover-detail.tsx'),read('apps/web/client/src/collections.tsx'),read('apps/api/src/app.js'),read('apps/web/client/src/queue.tsx'),read('apps/web/client/src/history.tsx'),read('apps/web/client/src/wanted.tsx'),read('apps/web/client/src/notifications.tsx')]);
+  assert.match(detail,/Add to my collection/);assert.match(detail,/\/api\/user-collections\/items/);assert.match(detail,/\/api\/user-collections\/contains/);
+  assert.match(collections,/userCollections/);assert.match(collections,/collectionSource/);assert.match(server,/userRequestCollections/);assert.match(server,/user_collection\.item_added/);
+  for(const value of ['collection-statistics','collection-sharing-editor','collection-bulk-bar','collection-timeline','Export JSON','Export CSV','Import JSON','Recently requested'])assert.ok(collections.includes(value),value);
+  for(const value of ['/api/user-collections/sharing','/api/user-collections/timeline','/api/user-collections/export','/api/user-collections/import','/api/user-collections/bulk','/api/request-attribution'])assert.ok(server.includes(value),value);
+  for(const source of [queue,history,wanted,notifications])assert.match(source,/Requested by/);
+});
+
 test('the complete dashboard has a React view with a legacy-safe bridge',async()=>{
   const [packageJson,index,app,entry,dashboard,analytics,library,libraryCss,libraryTypes,history,queue,wanted,calendar,movieDetail,tvDetail,collections,collectionTypes,addMedia,addMediaTypes,health,healthTypes,account,accountTypes,system,systemTypes,selectionRules,selectionRuleTypes,bundleBudget,unraidDockerfile]=await Promise.all([
     read('package.json'),
@@ -212,7 +221,9 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(collections,/excludedMovieIds/);
   assert.match(collections,/Changing rules replaces the current matches/);
   assert.match(collections,/Edit rules &amp; movies/);
+  assert.match(collections,/Everything/);assert.match(collections,/USER COLLECTION/);assert.match(collections,/Movies/);assert.match(collections,/Television/);assert.match(collections,/userCollections/);
   assert.match(collectionTypes,/interface CollectionRules/);
+  assert.match(collectionTypes,/interface UserMediaCollection/);
   assert.match(app,/showCollectionsReact/);
   assert.match(addMedia,/export function AddMediaView/);
   assert.match(addMedia,/searchForMovie/);
@@ -1085,9 +1096,9 @@ test('request notification bell has durable role-aware request updates',async()=
   for(const value of ['synchronizeOperationalNotifications','operationalInitializedAt','queue-problem','engine-health','search-no-result',"client.get('queue'","client.get('history'","sync.operations('health')"])assert.ok(server.includes(value),value);
   for(const value of ['/api/notifications/preferences','notificationPreferenceDefaults','minimumSeverity','quietHours','/api/notifications/test','notification_preferences.updated'])assert.ok(server.includes(value),value);
   for(const value of ['Notification preferences','In-app notifications','Minimum severity','Quiet hours','Send test','Set admin defaults'])assert.ok(notifications.includes(value),value);
-  for(const value of ['/api/notifications/channels','discord','telegram','gotify','sendExternalNotification','recordExternalDelivery','notification_channel.saved'])assert.ok(server.includes(value),value);
-  for(const value of ['External delivery','Discord webhook','Telegram','Gotify','Route categories','Delivery history','Retry'])assert.ok(notifications.includes(value),value);
-  for(const value of ['Customize message & JSON','TemplateBuilder','LIVE PREVIEW','Use custom JSON payload','{category}','Use this template'])assert.ok(notifications.includes(value),value);
+  for(const value of ['/api/notifications/channels','discord','telegram','gotify','pushover','api.pushover.net/1/messages.json','encryptPushoverField','sendExternalNotification','recordExternalDelivery','notification_channel.saved'])assert.ok(server.includes(value),value);
+  for(const value of ['External delivery','Discord webhook','Telegram','Gotify','Pushover','User or group key','Emergency','Advanced Pushover options','Encryption key','Route categories','Delivery history','Retry'])assert.ok(notifications.includes(value),value);
+  for(const value of ['Customize message','TemplateBuilder','LIVE PREVIEW','Use custom JSON payload','{category}','Use this template'])assert.ok(notifications.includes(value),value);
   for(const value of ['defaultChannelTemplate','sanitizeChannelTemplate','renderNotificationJson','channelPayload','invalid_notification_json'])assert.ok(server.includes(value),value);
   assert.doesNotMatch(notifications,/Email delivery|SMTP/);
   assert.match(notifications,/createPortal/);assert.match(notifications,/panel\.current\?\.contains/);assert.match(styles,/\.notification-panel\{position:fixed;z-index:30/);

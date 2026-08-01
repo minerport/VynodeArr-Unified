@@ -143,7 +143,7 @@ test('user page permissions are enforced by APIs and update active sessions imme
   assert.ok(presence.items.filter(item=>item.domain==='tv').every(item=>item.canView===false));
   assert.equal((await fetch(`${base}/api/requests/mine`,{headers:{cookie:userCookie}})).status,200);
   assert.equal((await fetch(`${base}/api/settings/engines`,{headers:{cookie:userCookie}})).status,403);
-  assert.equal((await fetch(`${base}/api/collections`,{headers:{cookie:userCookie}})).status,403);
+  const userCollections=await fetch(`${base}/api/collections`,{headers:{cookie:userCookie}});assert.equal(userCollections.status,200);assert.equal((await userCollections.json()).userCollections.length,1);
   assert.equal((await fetch(`${base}/api/activity/history`,{headers:{cookie:userCookie}})).status,403);
   assert.equal((await fetch(`${base}/api/system/health`,{headers:{cookie:userCookie}})).status,403);
   assert.equal((await fetch(`${base}/api/library/diagnostics`,{headers:{cookie:userCookie}})).status,403);
@@ -181,7 +181,7 @@ test('approval-required Discover requests stay out of the engine until an admini
     delete:async()=>({})
   };
   const discovery={token:'test-discovery-token',configured:()=>true,setToken:()=>{},details:async(_domain,id)=>({tmdbId:Number(id),tvdbId:null,title:Number(id)===123?'Approval Film':`Approval Film ${id}`,year:2026,poster:'https://image.test/poster.jpg',backdrop:'https://image.test/backdrop.jpg',overview:'A request awaiting a deliberate decision.',rating:8.4,genres:['Drama'],runtime:112,certification:'PG-13'})};
-  return appSession({movie:Object.assign(new MovieFixtureAdapter(),{client:movieClient}),tv:new TvFixtureAdapter(),discovery},async({base,cookie,csrf})=>{
+  return appSession({movie:Object.assign(new MovieFixtureAdapter(),{client:movieClient,listMovies:async()=>library}),tv:new TvFixtureAdapter(),discovery},async({base,cookie,csrf})=>{
     const create=await fetch(`${base}/api/admin/users`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({name:'Approval User',username:'approval-user',email:'approval@example.test',password:'Approval-strong-pass6',role:'user',permissions:{discover:true},requestApprovalRequired:true,requestLimits:{enabled:true,period:'weekly',movie:2,tv:1,maxPending:null}})});
     const created=(await create.json()).user;assert.equal(created.requestApprovalRequired,true);assert.equal(created.requestLimits.movie,2);
     const login=await fetch(`${base}/api/auth/login`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({identifier:'approval-user',password:'Approval-strong-pass6'})}),userLogin=await login.json(),userCookie=login.headers.get('set-cookie').split(';')[0];
@@ -208,6 +208,8 @@ test('approval-required Discover requests stay out of the engine until an admini
     assert.equal(duplicateSubmission.status,400);assert.match((await duplicateSubmission.json()).error.message,/already in your library/i);assert.equal(posts.length,1);
     const updated=(await (await fetch(`${base}/api/requests/mine`,{headers:{cookie:userCookie}})).json()).items[0];
     assert.equal(updated.status,'searching');assert.equal(updated.engineId,99);
+    const adminCollections=await (await fetch(`${base}/api/collections`,{headers:{cookie}})).json(),approvalCollection=adminCollections.userCollections.find(item=>item.user.id===created.id);assert.equal(approvalCollection.movies[0].title,'Approval Film');assert.equal(approvalCollection.movies[0].collectionSource,'request');assert.equal(approvalCollection.television.length,0);
+    const privateCollections=await (await fetch(`${base}/api/collections`,{headers:{cookie:userCookie}})).json();assert.deepEqual(privateCollections.userCollections.map(item=>item.user.id),[created.id]);
     const secondRequest=await fetch(`${base}/api/discover/request`,{method:'POST',headers:{cookie:userCookie,'content-type':'application/json','x-vynodearr-csrf':userLogin.csrf},body:JSON.stringify({domain:'movie',tmdbId:124,payload:{tmdbId:124,title:'Approval Film 124',year:2026,rootFolderPath:'/movies',qualityProfileId:1,monitored:true,addOptions:{searchForMovie:true}}})}),secondValue=await secondRequest.json();
     const emptyReason=await fetch(`${base}/api/requests/${secondValue.request.id}/reject`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({reason:'   '})});
     assert.equal(emptyReason.status,400);
@@ -276,6 +278,15 @@ test('dashboard upcoming excludes calendar events before today',()=>{
 });
 test('smart collections combine rules with retained and excluded movie choices',()=>appSession({movie:new MovieFixtureAdapter(),tv:new TvFixtureAdapter()},async({base,cookie,csrf})=>{
   const movies=(await (await fetch(`${base}/api/media/movies`,{headers:{cookie}})).json()).items,first=movies[0],retained=movies[1];
+  const interest=await fetch(`${base}/api/user-collections/items`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({domain:'movie',mediaId:first.id})});assert.equal(interest.status,201);
+  const duplicateInterest=await fetch(`${base}/api/user-collections/items`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({domain:'movie',mediaId:first.id})});assert.equal(duplicateInterest.status,201);
+  const contains=await (await fetch(`${base}/api/user-collections/contains?domain=movie&mediaId=${first.id}`,{headers:{cookie}})).json();assert.equal(contains.included,true);assert.equal(contains.canRemove,true);
+  const owned=(await (await fetch(`${base}/api/collections`,{headers:{cookie}})).json()).userCollections[0];assert.equal(owned.count,1);assert.equal(owned.movies[0].title,first.title);assert.equal(owned.movies[0].collectionSource,'saved');
+  assert.equal(owned.sharing.visibility,'private');assert.equal(owned.statistics.movies,1);assert.equal(owned.statistics.saved,1);
+  const sharing=await fetch(`${base}/api/user-collections/sharing`,{method:'PUT',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({visibility:'household'})});assert.equal(sharing.status,200);assert.equal((await sharing.json()).preference.visibility,'household');
+  const exported=await fetch(`${base}/api/user-collections/export?format=json`,{headers:{cookie}}),exportValue=await exported.json();assert.equal(exported.status,200);assert.equal(exportValue.items[0].title,first.title);
+  const csv=await fetch(`${base}/api/user-collections/export?format=csv`,{headers:{cookie}});assert.equal(csv.status,200);assert.match(await csv.text(),/domain,id,title,year/);
+  const timeline=await fetch(`${base}/api/user-collections/timeline`,{headers:{cookie}}),timelineValue=await timeline.json();assert.equal(timeline.status,200,JSON.stringify(timelineValue));assert.ok(Array.isArray(timelineValue.items));
   const created=await fetch(`${base}/api/collections`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({name:'Flexible picks',type:'smart',rules:{year:first.year,genres:first.genres?.slice(0,1)||[]},includedMovieIds:[retained.id],excludedMovieIds:[first.id]})});
   assert.equal(created.status,201);
   const collection=(await (await fetch(`${base}/api/collections`,{headers:{cookie}})).json()).items[0];
@@ -286,10 +297,21 @@ test('smart collections combine rules with retained and excluded movie choices',
   const edited=(await (await fetch(`${base}/api/collections`,{headers:{cookie}})).json()).items[0];
   assert.deepEqual(edited.movieIds,[first.id]);
   const removed=await fetch(`${base}/api/collections/${collection.id}`,{method:'DELETE',headers:{cookie,'x-vynodearr-csrf':csrf}});assert.equal(removed.status,200);
+  const bulkRemoved=await fetch(`${base}/api/user-collections/bulk`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({action:'remove',items:[{domain:'movie',id:first.id}]})});assert.equal(bulkRemoved.status,200);assert.equal((await bulkRemoved.json()).completed,1);
+  const imported=await fetch(`${base}/api/user-collections/import`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify(exportValue)});assert.equal(imported.status,200);assert.equal((await imported.json()).matched,1);
+  const removedInterest=await fetch(`${base}/api/user-collections/items/movie/${first.id}`,{method:'DELETE',headers:{cookie,'x-vynodearr-csrf':csrf}});assert.equal(removedInterest.status,200);assert.equal((await removedInterest.json()).removed,true);
   const audit=(await (await fetch(`${base}/api/manage/audit`,{headers:{cookie}})).json()).items;
   assert.ok(audit.some(item=>item.action==='collection.created'&&item.metadata.collectionId===collection.id));
   assert.ok(audit.some(item=>item.action==='collection.updated'&&item.metadata.collectionId===collection.id));
   assert.ok(audit.some(item=>item.action==='collection.deleted'&&item.metadata.collectionId===collection.id));
+}));
+test('Pushover channels validate advanced settings and keep every secret protected',()=>appSession({movie:new MovieFixtureAdapter(),tv:new TvFixtureAdapter()},async({base,cookie,csrf})=>{
+  const headers={cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},secret='a'.repeat(64),input={type:'pushover',name:'Family phones',credential:'app-token-secret',userKey:'user-key-secret',encryptionKey:secret,devices:['phone','tablet'],pushoverPriority:2,retry:45,expire:1800,ttl:600,sound:'cosmic',categories:['request','download'],template:{title:'{title}',message:'{message}',includeLink:true}};
+  const created=await fetch(`${base}/api/notifications/channels`,{method:'POST',headers,body:JSON.stringify(input)}),createdValue=await created.json();assert.equal(created.status,200);assert.equal(createdValue.channel.type,'pushover');assert.equal(createdValue.channel.pushoverPriority,2);assert.deepEqual(createdValue.channel.devices,['phone','tablet']);
+  const listed=await (await fetch(`${base}/api/notifications/channels`,{headers:{cookie}})).json(),serialized=JSON.stringify(listed);assert.equal(listed.channels[0].credentialConfigured,true);assert.doesNotMatch(serialized,/app-token-secret|user-key-secret|a{64}/);
+  const nativeFetch=globalThis.fetch;let delivered;globalThis.fetch=async(resource,options)=>{if(String(resource)==='https://api.pushover.net/1/messages.json'){delivered=new URLSearchParams(String(options.body));return new Response('{}',{status:200});}return nativeFetch(resource,options);};try{const tested=await fetch(`${base}/api/notifications/channels/${createdValue.channel.id}/test`,{method:'POST',headers,body:'{}'});assert.equal(tested.status,200);}finally{globalThis.fetch=nativeFetch;}assert.equal(delivered.get('token'),'app-token-secret');assert.equal(delivered.get('user'),'user-key-secret');assert.equal(delivered.get('device'),'phone,tablet');assert.equal(delivered.get('priority'),'2');assert.equal(delivered.get('retry'),'45');assert.equal(delivered.get('expire'),'1800');assert.equal(delivered.get('ttl'),'600');assert.equal(delivered.get('sound'),'cosmic');assert.equal(delivered.get('encrypted'),'1');assert.notEqual(delivered.get('title'),'VynodeArr test notification');
+  const preserved=await fetch(`${base}/api/notifications/channels`,{method:'POST',headers,body:JSON.stringify({...listed.channels[0],name:'Updated phones',credential:'',userKey:'',encryptionKey:''})});assert.equal(preserved.status,200);
+  const invalid=await fetch(`${base}/api/notifications/channels`,{method:'POST',headers,body:JSON.stringify({...input,id:'channel_invalid',encryptionKey:'not-a-key'})});assert.equal(invalid.status,400);assert.equal((await invalid.json()).error.code,'invalid_encryption_key');
 }));
 test('engine wizard validates actual read-only HTTP capabilities and saves only successful connections',async()=>{
   const engine=createServer((req,res)=>{

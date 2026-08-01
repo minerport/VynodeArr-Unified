@@ -10,6 +10,7 @@ export interface HistoryItem {
   quality?:string|null;
   timestamp?:string|null;
   details?:string|null;
+  requesters?:Array<{id:string;name:string;username:string;requestedAt?:string|null}>;
 }
 
 export interface HistoryMountOptions {

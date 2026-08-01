@@ -165,6 +165,7 @@ function HistorySection({
                   {item.quality ? ` · ${item.quality}` : ""}
                 </span>
                 {item.details ? <small>{item.details}</small> : null}
+                {item.requesters?.length ? <small className="requester-attribution">Requested by {item.requesters.map(user => user.name).join(", ")}</small> : null}
                 <small className="history-raw-event">
                   Engine event: {item.eventType || "unknown"}
                 </small>
