@@ -7,6 +7,39 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.27] - 2026-08-01
+
+### Added
+
+- Added a visual notification-template builder for Discord, Telegram, and
+  Gotify with friendly title and message fields, reusable event tokens, and a
+  live provider preview.
+- Added optional provider-specific JSON payloads with validation, bounded
+  recursive token rendering, protected credential fields, Discord accent
+  colors, and Gotify priority controls.
+- Added explicit individual and bulk mark-read actions to the notification
+  center and administrator request-management page.
+- Added Search Activity and durable grabbed notifications for releases selected
+  through Movie interactive search.
+
+### Changed
+
+- External notification templates use a responsive desktop dialog and mobile
+  bottom sheet with sticky actions, internal scrolling, safe-area padding, and
+  previews that remain fully inside the phone viewport.
+- Telegram custom payloads always retain the securely configured chat ID, while
+  Discord's standard payload uses a color-accented embed.
+- Notification read state synchronizes between the notification bell and user
+  request-management surfaces without removing notification history.
+
+### Fixed
+
+- Fixed manually grabbed Movie releases failing to appear in Search Activity or
+  produce a notification before Queue and History reconciliation.
+- Fixed the mobile template preview inheriting the navigation sidebar width and
+  slide transform, which could move the preview outside the modal.
+- Fixed a Gotify priority of zero being replaced by the default priority.
+
 ## [2.0.26] - 2026-08-01
 
 ### Added
@@ -656,7 +689,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.26...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.27...HEAD
+[2.0.27]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.26...v2.0.27
 [2.0.26]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.25...v2.0.26
 [2.0.25]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.24...v2.0.25
 [2.0.24]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.23...v2.0.24

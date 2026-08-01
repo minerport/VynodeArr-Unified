@@ -27,8 +27,26 @@ consistent experience and account system.
 
 ## Current release
 
-Version **2.0.26** is available for production use on Unraid, Windows, and
-standard Docker installations. The global notification center now provides a
+Version **2.0.27** is available for production use on Unraid, Windows, and
+standard Docker installations. Discord, Telegram, and Gotify delivery now
+includes a visual template builder with friendly title and message fields,
+reusable event tokens, live previews, and an optional validated JSON editor for
+provider-specific payloads. Discord supports custom accent colors and Gotify
+supports adjustable priority, while credentials and Telegram chat routing stay
+protected by the server.
+
+The responsive builder is a full desktop dialog and a compact mobile bottom
+sheet with sticky actions, internal scrolling, and safe-area support. Its
+preview remains completely visible at phone widths, including when advanced
+JSON is enabled.
+
+Notifications and administrator user requests now provide explicit individual
+and bulk mark-read controls. Read state synchronizes across both surfaces while
+preserving durable history. Releases selected through Movie interactive search
+also enter Search Activity, generate a grabbed notification, and continue
+through Queue and History reconciliation toward import.
+
+The global notification center provides a
 durable Inbox and History for request decisions, downloads, imports, engine
 health, security, and automatic searches. Operational alerts are deduplicated,
 remain available after reading, and resolve in place when the underlying issue

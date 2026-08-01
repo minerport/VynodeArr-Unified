@@ -1052,6 +1052,7 @@ test('Discover approval policy and administrator request history have typed post
   assert.match(account,/Discover request limits/);assert.match(account,/Maximum pending/);assert.match(account,/requestLimitsEnabled/);assert.match(accountTypes,/requestLimits/);assert.match(auth,/normalizeRequestLimits/);
   assert.match(types,/pending_approval/);assert.match(types,/poster/);assert.match(types,/rejectionReason/);assert.match(adminRequests,/Approve & add/);assert.match(adminRequests,/\/api\/requests/);
   assert.match(adminRequests,/type="search"/);assert.match(adminRequests,/All statuses/);assert.match(adminRequests,/Movies and television/);assert.match(adminRequests,/Decline request/);
+  assert.match(adminRequests,/Mark all read/);assert.match(adminRequests,/request-mark-read/);assert.match(adminRequests,/vynodearr:notifications-changed/);assert.match(styles,/admin-request-card\.unread/);
   assert.match(styles,/\.request-decline-dialog\{[^}]*max-height:[^}]*overflow:auto/);
   assert.match(routing,/'request-management'/);assert.match(dispatch,/requestManagement/);assert.match(shell,/showRequestManagementReact/);assert.match(islands,/mountRequestManagement/);
   assert.match(server,/validatedDiscoverRequest/);assert.match(server,/request_already_decided/);assert.match(server,/approvedBy/);assert.match(server,/requestMetadata/);assert.match(server,/rejection_reason_required/);
@@ -1069,6 +1070,7 @@ test('request notification bell has durable role-aware request updates',async()=
   assert.match(shell,/nav-count-badge/);assert.match(notifications,/onPageBadge/);
   assert.match(notifications,/\/api\/notifications/);assert.match(notifications,/Mark all read/);assert.match(notifications,/15_000/);
   assert.match(notifications,/Notification history/);assert.match(notifications,/Read and resolved notifications will remain here/);assert.match(notifications,/tab==='inbox'/);
+  assert.match(notifications,/notification-mark-read/);assert.match(notifications,/Mark read/);assert.match(notifications,/vynodearr:notifications-changed/);
   assert.match(types,/approval.*approved.*rejected.*failed.*imported/);
   assert.match(server,/notificationReads/);assert.match(server,/\/api\/notifications\/read/);assert.match(server,/href:'#request-management'/);assert.match(server,/href:'#requests'/);
   assert.match(server,/notification-events\.json/);assert.match(server,/notificationStore\.update/);assert.match(server,/recipientUserId/);
@@ -1077,10 +1079,20 @@ test('request notification bell has durable role-aware request updates',async()=
   for(const value of ['Notification preferences','In-app notifications','Minimum severity','Quiet hours','Send test','Set admin defaults'])assert.ok(notifications.includes(value),value);
   for(const value of ['/api/notifications/channels','discord','telegram','gotify','sendExternalNotification','recordExternalDelivery','notification_channel.saved'])assert.ok(server.includes(value),value);
   for(const value of ['External delivery','Discord webhook','Telegram','Gotify','Route categories','Delivery history','Retry'])assert.ok(notifications.includes(value),value);
+  for(const value of ['Customize message & JSON','TemplateBuilder','LIVE PREVIEW','Use custom JSON payload','{category}','Use this template'])assert.ok(notifications.includes(value),value);
+  for(const value of ['defaultChannelTemplate','sanitizeChannelTemplate','renderNotificationJson','channelPayload','invalid_notification_json'])assert.ok(server.includes(value),value);
   assert.doesNotMatch(notifications,/Email delivery|SMTP/);
   assert.match(notifications,/createPortal/);assert.match(notifications,/panel\.current\?\.contains/);assert.match(styles,/\.notification-panel\{position:fixed;z-index:30/);
   assert.match(server,/item\.status==='pending_approval'\|\|item\.approvedBy\|\|item\.rejectedBy/);assert.match(server,/items\.filter\(item=>item\.actionable\)\.length/);
   assert.match(styles,/max-height:calc\(100dvh - 6rem\)/);assert.match(styles,/overflow:auto/);assert.match(styles,/notification-bell/);assert.match(styles,/nav-count-badge/);
+});
+
+test('external notification template builder is previewable and phone safe',async()=>{
+  const [notifications,types,server,styles]=await Promise.all([read('apps/web/client/src/notifications.tsx'),read('apps/web/client/src/notification-types.ts'),read('apps/api/src/app.js'),read('apps/web/public/search-activity.css')]);
+  assert.match(types,/interface NotificationChannelTemplate/);assert.match(types,/accentColor/);assert.match(types,/priority/);assert.match(types,/json/);
+  assert.match(notifications,/template-builder-backdrop/);assert.match(notifications,/aria-modal="true"/);assert.match(notifications,/event\.key==='Escape'/);assert.match(notifications,/event\.stopPropagation/);
+  assert.match(server,/renderNotificationText/);assert.match(server,/Custom notification JSON must be an object/);assert.match(server,/\.\.\.rendered\.payload,chat_id:channel\.chatId/);
+  assert.match(styles,/\.template-builder-backdrop\{position:fixed;z-index:260/);assert.match(styles,/max-height:calc\(100dvh - 2rem\)/);assert.match(styles,/@media\(max-width:760px\)/);assert.match(styles,/max-height:94dvh/);assert.match(styles,/safe-area-inset-bottom/);
 });
 
 test('administrator search activity visualizes every automatic-search entry point',async()=>{

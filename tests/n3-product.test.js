@@ -82,6 +82,16 @@ test('dashboard API returns useful product metrics',()=>appSession({movie:new Mo
   const diagnostics=await (await fetch(`${base}/api/library/diagnostics?domain=movie`,{headers:{cookie}})).json();
   assert.equal(diagnostics.summary.total,diagnostics.items.length);assert.ok(diagnostics.items.every(item=>item.domain==='movie'&&['#movie/','#wanted','#service/root-folders'].some(prefix=>item.href.startsWith(prefix))&&item.actionLabel));
 }));
+test('interactive movie grabs create search activity and an in-app notification',()=>{
+  const release={title:'Review.Movie.2026.1080p.WEB-DL',guid:'review-guid',indexerId:4,mappedMovieId:7,size:2147483648,quality:{quality:{name:'WEBDL-1080p'}}},posts=[];
+  const client={get:async(path)=>{if(path==='release')return[release];if(path==='movie/7')return{id:7,title:'Review Movie'};if(path==='queue')return{records:[{id:91,movieId:7,status:'downloading'}]};if(path==='history')return{records:[]};throw new Error(`Unexpected movie GET ${path}`);},post:async(path,payload)=>{assert.equal(path,'release');posts.push(payload);return{id:91};},delete:async()=>({})};
+  const movie=Object.assign(new MovieFixtureAdapter(),{client});
+  return appSession({movie,tv:new TvFixtureAdapter()},async({base,cookie,csrf})=>{
+    const grabbed=await fetch(`${base}/api/manage/movie/releases`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify(release)});assert.equal(grabbed.status,201);assert.equal(posts.length,1);
+    const activities=(await (await fetch(`${base}/api/search-activities`,{headers:{cookie}})).json()).items,activity=activities.find(item=>item.source==='interactive');assert.equal(activity.movieId,7);assert.equal(activity.title,'Review Movie');assert.equal(activity.status,'downloading');
+    const notifications=(await (await fetch(`${base}/api/notifications`,{headers:{cookie}})).json()).items,notification=notifications.find(item=>item.type==='grabbed');assert.equal(notification.title,'Review Movie was grabbed');assert.equal(notification.href,'#queue');
+  });
+});
 test('user page permissions are enforced by APIs and update active sessions immediately',()=>appSession({},async({base,cookie,csrf})=>{
   const create=await fetch(`${base}/api/admin/users`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({name:'Limited User',username:'limited',email:'limited@example.test',password:'Limited-strong-pass5',role:'user',permissions:{dashboard:false,discover:true,movies:true,tv:false,calendar:true}})});
   assert.equal(create.status,201);const created=(await create.json()).user;

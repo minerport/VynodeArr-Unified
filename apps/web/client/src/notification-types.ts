@@ -1,6 +1,6 @@
 export interface NotificationItem{
   id:string;
-  type:'approval'|'approved'|'rejected'|'failed'|'imported';
+  type:'approval'|'approved'|'rejected'|'failed'|'imported'|'grabbed';
   title:string;
   message:string;
   timestamp:string;
@@ -27,8 +27,10 @@ export interface NotificationPreferences{
 }
 
 export interface NotificationChannel{
-  id:string;type:'discord'|'telegram'|'gotify';name:string;enabled:boolean;categories:string[];chatId?:string;endpoint?:string;credential?:string;credentialConfigured?:boolean;
+  id:string;type:'discord'|'telegram'|'gotify';name:string;enabled:boolean;categories:string[];chatId?:string;endpoint?:string;credential?:string;credentialConfigured?:boolean;template?:NotificationChannelTemplate;
 }
+
+export interface NotificationChannelTemplate{title:string;message:string;includeLink:boolean;accentColor:string;priority:number;json:string;}
 
 export interface NotificationDelivery{
   id:string;channelId:string;channelName:string;type:string;eventId:string;title:string;status:'delivered'|'failed';error:string;attempt:number;timestamp:string;
