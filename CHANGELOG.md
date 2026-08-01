@@ -7,6 +7,37 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.24] - 2026-08-01
+
+### Added
+
+- Added a persistent administrator Search Activity center inside the global
+  notification bell for Movie and Television automatic searches.
+- Added real search-stage visibility for queued, searching, grabbed,
+  downloading, imported, completed, failed, and cancelled activity.
+- Added poster-rich activity cards with direct links to Queue and the relevant
+  Movie or Television title.
+- Added live progress and failure counts for bulk Wanted searches.
+- Added native automatic season search to each Television season management
+  menu.
+
+### Changed
+
+- New Movie and Television additions now preserve their native immediate-search
+  options when sent to the media engines.
+- Search Activity is stored per administrator, survives application restarts,
+  and reconciles native engine command status without simulated timers.
+- The activity panel uses a compact bottom sheet on phone-sized displays while
+  preserving the complete stage timeline and actions.
+
+### Fixed
+
+- Fixed Television additions losing monitor scope or cutoff-search options as
+  they passed through Discover, direct Add Media, or request approval.
+- Fixed automatic searches started from whole-show, season, episode, Wanted,
+  bulk-missing, and new-library workflows not having one visible activity
+  history.
+
 ## [2.0.23] - 2026-08-01
 
 ### Changed
@@ -571,7 +602,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.23...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.24...HEAD
+[2.0.24]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.23...v2.0.24
 [2.0.23]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.22...v2.0.23
 [2.0.22]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.21...v2.0.22
 [2.0.21]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.20...v2.0.21

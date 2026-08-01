@@ -9,7 +9,7 @@ function AddResult({item,index,domain,profiles,roots,options}:{item:AddMediaResu
   const movie=domain==='movie',poster=item.remotePoster||item.images?.find(image=>image.coverType==='poster')?.remoteUrl;
   async function add(event:React.FormEvent){
     event.preventDefault();if(adding)return;setAdding(true);
-    const payload={...item,rootFolderPath,qualityProfileId,monitored:movie||monitor!=='none',addOptions:movie?{searchForMovie:searchNow}:{searchForMissingEpisodes:searchNow},...(movie?{minimumAvailability}:{monitor,seriesType,seasonFolder:true})};
+    const payload={...item,rootFolderPath,qualityProfileId,monitored:movie||monitor!=='none',addOptions:movie?{searchForMovie:searchNow}:{monitor,searchForMissingEpisodes:searchNow,searchForCutoffUnmetEpisodes:false},...(movie?{minimumAvailability}:{monitor,seriesType,seasonFolder:true})};
     try{await options.request(`/api/manage/${domain}/library`,{method:'POST',body:JSON.stringify(payload)});options.notify(`${item.title} added to your library.`);options.onAdded(domain);}catch(error){options.notify(errorMessage(error),'error');setAdding(false);}
   }
   return <article className="discovery-card" data-result-index={index}>

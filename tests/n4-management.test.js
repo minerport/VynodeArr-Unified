@@ -5,6 +5,12 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { EngineManagementService } from '../.server-build/packages/platform/src/engine-management-service.js';
 import { EngineSettingsService } from '../.server-build/packages/platform/src/engine-settings-service.js';
+import { televisionAddPayload } from '../.server-build/apps/api/src/app.js';
+
+test('television adds preserve monitoring and immediate automatic-search options',()=>{
+  assert.deepEqual(televisionAddPayload({title:'Series',monitor:'future',monitored:true,addOptions:{searchForMissingEpisodes:true}}).addOptions,{monitor:'future',searchForMissingEpisodes:true,searchForCutoffUnmetEpisodes:false});
+  assert.deepEqual(televisionAddPayload({title:'Series',monitored:false,addOptions:{}}).addOptions,{monitor:'none',searchForMissingEpisodes:false,searchForCutoffUnmetEpisodes:false});
+});
 
 test('management gateway exposes native capabilities and forwards only allowlisted operations',async()=>{
   const calls=[];
@@ -33,11 +39,17 @@ test('management gateway exposes native capabilities and forwards only allowlist
   await service.execute('movie','library','DELETE',{id:7});
   await service.execute('movie','libraryEditor','DELETE',{payload:{movieIds:[7],deleteFiles:false}});
   await service.execute('movie','libraryFolder','GET',{id:7});
+  await service.execute('tv','library','POST',{payload:{title:'New series',addOptions:{monitor:'all',searchForMissingEpisodes:true,searchForCutoffUnmetEpisodes:false}}});
+  await service.execute('tv','commands','POST',{payload:{name:'SeriesSearch',seriesId:8}});
+  await service.execute('tv','commands','POST',{payload:{name:'SeasonSearch',seriesId:8,seasonNumber:1}});
+  await service.execute('tv','commands','POST',{payload:{name:'EpisodeSearch',episodeIds:[81,82]}});
   assert.deepEqual(calls.map((call)=>call.slice(0,2)),[
-    ['GET','qualityprofile'],['POST','movie'],['PUT','movie/7'],['DELETE','movie/7'],['DELETE','movie/editor'],['GET','movie/7/folder']
+    ['GET','qualityprofile'],['POST','movie'],['PUT','movie/7'],['DELETE','movie/7'],['DELETE','movie/editor'],['GET','movie/7/folder'],['POST','series'],['POST','command'],['POST','command'],['POST','command']
   ]);
   assert.deepEqual(calls[2][3],{moveFiles:'true'});
   assert.deepEqual(calls[4][2],{movieIds:[7],deleteFiles:false});
+  assert.equal(calls[6][2].addOptions.searchForMissingEpisodes,true);
+  assert.deepEqual(calls.slice(7,10).map(call=>call[2].name),['SeriesSearch','SeasonSearch','EpisodeSearch']);
   await service.execute('movie','customFormatSchemas','GET');
   await service.execute('movie','releaseProfiles','POST',{payload:{name:'No Italian',ignored:['ITA','ITALIAN']}});
   await service.execute('tv','releaseProfiles','PUT',{id:9,payload:{id:9,name:'No Italian'}});

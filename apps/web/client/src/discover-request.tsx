@@ -60,7 +60,7 @@ export function DiscoverRequest({item,options,onClose,onRequested}:{item:Discove
       rootFolderPath,
       qualityProfileId,
       monitored:movie||monitor!=='none',
-      addOptions:movie?{searchForMovie:searchNow}:{searchForMissingEpisodes:searchNow},
+      addOptions:movie?{searchForMovie:searchNow}:{monitor,searchForMissingEpisodes:searchNow,searchForCutoffUnmetEpisodes:false},
       ...(movie?{minimumAvailability}:{monitor,seriesType,seasonFolder:true}),
     };
     setSubmitting(true);

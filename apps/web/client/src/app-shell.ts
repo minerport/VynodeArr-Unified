@@ -54,7 +54,7 @@ function applyUser(user){
     while(sibling&&sibling.tagName!=='P'){if(sibling.tagName==='A'&&!sibling.hidden){visible=true;break;}sibling=sibling.nextElementSibling;}
     label.hidden=!visible;
   });
-  if(!notificationsMounted&&notificationHost&&window.VynodeArrReact?.mountNotifications){notificationsMounted=true;window.VynodeArrReact.mountNotifications(notificationHost,{request:api,canPoll:()=>Boolean(state.user)&&!shell.hidden,onPageBadge:badgeValue=>{const link=document.querySelector(`nav a[href="${badgeValue.href}"]`);if(!link)return;let badgeElement=link.querySelector('.nav-count-badge');if(!badgeValue.count){badgeElement?.remove();return;}if(!badgeElement){badgeElement=document.createElement('span');badgeElement.className='nav-count-badge';link.append(badgeElement);}badgeElement.textContent=badgeValue.count>99?'99+':String(badgeValue.count);}});}
+  if(!notificationsMounted&&notificationHost&&window.VynodeArrReact?.mountNotifications){notificationsMounted=true;window.VynodeArrReact.mountNotifications(notificationHost,{administrator:user.role==='administrator',request:api,canPoll:()=>Boolean(state.user)&&!shell.hidden,onPageBadge:badgeValue=>{const link=document.querySelector(`nav a[href="${badgeValue.href}"]`);if(!link)return;let badgeElement=link.querySelector('.nav-count-badge');if(!badgeValue.count){badgeElement?.remove();return;}if(!badgeElement){badgeElement=document.createElement('span');badgeElement.className='nav-count-badge';link.append(badgeElement);}badgeElement.textContent=badgeValue.count>99?'99+':String(badgeValue.count);}});}
 }
 async function bootstrap(){
   await bootstrapSession({state,request:api,setupView,authView,shell,applyUser,startImportMonitor,route});

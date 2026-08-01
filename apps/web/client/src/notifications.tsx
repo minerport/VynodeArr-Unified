@@ -1,36 +1,26 @@
 import {useCallback,useEffect,useRef,useState} from 'react';
-import type {NotificationItem,NotificationMountOptions} from './notification-types';
+import type {NotificationItem,NotificationMountOptions,SearchActivity} from './notification-types';
 
-const relativeTime=(value:string)=>{
-  const seconds=Math.max(0,Math.floor((Date.now()-new Date(value).getTime())/1000));
-  if(seconds<60)return'Just now';
-  if(seconds<3600)return`${Math.floor(seconds/60)}m ago`;
-  if(seconds<86400)return`${Math.floor(seconds/3600)}h ago`;
-  return`${Math.floor(seconds/86400)}d ago`;
-};
+const relativeTime=(value:string)=>{const seconds=Math.max(0,Math.floor((Date.now()-new Date(value).getTime())/1000));if(seconds<60)return'Just now';if(seconds<3600)return`${Math.floor(seconds/60)}m ago`;if(seconds<86400)return`${Math.floor(seconds/3600)}h ago`;return`${Math.floor(seconds/86400)}d ago`;};
+const stages=['queued','searching','grabbed','downloading','imported'] as const;
+const stageLabel=(value:string)=>({queued:'Queued',searching:'Searching',grabbed:'Grabbed',downloading:'Downloading',imported:'Imported',completed:'Completed',failed:'Failed',canceled:'Canceled'}[value]||value);
+const stagePosition=(status:string)=>status==='completed'?1:Math.max(0,stages.indexOf(status as typeof stages[number]));
 
 export function Notifications({options}:{options:NotificationMountOptions}){
-  const [items,setItems]=useState<NotificationItem[]>([]),[unread,setUnread]=useState(0),[open,setOpen]=useState(false),[error,setError]=useState('');
+  const [items,setItems]=useState<NotificationItem[]>([]),[activities,setActivities]=useState<SearchActivity[]>([]),[unread,setUnread]=useState(0),[open,setOpen]=useState(false),[tab,setTab]=useState<'notifications'|'search'>('notifications'),[error,setError]=useState('');
   const host=useRef<HTMLDivElement>(null);
-  const load=useCallback(async()=>{
-    if(!options.canPoll())return;
-    try{const value=await options.request<{items:NotificationItem[];unread:number;pageBadge:{href:'#request-management'|'#requests';count:number}}>('/api/notifications');setItems(value.items||[]);setUnread(Number(value.unread||0));options.onPageBadge(value.pageBadge);setError('');}
-    catch{setError('Notifications are temporarily unavailable.');}
-  },[options]);
-  const mark=useCallback(async(ids?:string[])=>{
-    try{await options.request('/api/notifications/read',{method:'POST',body:JSON.stringify(ids?{ids}:{})});setItems(current=>current.map(item=>!ids||ids.includes(item.id)?{...item,read:true}:item));setUnread(current=>{const next=ids?Math.max(0,current-ids.filter(id=>items.some(item=>item.id===id&&!item.read)).length):0;const href=items.some(item=>item.href==='#request-management')?'#request-management':'#requests';if(href==='#requests')options.onPageBadge({href,count:next});return next;});}
-    catch{setError('Notifications could not be marked as read.');}
-  },[items,options]);
-  useEffect(()=>{void load();const timer=window.setInterval(()=>void load(),15_000);return()=>window.clearInterval(timer);},[load]);
+  const load=useCallback(async()=>{if(!options.canPoll())return;try{const notificationRequest=options.request<{items:NotificationItem[];unread:number;pageBadge:{href:'#request-management'|'#requests';count:number}}>('/api/notifications'),activityRequest=options.administrator?options.request<{items:SearchActivity[]}>('/api/search-activities'):Promise.resolve({items:[]});const[value,activityValue]=await Promise.all([notificationRequest,activityRequest]);setItems(value.items||[]);setActivities(activityValue.items||[]);setUnread(Number(value.unread||0));options.onPageBadge(value.pageBadge);setError('');}catch{setError('Activity is temporarily unavailable.');}},[options]);
+  const mark=useCallback(async(ids?:string[])=>{try{await options.request('/api/notifications/read',{method:'POST',body:JSON.stringify(ids?{ids}:{})});setItems(current=>current.map(item=>!ids||ids.includes(item.id)?{...item,read:true}:item));setUnread(current=>ids?Math.max(0,current-ids.filter(id=>items.some(item=>item.id===id&&!item.read)).length):0);}catch{setError('Notifications could not be marked as read.');}},[items,options]);
+  const dismiss=async(id:string)=>{try{await options.request(`/api/search-activities/${id}`,{method:'DELETE'});setActivities(current=>current.filter(item=>item.id!==id));}catch{setError('Search activity could not be dismissed.');}};
+  useEffect(()=>{void load();const timer=window.setInterval(()=>void load(),activities.some(item=>['queued','searching','grabbed','downloading'].includes(item.status))?5_000:15_000);return()=>window.clearInterval(timer);},[activities,load]);
   useEffect(()=>{const close=(event:MouseEvent)=>{if(open&&!host.current?.contains(event.target as Node))setOpen(false);};document.addEventListener('mousedown',close);return()=>document.removeEventListener('mousedown',close);},[open]);
   return <div className="notification-center" ref={host}>
-    <button className={`notification-bell${open?' active':''}`} type="button" aria-label={unread?`Notifications, ${unread} unread`:'Notifications'} aria-expanded={open} onClick={()=>setOpen(current=>!current)}>
-      <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>{unread?<strong>{unread>99?'99+':unread}</strong>:null}
-    </button>
-    {open?<section className="notification-panel" aria-label="Notifications">
-      <header><div><span className="eyebrow">ACTIVITY</span><h2>Notifications</h2></div>{unread?<button type="button" className="text-button" onClick={()=>void mark()}>Mark all read</button>:null}</header>
+    <button className={`notification-bell${open?' active':''}`} type="button" aria-label={unread?`Notifications, ${unread} unread`:'Notifications'} aria-expanded={open} onClick={()=>setOpen(current=>!current)}><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>{unread?<strong>{unread>99?'99+':unread}</strong>:null}</button>
+    {open?<section className="notification-panel" aria-label="Activity center">
+      <header><div><span className="eyebrow">ACTIVITY</span><h2>{tab==='search'?'Search activity':'Notifications'}</h2></div>{tab==='notifications'&&unread?<button type="button" className="text-button" onClick={()=>void mark()}>Mark all read</button>:null}</header>
+      {options.administrator?<div className="activity-tabs" role="tablist"><button className={tab==='notifications'?'active':''} onClick={()=>setTab('notifications')}>Notifications{unread?` (${unread})`:''}</button><button className={tab==='search'?'active':''} onClick={()=>setTab('search')}>Search activity{activities.some(item=>['queued','searching','grabbed','downloading'].includes(item.status))?<i/>:null}</button></div>:null}
       {error?<p className="notification-error">{error}</p>:null}
-      {!items.length&&!error?<div className="notification-empty"><strong>All caught up</strong><span>Request updates will appear here.</span></div>:<div className="notification-list">{items.map(item=><a className={`notification-item ${item.type}${item.read?' read':''}`} href={item.href} key={item.id} onClick={()=>{if(!item.read)void mark([item.id]);setOpen(false);}}><i aria-hidden="true"/><div><strong>{item.title}</strong><p>{item.message}</p><small>{relativeTime(item.timestamp)}</small></div></a>)}</div>}
+      {tab==='notifications'?(!items.length&&!error?<div className="notification-empty"><strong>All caught up</strong><span>Request updates will appear here.</span></div>:<div className="notification-list">{items.map(item=><a className={`notification-item ${item.type}${item.read?' read':''}`} href={item.href} key={item.id} onClick={()=>{if(!item.read)void mark([item.id]);setOpen(false);}}><i aria-hidden="true"/><div><strong>{item.title}</strong><p>{item.message}</p><small>{relativeTime(item.timestamp)}</small></div></a>)}</div>):(!activities.length&&!error?<div className="notification-empty"><strong>No searches yet</strong><span>Automatic searches will be tracked here.</span></div>:<div className="search-activity-list">{activities.map(item=>{const position=stagePosition(item.status),terminal=['completed','failed','canceled','imported'].includes(item.status);return <article className={`search-activity-card ${item.status}`} key={item.id}><div className="search-activity-heading"><div className="search-activity-poster">{item.seriesId?<img src={`/api/artwork/tv/series_${item.seriesId}/poster`} alt=""/>:item.movieId?<img src={`/api/artwork/movie/movie_${item.movieId}/poster`} alt=""/>:<span>{item.domain==='tv'?'TV':'M'}</span>}</div><div><small>{item.scope.replace(/^./,value=>value.toUpperCase())} · {relativeTime(item.createdAt)}</small><strong>{item.title}</strong><span>{stageLabel(item.status)}</span></div>{terminal?<button type="button" aria-label="Dismiss search activity" onClick={()=>void dismiss(item.id)}>×</button>:null}</div><div className="search-stage-track" aria-label={`Search status: ${stageLabel(item.status)}`}>{stages.map((stage,index)=><span className={index<=position&&!['failed','canceled'].includes(item.status)?'reached':''} key={stage}><i/>{stageLabel(stage)}</span>)}</div><p>{item.message}</p>{item.counts?<div className="search-counts"><span>{item.counts.completed}/{item.counts.total} queued</span>{item.counts.failed?<span>{item.counts.failed} failed</span>:null}</div>:null}{item.selection?<small className="search-selection">{item.selection.quality} · {(item.selection.size/1073741824).toFixed(2)} GB</small>:null}<div className="search-activity-actions"><a href="#queue" onClick={()=>setOpen(false)}>Open Queue</a>{item.seriesId?<a href={`#series/series_${item.seriesId}`} onClick={()=>setOpen(false)}>Open title</a>:item.movieId?<a href={`#movie/movie_${item.movieId}`} onClick={()=>setOpen(false)}>Open title</a>:null}</div></article>;})}</div>)}
     </section>:null}
   </div>;
 }

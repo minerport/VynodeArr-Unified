@@ -188,6 +188,7 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(tvDetail,/seasonNumber=\$\{season\.seasonNumber\}/);
   assert.match(tvDetail,/RenamePreview/);
   assert.match(tvDetail,/busy==='SeriesSearch'/);
+  assert.match(tvDetail,/command\('SeasonSearch',\{seriesId:engineId,seasonNumber:season\.seasonNumber\}\)/);
   assert.match(tvDetail,/saved\.result\?\.monitored\?\?next/);
   assert.match(tvDetail,/AbortController/);
   assert.match(movieDetail,/ModalPortal/);
@@ -1070,6 +1071,18 @@ test('request notification bell has durable role-aware request updates',async()=
   assert.match(types,/approval.*approved.*rejected.*failed.*imported/);
   assert.match(server,/notificationReads/);assert.match(server,/\/api\/notifications\/read/);assert.match(server,/href:'#request-management'/);assert.match(server,/href:'#requests'/);
   assert.match(styles,/max-height:calc\(100dvh - 6rem\)/);assert.match(styles,/overflow:auto/);assert.match(styles,/notification-bell/);assert.match(styles,/nav-count-badge/);
+});
+
+test('administrator search activity visualizes every automatic-search entry point',async()=>{
+  const [notifications,types,shell,server,html,styles]=await Promise.all([
+    read('apps/web/client/src/notifications.tsx'),read('apps/web/client/src/notification-types.ts'),read('apps/web/client/src/app-shell.ts'),
+    read('apps/api/src/app.js'),read('apps/web/public/index.html'),read('apps/web/public/search-activity.css')
+  ]);
+  assert.match(html,/search-activity\.css/);assert.match(types,/interface SearchActivity/);assert.match(shell,/administrator:user\.role==='administrator'/);
+  for(const value of ['/api/search-activities','searchActivityStore','createSearchActivity','reconcileSearchActivities','SeriesSearch','SeasonSearch','EpisodeSearch','MoviesSearch','searchForMissingEpisodes','searchForMovie'])assert.match(server,new RegExp(value.replaceAll('/','\\/')),value);
+  for(const value of ['Search activity','Queued','Searching','Grabbed','Downloading','Imported','Open Queue','Open title'])assert.match(notifications,new RegExp(value),value);
+  assert.match(notifications,/5_000/);assert.match(styles,/search-stage-track/);assert.match(styles,/bottom:0/);assert.match(styles,/aspect-ratio:2\/3/);
+  assert.match(notifications,/artwork\/movie\/movie_\$\{item\.movieId\}\/poster/);assert.match(notifications,/#movie\/movie_\$\{item\.movieId\}/);
 });
 
 test('administrator audit coverage includes security, jobs, exports, collections, media, and system operations',async()=>{

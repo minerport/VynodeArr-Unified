@@ -28,6 +28,10 @@ const webRoot=resolve(process.cwd(),'apps/web/public');
 const mime={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.ico':'image/x-icon'};
 const gzipAsync=promisify(gzip);
 const compressible=new Set(['.html','.css','.js','.svg']);
+export function televisionAddPayload(input={}){
+  const addOptions=input.addOptions||{},monitor=String(addOptions.monitor||input.monitor||(input.monitored===false?'none':'all'));
+  return{...input,addOptions:{...addOptions,monitor,searchForMissingEpisodes:addOptions.searchForMissingEpisodes===true,searchForCutoffUnmetEpisodes:addOptions.searchForCutoffUnmetEpisodes===true}};
+}
 async function staticResponse(req,res,path,value,{fallback=false}={}){
   const extension=extname(path),contentType=mime[extension]||'application/octet-stream';
   const tag=`W/"${createHash('sha256').update(value).digest('base64url')}"`;
@@ -119,6 +123,7 @@ export function createApplication(options={}){
   const auditStore=options.auditStore||new JsonStore(join(dataDir,'management-audit.json'),{version:1,entries:[]});
   const collectionStore=options.collectionStore||new JsonStore(join(dataDir,'collections.json'),{version:1,collections:[]});
   const requestStore=options.requestStore||new JsonStore(join(dataDir,'user-requests.json'),{version:1,requests:[],notificationReads:{}});
+  const searchActivityStore=options.searchActivityStore||new JsonStore(join(dataDir,'search-activity.json'),{version:1,activities:[]});
   const guideTemplateStore=options.guideTemplateStore||new JsonStore(join(dataDir,'guide-templates.json'),{version:1,records:{}});
   const engineAuthenticationStore=options.engineAuthenticationStore||new JsonStore(join(dataDir,'engine-authentication.json'),{version:1,initialized:false,movie:null,tv:null,updatedAt:null});
   const guideTemplates=options.guideTemplates||new GuideTemplateService({store:guideTemplateStore,fetcher:options.fetcher||globalThis.fetch});
@@ -149,6 +154,18 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
   }
   function publicImportJob(job){return{id:job.id,domain:job.domain,label:job.label,status:job.status,total:job.total,completed:job.completed,skipped:job.skipped,failed:job.failed,currentTitle:job.currentTitle,errors:job.errors.slice(-25),createdAt:job.createdAt,finishedAt:job.finishedAt};}
   function publicSearchJob(job){return{id:job.id,domain:job.domain,label:job.label,status:job.status,total:job.total,completed:job.completed,failed:job.failed,currentTitle:job.currentTitle,errors:job.errors.slice(-25),createdAt:job.createdAt,finishedAt:job.finishedAt};}
+  const automaticCommandNames=new Set(['MoviesSearch','SeriesSearch','SeasonSearch','EpisodeSearch']);
+  const searchScope=input=>input.name==='SeriesSearch'?'series':input.name==='SeasonSearch'?'season':input.name==='EpisodeSearch'?'episode':input.name==='MoviesSearch'?'movie':'library';
+  async function createSearchActivity(userId,input={},result={},extra={}){
+    const domain=extra.domain||'tv',now=new Date().toISOString(),activity={id:`activity_${randomUUID()}`,userId,domain,source:extra.source||'automatic',scope:extra.scope||searchScope(input),title:extra.title||input.title||({SeriesSearch:'Whole show',SeasonSearch:`Season ${input.seasonNumber}`,EpisodeSearch:`${Array.isArray(input.episodeIds)&&input.episodeIds.length>1?`${input.episodeIds.length} episodes`:'Episode'}`,MoviesSearch:`${Array.isArray(input.movieIds)&&input.movieIds.length>1?`${input.movieIds.length} movies`:'Movie'}`}[input.name]||'New library item'),movieId:Number(extra.movieId||(domain==='movie'&&(input.movieIds?.[0]||result.movieId||result.id)))||null,seriesId:Number(extra.seriesId||input.seriesId||(domain==='tv'&&(result.seriesId||result.id)))||null,seasonNumber:Number.isFinite(Number(extra.seasonNumber??input.seasonNumber))?Number(extra.seasonNumber??input.seasonNumber):null,episodeIds:(extra.episodeIds||input.episodeIds||[]).map(Number).filter(Number.isFinite).slice(0,500),commandId:Number(extra.commandId||result?.id)||null,status:extra.status||'queued',message:extra.message||'Waiting for the media engine.',createdAt:now,updatedAt:now,finishedAt:null,selection:extra.selection||null,counts:extra.counts||null};
+    await searchActivityStore.update(current=>{current.version=1;current.activities=Array.isArray(current.activities)?current.activities:[];current.activities.unshift(activity);current.activities=current.activities.slice(0,250);return activity;});return activity;
+  }
+  async function updateSearchActivity(id,changes){let updated=null;await searchActivityStore.update(current=>{const item=(current.activities||[]).find(value=>value.id===id);if(item){Object.assign(item,changes,{updatedAt:new Date().toISOString()});updated={...item};}return updated;});return updated;}
+  async function reconcileSearchActivities(userId){
+    const stored=await searchActivityStore.read(),items=(stored.activities||[]).filter(item=>item.userId===userId).slice(0,75),active=items.filter(item=>['queued','searching','grabbed','downloading'].includes(item.status));
+    await Promise.all(active.map(async item=>{if(!item.commandId)return;try{const command=await management.execute(item.domain,'commands','GET',{id:item.commandId}),raw=String(command?.status||command?.state||'').toLowerCase();if(/fail|abort/.test(raw))await updateSearchActivity(item.id,{status:'failed',message:command?.message||'The engine reported that this search failed.',finishedAt:new Date().toISOString()});else if(/complete/.test(raw))await updateSearchActivity(item.id,{status:'completed',message:'Search completed. Queue and History will show any matching download.',finishedAt:new Date().toISOString()});else if(/start|run/.test(raw))await updateSearchActivity(item.id,{status:'searching',message:'The media engine is checking configured indexers.'});}catch{}}));
+    const latest=await searchActivityStore.read();return(latest.activities||[]).filter(item=>item.userId===userId).slice(0,75);
+  }
   const duplicateImportError=(message)=>/(?:already|existing).*(?:add|exist|configur|use)|(?:path|tmdb|tvdb|title).*(?:already|exist|configur|use)|another (?:movie|series)/i.test(String(message||''));
   const qualityRank=(release)=>{
     const name=String(release?.quality?.quality?.name||release?.quality?.name||release?.title||'').toLowerCase();
@@ -495,12 +512,15 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
     if(active)return publicSearchJob(active);
     const job={id:`search_${randomUUID()}`,userId,domain,label,status:'queued',total:0,completed:0,failed:0,currentTitle:'Loading missing items',errors:[],createdAt:new Date().toISOString(),finishedAt:null,cancelRequested:false};
     searchJobs.set(job.id,job);
+    let activityId=null;const activityPromise=createSearchActivity(userId,{name:domain==='movie'?'MoviesSearch':'EpisodeSearch'},{},{domain,source:'wanted',scope:'bulk',title:`Search all missing ${label.toLowerCase()}`,status:'searching',counts:{total:0,completed:0,failed:0}}).then(activity=>(activityId=activity.id));
     void(async()=>{
+      await activityPromise;
       job.status='running';
       try{
         const value=await management.execute(domain,'wantedMissing','GET',{query:{page:1,pageSize:10000,sortKey:'title',sortDirection:'ascending',...(domain==='tv'?{monitored:true}:{})}});
         const items=Array.isArray(value)?value:value?.records||[];
         job.total=items.length;
+        if(activityId)await updateSearchActivity(activityId,{counts:{total:job.total,completed:0,failed:0},message:`Searching ${job.total} missing item${job.total===1?'':'s'} in safe batches.`});
         const batchSize=domain==='movie'?20:40;
         for(let offset=0;offset<items.length&&!job.cancelRequested;offset+=batchSize){
           const batch=items.slice(offset,offset+batchSize),ids=batch.map(item=>Number(item.id)).filter(Number.isFinite);
@@ -513,10 +533,12 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
             const message=redact(error?.safeMessage||error?.message||'Search batch failed');
             job.failed+=ids.length;job.errors.push({title:job.currentTitle,message});
           }
+          if(activityId)await updateSearchActivity(activityId,{counts:{total:job.total,completed:job.completed,failed:job.failed},message:`Queued ${job.completed} of ${job.total} missing item${job.total===1?'':'s'}.`});
           await pause(250);
         }
       }catch(error){job.failed=Math.max(job.failed,job.total||1);job.errors.push({title:'Missing search',message:redact(error?.safeMessage||error?.message||'Search failed')});}
       job.currentTitle=null;job.status=job.cancelRequested?'canceled':job.failed&&job.completed===0?'failed':'completed';job.finishedAt=new Date().toISOString();
+      if(activityId)await updateSearchActivity(activityId,{status:job.status,message:job.status==='completed'?`All ${job.completed} searches were handed to the media engine.`:job.status==='canceled'?'Bulk search was canceled.':'The bulk search could not be completed.',counts:{total:job.total,completed:job.completed,failed:job.failed},finishedAt:job.finishedAt});
       setTimeout(()=>searchJobs.delete(job.id),6*60*60*1000);
     })();
     return publicSearchJob(job);
@@ -760,7 +782,9 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
   }
   async function addRequestToEngine(record){
     const {metadata,payload}=await validatedDiscoverRequest(record.domain,Number(record.tmdbId),record.payload);
-    const result=await management.execute(record.domain,'library','POST',{payload});
+    const result=await management.execute(record.domain,'library','POST',{payload:record.domain==='tv'?televisionAddPayload(payload):payload});
+    if(record.domain==='tv'&&televisionAddPayload(payload).addOptions.searchForMissingEpisodes)await createSearchActivity(record.userId,{name:'SeriesSearch',seriesId:result.id},result,{domain:'tv',source:'request',scope:'series',title:result.title||metadata.title||record.title,status:'searching',message:'Request added to the library; searching for monitored missing episodes.'});
+    if(record.domain==='movie'&&payload.addOptions?.searchForMovie===true)await createSearchActivity(record.userId,{name:'MoviesSearch',movieIds:[result.id]},result,{domain:'movie',source:'request',scope:'movie',movieId:result.id,title:result.title||metadata.title||record.title,status:'searching',message:'Request added to the library; searching for an accepted movie release.'});
     const updatedAt=new Date().toISOString();
     await requestStore.update(current=>{
       const item=(current.requests||[]).find(value=>value.id===record.id);
@@ -936,6 +960,9 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
         const importJobMatch=url.pathname.match(/^\/api\/import-jobs\/(import_[A-Za-z0-9-]+)$/);
         if(importJobMatch&&req.method==='DELETE'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;const job=importJobs.get(importJobMatch[1]);if(!job||job.userId!==session.user.id)return json(res,404,{error:{code:'not_found',message:'Import job was not found'}});if(['queued','running'].includes(job.status)){job.cancelRequested=true;job.status='canceling';job.currentTitle='Stopping after the current item';}await recordAudit(session,{category:'job',action:'import.canceled',target:job.label||job.domain,domain:job.domain,summary:`Canceled ${job.label||'a library import'}.`,metadata:{jobId:job.id}});return json(res,200,{job:publicImportJob(job)});}
         if(url.pathname==='/api/search-jobs'&&req.method==='GET'){if(!administrator(res,session))return;return json(res,200,{items:[...searchJobs.values()].filter(job=>job.userId===session.user.id).map(publicSearchJob)});}
+        if(url.pathname==='/api/search-activities'&&req.method==='GET'){if(!administrator(res,session))return;return json(res,200,{items:await reconcileSearchActivities(session.user.id)});}
+        const searchActivityMatch=url.pathname.match(/^\/api\/search-activities\/([^/]+)$/);
+        if(searchActivityMatch&&req.method==='DELETE'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;let removed=false;await searchActivityStore.update(current=>{const before=(current.activities||[]).length;current.activities=(current.activities||[]).filter(item=>item.id!==searchActivityMatch[1]||item.userId!==session.user.id);removed=current.activities.length<before;return removed;});return removed?json(res,204):json(res,404,{error:{code:'not_found',message:'Search activity was not found'}});}
         if(url.pathname==='/api/search-jobs'&&req.method==='POST'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;const job=startMissingSearchJob(session.user.id,await body(req));await recordAudit(session,{category:'job',action:'search.started',target:job.label||job.domain,domain:job.domain,summary:`Started ${job.label||'a missing-media search'}.`,metadata:{jobId:job.id}});return json(res,202,{job});}
         const searchJobMatch=url.pathname.match(/^\/api\/search-jobs\/(search_[A-Za-z0-9-]+)$/);
         if(searchJobMatch&&req.method==='DELETE'){if(!administrator(res,session)||!requireCsrf(req,res,session))return;const job=searchJobs.get(searchJobMatch[1]);if(!job||job.userId!==session.user.id)return json(res,404,{error:{code:'not_found',message:'Search job was not found'}});if(['queued','running'].includes(job.status)){job.cancelRequested=true;job.status='canceling';job.currentTitle='Stopping after the current batch';}await recordAudit(session,{category:'job',action:'search.canceled',target:job.label||job.domain,domain:job.domain,summary:`Canceled ${job.label||'a missing-media search'}.`,metadata:{jobId:job.id}});return json(res,200,{job:publicSearchJob(job)});}
@@ -1520,6 +1547,7 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
           if(!accepted.length)throw new Error('Only rejected releases were returned. Use Interactive Search to review and grab one anyway if you choose.');
           accepted.sort(compareReleases);
           const selected=accepted[0],result=await management.execute(domain,'releases','POST',{payload:await reacquireRelease(domain,selected)});
+          await createSearchActivity(session.user.id,domain==='movie'?{name:'MoviesSearch',movieIds:[query.movieId]}:{name:'EpisodeSearch',episodeIds:[query.episodeId]},result,{domain,source:'details',movieId:query.movieId,status:'grabbed',title:selected.title,message:'An accepted release was grabbed and sent to the download client.',selection:{title:selected.title,quality:selected.quality?.quality?.name||selected.quality?.name||'Unknown',size:Number(selected.size||0)}});
           clearReleaseCache(domain);
           await recordAudit(session,{category:'media',action:'automatic_search.grabbed',target:selected.title,domain,summary:`Automatically selected and grabbed an accepted ${domain==='movie'?'movie':'television'} release.`,metadata:{mediaId:query.movieId??query.episodeId,acceptedCandidates:accepted.length}});
           return json(res,201,{result,selection:{title:selected.title,quality:selected.quality?.quality?.name||selected.quality?.name||'Unknown',size:Number(selected.size||0),acceptedCandidates:accepted.length}});
@@ -1557,8 +1585,11 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
             if(Array.isArray(result))result=result.map(release=>domain==='movie'&&query.movieId?{...release,mappedMovieId:Number(release.mappedMovieId||release.movieId||query.movieId)}:domain==='tv'&&query.episodeId?{...release,episodeId:Number(release.episodeId||query.episodeId)}:release);
           }
           else{
-            const payload=managementMatch[2]==='releases'&&method==='POST'?await reacquireRelease(managementMatch[1],input):input;
+            const payload=managementMatch[2]==='releases'&&method==='POST'?await reacquireRelease(managementMatch[1],input):managementMatch[1]==='tv'&&managementMatch[2]==='library'&&method==='POST'?televisionAddPayload(input):input;
             result=await management.execute(managementMatch[1],managementMatch[2],method,{id:managementMatch[3],query,payload});
+            if(method==='POST'&&managementMatch[2]==='commands'&&automaticCommandNames.has(String(input.name||'')))await createSearchActivity(session.user.id,input,result,{domain:managementMatch[1],source:'command'});
+            if(method==='POST'&&managementMatch[2]==='library'&&payload?.addOptions?.searchForMissingEpisodes===true)await createSearchActivity(session.user.id,{name:'SeriesSearch',seriesId:result?.id},result,{domain:managementMatch[1],source:'add',scope:managementMatch[1]==='tv'?'series':'movie',title:result?.title||payload.title||'New library item',status:'searching',message:'Added to the library and searching for monitored missing media.'});
+            if(method==='POST'&&managementMatch[2]==='library'&&managementMatch[1]==='movie'&&payload?.addOptions?.searchForMovie===true)await createSearchActivity(session.user.id,{name:'MoviesSearch',movieIds:[result?.id]},result,{domain:'movie',source:'add',scope:'movie',movieId:result?.id,title:result?.title||payload.title||'New movie',status:'searching',message:'Added to the library and searching for an accepted movie release.'});
           }
           if(method!=='GET'){
             if(['releases','indexers','profiles','customFormats','delayProfiles','restrictions','releaseProfiles'].includes(managementMatch[2]))clearReleaseCache(managementMatch[1]);

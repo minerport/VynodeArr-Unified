@@ -27,8 +27,20 @@ consistent experience and account system.
 
 ## Current release
 
-Version **2.0.23** is available for production use on Unraid, Windows, and
-standard Docker installations. Phone-sized movie and television details now
+Version **2.0.24** is available for production use on Unraid, Windows, and
+standard Docker installations. Administrators now have a persistent **Search
+Activity** center inside the notification bell for Movie and Television
+automatic searches. It shows the real path from queued and searching through
+grabbed, downloading, and imported, with posters, engine status, bulk-search
+counts, and direct links to Queue and title details.
+
+Automatic-search activity covers new library additions, Discover requests,
+whole-show, season, episode, Wanted, and Search All Missing workflows. Native
+Movie and Television add options are preserved so monitoring scope and
+immediate searches reach the correct engine. On phones, Search Activity becomes
+a compact bottom sheet without removing stages or actions.
+
+Phone-sized movie and television details now
 keep artwork, title information, and controls aligned without clipping. All
 title actions remain available through a compact horizontal rail, while
 television season and episode controls expand only when requested.

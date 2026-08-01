@@ -10,7 +10,14 @@ export interface NotificationItem{
 }
 
 export interface NotificationMountOptions{
+  administrator:boolean;
   request:<T=unknown>(path:string,options?:RequestInit)=>Promise<T>;
   canPoll:()=>boolean;
   onPageBadge:(badge:{href:'#request-management'|'#requests';count:number})=>void;
+}
+
+export interface SearchActivity{
+  id:string;domain:'movie'|'tv';source:string;scope:string;title:string;movieId:number|null;seriesId:number|null;seasonNumber:number|null;episodeIds:number[];commandId:number|null;
+  status:'queued'|'searching'|'grabbed'|'downloading'|'imported'|'completed'|'failed'|'canceled';message:string;createdAt:string;updatedAt:string;finishedAt:string|null;
+  selection?:{title:string;quality:string;size:number}|null;counts?:{total:number;completed:number;failed:number}|null;
 }
