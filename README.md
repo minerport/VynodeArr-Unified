@@ -27,13 +27,15 @@ consistent experience and account system.
 
 ## Current release
 
-Version **2.0.31** is available for production use on Unraid, Windows, and
+Version **2.0.32** is available for production use on Unraid, Windows, and
 standard Docker installations. It adds private and shared user collections,
 collection statistics, sorting, bulk management, request-to-import timelines,
 JSON/CSV transfer, library-detail ownership controls, and requester attribution
 through Queue, History, Wanted, and download decisions. Native Pushover delivery
 also joins Discord, Telegram, and Gotify with protected credentials and advanced
-delivery controls.
+delivery controls. User ownership follows durable TMDB and TVDB identity across
+requests, rematches, and manual collection additions, while the collection
+builder and large user shelves remain usable on desktop and mobile.
 
 The administrator Validation Center checks
 engine connectivity, storage, acquisition providers, scheduled automation,

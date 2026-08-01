@@ -994,6 +994,10 @@
   padding: .9rem 1.3rem 1.2rem;
 }
 
+.collection-show-more {
+  margin: 0 1.3rem 1rem;
+}
+
 .collection-statistics {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -1244,17 +1248,27 @@
 }
 
 .collection-builder-dialog {
-  position: fixed;
-  inset: 50% auto auto 50%;
   width: min(1180px, calc(100vw - 2rem));
   height: min(860px, calc(100dvh - 2rem));
   max-width: none;
   max-height: none;
-  margin: 0;
+  margin: auto;
   padding: 0;
   overflow: hidden;
-  transform: translate(-50%, -50%);
+  transform: none !important;
   box-sizing: border-box;
+}
+
+.vynode-nested-modal-layer > .collection-builder-dialog[open] {
+  position: relative !important;
+  inset: auto !important;
+  width: min(1180px, 100%);
+  height: min(860px, calc(100dvh - 2rem));
+  max-width: 100%;
+  max-height: calc(100dvh - 2rem);
+  margin: auto !important;
+  transform: none !important;
+  overflow: hidden;
 }
 
 @media (max-width: 700px) {

@@ -278,7 +278,7 @@ test('dashboard upcoming excludes calendar events before today',()=>{
 });
 test('smart collections combine rules with retained and excluded movie choices',()=>appSession({movie:new MovieFixtureAdapter(),tv:new TvFixtureAdapter()},async({base,cookie,csrf})=>{
   const movies=(await (await fetch(`${base}/api/media/movies`,{headers:{cookie}})).json()).items,first=movies[0],retained=movies[1];
-  const interest=await fetch(`${base}/api/user-collections/items`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({domain:'movie',mediaId:first.id})});assert.equal(interest.status,201);
+  const interest=await fetch(`${base}/api/user-collections/items`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({domain:'movie',mediaId:String(first.id).replace(/^movie_/, '')})});assert.equal(interest.status,201);
   const duplicateInterest=await fetch(`${base}/api/user-collections/items`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({domain:'movie',mediaId:first.id})});assert.equal(duplicateInterest.status,201);
   const contains=await (await fetch(`${base}/api/user-collections/contains?domain=movie&mediaId=${first.id}`,{headers:{cookie}})).json();assert.equal(contains.included,true);assert.equal(contains.canRemove,true);
   const owned=(await (await fetch(`${base}/api/collections`,{headers:{cookie}})).json()).userCollections[0];assert.equal(owned.count,1);assert.equal(owned.movies[0].title,first.title);assert.equal(owned.movies[0].collectionSource,'saved');

@@ -5,12 +5,14 @@ import test from 'node:test';
 const read=(path)=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
 test('library titles can be attributed to a user without creating another download request',async()=>{
-  const [detail,collections,server,queue,history,wanted,notifications]=await Promise.all([read('apps/web/client/src/discover-detail.tsx'),read('apps/web/client/src/collections.tsx'),read('apps/api/src/app.js'),read('apps/web/client/src/queue.tsx'),read('apps/web/client/src/history.tsx'),read('apps/web/client/src/wanted.tsx'),read('apps/web/client/src/notifications.tsx')]);
+  const [detail,collections,server,queue,history,wanted,notifications,libraryCss]=await Promise.all([read('apps/web/client/src/discover-detail.tsx'),read('apps/web/client/src/collections.tsx'),read('apps/api/src/app.js'),read('apps/web/client/src/queue.tsx'),read('apps/web/client/src/history.tsx'),read('apps/web/client/src/wanted.tsx'),read('apps/web/client/src/notifications.tsx'),read('apps/web/public/library-enhancements.css')]);
   assert.match(detail,/Add to my collection/);assert.match(detail,/\/api\/user-collections\/items/);assert.match(detail,/\/api\/user-collections\/contains/);
   assert.match(collections,/userCollections/);assert.match(collections,/collectionSource/);assert.match(server,/userRequestCollections/);assert.match(server,/user_collection\.item_added/);
   for(const value of ['collection-statistics','collection-sharing-editor','collection-bulk-bar','collection-timeline','Export JSON','Export CSV','Import JSON','Recently requested'])assert.ok(collections.includes(value),value);
   for(const value of ['/api/user-collections/sharing','/api/user-collections/timeline','/api/user-collections/export','/api/user-collections/import','/api/user-collections/bulk','/api/request-attribution'])assert.ok(server.includes(value),value);
   for(const source of [queue,history,wanted,notifications])assert.match(source,/Requested by/);
+  assert.match(collections,/ModalPortal/);assert.match(collections,/currentUserId/);assert.match(collections,/items\.slice\(0,30\)/);
+  assert.match(server,/currentUserId:session\.user\.id/);assert.match(libraryCss,/\.vynode-nested-modal-layer > \.collection-builder-dialog\[open\]/);assert.match(libraryCss,/transform: none !important/);
 });
 
 test('the complete dashboard has a React view with a legacy-safe bridge',async()=>{

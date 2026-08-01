@@ -7,6 +7,18 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.32] - 2026-08-01
+
+### Fixed
+
+- Fixed the collection builder being shifted or clipped outside the viewport by
+  moving it into the shared modal layer and removing conflicting positioning.
+- Improved mobile Collections loading with a focused signed-in-user view,
+  backward-compatible collection data handling, and bounded poster rendering.
+- Fixed requested and manually saved titles failing to appear in user
+  collections by using TMDB/TVDB identity first and normalized engine IDs as a
+  fallback, including after a title is rematched or re-added.
+
 ## [2.0.31] - 2026-08-01
 
 - Completed user collection ownership tools with add/remove controls and requester attribution on movie and television details, plus title search and Movies/Television filtering on Collections.
