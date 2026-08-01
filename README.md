@@ -46,6 +46,12 @@ preserving durable history. Releases selected through Movie interactive search
 also enter Search Activity, generate a grabbed notification, and continue
 through Queue and History reconciliation toward import.
 
+The desktop activity drawer provides a wider, overflow-safe settings workspace
+with an explicit close action and responsive channel rows. Movie organization
+also keeps engine-known files visible when a folder must move first, then
+recalculates and applies the active filename format immediately after that move
+without requiring a separate refresh and second rename operation.
+
 The global notification center provides a
 durable Inbox and History for request decisions, downloads, imports, engine
 health, security, and automatic searches. Operational alerts are deduplicated,

@@ -36,6 +36,11 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Fixed manually grabbed Movie releases failing to appear in Search Activity or
   produce a notification before Queue and History reconciliation.
+- Fixed Movie rename previews omitting the file when the folder must be renamed
+  first. The file now remains selected and is recalculated with the active
+  naming format immediately after the folder move.
+- Fixed the desktop notification settings drawer allowing channel forms and
+  long delivery history to create horizontal scrolling and clipped controls.
 - Fixed the mobile template preview inheriting the navigation sidebar width and
   slide transform, which could move the preview outside the modal.
 - Fixed a Gotify priority of zero being replaced by the default priority.

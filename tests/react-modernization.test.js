@@ -187,6 +187,10 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(tvDetail,/MatchBrowser/);
   assert.match(tvDetail,/seasonNumber=\$\{season\.seasonNumber\}/);
   assert.match(tvDetail,/RenamePreview/);
+  const renamePreview=await read('apps/web/client/src/rename-preview.tsx');
+  assert.match(renamePreview,/renameAfterFolderMove/);
+  assert.match(renamePreview,/Recalculate using the active movie naming format/);
+  assert.match(renamePreview,/immediately after moving the folder/);
   assert.match(tvDetail,/busy==='SeriesSearch'/);
   assert.match(tvDetail,/command\('SeasonSearch',\{seriesId:engineId,seasonNumber:season\.seasonNumber\}\)/);
   assert.match(tvDetail,/saved\.result\?\.monitored\?\?next/);
@@ -1071,6 +1075,7 @@ test('request notification bell has durable role-aware request updates',async()=
   assert.match(notifications,/\/api\/notifications/);assert.match(notifications,/Mark all read/);assert.match(notifications,/15_000/);
   assert.match(notifications,/Notification history/);assert.match(notifications,/Read and resolved notifications will remain here/);assert.match(notifications,/tab==='inbox'/);
   assert.match(notifications,/notification-mark-read/);assert.match(notifications,/Mark read/);assert.match(notifications,/vynodearr:notifications-changed/);
+  assert.match(notifications,/Close notification center/);assert.match(styles,/notification-panel-close/);
   assert.match(types,/approval.*approved.*rejected.*failed.*imported/);
   assert.match(server,/notificationReads/);assert.match(server,/\/api\/notifications\/read/);assert.match(server,/href:'#request-management'/);assert.match(server,/href:'#requests'/);
   assert.match(server,/notification-events\.json/);assert.match(server,/notificationStore\.update/);assert.match(server,/recipientUserId/);

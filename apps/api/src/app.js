@@ -332,22 +332,33 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
     const destinationPath=joinMediaPath(rootFolderPath,folder);
     const renameItems=await management.execute(domain,'renamePreview','GET',{query:domain==='movie'?{movieId:mediaId}:{seriesId:mediaId}});
     const fileRecords=await management.execute(domain,domain==='movie'?'movieFiles':'episodeFiles','GET',{query:domain==='movie'?{movieId:mediaId}:{seriesId:mediaId}});
-    const filesById=new Map((Array.isArray(fileRecords)?fileRecords:[]).map(file=>[Number(file.id),file]));
-    const preview={
-      domain,mediaId,title:record.title,currentPath:record.path,rootFolderPath,destinationPath,folderChange:normalizeMediaPath(record.path)!==normalizeMediaPath(destinationPath),refreshStatus,
-      files:(Array.isArray(renameItems)?renameItems:[]).map(item=>{const file=filesById.get(Number(item.movieFileId??item.episodeFileId??item.id))||item;
-        const existingPath=file.path||item.existingPath||item.path||'',libraryPath=normalizeMediaPath(record.path).toLowerCase(),normalizedExisting=normalizeMediaPath(existingPath).toLowerCase();
-        return({
+    const fileList=Array.isArray(fileRecords)?fileRecords:[],filesById=new Map(fileList.map(file=>[Number(file.id),file]));
+    const mappedFiles=(Array.isArray(renameItems)?renameItems:[]).map(item=>{const file=filesById.get(Number(item.movieFileId??item.episodeFileId??item.id))||item;
+      const existingPath=file.path||item.existingPath||item.path||'',libraryPath=normalizeMediaPath(record.path).toLowerCase(),normalizedExisting=normalizeMediaPath(existingPath).toLowerCase();
+      return{
         id:item.movieFileId??item.episodeFileId??item.id,
         existingPath,
         outsideLibraryFolder:Boolean(libraryPath&&normalizedExisting.includes('/')&&!normalizedExisting.startsWith(`${libraryPath}/`)),
-        newPath:item.newPath||'',size:Number(file.size||file.sizeOnDisk||0),
+        newPath:item.newPath||'',renameAfterFolderMove:false,size:Number(file.size||file.sizeOnDisk||0),
         quality:file.quality?.quality?.name||file.quality?.name||file.quality||'',
         languages:(Array.isArray(file.languages)?file.languages:file.language?[file.language]:[]).map(value=>value?.name||value).filter(Boolean),
         videoCodec:file.mediaInfo?.videoCodec||'',audioCodec:file.mediaInfo?.audioCodec||'',
         resolution:file.mediaInfo?.resolution||file.mediaInfo?.videoResolution||'',dateAdded:file.dateAdded||'',
         seasonNumber:item.seasonNumber,episodeNumbers:item.episodeNumbers||[]
-      })})
+      };
+    });
+    if(normalizeMediaPath(record.path)!==normalizeMediaPath(destinationPath)){
+      const represented=new Set(mappedFiles.map(file=>Number(file.id)));
+      for(const file of fileList)if(Number.isFinite(Number(file.id))&&!represented.has(Number(file.id)))mappedFiles.push({
+        id:file.id,existingPath:file.path||'',outsideLibraryFolder:false,newPath:'',renameAfterFolderMove:true,size:Number(file.size||file.sizeOnDisk||0),
+        quality:file.quality?.quality?.name||file.quality?.name||file.quality||'',
+        languages:(Array.isArray(file.languages)?file.languages:file.language?[file.language]:[]).map(value=>value?.name||value).filter(Boolean),
+        videoCodec:file.mediaInfo?.videoCodec||'',audioCodec:file.mediaInfo?.audioCodec||'',resolution:file.mediaInfo?.resolution||file.mediaInfo?.videoResolution||'',dateAdded:file.dateAdded||''
+      });
+    }
+    const preview={
+      domain,mediaId,title:record.title,currentPath:record.path,rootFolderPath,destinationPath,folderChange:normalizeMediaPath(record.path)!==normalizeMediaPath(destinationPath),refreshStatus,
+      files:mappedFiles
     };
     return input.storePlan===false?preview:saveRenamePlan(preview,record);
   }
@@ -356,7 +367,7 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
     try{
       const records=await management.execute(job.domain,'library','GET',{}),items=(Array.isArray(records)?records:[]).filter(record=>job.domain==='movie'?Boolean(record.hasFile||record.movieFile):Number(record.statistics?.episodeFileCount||0)>0);
       job.total=items.length;let index=0;
-      const worker=async()=>{while(index<items.length){const record=items[index++];job.currentTitle=record.title||'';try{const preview=await renameMediaPreview({domain:job.domain,mediaId:Number(record.id),storePlan:false}),files=preview.files.filter(file=>normalizeMediaPath(file.existingPath)!==normalizeMediaPath(file.newPath));if(preview.folderChange||files.length)job.results.push({...preview,files});else job.matching++;}catch(error){job.failed++;job.errors.push({title:record.title||'Unknown media',message:error instanceof Error?error.message:String(error)});}finally{job.completed++;}}};
+      const worker=async()=>{while(index<items.length){const record=items[index++];job.currentTitle=record.title||'';try{const preview=await renameMediaPreview({domain:job.domain,mediaId:Number(record.id),storePlan:false}),files=preview.files.filter(file=>file.renameAfterFolderMove||normalizeMediaPath(file.existingPath)!==normalizeMediaPath(file.newPath));if(preview.folderChange||files.length)job.results.push({...preview,files});else job.matching++;}catch(error){job.failed++;job.errors.push({title:record.title||'Unknown media',message:error instanceof Error?error.message:String(error)});}finally{job.completed++;}}};
       await Promise.all(Array.from({length:Math.min(4,Math.max(items.length,1))},worker));job.status='completed';
     }catch(error){job.status='failed';job.errors.push({title:'Library audit',message:error instanceof Error?error.message:String(error)});}
     job.currentTitle='';job.finishedAt=new Date().toISOString();
