@@ -122,6 +122,7 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(system,/\/api\/manage\/audit/);
   assert.match(system,/All administrators/);
   assert.match(system,/administrator activity/);
+  for(const workflow of ['Validation','POST-UPDATE & RECOVERY','Run validation','Installation validated','Repairing…','/api/system/validation'])assert.match(system,new RegExp(workflow.replace(/[&]/g,'&')));
   assert.match(system,/Automatic schedules are active/);
   assert.match(system,/Find events/);
   assert.match(system,/storageSize/);
@@ -1112,6 +1113,13 @@ test('administrator search activity visualizes every automatic-search entry poin
   for(const value of ['Search activity','Queued','Searching','Grabbed','Downloading','Imported','Open Queue','Open title'])assert.match(notifications,new RegExp(value),value);
   assert.match(notifications,/5_000/);assert.match(styles,/search-stage-track/);assert.match(styles,/bottom:0/);assert.match(styles,/aspect-ratio:2\/3/);
   assert.match(notifications,/artwork\/movie\/movie_\$\{item\.movieId\}\/poster/);assert.match(notifications,/#movie\/movie_\$\{item\.movieId\}/);
+});
+
+test('download decision center explains native candidate evidence',async()=>{
+  const [server,notifications,types,styles]=await Promise.all([read('apps/api/src/app.js'),read('apps/web/client/src/notifications.tsx'),read('apps/web/client/src/notification-types.ts'),read('apps/web/public/notifications.css')]);
+  for(const value of ['downloadDecisionStore','recordDownloadDecisions','/api/download-decisions','customFormatScore','preferredWordScore','upgradeEligible'])assert.ok(server.includes(value),value);
+  for(const value of ['Download Decision Center','Why a release was accepted or rejected','Custom format','Preferred words','Age (days)','Seeders','Upgrade','Engine rejection evidence'])assert.ok(notifications.includes(value),value);
+  assert.match(types,/interface DownloadDecision/);assert.match(styles,/decision-metrics/);assert.match(styles,/@media\(max-width:700px\)/);
 });
 
 test('administrator audit coverage includes security, jobs, exports, collections, media, and system operations',async()=>{

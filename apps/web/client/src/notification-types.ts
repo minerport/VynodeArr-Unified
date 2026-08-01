@@ -41,3 +41,4 @@ export interface SearchActivity{
   status:'queued'|'searching'|'grabbed'|'downloading'|'imported'|'completed'|'failed'|'canceled';message:string;createdAt:string;updatedAt:string;finishedAt:string|null;
   selection?:{title:string;quality:string;size:number}|null;counts?:{total:number;completed:number;failed:number}|null;
 }
+export interface DownloadDecision{ id:string;domain:'movie'|'tv';mediaId:number|null;source:'interactive'|'automatic';title:string;indexer:string;protocol:string;decision:'selected'|'accepted'|'rejected';reasons:string[];quality:string;customFormatScore:number;preferredWordScore:number;size:number;ageDays:number|null;seeders:number|null;upgradeEligible:boolean|null;observedAt:string;selectedAt:string|null; }

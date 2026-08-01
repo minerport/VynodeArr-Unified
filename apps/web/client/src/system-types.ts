@@ -1,5 +1,5 @@
 export type SystemDomain='movie'|'tv';
-export type SystemView='status'|'tasks'|'backups'|'updates'|'security'|'events'|'audit';
+export type SystemView='status'|'validation'|'tasks'|'backups'|'updates'|'security'|'events'|'audit';
 
 export interface DiskSpace {path:string;freeSpace:number;totalSpace:number}
 export interface SystemRecord {
@@ -20,6 +20,9 @@ export interface SystemRecord {
 export interface ApplicationUpdate {installedVersion:string;channel:string;mechanism:string;repository:string;message:string}
 export interface MasterKeyStatus {managed:boolean;source:string;canRotate:boolean;storage:string}
 export interface ApplicationBackupSummary {fileName:string;createdAt:string;applicationVersion:string;fileCount:number;masterKeyManaged:boolean;groups:Record<'identity'|'credentials'|'masterKey'|'notifications'|'requests'|'collections'|'history'|'audit',boolean>;warnings:string[]}
+export type ValidationStatus='healthy'|'warning'|'failed';
+export interface ValidationCheck {id:string;group:string;title:string;status:ValidationStatus;message:string;details?:string[];action?:{label:string;href?:string;repair?:'synchronize'|'engine-connections'}}
+export interface ValidationReport {generatedAt:string;applicationVersion:string;overall:ValidationStatus;summary:{healthy:number;warning:number;failed:number};checks:ValidationCheck[]}
 export interface AuditEntry {
   id:string;timestamp:string;userId:string;username:string;actorName?:string;
   category?:string;action?:string;target?:string;summary?:string;domain?:SystemDomain|null;

@@ -96,6 +96,15 @@ test('encrypted application backups can be downloaded once and inspected before 
   const wrong=await fetch(`${base}/api/system/application-backup/inspect`,{method:'POST',headers:{cookie,'x-vynodearr-csrf':csrf},body:wrongForm});
   assert.equal(wrong.status,400);assert.match((await wrong.json()).error.message,/incorrect|damaged/i);
 }));
+test('administrator validation center reports installation checks and restricts repairs',()=>appSession({movie:new MovieFixtureAdapter(),tv:new TvFixtureAdapter()},async({base,cookie,csrf})=>{
+  assert.equal((await fetch(`${base}/api/system/validation`)).status,401);
+  const response=await fetch(`${base}/api/system/validation`,{headers:{cookie}}),report=await response.json();
+  assert.equal(response.status,200);assert.ok(['healthy','warning','failed'].includes(report.overall));assert.ok(report.checks.some(item=>item.id==='movie-connection'));assert.ok(report.checks.some(item=>item.id==='application-data'));assert.equal(report.summary.healthy+report.summary.warning+report.summary.failed,report.checks.length);
+  const unsupported=await fetch(`${base}/api/system/validation/repair`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({action:'delete-everything'})});
+  assert.equal(unsupported.status,400);assert.equal((await unsupported.json()).error.code,'unsupported_repair');
+  const synchronized=await fetch(`${base}/api/system/validation/repair`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({action:'synchronize'})});
+  assert.equal(synchronized.status,200);assert.equal((await synchronized.json()).repaired,true);
+}));
 test('interactive movie grabs create search activity and an in-app notification',()=>{
   const release={title:'Review.Movie.2026.1080p.WEB-DL',guid:'review-guid',indexerId:4,mappedMovieId:7,size:2147483648,quality:{quality:{name:'WEBDL-1080p'}}},posts=[];
   const client={get:async(path)=>{if(path==='release')return[release];if(path==='movie/7')return{id:7,title:'Review Movie'};if(path==='queue')return{records:[{id:91,movieId:7,status:'downloading'}]};if(path==='history')return{records:[]};throw new Error(`Unexpected movie GET ${path}`);},post:async(path,payload)=>{assert.equal(path,'release');posts.push(payload);return{id:91};},delete:async()=>({})};
@@ -104,6 +113,16 @@ test('interactive movie grabs create search activity and an in-app notification'
     const grabbed=await fetch(`${base}/api/manage/movie/releases`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify(release)});assert.equal(grabbed.status,201);assert.equal(posts.length,1);
     const activities=(await (await fetch(`${base}/api/search-activities`,{headers:{cookie}})).json()).items,activity=activities.find(item=>item.source==='interactive');assert.equal(activity.movieId,7);assert.equal(activity.title,'Review Movie');assert.equal(activity.status,'downloading');
     const notifications=(await (await fetch(`${base}/api/notifications`,{headers:{cookie}})).json()).items,notification=notifications.find(item=>item.type==='grabbed');assert.equal(notification.title,'Review Movie was grabbed');assert.equal(notification.href,'#queue');
+  });
+});
+test('download decisions retain native candidate evidence and automatic selection',()=>{
+  const candidates=[{title:'Accepted.Movie.1080p',guid:'accepted-guid',indexerId:1,indexer:'Review Indexer',size:2147483648,age:2,seeders:44,customFormatScore:120,preferredWordScore:10,isUpgrade:true,quality:{quality:{name:'WEBDL-1080p'}},mappedMovieId:7,rejections:[]},{title:'Rejected.Movie.720p',guid:'rejected-guid',indexerId:1,indexer:'Review Indexer',size:1073741824,age:8,seeders:2,customFormatScore:-25,quality:{quality:{name:'HDTV-720p'}},mappedMovieId:7,rejections:['Quality for existing file on disk is of equal or higher preference','Not enough seeders']}],posts=[];
+  const client={get:async(path)=>{if(path==='release')return candidates;if(path==='movie/7')return{id:7,title:'Decision Movie'};throw new Error(`Unexpected movie GET ${path}`);},post:async(path,payload)=>{assert.equal(path,'release');posts.push(payload);return{id:88};},delete:async()=>({})},movie=Object.assign(new MovieFixtureAdapter(),{client});
+  return appSession({movie,tv:new TvFixtureAdapter()},async({base,cookie,csrf})=>{
+    const searched=await fetch(`${base}/api/manage/movie/releases?movieId=7`,{headers:{cookie}});assert.equal(searched.status,200);
+    let decisions=(await (await fetch(`${base}/api/download-decisions`,{headers:{cookie}})).json()).items;assert.equal(decisions.length,2);assert.equal(decisions.find(item=>item.decision==='rejected').seeders,2);assert.match(decisions.find(item=>item.decision==='rejected').reasons.join(' '),/higher preference/);
+    const automatic=await fetch(`${base}/api/manage/movie/automaticSearch`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({movieId:7})});assert.equal(automatic.status,201);assert.equal(posts.length,1);
+    decisions=(await (await fetch(`${base}/api/download-decisions?decision=selected`,{headers:{cookie}})).json()).items;assert.equal(decisions.length,1);assert.equal(decisions[0].title,'Accepted.Movie.1080p');assert.equal(decisions[0].upgradeEligible,true);
   });
 });
 test('user page permissions are enforced by APIs and update active sessions immediately',()=>appSession({},async({base,cookie,csrf})=>{

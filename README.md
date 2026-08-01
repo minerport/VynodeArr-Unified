@@ -27,8 +27,20 @@ consistent experience and account system.
 
 ## Current release
 
-Version **2.0.28** is available for production use on Unraid, Windows, and
-standard Docker installations. Administrators can now download a portable,
+Version **2.0.29** is available for production use on Unraid, Windows, and
+standard Docker installations. The new administrator Validation Center checks
+engine connectivity, storage, acquisition providers, scheduled automation,
+credentials, notifications, and application data after startup, updates, and
+restores. It provides guided fixes plus guarded re-synchronization and managed
+connection repair.
+
+The Download Decision Center explains why returned releases were selected,
+accepted, or rejected using native engine evidence for quality, custom formats,
+preferred words, size, age, seeders, and upgrade eligibility. Candidate history
+is filterable, mobile friendly, retained across restarts, and included with
+optional application backup history.
+
+Administrators can also download a portable,
 password-encrypted VynodeArr application backup containing accounts,
 permissions, requests, notification configuration and templates, protected
 credentials, collections, and application settings. Recovery includes a
@@ -289,6 +301,11 @@ Build hand-picked collections or combine smart rules such as title, year, decade
 - Backup creation, download, upload, and restore from the VynodeArr interface
 - Searchable and filterable System Audit history for administrative, request,
   security, configuration, engine, backup, job, collection, and media activity
+- Post-update and recovery validation for engine connections, storage,
+  providers, automation, credentials, notifications, and application data,
+  with guided fixes and guarded safe repairs
+- Download Decision Center evidence explaining accepted, rejected, and selected
+  releases using engine-native rejection reasons and ranking metrics
 - Actionable health issues with direct links to the setting that needs attention
 
 ## Install

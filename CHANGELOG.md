@@ -7,6 +7,24 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.29] - 2026-08-01
+
+### Added
+
+- Added an administrator-only **System → Validation** center that checks media
+  engine connectivity, root folders and free space, indexers, download clients,
+  scheduled tasks, library synchronization, engine health, application data
+  stores, credential encryption, and external notification configuration.
+- Validation runs automatically after application startup, including the first
+  start following an update or application restore, and can be rerun on demand.
+- Added guided recovery links to the existing specialized settings pages plus
+  guarded one-click re-synchronization and installation-managed connection
+  repair.
+- Added an administrator **Download Decision Center** that retains candidate
+  evidence from interactive searches and VynodeArr automatic selection,
+  showing native rejection reasons alongside quality, custom-format score,
+  preferred-word score, size, age, seeders, and upgrade eligibility.
+
 ## [2.0.28] - 2026-08-01
 
 ### Added
@@ -712,7 +730,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.28...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.29...HEAD
+[2.0.29]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.28...v2.0.29
 [2.0.28]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.27...v2.0.28
 [2.0.27]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.26...v2.0.27
 [2.0.26]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.25...v2.0.26
