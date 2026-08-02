@@ -1,3 +1,4 @@
+.poster-overlay-layer{position:absolute;z-index:3;overflow:hidden;line-height:1.1;white-space:nowrap;pointer-events:none}
 .react-library-toolbar{flex-wrap:wrap}
 .react-library-view-controls,.react-library-sort-controls{display:flex;align-items:center;gap:.4rem}
 .react-library-sort-controls .sort{min-width:10.5rem}
@@ -5,7 +6,7 @@
 .react-library-search{display:flex;align-items:center;gap:.55rem;color:var(--muted);font-size:.75rem;font-weight:700}
 .react-library-search input{width:min(18rem,40vw);padding:.55rem .7rem;border:1px solid var(--line);border-radius:.5rem;background:#080e19;color:var(--text)}
 .react-library .react-library-card .card-body{position:static;z-index:auto;min-width:0}
-.react-library-card{content-visibility:auto;contain-intrinsic-size:auto 360px}
+.react-library-card{content-visibility:auto;contain-intrinsic-size:auto 360px;container-type:inline-size}
 .view-poster .react-library-card{contain-intrinsic-size:auto 430px}.view-list .react-library-card{contain-intrinsic-size:auto 104px}
 .react-poster-title{position:absolute;z-index:2;right:0;bottom:0;left:0;display:grid;gap:.25rem;padding:5rem .7rem .58rem;background:linear-gradient(180deg,transparent 0%,rgba(4,8,16,.76) 42%,rgba(4,8,16,.98) 100%);color:#fff;text-align:left;pointer-events:none}
 .react-poster-title .library-status-badges{margin-bottom:.12rem}

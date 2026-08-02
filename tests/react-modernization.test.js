@@ -143,7 +143,7 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(library,/Filter titles/);
   assert.match(library,/onMonitor/);
   assert.match(library,/onItemChange/);
-  assert.match(library,/saved\.result\?\.monitored\?\?next/);
+  assert.match(library,/saved\.result\?\.monitored\s*\?\?\s*next/);
   assert.match(library,/Search all missing/);
   assert.match(library,/MoviesSearch/);
   assert.match(library,/Cutoff unmet/);
@@ -746,10 +746,10 @@ test('movie and television initial loading is owned by typed React without losin
     read('apps/web/client/src/library-types.ts'),
     read('apps/web/client/src/app-shell.ts')
   ]);
-  assert.match(library,/Loading \{movie\?'movies':'television'\}/);
-  assert.match(library,/options\.onLoaded\?\.\(value\.items,value\.mode\)/);
+  assert.match(library,/Loading \{movie\s*\?\s*["']movies["']\s*:\s*["']television["']\}/);
+  assert.match(library,/options\.onLoaded\?\.\(value\.items\s*,\s*value\.mode\)/);
   assert.match(library,/Library refresh delayed/);
-  assert.match(types,/onLoaded\?:\(items:LibraryItem\[\],mode\?:string\)/);
+  assert.match(types,/onLoaded\?:\s*\(items:\s*LibraryItem\[\]\s*,\s*mode\?:\s*string\)/);
   assert.match(shell,/mountLibrary\(host,\{kind,administrator:state\.user\?\.role==='administrator',items:state\[kind\]/);
   assert.match(shell,/onLoaded:\(items,mode\)=>\{state\[kind\]=items/);
   assert.match(shell,/if\(window\.VynodeArrReact\?\.mountLibrary\).*return;/);
@@ -1023,6 +1023,31 @@ test('presentation style remains separate from color theme',async()=>{
   assert.match(auth,/const motionPreferences=new Set\(\['system','reduced','full'\]\)/);
   assert.match(foundation,/\[data-ui-density="compact"\]/);
   assert.match(foundation,/\[data-motion="reduced"\]/);
+});
+
+test('poster overlays preserve existing library card sizing',async()=>{
+  const library=await read('apps/web/client/src/library.tsx');
+  assert.match(library,/card react-library-card \$\{view\}/);
+  assert.match(library,/view === "poster" \? <PosterAssignmentLayers item=\{item\} \/> : null/);
+  assert.match(library,/view !== "poster" \? <PosterAssignmentLayers item=\{item\} \/> : null/);
+});
+
+test('poster overlay editor layers retain drag and resize pointer input',async()=>{
+  const source=await read('apps/web/client/src/poster-overlays.tsx');
+  const preview=await read('apps/web/client/src/poster-overlay-library-preview.tsx');
+  assert.match(preview,/\.overlay-preview \.poster-overlay-layer\{pointer-events:auto!important\}/);
+  assert.match(source,/onPointerMove=/);assert.match(source,/overlay-resize-handle/);
+});
+
+test('poster overlay editor provides bounded layer fields and a shape library',async()=>{
+  const rail=await read('apps/web/client/src/poster-overlay-editor-rail.tsx');
+  for(const shape of ['rounded','square','pill','circle','ticket','ribbon','tag','hexagon','chevron'])assert.ok(rail.includes(shape),shape);
+  assert.match(rail,/overlay-layer-body input/);assert.match(rail,/min-width:0/);
+});
+
+test('icon and shape editors keep artwork separate from optional variables',async()=>{
+  const identity=await read('apps/web/client/src/poster-overlay-layer-identity.tsx');
+  assert.match(identity,/Icon artwork/);assert.match(identity,/Optional variable/);assert.match(identity,/Variable placement/);assert.match(identity,/Shape with optional metadata/);
 });
 
 test('My Requests owns request tracking, correction, cancellation, and permission-aware routing',async()=>{

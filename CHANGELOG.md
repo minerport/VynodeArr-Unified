@@ -7,6 +7,45 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.33-rc.1] - 2026-08-02
+
+### Added
+
+- Added the first safe Poster Overlay Studio phase for administrators, with
+  reusable variable-driven layers, live previews, movie/television targeting,
+  selected-title, saved Collection, user Collection, metadata-rule, and
+  whole-library assignments, conditional and custom-text layers, real-library
+  poster previews, style duplication, compact collapsible layer editing, clean
+  action alignment, and responsive body-level modals without header cutoff.
+  Layers can be dragged and resized directly on the poster or positioned with
+  precise controls, with editable typography, alignment, colors, independent
+  text and shape opacity, padding, and corner radius.
+- Overlay editing now switches between an exact VynodeArr poster-card preview
+  and clean Plex artwork, with optional per-style Plex badge choices.
+- VynodeArr poster assignments now use a review-and-confirm step showing the
+  resolved scope, sample titles, layer count, live-card behavior, and original
+  artwork fallback before any assignment is written.
+- Added authenticated server rendering, bounded caching, input sanitization,
+  audit events, backup coverage, and automatic original-artwork fallback.
+- Added independent text, icon, and shape layers with a media icon library,
+  editable outer shapes, icon sizing and color, two-dimensional shape resizing,
+  adjustable icon-to-text spacing, and variable placement inside or around
+  artwork.
+- Added variable-aware rendering so icon and shape layers are omitted when a
+  selected title has no matching metadata, while intentional artwork-only
+  layers remain supported.
+- Added fixed, auto-shrinking, and multi-line wrapping modes for variable and
+  custom text, including configurable line limits and matching preview and
+  composed-artwork output.
+- Added television overlay values for upcoming episode timing with a derived
+  series-status fallback, plus resolution and requester-aware metadata.
+
+### Security
+
+- Restricted overlay configuration to administrators with CSRF protection and
+  escaped all poster metadata before SVG rendering. Plex artwork remains
+  unchanged until the later opt-in publishing phase.
+
 ## [2.0.32] - 2026-08-01
 
 ### Fixed
@@ -767,7 +806,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.31...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33-rc.1...HEAD
+[2.0.33-rc.1]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.32...v2.0.33-rc.1
 [2.0.31]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.30...v2.0.31
 [2.0.30]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.29...v2.0.30
 [2.0.29]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.28...v2.0.29

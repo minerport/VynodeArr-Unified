@@ -1,0 +1,1333 @@
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import { ServiceTabs } from "./service-tabs";
+import { ModalPortal } from "./modal-portal";
+import type {
+  OverlayAssignment,
+  OverlayCollection,
+  OverlayDomain,
+  OverlayLayer,
+  OverlayMedia,
+  OverlayPosition,
+  OverlayTemplate,
+  OverlayUserCollection,
+  PosterOverlayMountOptions,
+} from "./poster-overlays-types";
+import { OverlayLayerView, overlayLayerVisible } from "./poster-overlay-layer";
+import { PosterLayerContent } from "./poster-overlay-icons";
+const styles = `.poster-overlay-route{display:grid;gap:20px}.overlay-studio-grid{display:grid;grid-template-columns:minmax(320px,.8fr) minmax(420px,1.2fr);gap:20px}.overlay-template-list{display:grid;gap:14px}.overlay-template-card{display:grid;grid-template-columns:92px 1fr;gap:14px;align-items:center;padding:12px;border:1px solid var(--border);border-radius:14px}.overlay-template-card small,.overlay-media-picker small{display:block;color:var(--muted)}.overlay-preview{position:relative;width:min(100%,300px);aspect-ratio:2/3;overflow:hidden;border:1px solid var(--border);border-radius:14px;background:linear-gradient(145deg,#24324b,#07101d 62%,#02060d) center/cover;box-shadow:inset 0 -100px 80px -70px #000}.overlay-preview-layer{font-weight:800}.overlay-scope-row,.overlay-layer-editor{display:grid;grid-template-columns:1fr 1fr;gap:10px}.overlay-media-picker{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;max-height:360px;overflow:auto}.overlay-media-picker label{display:grid;grid-template-columns:auto 38px 1fr;gap:8px;align-items:center;padding:8px;border:1px solid var(--border);border-radius:10px}.overlay-media-picker img{width:38px;aspect-ratio:2/3;object-fit:cover}.overlay-editor-backdrop{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:20px;background:#000c}.overlay-editor{display:grid;grid-template-rows:auto minmax(0,1fr) auto;width:min(1100px,100%);max-height:calc(100dvh - 40px);overflow:hidden;border:1px solid var(--border);border-radius:18px;background:var(--panel,#08111f)}.overlay-editor-grid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:20px;overflow:auto;padding:20px}.overlay-editor-fields{display:grid;gap:12px}.overlay-layer-editor{padding:12px;border:1px solid var(--border);border-radius:12px}.overlay-preview-column{display:grid;align-content:start;justify-items:center;gap:10px;position:sticky;top:0}.overlay-editor-footer{display:flex;justify-content:flex-end;gap:10px;padding:16px 20px;border-top:1px solid var(--border)}@media(max-width:800px){.overlay-studio-grid,.overlay-scope-row,.overlay-media-picker,.overlay-editor-grid,.overlay-layer-editor{grid-template-columns:1fr}.overlay-editor-backdrop{padding:0}.overlay-editor{width:100%;height:100dvh;max-height:none;border:0;border-radius:0}.overlay-editor-grid{padding:14px}.overlay-preview-column{position:static;order:-1}.overlay-preview-column .overlay-preview{width:180px}.poster-overlay-route .hero>.primary{width:100%}}`;
+const layoutStyles = `.overlay-template-card{grid-template-columns:76px minmax(0,1fr)}.overlay-template-card>.overlay-preview{width:76px}.overlay-template-content{min-width:0;display:grid;gap:8px;align-content:center}.overlay-template-content .form-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.overlay-template-content button{width:100%;padding-inline:7px}.overlay-assignment-panel label,.overlay-editor label{display:grid;gap:6px;min-width:0}.overlay-scope-row{align-items:end}.overlay-apply-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.overlay-apply-list button{width:100%;white-space:normal}.overlay-editor-backdrop{z-index:10000}.overlay-editor>.panel-heading{display:flex;flex-direction:row!important;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px}.overlay-editor>.panel-heading>div{flex:1;min-width:0}.overlay-editor>.panel-heading button{width:auto;flex:0 0 auto}.overlay-layer-editor{display:block;padding:0;overflow:hidden}.overlay-layer-editor>summary{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px;cursor:pointer;font-weight:800;list-style:none}.overlay-layer-editor>summary::-webkit-details-marker{display:none}.overlay-layer-editor>summary small{color:var(--muted);font-weight:500}.overlay-layer-editor[open]>summary{border-bottom:1px solid var(--border)}.overlay-layer-body{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:12px}.overlay-layer-body>.danger{align-self:end}.overlay-layer-toggle{align-content:center}@media(max-width:600px){.overlay-template-content .form-actions,.overlay-apply-list,.overlay-layer-body{grid-template-columns:1fr}.overlay-template-card{grid-template-columns:64px minmax(0,1fr)}.overlay-template-card>.overlay-preview{width:64px}.overlay-editor>.panel-heading{padding:12px 14px}}`;
+const LibraryChrome = lazy(() =>
+  import("./poster-overlay-library-preview").then((module) => ({
+    default: module.LibraryChrome,
+  })),
+);
+const PlexBadgeChoices = lazy(() =>
+  import("./poster-overlay-library-preview").then((module) => ({
+    default: module.PlexBadgeChoices,
+  })),
+);
+const ApplicationReview = lazy(
+  () => import("./poster-overlay-application-review"),
+);
+const EditorRail = lazy(() => import("./poster-overlay-editor-rail"));
+const LayerIdentity = lazy(() => import("./poster-overlay-layer-identity"));
+
+const positions: OverlayPosition[] = [
+  "top-left",
+  "top-center",
+  "top-right",
+  "bottom-left",
+  "bottom-center",
+  "bottom-right",
+  "custom",
+];
+const positionCoordinates: Record<OverlayPosition, [number, number]> = {
+  "top-left": [5, 5],
+  "top-center": [30, 5],
+  "top-right": [55, 5],
+  "bottom-left": [5, 88],
+  "bottom-center": [30, 88],
+  "bottom-right": [55, 88],
+  custom: [5, 5],
+};
+const blankLayer = (variable = "title"): OverlayLayer => ({
+  id: `layer_${crypto.randomUUID()}`,
+  label: variable === "custom_text" ? "Custom badge" : variable === "icon" ? "movie" : `{${variable}}`,
+  variable,
+  kind: "text",
+  iconName: "movie",
+  contentPosition: "none",
+  position: "bottom-left",
+  x: 5,
+  y: 88,
+  width: 40,
+  height: 0,
+  prefix: "",
+  suffix: "",
+  foreground: "#ffffff",
+  background: "#111827",
+  fontSize: 32,
+  fontFamily: "sans",
+  fontWeight: 700,
+  textAlign: "left",
+  textTransform: "none",
+  textOpacity: 1,
+  backgroundOpacity: 0.92,
+  posterAware: false,
+  shape: "rounded",
+  padding: 12,
+  borderRadius: 18,
+  enabled: true,
+  condition: { operator: "truthy", value: "" },
+});
+const blankTemplate = (): OverlayTemplate => ({
+  id: "",
+  name: "New poster style",
+  domain: "all",
+  enabled: true,
+  layers: [blankLayer("title")],
+  plexBadges: {
+    monitored: false,
+    availability: false,
+    cutoff: false,
+    rating: false,
+  },
+});
+const errorText = (reason: unknown) =>
+  reason instanceof Error
+    ? reason.message
+    : "The request could not be completed.";
+const previewValue = (variable: string, media?: OverlayMedia) => {
+  const resolved = media?.artwork?.overlayValues?.[variable];
+  if (resolved !== undefined) return resolved;
+  if (variable === "resolution")
+    return String(media?.quality || "").match(/(?:2160|1080|720|480)p?/i)?.[0] || "";
+  if (variable === "monitored")
+    return media?.monitoring === "none" ? "Unmonitored" : "Monitored";
+  if (variable === "availability")
+    return media?.hasFile || media?.state === "available"
+      ? "Available"
+      : "Missing";
+  if (variable === "cutoff_status")
+    return media?.state === "cutoff" || Number(media?.cutoffUnmetEpisodes) > 0
+      ? "Cutoff unmet"
+      : "At cutoff";
+  const value = (media as unknown as Record<string, unknown>)?.[variable];
+  return Array.isArray(value) ? value.join(", ") : String(value ?? "");
+};
+
+function Preview({
+  template,
+  poster,
+  media,
+  target,
+  onLayerChange,
+}: {
+  template: OverlayTemplate;
+  poster?: string;
+  media?: OverlayMedia;
+  target?: "vynode" | "plex";
+  onLayerChange?: (id: string, changes: Partial<OverlayLayer>) => void;
+}) {
+  const [drag, setDrag] = useState<{
+    id: string;
+    dx: number;
+    dy: number;
+    pointerId: number;
+  } | null>(null);
+  return (
+    <div
+      className="overlay-preview"
+      style={{ containerType: "inline-size", ...(poster ? { backgroundImage: `url(${poster})` } : {}) }}
+    >
+      {media ? (
+        <Suspense>
+          <LibraryChrome
+            media={media}
+            plex={
+              target === "plex"
+                ? template.plexBadges || {
+                    monitored: false,
+                    availability: false,
+                    cutoff: false,
+                    rating: false,
+                  }
+                : undefined
+            }
+          />
+        </Suspense>
+      ) : null}
+      {template.layers.map((layer) => {
+          const value=layer.variable === "custom_text" ? layer.label : previewValue(layer.variable, media);
+          if (!overlayLayerVisible(layer,value)) return null;
+          const fallback =
+              positionCoordinates[layer.position] || positionCoordinates.custom,
+            x = Number.isFinite(layer.x) ? layer.x : fallback[0],
+            y = Number.isFinite(layer.y) ? layer.y : fallback[1],
+            width = Number.isFinite(layer.width) ? layer.width : 40,
+            height = Number.isFinite(layer.height) ? layer.height : 0;
+          return (
+            <OverlayLayerView
+              className="overlay-preview-layer"
+              key={layer.id}
+              layer={layer}
+              style={{
+                cursor: onLayerChange ? "grab" : "default",
+                touchAction: "none",
+              }}
+              onPointerDown={(event) => {
+                if (!onLayerChange) return;
+                const rect = event.currentTarget.getBoundingClientRect();
+                event.currentTarget.setPointerCapture(event.pointerId);
+                setDrag({
+                  id: layer.id,
+                  dx: event.clientX - rect.left,
+                  dy: event.clientY - rect.top,
+                  pointerId: event.pointerId,
+                });
+              }}
+              onPointerMove={(event) => {
+                if (!onLayerChange || !drag || drag.id !== layer.id) return;
+                const parent =
+                  event.currentTarget.parentElement?.getBoundingClientRect();
+                if (!parent) return;
+                onLayerChange(layer.id, {
+                  position: "custom",
+                  x: Math.max(
+                    0,
+                    Math.min(
+                      100 - width,
+                      ((event.clientX - parent.left - drag.dx) / parent.width) *
+                        100,
+                    ),
+                  ),
+                  y: Math.max(
+                    0,
+                    Math.min(
+                      96,
+                      ((event.clientY - parent.top - drag.dy) / parent.height) *
+                        100,
+                    ),
+                  ),
+                });
+              }}
+              onPointerUp={(event) => {
+                if (drag?.pointerId === event.pointerId) setDrag(null);
+              }}
+            >
+              <PosterLayerContent layer={layer} text={`${layer.prefix}${value}${layer.suffix}`} />
+              {onLayerChange ? (
+                <span
+                  className="overlay-resize-handle"
+                  aria-label="Resize layer"
+                  onPointerDown={(event) => {
+                    event.stopPropagation();
+                    const startX = event.clientX;
+                    const startY = event.clientY;
+                    const startWidth = width;
+                    const layerRect = event.currentTarget.parentElement?.getBoundingClientRect();
+                    const posterRect = event.currentTarget.parentElement?.parentElement?.getBoundingClientRect();
+                    const posterWidth = posterRect?.width || 1;
+                    const posterHeight = posterRect?.height || 1;
+                    const startHeight = height > 0
+                      ? height
+                      : ((layerRect?.height || 1) / posterHeight) * 100;
+                    const resize = (move: PointerEvent) => {
+                      const changes: Partial<OverlayLayer> = {
+                        position: "custom",
+                        width: Math.max(
+                          15,
+                          Math.min(
+                            100 - x,
+                            startWidth +
+                              ((move.clientX - startX) / posterWidth) * 100,
+                          ),
+                        ),
+                      };
+                      if (layer.kind === "shape") {
+                        changes.height = Math.max(
+                          3,
+                          Math.min(
+                            100 - y,
+                            startHeight + ((move.clientY - startY) / posterHeight) * 100,
+                          ),
+                        );
+                      }
+                      onLayerChange(layer.id, changes);
+                    };
+                    const finish = () => {
+                      window.removeEventListener("pointermove", resize);
+                      window.removeEventListener("pointerup", finish);
+                    };
+                    window.addEventListener("pointermove", resize);
+                    window.addEventListener("pointerup", finish);
+                  }}
+                />
+              ) : null}
+            </OverlayLayerView>
+          );
+        })}
+    </div>
+  );
+}
+
+export function PosterOverlaysView({
+  options,
+}: {
+  options: PosterOverlayMountOptions;
+}) {
+  const [templates, setTemplates] = useState<OverlayTemplate[]>([]),
+    [assignments, setAssignments] = useState<OverlayAssignment[]>([]),
+    [variables, setVariables] = useState<string[]>([]),
+    [media, setMedia] = useState<
+      Array<OverlayMedia & { domain: "movie" | "tv" }>
+    >([]),
+    [collections, setCollections] = useState<OverlayCollection[]>([]),
+    [userCollections, setUserCollections] = useState<OverlayUserCollection[]>(
+      [],
+    ),
+    [editing, setEditing] = useState<OverlayTemplate | null>(null),
+    [selectedLayerId, setSelectedLayerId] = useState(""),
+    [iconQuery, setIconQuery] = useState(""),
+    [previewId, setPreviewId] = useState(""),
+    [previewTarget, setPreviewTarget] = useState<"vynode" | "plex">("vynode"),
+    [applicationReview, setApplicationReview] = useState<{
+      template: OverlayTemplate;
+      payload: Record<string, unknown>;
+      label: string;
+      mediaIds: string[];
+    } | null>(null),
+    [loading, setLoading] = useState(true),
+    [query, setQuery] = useState(""),
+    [selected, setSelected] = useState<string[]>([]),
+    [scope, setScope] = useState<
+      "all" | "items" | "collection" | "user-collection" | "rules"
+    >("all"),
+    [scopeId, setScopeId] = useState(""),
+    [domain, setDomain] = useState<OverlayDomain>("all"),
+    [busy, setBusy] = useState(false),
+    [genres, setGenres] = useState(""),
+    [yearFrom, setYearFrom] = useState(""),
+    [yearTo, setYearTo] = useState(""),
+    [availability, setAvailability] = useState(""),
+    [monitoring, setMonitoring] = useState("");
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [configuration, movies, tv, collectionValue] = await Promise.all([
+        options.request<{
+          templates: OverlayTemplate[];
+          assignments: OverlayAssignment[];
+          variables: string[];
+        }>("/api/poster-overlays"),
+        options.request<{ items: OverlayMedia[] }>("/api/media/movies"),
+        options.request<{ items: OverlayMedia[] }>("/api/media/tv"),
+        options.request<{
+          items: OverlayCollection[];
+          userCollections: OverlayUserCollection[];
+        }>("/api/collections"),
+      ]);
+      setTemplates(configuration.templates || []);
+      setAssignments(configuration.assignments || []);
+      setVariables(configuration.variables || []);
+      setCollections(collectionValue.items || []);
+      setUserCollections(collectionValue.userCollections || []);
+      setMedia([
+        ...(movies.items || []).map((item) => ({
+          ...item,
+          domain: "movie" as const,
+        })),
+        ...(tv.items || []).map((item) => ({ ...item, domain: "tv" as const })),
+      ]);
+    } catch (reason) {
+      options.notify(errorText(reason), "error");
+    } finally {
+      setLoading(false);
+    }
+  }, [options]);
+  useEffect(() => {
+    void load();
+  }, [load]);
+  useEffect(() => {
+    if (editing && !editing.layers.some((layer) => layer.id === selectedLayerId))
+      setSelectedLayerId(editing.layers[0]?.id || "");
+  }, [editing, selectedLayerId]);
+  const visible = useMemo(
+    () =>
+      media
+        .filter(
+          (item) =>
+            (domain === "all" || item.domain === domain) &&
+            (!query ||
+              `${item.title} ${item.year || ""}`
+                .toLowerCase()
+                .includes(query.toLowerCase())),
+        )
+        .slice(0, 200),
+    [media, domain, query],
+  );
+  const saveTemplate = async () => {
+    if (!editing) return;
+    setBusy(true);
+    try {
+      const path = editing.id
+          ? `/api/poster-overlays/templates/${editing.id}`
+          : "/api/poster-overlays/templates",
+        method = editing.id ? "PUT" : "POST";
+      await options.request(path, { method, body: JSON.stringify(editing) });
+      options.notify("Poster style saved.");
+      setEditing(null);
+      await load();
+    } catch (reason) {
+      options.notify(errorText(reason), "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const removeTemplate = async (template: OverlayTemplate) => {
+    if (!confirm(`Delete “${template.name}” and its assignments?`)) return;
+    try {
+      await options.request(`/api/poster-overlays/templates/${template.id}`, {
+        method: "DELETE",
+      });
+      options.notify("Poster style deleted.");
+      await load();
+    } catch (reason) {
+      options.notify(errorText(reason), "error");
+    }
+  };
+  const assign = async (template: OverlayTemplate) => {
+    let mediaIds = selected,
+      label =
+        scope === "all"
+          ? domain === "movie"
+            ? "all movies"
+            : domain === "tv"
+              ? "all series"
+              : "the entire media library"
+          : `${selected.length} selected titles`;
+    if (scope === "collection") {
+      const collection = collections.find((item) => item.id === scopeId);
+      mediaIds = (collection?.members || []).map((item) => item.id);
+      label = collection?.name || "saved collection";
+    }
+    if (scope === "user-collection") {
+      const collection = userCollections.find(
+        (item) => item.user.id === scopeId,
+      );
+      mediaIds = [
+        ...(domain === "tv" ? [] : collection?.movies || []),
+        ...(domain === "movie" ? [] : collection?.television || []),
+      ].map((item) => item.id);
+      label = collection
+        ? `${collection.user.name}'s collection`
+        : "user collection";
+    }
+    if (
+      ["items", "collection", "user-collection"].includes(scope) &&
+      !mediaIds.length
+    ) {
+      options.notify(
+        "Choose a collection or at least one library title.",
+        "error",
+      );
+      return;
+    }
+    const { buildApplicationReview } = await import(
+      "./poster-overlay-application-review"
+    );
+    setApplicationReview(
+      buildApplicationReview(template, label, scope, domain, mediaIds, {
+        genres,
+        yearFrom,
+        yearTo,
+        availability,
+        monitoring,
+      }),
+    );
+  };
+  const confirmApplication = async () => {
+    if (!applicationReview) return;
+    setBusy(true);
+    try {
+      await options.request("/api/poster-overlays/assignments", {
+        method: "POST",
+        body: JSON.stringify(applicationReview.payload),
+      });
+      options.notify("Poster assignment applied.");
+      setSelected([]);
+      setApplicationReview(null);
+      await load();
+    } catch (reason) {
+      options.notify(errorText(reason), "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const removeAssignment = async (item: OverlayAssignment) => {
+    try {
+      await options.request(`/api/poster-overlays/assignments/${item.id}`, {
+        method: "DELETE",
+      });
+      options.notify("Poster assignment removed.");
+      await load();
+    } catch (reason) {
+      options.notify(errorText(reason), "error");
+    }
+  };
+  return (
+    <div className="poster-overlay-route">
+      <style>{styles + layoutStyles}</style>
+      <div className="hero">
+        <div>
+          <span className="eyebrow">ARTWORK</span>
+          <h1>Poster Overlay Studio</h1>
+          <p className="lede">
+            Create reusable, data-driven poster styles for VynodeArr. Original
+            artwork remains the automatic fallback.
+          </p>
+        </div>
+        <button className="primary" onClick={() => setEditing(blankTemplate())}>
+          New poster style
+        </button>
+      </div>
+      <ServiceTabs active="poster-overlays" />
+      <div className="notice">
+        <strong>Safe app preview phase</strong>
+        <p>
+          VynodeArr layers are reversible. Plex artwork is not modified yet.
+        </p>
+      </div>
+      {loading ? (
+        <div className="panel skeleton">Loading poster styles…</div>
+      ) : (
+        <div className="overlay-studio-grid">
+          <section className="panel">
+            <div className="panel-heading">
+              <div>
+                <h2>Poster styles</h2>
+                <p className="muted">Reusable layers and variables.</p>
+              </div>
+              <span className="badge">{templates.length}</span>
+            </div>
+            <div className="overlay-template-list">
+              {templates.map((template) => (
+                <article className="overlay-template-card" key={template.id}>
+                  <Preview
+                    template={template}
+                    poster={
+                      media.find((item) => item.artwork?.url)?.artwork?.url
+                    }
+                  />
+                  <div className="overlay-template-content">
+                    <strong>{template.name}</strong>
+                    <small>
+                      {template.domain === "all"
+                        ? "Movies & television"
+                        : template.domain === "movie"
+                          ? "Movies"
+                          : "Television"}{" "}
+                      · {template.layers.length} layer
+                      {template.layers.length === 1 ? "" : "s"}
+                    </small>
+                    <div className="form-actions">
+                      <button
+                        className="secondary"
+                        onClick={() => setEditing(structuredClone(template))}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="secondary"
+                        onClick={() =>
+                          setEditing({
+                            ...structuredClone(template),
+                            id: "",
+                            name: `${template.name} copy`,
+                          })
+                        }
+                      >
+                        Duplicate
+                      </button>
+                      <button
+                        className="danger"
+                        onClick={() => void removeTemplate(template)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              ))}
+              {!templates.length ? (
+                <div className="empty compact">
+                  <h3>No poster styles</h3>
+                  <p>
+                    Create one to begin. Nothing in the current library changes
+                    until it is assigned.
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          </section>
+          <section className="panel overlay-assignment-panel">
+            <div className="panel-heading">
+              <div>
+                <h2>Apply a style</h2>
+                <p className="muted">
+                  Choose the exact scope before any artwork changes.
+                </p>
+              </div>
+            </div>
+            <div className="overlay-scope-row">
+              <label>
+                Library
+                <select
+                  value={domain}
+                  onChange={(event) => {
+                    setDomain(event.target.value as OverlayDomain);
+                    setScope("all");
+                    setScopeId("");
+                    setSelected([]);
+                  }}
+                >
+                  <option value="all">Movies & television</option>
+                  <option value="movie">Movies</option>
+                  <option value="tv">Television</option>
+                </select>
+              </label>
+              <label>
+                Apply to
+                <select
+                  value={scope}
+                  onChange={(event) => {
+                    setScope(event.target.value as typeof scope);
+                    setScopeId("");
+                  }}
+                >
+                  <option value="all">Entire selected library</option>
+                  <option value="items">Specific titles</option>
+                  <option value="collection">Saved collection</option>
+                  <option value="user-collection">User collection</option>
+                  <option value="rules">Matching rules</option>
+                </select>
+              </label>
+            </div>
+            {scope === "items" ? (
+              <>
+                <label>
+                  Find titles
+                  <input
+                    type="search"
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder="Search title or year"
+                  />
+                </label>
+                <div className="overlay-media-picker">
+                  {visible.map((item) => (
+                    <label key={`${item.domain}:${item.id}`}>
+                      <input
+                        type="checkbox"
+                        checked={selected.includes(item.id)}
+                        onChange={(event) =>
+                          setSelected((current) =>
+                            event.target.checked
+                              ? [...current, item.id]
+                              : current.filter((id) => id !== item.id),
+                          )
+                        }
+                      />
+                      {item.artwork?.url ? (
+                        <img src={item.artwork.url} alt="" />
+                      ) : null}
+                      <span>
+                        <strong>{item.title}</strong>
+                        <small>
+                          {item.domain === "movie" ? "Movie" : "TV"} ·{" "}
+                          {item.year || "Year unknown"}
+                        </small>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </>
+            ) : scope === "collection" ? (
+              <label>
+                Saved collection
+                <select
+                  value={scopeId}
+                  onChange={(event) => setScopeId(event.target.value)}
+                >
+                  <option value="">Choose a collection</option>
+                  {collections.map((item) => (
+                    <option value={item.id} key={item.id}>
+                      {item.name} · {item.members?.length || 0} titles
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : scope === "user-collection" ? (
+              <label>
+                User collection
+                <select
+                  value={scopeId}
+                  onChange={(event) => setScopeId(event.target.value)}
+                >
+                  <option value="">Choose a user</option>
+                  {userCollections.map((item) => (
+                    <option value={item.user.id} key={item.user.id}>
+                      {item.user.name} ·{" "}
+                      {item.movies.length + item.television.length} titles
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : scope === "rules" ? (
+              <div className="overlay-rule-grid">
+                <label>
+                  Genres
+                  <input
+                    value={genres}
+                    onChange={(event) => setGenres(event.target.value)}
+                    placeholder="Drama, Science Fiction"
+                  />
+                </label>
+                <label>
+                  Year from
+                  <input
+                    type="number"
+                    min="1800"
+                    max="2200"
+                    value={yearFrom}
+                    onChange={(event) => setYearFrom(event.target.value)}
+                  />
+                </label>
+                <label>
+                  Year to
+                  <input
+                    type="number"
+                    min="1800"
+                    max="2200"
+                    value={yearTo}
+                    onChange={(event) => setYearTo(event.target.value)}
+                  />
+                </label>
+                <label>
+                  Availability
+                  <select
+                    value={availability}
+                    onChange={(event) => setAvailability(event.target.value)}
+                  >
+                    <option value="">Any</option>
+                    <option value="available">Available</option>
+                    <option value="missing">Missing</option>
+                    <option value="cutoff">Cutoff unmet</option>
+                  </select>
+                </label>
+                <label>
+                  Monitoring
+                  <select
+                    value={monitoring}
+                    onChange={(event) => setMonitoring(event.target.value)}
+                  >
+                    <option value="">Any</option>
+                    <option value="monitored">Monitored</option>
+                    <option value="unmonitored">Unmonitored</option>
+                  </select>
+                </label>
+              </div>
+            ) : (
+              <div className="notice warning">
+                <strong>Every matching title will use this style.</strong>
+                <p>This is reversible by removing the assignment below.</p>
+              </div>
+            )}
+            <div className="overlay-apply-list">
+              {templates
+                .filter(
+                  (template) =>
+                    template.domain === "all" || template.domain === domain,
+                )
+                .map((template) => (
+                <button
+                  className="secondary"
+                  disabled={busy}
+                  onClick={() => void assign(template)}
+                  key={template.id}
+                >
+                  Review “{template.name}”
+                </button>
+                ))}
+            </div>
+            <h3>Active assignments</h3>
+            {assignments.map((item) => (
+              <div className="data-row" key={item.id}>
+                <span>
+                  <strong>{item.name}</strong>
+                  <small>
+                    {item.scope.domain} · {item.scope.type}
+                    {item.scope.type === "items"
+                      ? ` · ${item.scope.mediaIds.length} titles`
+                      : ""}
+                  </small>
+                </span>
+                <button
+                  className="danger"
+                  onClick={() => void removeAssignment(item)}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+            {!assignments.length ? (
+              <p className="muted">
+                No styles are assigned. All posters are original.
+              </p>
+            ) : null}
+          </section>
+        </div>
+      )}
+      {applicationReview ? (
+        <Suspense>
+          <ApplicationReview
+            template={applicationReview.template}
+            label={applicationReview.label}
+            items={media
+              .filter(
+                (item) =>
+                  !applicationReview.mediaIds.length ||
+                  applicationReview.mediaIds.includes(item.id),
+              )
+              .filter((item) => domain === "all" || item.domain === domain)}
+            busy={busy}
+            onCancel={() => setApplicationReview(null)}
+            onConfirm={() => void confirmApplication()}
+          />
+        </Suspense>
+      ) : null}
+      {editing ? (
+        <ModalPortal>
+          <div className="overlay-editor-backdrop" role="presentation">
+            <section
+              className="overlay-editor"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="overlay-editor-title"
+            >
+              <div className="panel-heading">
+                <div>
+                  <span className="eyebrow">POSTER STYLE</span>
+                  <h2 id="overlay-editor-title">
+                    {editing.id ? "Edit style" : "Create style"}
+                  </h2>
+                </div>
+                <button className="secondary" onClick={() => setEditing(null)}>
+                  Close
+                </button>
+              </div>
+              <div className="overlay-editor-grid">
+                <Suspense>
+                  <EditorRail
+                    editing={editing}
+                    selectedId={selectedLayerId}
+                    query={iconQuery}
+                    onQuery={setIconQuery}
+                    onSelect={setSelectedLayerId}
+                    onChange={(changes) => setEditing({ ...editing, ...changes })}
+                    onAddText={() => {
+                      const layer = blankLayer(variables[0]);
+                      setEditing({ ...editing, layers: [...editing.layers, layer] });
+                      setSelectedLayerId(layer.id);
+                    }}
+                    onAddIcon={(name) => {
+                      const layer = { ...blankLayer("custom_text"), kind: "icon" as const, iconName: name, label: "", contentPosition: "none" as const, width: 22, fontSize: 56 };
+                      setEditing({ ...editing, layers: [...editing.layers, layer] });
+                      setSelectedLayerId(layer.id);
+                    }}
+                    onAddShape={(shape) => {
+                      const layer = { ...blankLayer("custom_text"), kind: "shape" as const, label: "", shape, width: 40, height: 10 };
+                      setEditing({ ...editing, layers: [...editing.layers, layer] });
+                      setSelectedLayerId(layer.id);
+                    }}
+                  />
+                </Suspense>
+                <div className="overlay-editor-fields">
+                  {previewTarget === "plex" ? (
+                    <Suspense>
+                      <PlexBadgeChoices
+                        value={editing.plexBadges}
+                        onChange={(plexBadges) =>
+                          setEditing({ ...editing, plexBadges })
+                        }
+                      />
+                    </Suspense>
+                  ) : null}
+                  {editing.layers.map((layer, index) => {
+                    const update = (changes: Partial<OverlayLayer>) =>
+                      setEditing({
+                        ...editing,
+                        layers: editing.layers.map((item, i) =>
+                          i === index ? { ...item, ...changes } : item,
+                        ),
+                      });
+                    return (
+                      <details
+                        className="overlay-layer-editor"
+                        key={layer.id}
+                        open
+                        hidden={layer.id !== selectedLayerId}
+                      >
+                        <summary>
+                          <span>Layer {index + 1}</span>
+                          <small>
+                            {layer.variable.replaceAll("_", " ")}
+                            {" · "}
+                            {layer.position.replace("-", " ")}
+                          </small>
+                        </summary>
+                        <div className="overlay-layer-body">
+                          <label className="overlay-layer-toggle">
+                            <input
+                              type="checkbox"
+                              checked={layer.enabled}
+                              onChange={(event) =>
+                                update({ enabled: event.target.checked })
+                              }
+                            />
+                            Show this layer
+                          </label>
+                          <Suspense>
+                            <LayerIdentity layer={layer} variables={variables} onChange={update} />
+                          </Suspense>
+                          <label>
+                            Position
+                            <select
+                              value={layer.position}
+                              onChange={(event) => {
+                                const position = event.target
+                                  .value as OverlayPosition;
+                                const [x, y] = positionCoordinates[position];
+                                update({ position, x, y });
+                              }}
+                            >
+                              {positions.map((position) => (
+                                <option value={position} key={position}>
+                                  {position.replace("-", " ")}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label>
+                            Show when
+                            <select
+                              value={layer.condition.operator}
+                              onChange={(event) =>
+                                update({
+                                  condition: {
+                                    ...layer.condition,
+                                    operator: event.target
+                                      .value as OverlayLayer["condition"]["operator"],
+                                  },
+                                })
+                              }
+                            >
+                              <option value="truthy">
+                                Variable has a value
+                              </option>
+                              <option value="equals">Variable equals</option>
+                              <option value="not_equals">
+                                Variable does not equal
+                              </option>
+                            </select>
+                          </label>
+                          {layer.condition.operator !== "truthy" ? (
+                            <label>
+                              Condition value
+                              <input
+                                value={layer.condition.value}
+                                onChange={(event) =>
+                                  update({
+                                    condition: {
+                                      ...layer.condition,
+                                      value: event.target.value,
+                                    },
+                                  })
+                                }
+                              />
+                            </label>
+                          ) : null}
+                          <label>
+                            Prefix
+                            <input
+                              value={layer.prefix}
+                              onChange={(event) =>
+                                update({ prefix: event.target.value })
+                              }
+                            />
+                          </label>
+                          <label>
+                            Suffix
+                            <input
+                              value={layer.suffix}
+                              onChange={(event) =>
+                                update({ suffix: event.target.value })
+                              }
+                            />
+                          </label>
+                          <label>
+                            Text color
+                            <input
+                              type="color"
+                              value={layer.foreground}
+                              onChange={(event) =>
+                                update({ foreground: event.target.value })
+                              }
+                            />
+                          </label>
+                          <label>
+                            Badge color
+                            <input
+                              type="color"
+                              value={layer.background}
+                              onChange={(event) =>
+                                update({ background: event.target.value })
+                              }
+                            />
+                          </label>
+                          <label className="overlay-range">
+                            <span>Horizontal position</span>
+                            <span>{Math.round(layer.x ?? 5)}%</span>
+                            <input
+                              type="range"
+                              min="0"
+                              max="95"
+                              value={layer.x ?? 5}
+                              onChange={(event) =>
+                                update({
+                                  position: "custom",
+                                  x: Number(event.target.value),
+                                })
+                              }
+                            />
+                          </label>
+                          <label className="overlay-range">
+                            <span>Vertical position</span>
+                            <span>{Math.round(layer.y ?? 5)}%</span>
+                            <input
+                              type="range"
+                              min="0"
+                              max="96"
+                              value={layer.y ?? 5}
+                              onChange={(event) =>
+                                update({
+                                  position: "custom",
+                                  y: Number(event.target.value),
+                                })
+                              }
+                            />
+                          </label>
+                          <label className="overlay-range">
+                            <span>Layer width</span>
+                            <span>{Math.round(layer.width ?? 40)}%</span>
+                            <input
+                              type="range"
+                              min="15"
+                              max="100"
+                              value={layer.width ?? 40}
+                              onChange={(event) =>
+                                update({
+                                  width: Number(event.target.value),
+                                  ...(Number(event.target.value) === 100
+                                    ? { position: "custom", x: 0 }
+                                    : {}),
+                                })
+                              }
+                            />
+                          </label>
+                          <label className="overlay-layer-toggle">
+                            <span>Adaptive poster contrast</span>
+                            <span className="muted">
+                              Tints and softens the artwork beneath this layer
+                              while preserving your chosen colors.
+                            </span>
+                            <input
+                              type="checkbox"
+                              checked={layer.posterAware === true}
+                              onChange={(event) =>
+                                update({ posterAware: event.target.checked })
+                              }
+                            />
+                          </label>
+                          <label className="overlay-range">
+                            <span>Font size</span>
+                            <span>{layer.fontSize ?? 32}px</span>
+                            <input
+                              type="range"
+                              min="12"
+                              max="96"
+                              value={layer.fontSize ?? 32}
+                              onChange={(event) =>
+                                update({ fontSize: Number(event.target.value) })
+                              }
+                            />
+                          </label>
+                          <label>
+                            Font
+                            <select
+                              value={layer.fontFamily ?? "sans"}
+                              onChange={(event) =>
+                                update({
+                                  fontFamily: event.target
+                                    .value as OverlayLayer["fontFamily"],
+                                })
+                              }
+                            >
+                              <option value="sans">Sans serif</option>
+                              <option value="serif">Serif</option>
+                              <option value="condensed">Condensed</option>
+                              <option value="monospace">Monospace</option>
+                            </select>
+                          </label>
+                          <label>
+                            Font weight
+                            <select
+                              value={layer.fontWeight ?? 700}
+                              onChange={(event) =>
+                                update({
+                                  fontWeight: Number(
+                                    event.target.value,
+                                  ) as OverlayLayer["fontWeight"],
+                                })
+                              }
+                            >
+                              <option value="400">Regular</option>
+                              <option value="500">Medium</option>
+                              <option value="600">Semibold</option>
+                              <option value="700">Bold</option>
+                              <option value="800">Extra bold</option>
+                              <option value="900">Black</option>
+                            </select>
+                          </label>
+                          <label>
+                            Text alignment
+                            <select
+                              value={layer.textAlign ?? "left"}
+                              onChange={(event) =>
+                                update({
+                                  textAlign: event.target
+                                    .value as OverlayLayer["textAlign"],
+                                })
+                              }
+                            >
+                              <option value="left">Left</option>
+                              <option value="center">Center</option>
+                              <option value="right">Right</option>
+                            </select>
+                          </label>
+                          <label>
+                            Capitalization
+                            <select
+                              value={layer.textTransform ?? "none"}
+                              onChange={(event) =>
+                                update({
+                                  textTransform: event.target
+                                    .value as OverlayLayer["textTransform"],
+                                })
+                              }
+                            >
+                              <option value="none">As entered</option>
+                              <option value="uppercase">Uppercase</option>
+                              <option value="lowercase">Lowercase</option>
+                            </select>
+                          </label>
+                          <label className="overlay-range">
+                            <span>Text opacity</span>
+                            <span>
+                              {Math.round((layer.textOpacity ?? 1) * 100)}%
+                            </span>
+                            <input
+                              type="range"
+                              min="0"
+                              max="1"
+                              step="0.05"
+                              value={layer.textOpacity ?? 1}
+                              onChange={(event) =>
+                                update({
+                                  textOpacity: Number(event.target.value),
+                                })
+                              }
+                            />
+                          </label>
+                          <label className="overlay-range">
+                            <span>Shape opacity</span>
+                            <span>
+                              {Math.round(
+                                (layer.backgroundOpacity ?? 0.92) * 100,
+                              )}
+                              %
+                            </span>
+                            <input
+                              type="range"
+                              min="0"
+                              max="1"
+                              step="0.05"
+                              value={layer.backgroundOpacity ?? 0.92}
+                              onChange={(event) =>
+                                update({
+                                  backgroundOpacity: Number(event.target.value),
+                                })
+                              }
+                            />
+                          </label>
+                          <label className="overlay-range">
+                            <span>Inner spacing</span>
+                            <span>{layer.padding ?? 12}px</span>
+                            <input
+                              type="range"
+                              min="2"
+                              max="30"
+                              value={layer.padding ?? 12}
+                              onChange={(event) =>
+                                update({ padding: Number(event.target.value) })
+                              }
+                            />
+                          </label>
+                          <label className="overlay-range">
+                            <span>Corner radius</span>
+                            <span>{layer.borderRadius ?? 18}px</span>
+                            <input
+                              type="range"
+                              min="0"
+                              max="50"
+                              value={layer.borderRadius ?? 18}
+                              onChange={(event) =>
+                                update({
+                                  borderRadius: Number(event.target.value),
+                                })
+                              }
+                            />
+                          </label>
+                          <button
+                            className="danger"
+                            onClick={() =>
+                              setEditing({
+                                ...editing,
+                                layers: editing.layers.filter(
+                                  (_, i) => i !== index,
+                                ),
+                              })
+                            }
+                          >
+                            Remove layer
+                          </button>
+                        </div>
+                      </details>
+                    );
+                  })}
+                </div>
+                <div className="overlay-preview-column">
+                  <p className="overlay-preview-hint">
+                    Drag a layer to move it. Use its blue handle to resize.
+                  </p>
+                  <label>
+                    Design preview
+                    <select
+                      value={previewTarget}
+                      onChange={(event) =>
+                        setPreviewTarget(
+                          event.target.value as "vynode" | "plex",
+                        )
+                      }
+                    >
+                      <option value="vynode">VynodeArr library poster</option>
+                      <option value="plex">Plex artwork</option>
+                    </select>
+                  </label>
+                  <label>
+                    Preview title
+                    <select
+                      value={previewId}
+                      onChange={(event) => setPreviewId(event.target.value)}
+                    >
+                      <option value="">First available poster</option>
+                      {media
+                        .filter(
+                          (item) =>
+                            editing.domain === "all" ||
+                            item.domain === editing.domain,
+                        )
+                        .slice(0, 300)
+                        .map((item) => (
+                          <option
+                            value={`${item.domain}:${item.id}`}
+                            key={`${item.domain}:${item.id}`}
+                          >
+                            {item.title} {item.year ? `(${item.year})` : ""}
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                  <Preview
+                    template={editing}
+                    target={previewTarget}
+                    media={
+                      media.find(
+                        (item) => `${item.domain}:${item.id}` === previewId,
+                      ) || media.find((item) => item.artwork?.url)
+                    }
+                    poster={
+                      (
+                        media.find(
+                          (item) => `${item.domain}:${item.id}` === previewId,
+                        ) || media.find((item) => item.artwork?.url)
+                      )?.artwork?.originalUrl ||
+                      (
+                        media.find(
+                          (item) => `${item.domain}:${item.id}` === previewId,
+                        ) || media.find((item) => item.artwork?.url)
+                      )?.artwork?.url
+                    }
+                    onLayerChange={(id, changes) =>
+                      setEditing({
+                        ...editing,
+                        layers: editing.layers.map((layer) =>
+                          layer.id === id ? { ...layer, ...changes } : layer,
+                        ),
+                      })
+                    }
+                  />
+                  <p className="muted">
+                    Preview values demonstrate placement. Saved posters use each
+                    title’s real metadata.
+                  </p>
+                </div>
+              </div>
+              <div className="overlay-editor-footer">
+                <button className="secondary" onClick={() => setEditing(null)}>
+                  Cancel
+                </button>
+                <button
+                  className="primary"
+                  disabled={
+                    busy || !editing.name.trim() || !editing.layers.length
+                  }
+                  onClick={() => void saveTemplate()}
+                >
+                  {busy ? "Saving…" : "Save poster style"}
+                </button>
+              </div>
+            </section>
+          </div>
+        </ModalPortal>
+      ) : null}
+    </div>
+  );
+}

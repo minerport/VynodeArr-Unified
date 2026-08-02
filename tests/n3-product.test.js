@@ -82,6 +82,18 @@ test('dashboard API returns useful product metrics',()=>appSession({movie:new Mo
   const diagnostics=await (await fetch(`${base}/api/library/diagnostics?domain=movie`,{headers:{cookie}})).json();
   assert.equal(diagnostics.summary.total,diagnostics.items.length);assert.ok(diagnostics.items.every(item=>item.domain==='movie'&&['#movie/','#wanted','#service/root-folders'].some(prefix=>item.href.startsWith(prefix))&&item.actionLabel));
 }));
+test('poster overlays are opt-in, administrator-managed, and safely rendered',()=>appSession({
+  movie:Object.assign(new MovieFixtureAdapter(),{getArtwork:async()=>({body:Buffer.from('image-data'),contentType:'image/jpeg'})}),tv:new TvFixtureAdapter()
+},async({base,cookie,csrf})=>{
+  const before=await (await fetch(`${base}/api/media/movies`,{headers:{cookie}})).json(),movie=before.items[0];assert.doesNotMatch(String(movie.artwork?.url||''),/\/api\/poster-overlays\/render\//);
+  const created=await fetch(`${base}/api/poster-overlays/templates`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({name:'Quality badge',domain:'movie',layers:[{variable:'title',position:'bottom-left'}]})}),template=(await created.json()).template;assert.equal(created.status,201);
+  const tvCreated=await fetch(`${base}/api/poster-overlays/templates`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({name:'TV only',domain:'tv',layers:[{variable:'series_status'}]})}),tvTemplate=(await tvCreated.json()).template;
+  const mismatch=await fetch(`${base}/api/poster-overlays/assignments`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({templateId:tvTemplate.id,scope:{type:'all',domain:'movie'}})});assert.equal(mismatch.status,400);assert.equal((await mismatch.json()).error.code,'template_domain_mismatch');
+  const assigned=await fetch(`${base}/api/poster-overlays/assignments`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({name:'Selected movie',templateId:template.id,scope:{type:'items',domain:'movie',mediaIds:[movie.id]}})});assert.equal(assigned.status,201);
+  const after=await (await fetch(`${base}/api/media/movies`,{headers:{cookie}})).json(),decorated=after.items.find(item=>item.id===movie.id);assert.equal(decorated.artwork.url,movie.artwork.url);
+  assert.equal(decorated.artwork.overlayTemplateId,template.id);assert.equal(decorated.artwork.overlayTemplate.layers[0].variable,'title');assert.equal(decorated.artwork.overlayValues.title,movie.title);
+  assert.equal((await fetch(`${base}/api/poster-overlays`)).status,401);
+}));
 test('encrypted application backups can be downloaded once and inspected before restore',()=>appSession({movie:new MovieFixtureAdapter(),tv:new TvFixtureAdapter()},async({base,cookie,csrf})=>{
   const password='Portable-backup-passphrase-27';
   const created=await fetch(`${base}/api/system/application-backup`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({password,includeHistory:false,includeAudit:true})}),createdValue=await created.json();
