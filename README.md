@@ -37,6 +37,17 @@ delivery controls. User ownership follows durable TMDB and TVDB identity across
 requests, rematches, and manual collection additions, while the collection
 builder and large user shelves remain usable on desktop and mobile.
 
+Version **2.0.33-rc.15** is available from the `develop` branch as a release
+candidate for the administrator Poster Overlay Studio. It adds reusable,
+variable-aware text, shape, and media-icon layers; precise positioning and
+resizing; adaptive colors; conditional rendering; text wrapping and automatic
+fitting; exact VynodeArr previews; reversible library assignments; expanded
+movie-file metadata; season, next-episode, and latest-episode variables; and
+multi-rule AND/OR layer conditions. Conditional style variants can optionally
+change colors, shapes, icon appearance, font weight, and adaptive contrast when
+metadata matches. Release candidates do not replace the current stable
+`latest` image.
+
 The administrator Validation Center checks
 engine connectivity, storage, acquisition providers, scheduled automation,
 credentials, notifications, and application data after startup, updates, and
@@ -257,6 +268,10 @@ See the [changelog](CHANGELOG.md) for the detailed list of changes.
 - Poster, information-card, compact-grid, and detailed-list layouts remembered independently for movies and television
 - Engine-backed sorting by title, release date, rating, content rating, duration, date added, library size, availability, completion, and attention
 - Artwork-backed detail pages with monitoring, search, refresh, edit, and location controls
+- An administrator-only Poster Overlay Studio for reusable metadata badges and
+  selected-title or whole-library VynodeArr poster styling. Assignments are
+  reversible, preserve original artwork as a fallback, and do not modify Plex
+  during this initial phase.
 - Movie filters for title, year, genre, and collection
 - Show, season, and episode monitoring with color-coded availability
 - Bulk profile, root-folder, availability, refresh, and removal actions

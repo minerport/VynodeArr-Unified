@@ -18,8 +18,10 @@ const calendar=series.filter((item)=>item.nextEpisode).map((item,i)=>({id:`tv_ca
 
 export class TvFixtureAdapter {
   constructor(config={enabled:true,displayName:'TV'}){this.config=config;}
-  async listSeries({limit=5000}={}){return series.slice(0,Math.min(limit,5000)).map(({backdrop,seriesType,seasons,...summary})=>summary);}
+  async listSeries({limit=5000}={}){return series.slice(0,Math.min(limit,5000)).map(({backdrop,seasons,...summary})=>summary);}
   async getSeries(id){const item=series.find((candidate)=>candidate.id===id);return item?{...item,recentHistory:history.filter((event)=>event.mediaId===id),calendar:calendar.filter((event)=>event.mediaId===id)}:null;}
+  async getSeriesFileMetadata(id){const item=series.find(candidate=>candidate.id===id);if(!item)return[];return[{quality:'WEBDL-1080p',resolution:'1080p',videoCodec:'HEVC',audioCodec:'EAC3',audioChannels:'5.1',dynamicRange:'HDR10',source:'WEB-DL',languages:['English'],subtitleLanguages:['English'],bitrate:8500000,edition:null,releaseGroup:'ReviewGroup',customFormats:['HDR','Surround'],customFormatScore:120,size:4294967296,dateAdded:'2026-07-30T12:00:00Z'}];}
+  async getSeriesOverlayMetadata(id){const item=series.find(candidate=>candidate.id===id);if(!item)return{};const episodes=item.seasons.flatMap(season=>season.episodes.map(episode=>({...episode,seasonNumber:season.seasonNumber}))),latest=episodes.filter(episode=>new Date(episode.airDateUtc)<=new Date('2026-08-02T12:00:00Z')).at(-1);return{nextEpisode:item.nextEpisode?{...item.nextEpisode,seasonNumber:2,episodeNumber:1}:null,latestEpisode:latest||null,seasonCount:item.seasons.length,currentSeason:{seasonNumber:1,progress:`${episodes.filter(episode=>episode.hasFile).length} / ${episodes.length}`,missing:episodes.filter(episode=>!episode.hasFile).length}};}
   async getQueue(){return structuredClone(queue);} async getHistory(){return structuredClone(history);}
   async getCalendar(){return structuredClone(calendar);} async getHealth(){return [];}
   async getSystemStatus(){return{domain:'tv',version:'fixture-1',compatible:true,mode:'fixture'};}

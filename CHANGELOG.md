@@ -7,6 +7,201 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.33-rc.15] - 2026-08-02
+
+### Fixed
+
+- Corrected the Poster Overlay Studio's second-column scroll ownership by
+  allowing the open layer editor to retain its full content height instead of
+  clipping controls inside a non-scrolling panel.
+- Verified the correction in an authenticated browser session with a real
+  885-pixel scroll range before release.
+
+## [2.0.33-rc.14] - 2026-08-02
+
+### Fixed
+
+- Restored complete, independently scrollable Poster Overlay Studio settings
+  columns so every layer and conditional-formatting control remains reachable.
+- Isolated ranked sub-condition formatting by stable identifier and latest
+  editor state, preventing one condition's colors or other appearance settings
+  from overwriting another condition.
+
+## [2.0.33-rc.13] - 2026-08-02
+
+### Fixed
+
+- Kept the Poster Overlay Studio settings columns inside the modal's actual
+  workspace height instead of allowing the second column to clip under the
+  footer.
+- Added an independent, persistent scrollbar and bottom clearance so every
+  selected-layer setting remains reachable on desktop.
+
+## [2.0.33-rc.12] - 2026-08-02
+
+### Fixed
+
+- Restored latest-episode and next-episode overlay variables when the
+  television gateway returns episode metadata in a paged records response.
+- Prevented transient episode-metadata failures from caching blank overlay
+  values for ten minutes.
+
+## [2.0.33-rc.11] - 2026-08-02
+
+### Changed
+
+- Gave every ranked poster overlay sub-condition its own complete formatting
+  profile, while retaining optional inheritance from the main layer defaults.
+- Added a one-click action to copy the complete default appearance into an
+  individual sub-condition.
+
+### Fixed
+
+- Rebuilt sub-condition color selectors as full-size swatches with editable
+  hexadecimal values so they no longer collapse into narrow vertical controls.
+
+## [2.0.33-rc.10] - 2026-08-02
+
+### Added
+
+- Added an explicit main condition that determines whether a poster layer is
+  shown, followed by ranked appearance sub-conditions.
+- Added reorderable sub-conditions with highest-ranked or ranked-merge
+  resolution and inherited overrides for colors, typography, shape, opacity,
+  spacing, radius, icon sizing, and adaptive contrast.
+
+### Fixed
+
+- Restored access to every customization control by giving the desktop editor
+  a definite workspace height for its independent scrolling columns.
+
+## [2.0.33-rc.9] - 2026-08-02
+
+### Fixed
+
+- Made all three Poster Overlay Studio settings columns independently scroll
+  within the editor's actual available workspace height.
+- Corrected compressed layer-description and conditional-style text, spacing,
+  fallback messaging, and action placement.
+
+## [2.0.33-rc.8] - 2026-08-02
+
+### Changed
+
+- Rebuilt Poster Overlay Studio as a four-column desktop workspace for library
+  and layer tools, selected-layer settings, conditions and style variants, and
+  an always-visible live poster preview.
+- Added responsive three-column, two-column, and mobile layouts while keeping
+  desktop settings columns independently scrollable.
+
+## [2.0.33-rc.7] - 2026-08-02
+
+### Fixed
+
+- Forced the Poster Overlay Studio condition workspace into its own desktop
+  grid row so it no longer overlaps the poster preview or editor side rails.
+- Restored normal stacked document flow at the responsive editor breakpoint.
+
+## [2.0.33-rc.6] - 2026-08-02
+
+### Fixed
+
+- Expanded the Poster Overlay Studio condition and conditional-style workspace
+  across the full editor grid so fields, labels, and actions no longer collapse
+  or overlap beneath the narrow poster preview.
+- Kept condition rules and style overrides responsive by stacking their controls
+  cleanly on narrower desktop and mobile layouts.
+
+## [2.0.33-rc.5] - 2026-08-02
+
+### Added
+
+- Added optional conditional style variants to poster layers. Independent
+  AND/OR rule groups can change background, text and icon colors, shape, font
+  weight, and adaptive contrast while retaining the base style as a fallback.
+- Added first-match and ordered merge behavior when multiple style variants
+  match the same title.
+
+### Fixed
+
+- Moved layer conditions beneath the centered poster preview and made their
+  controls responsive so values are no longer clipped in the narrow inspector.
+- Kept conditional appearance identical across the editor, application review,
+  VynodeArr library cards, and composed poster artwork.
+
+## [2.0.33-rc.4] - 2026-08-02
+
+### Added
+
+- Expanded poster overlays with file-derived video, audio, HDR, source,
+  language, subtitle, bitrate, edition, release-group, custom-format, and score
+  variables, including configurable television episode-file aggregation.
+- Added television season, current-season progress, next-episode, and latest
+  aired-episode variables with season and episode codes.
+- Added a responsive multi-rule condition builder supporting AND/OR groups,
+  presence, equality, containment, and numeric comparisons across any overlay
+  variables.
+
+### Fixed
+
+- Kept editor, application-review, live-library, and composed SVG condition
+  evaluation consistent while preserving existing single-condition styles.
+- Corrected requester attribution matching for prefixed movie and television
+  detail identifiers.
+
+## [2.0.33-rc.3] - 2026-08-02
+
+### Fixed
+
+- Restored **New poster style** on Unraid and other plain-HTTP deployments by
+  generating overlay layer IDs without requiring `crypto.randomUUID()`.
+
+## [2.0.33-rc.2] - 2026-08-02
+
+### Fixed
+
+- Made the New poster style action an explicit non-submit button so embedded
+  form behavior cannot prevent the Create Style editor from opening.
+
+## [2.0.33-rc.1] - 2026-08-02
+
+### Added
+
+- Added the first safe Poster Overlay Studio phase for administrators, with
+  reusable variable-driven layers, live previews, movie/television targeting,
+  selected-title, saved Collection, user Collection, metadata-rule, and
+  whole-library assignments, conditional and custom-text layers, real-library
+  poster previews, style duplication, compact collapsible layer editing, clean
+  action alignment, and responsive body-level modals without header cutoff.
+  Layers can be dragged and resized directly on the poster or positioned with
+  precise controls, with editable typography, alignment, colors, independent
+  text and shape opacity, padding, and corner radius.
+- Overlay editing now switches between an exact VynodeArr poster-card preview
+  and clean Plex artwork, with optional per-style Plex badge choices.
+- VynodeArr poster assignments now use a review-and-confirm step showing the
+  resolved scope, sample titles, layer count, live-card behavior, and original
+  artwork fallback before any assignment is written.
+- Added authenticated server rendering, bounded caching, input sanitization,
+  audit events, backup coverage, and automatic original-artwork fallback.
+- Added independent text, icon, and shape layers with a media icon library,
+  editable outer shapes, icon sizing and color, two-dimensional shape resizing,
+  adjustable icon-to-text spacing, and variable placement inside or around
+  artwork.
+- Added variable-aware rendering so icon and shape layers are omitted when a
+  selected title has no matching metadata, while intentional artwork-only
+  layers remain supported.
+- Added fixed, auto-shrinking, and multi-line wrapping modes for variable and
+  custom text, including configurable line limits and matching preview and
+  composed-artwork output.
+- Added television overlay values for upcoming episode timing with a derived
+  series-status fallback, plus resolution and requester-aware metadata.
+
+### Security
+
+- Restricted overlay configuration to administrators with CSRF protection and
+  escaped all poster metadata before SVG rendering. Plex artwork remains
+  unchanged until the later opt-in publishing phase.
+
 ## [2.0.32] - 2026-08-01
 
 ### Fixed
@@ -767,7 +962,12 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.31...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33-rc.5...HEAD
+[2.0.33-rc.5]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33-rc.4...v2.0.33-rc.5
+[2.0.33-rc.4]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33-rc.3...v2.0.33-rc.4
+[2.0.33-rc.3]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33-rc.2...v2.0.33-rc.3
+[2.0.33-rc.2]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33-rc.1...v2.0.33-rc.2
+[2.0.33-rc.1]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.32...v2.0.33-rc.1
 [2.0.31]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.30...v2.0.31
 [2.0.30]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.29...v2.0.30
 [2.0.29]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.28...v2.0.29

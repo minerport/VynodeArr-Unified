@@ -82,6 +82,21 @@ test('dashboard API returns useful product metrics',()=>appSession({movie:new Mo
   const diagnostics=await (await fetch(`${base}/api/library/diagnostics?domain=movie`,{headers:{cookie}})).json();
   assert.equal(diagnostics.summary.total,diagnostics.items.length);assert.ok(diagnostics.items.every(item=>item.domain==='movie'&&['#movie/','#wanted','#service/root-folders'].some(prefix=>item.href.startsWith(prefix))&&item.actionLabel));
 }));
+test('poster overlays are opt-in, administrator-managed, and safely rendered',()=>appSession({
+  movie:Object.assign(new MovieFixtureAdapter(),{getArtwork:async()=>({body:Buffer.from('image-data'),contentType:'image/jpeg'})}),tv:Object.assign(new TvFixtureAdapter(),{getArtwork:async()=>({body:Buffer.from('image-data'),contentType:'image/jpeg'})})
+},async({base,cookie,csrf})=>{
+  const before=await (await fetch(`${base}/api/media/movies`,{headers:{cookie}})).json(),movie=before.items[0];assert.doesNotMatch(String(movie.artwork?.url||''),/\/api\/poster-overlays\/render\//);
+  const created=await fetch(`${base}/api/poster-overlays/templates`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({name:'Quality badge',domain:'movie',layers:[{variable:'title',position:'bottom-left'}]})}),template=(await created.json()).template;assert.equal(created.status,201);
+  const tvCreated=await fetch(`${base}/api/poster-overlays/templates`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({name:'TV only',domain:'tv',tvFileAggregation:'best',layers:[{variable:'video_codec'},{variable:'next_episode_code',conditions:{join:'and',rules:[{variable:'next_episode_season',operator:'greater_than',value:'0'},{variable:'series_status',operator:'equals',value:'Continuing'}]}}]})}),tvTemplate=(await tvCreated.json()).template;assert.equal(tvTemplate.tvFileAggregation,'best');
+  const mismatch=await fetch(`${base}/api/poster-overlays/assignments`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({templateId:tvTemplate.id,scope:{type:'all',domain:'movie'}})});assert.equal(mismatch.status,400);assert.equal((await mismatch.json()).error.code,'template_domain_mismatch');
+  const assigned=await fetch(`${base}/api/poster-overlays/assignments`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({name:'Selected movie',templateId:template.id,scope:{type:'items',domain:'movie',mediaIds:[movie.id]}})});assert.equal(assigned.status,201);
+  const tvAssigned=await fetch(`${base}/api/poster-overlays/assignments`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({name:'All television',templateId:tvTemplate.id,scope:{type:'all',domain:'tv'}})});assert.equal(tvAssigned.status,201);
+  const after=await (await fetch(`${base}/api/media/movies`,{headers:{cookie}})).json(),decorated=after.items.find(item=>item.id===movie.id);assert.equal(decorated.artwork.url,movie.artwork.url);
+  assert.equal(decorated.artwork.overlayTemplateId,template.id);assert.equal(decorated.artwork.overlayTemplate.layers[0].variable,'title');assert.equal(decorated.artwork.overlayValues.title,movie.title);
+  const television=await (await fetch(`${base}/api/media/tv`,{headers:{cookie}})).json(),series=television.items[0];assert.equal(series.artwork.overlayValues.video_codec,'HEVC');assert.equal(series.artwork.overlayValues.dynamic_range,'HDR10');assert.equal(series.artwork.overlayValues.next_episode_code,'S02E01');
+  const renderedTv=await fetch(`${base}/api/poster-overlays/render/tv/${series.id}`,{headers:{cookie}}),renderedTvSvg=await renderedTv.text();assert.equal(renderedTv.status,200);assert.match(renderedTv.headers.get('content-type'),/image\/svg\+xml/);assert.match(renderedTvSvg,/HEVC/);
+  assert.equal((await fetch(`${base}/api/poster-overlays`)).status,401);
+}));
 test('encrypted application backups can be downloaded once and inspected before restore',()=>appSession({movie:new MovieFixtureAdapter(),tv:new TvFixtureAdapter()},async({base,cookie,csrf})=>{
   const password='Portable-backup-passphrase-27';
   const created=await fetch(`${base}/api/system/application-backup`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({password,includeHistory:false,includeAudit:true})}),createdValue=await created.json();
@@ -281,6 +296,8 @@ test('smart collections combine rules with retained and excluded movie choices',
   const interest=await fetch(`${base}/api/user-collections/items`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({domain:'movie',mediaId:String(first.id).replace(/^movie_/, '')})});assert.equal(interest.status,201);
   const duplicateInterest=await fetch(`${base}/api/user-collections/items`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({domain:'movie',mediaId:first.id})});assert.equal(duplicateInterest.status,201);
   const contains=await (await fetch(`${base}/api/user-collections/contains?domain=movie&mediaId=${first.id}`,{headers:{cookie}})).json();assert.equal(contains.included,true);assert.equal(contains.canRemove,true);
+  const attributionByPublicId=await (await fetch(`${base}/api/user-collections/attribution?domain=movie&mediaId=${first.id}`,{headers:{cookie}})).json();assert.equal(attributionByPublicId.users.length,1);
+  const attributionByEngineId=await (await fetch(`${base}/api/user-collections/attribution?domain=movie&mediaId=${String(first.id).replace(/^movie_/, '')}`,{headers:{cookie}})).json();assert.equal(attributionByEngineId.users.length,1);assert.equal(attributionByEngineId.users[0].source,'saved');
   const owned=(await (await fetch(`${base}/api/collections`,{headers:{cookie}})).json()).userCollections[0];assert.equal(owned.count,1);assert.equal(owned.movies[0].title,first.title);assert.equal(owned.movies[0].collectionSource,'saved');
   assert.equal(owned.sharing.visibility,'private');assert.equal(owned.statistics.movies,1);assert.equal(owned.statistics.saved,1);
   const sharing=await fetch(`${base}/api/user-collections/sharing`,{method:'PUT',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({visibility:'household'})});assert.equal(sharing.status,200);assert.equal((await sharing.json()).preference.visibility,'household');
@@ -304,6 +321,19 @@ test('smart collections combine rules with retained and excluded movie choices',
   assert.ok(audit.some(item=>item.action==='collection.created'&&item.metadata.collectionId===collection.id));
   assert.ok(audit.some(item=>item.action==='collection.updated'&&item.metadata.collectionId===collection.id));
   assert.ok(audit.some(item=>item.action==='collection.deleted'&&item.metadata.collectionId===collection.id));
+}));
+test('movie and television detail IDs resolve requester attribution with or without public prefixes',()=>appSession({movie:new MovieFixtureAdapter(),tv:new TvFixtureAdapter()},async({base,cookie,csrf})=>{
+  const headers={cookie,'content-type':'application/json','x-vynodearr-csrf':csrf};
+  for(const domain of ['movie','tv']){
+    const item=(await (await fetch(`${base}/api/media/${domain==='movie'?'movies':'tv'}`,{headers:{cookie}})).json()).items[0];
+    const engineId=String(item.id).replace(domain==='movie'?/^movie_/:/^series_/,'');
+    const added=await fetch(`${base}/api/user-collections/items`,{method:'POST',headers,body:JSON.stringify({domain,mediaId:engineId})});assert.equal(added.status,201);
+    for(const mediaId of [item.id,engineId]){
+      const value=await (await fetch(`${base}/api/user-collections/attribution?domain=${domain}&mediaId=${mediaId}`,{headers:{cookie}})).json();
+      assert.equal(value.users.length,1,`${domain}:${mediaId}`);assert.equal(value.users[0].source,'saved');
+      const direct=await (await fetch(`${base}/api/request-attribution?domain=${domain}&mediaIds=${mediaId}`,{headers:{cookie}})).json();assert.equal(direct.items[`${domain}:${mediaId}`].length,1,`direct:${domain}:${mediaId}`);
+    }
+  }
 }));
 test('Pushover channels validate advanced settings and keep every secret protected',()=>appSession({movie:new MovieFixtureAdapter(),tv:new TvFixtureAdapter()},async({base,cookie,csrf})=>{
   const headers={cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},secret='a'.repeat(64),input={type:'pushover',name:'Family phones',credential:'app-token-secret',userKey:'user-key-secret',encryptionKey:secret,devices:['phone','tablet'],pushoverPriority:2,retry:45,expire:1800,ttl:600,sound:'cosmic',categories:['request','download'],template:{title:'{title}',message:'{message}',includeLink:true}};

@@ -143,7 +143,7 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(library,/Filter titles/);
   assert.match(library,/onMonitor/);
   assert.match(library,/onItemChange/);
-  assert.match(library,/saved\.result\?\.monitored\?\?next/);
+  assert.match(library,/saved\.result\?\.monitored\s*\?\?\s*next/);
   assert.match(library,/Search all missing/);
   assert.match(library,/MoviesSearch/);
   assert.match(library,/Cutoff unmet/);
@@ -746,10 +746,10 @@ test('movie and television initial loading is owned by typed React without losin
     read('apps/web/client/src/library-types.ts'),
     read('apps/web/client/src/app-shell.ts')
   ]);
-  assert.match(library,/Loading \{movie\?'movies':'television'\}/);
-  assert.match(library,/options\.onLoaded\?\.\(value\.items,value\.mode\)/);
+  assert.match(library,/Loading \{movie\s*\?\s*["']movies["']\s*:\s*["']television["']\}/);
+  assert.match(library,/options\.onLoaded\?\.\(value\.items\s*,\s*value\.mode\)/);
   assert.match(library,/Library refresh delayed/);
-  assert.match(types,/onLoaded\?:\(items:LibraryItem\[\],mode\?:string\)/);
+  assert.match(types,/onLoaded\?:\s*\(items:\s*LibraryItem\[\]\s*,\s*mode\?:\s*string\)/);
   assert.match(shell,/mountLibrary\(host,\{kind,administrator:state\.user\?\.role==='administrator',items:state\[kind\]/);
   assert.match(shell,/onLoaded:\(items,mode\)=>\{state\[kind\]=items/);
   assert.match(shell,/if\(window\.VynodeArrReact\?\.mountLibrary\).*return;/);
@@ -1023,6 +1023,86 @@ test('presentation style remains separate from color theme',async()=>{
   assert.match(auth,/const motionPreferences=new Set\(\['system','reduced','full'\]\)/);
   assert.match(foundation,/\[data-ui-density="compact"\]/);
   assert.match(foundation,/\[data-motion="reduced"\]/);
+});
+
+test('poster overlays preserve existing library card sizing',async()=>{
+  const library=await read('apps/web/client/src/library.tsx');
+  assert.match(library,/card react-library-card \$\{view\}/);
+  assert.match(library,/view === "poster" \? <PosterAssignmentLayers item=\{item\} \/> : null/);
+  assert.match(library,/view !== "poster" \? <PosterAssignmentLayers item=\{item\} \/> : null/);
+});
+
+test('poster overlay editor layers retain drag and resize pointer input',async()=>{
+  const source=await read('apps/web/client/src/poster-overlays.tsx');
+  const preview=await read('apps/web/client/src/poster-overlay-library-preview.tsx');
+  assert.match(preview,/\.overlay-preview \.poster-overlay-layer\{pointer-events:auto!important\}/);
+  assert.match(source,/onPointerMove=/);assert.match(source,/overlay-resize-handle/);
+});
+
+test('poster overlay editor provides bounded layer fields and a shape library',async()=>{
+  const rail=await read('apps/web/client/src/poster-overlay-editor-rail.tsx');
+  for(const shape of ['rounded','square','pill','circle','ticket','ribbon','tag','hexagon','chevron'])assert.ok(rail.includes(shape),shape);
+  assert.match(rail,/overlay-layer-body input/);assert.match(rail,/min-width:0/);
+  assert.match(rail,/width:min\(1380px,calc\(100vw - 32px\)\)/);
+  assert.match(rail,/grid-template-columns:220px minmax\(0,1fr\) minmax\(280px,340px\)/);
+  assert.match(rail,/overlay-preview-column>label select\{box-sizing:border-box;width:100%;min-width:0\}/);
+});
+
+test('poster overlay editor uses three settings columns and an always-visible preview',async()=>{
+  const conditions=await read('apps/web/client/src/poster-overlay-conditions.tsx'),layout=await read('apps/web/client/src/poster-overlay-editor-layout.tsx'),editor=await read('apps/web/client/src/poster-overlays.tsx');
+  assert.match(conditions,/overlay-condition-row\{grid-column:1\/-1;grid-row:2;width:100%/);
+  assert.match(conditions,/overlay-condition-rule\{display:grid;grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
+  assert.match(conditions,/@media\(max-width:1000px\)\{\.overlay-condition-rule/);
+  assert.match(conditions,/@media\(max-width:980px\)\{\.overlay-condition-row\{grid-row:auto\}/);
+  assert.match(layout,/grid-template-columns:220px minmax\(300px,1fr\) minmax\(340px,1\.1fr\) 340px/);
+  assert.match(layout,/grid-template-areas:"rail fields conditions preview"/);
+  assert.match(layout,/overlay-preview-column\{grid-area:preview;align-self:start;position:sticky/);
+  assert.match(layout,/overlay-editor-rail,.overlay-editor \.overlay-editor-fields,.overlay-editor \.overlay-editor-grid>\.overlay-condition-row\{box-sizing:border-box;max-height/);
+  assert.match(layout,/@media\(min-width:1351px\).*height:100%;max-height:100%;min-height:0/);
+  assert.match(layout,/max-height:100%!important;overflow-x:hidden!important;overflow-y:scroll!important/);
+  assert.match(layout,/touch-action:pan-y/);
+  assert.match(layout,/padding-bottom:48px/);
+  assert.match(layout,/scrollbar-width:auto/);
+  assert.match(layout,/overlay-editor-fields\{align-content:start\}/);
+  assert.match(layout,/overlay-editor-fields>\.overlay-layer-editor\{align-self:start;height:max-content;min-height:max-content\}/);
+  assert.match(layout,/@media\(min-width:981px\)\{\.overlay-editor\{height:calc\(100dvh - 40px\);grid-template-rows:auto minmax\(0,1fr\) auto\}/);
+  assert.match(layout,/overlay-layer-body>\.notice\{grid-column:1\/-1;display:grid/);
+  assert.match(layout,/overlay-style-variants>header\{position:static;display:grid;height:auto/);
+  for(const control of ['Position','Prefix','Suffix','Text color','Badge color','Horizontal position','Vertical position','Layer width','Adaptive poster contrast','Font size','Font weight','Text alignment','Capitalization','Text opacity','Shape opacity','Inner spacing','Corner radius','Remove layer'])assert.ok(editor.includes(control),control);
+});
+
+test('poster overlay sub-conditions are ranked and expose inherited appearance overrides',async()=>{
+  const source=await read('apps/web/client/src/poster-overlay-conditions.tsx'),editor=await read('apps/web/client/src/poster-overlays.tsx'),types=await read('apps/web/client/src/poster-overlays-types.ts'),service=await read('packages/platform/src/poster-overlay-service.js');
+  assert.match(source,/Main condition — show this layer/);
+  assert.match(source,/Rank 1 has highest priority/);
+  assert.match(source,/Move up/);assert.match(source,/Move down/);
+  assert.match(source,/Formatting for this sub-condition/);assert.match(source,/Copy all default formatting/);
+  assert.match(source,/overrides:defaultFormatting\(\)/);
+  assert.match(source,/overlay-color-control/);assert.match(source,/hex value/);
+  assert.match(source,/setOverride\(style\.id,key,value\)/);
+  assert.match(source,/rule\.id===id/);
+  assert.doesNotMatch(source,/setOverride\(index,key,value\)/);
+  assert.match(editor,/setEditing\(current=>current\?/);
+  assert.match(editor,/typeof changes==="function"\?changes\(layer\):changes/);
+  for(const label of ['Shape / background color','Text color','Font size','Font weight','Text alignment','Capitalization','Shape opacity','Inner spacing','Corner radius','Adaptive contrast'])assert.match(source,new RegExp(label.replace(/[\/]/g,'\\$&')));
+  assert.match(types,/rank: number/);assert.match(service,/sort\(\(a,b\)=>a\.rank-b\.rank\)/);
+});
+
+test('icon and shape editors keep artwork separate from optional variables',async()=>{
+  const identity=await read('apps/web/client/src/poster-overlay-layer-identity.tsx');
+  assert.match(identity,/Icon artwork/);assert.match(identity,/Optional variable/);assert.match(identity,/Variable placement/);assert.match(identity,/Shape with optional metadata/);
+  for(const group of ['Identity','Media file','Library','Dates','Download','Television','Requests'])assert.ok(identity.includes(group),group);
+  assert.match(identity,/<optgroup label=\{group\}/);
+});
+
+test('new poster style opens as a non-submit dialog action',async()=>{
+  const source=await read('apps/web/client/src/poster-overlays.tsx');
+  const layer=await read('apps/web/client/src/poster-overlay-layer.tsx');
+  assert.match(source,/type="button" className="primary" onClick=\{\(\) => setEditing\(blankTemplate\(\)\)\}/);
+  assert.match(source,/overlayClientId\(\)/);
+  assert.match(layer,/crypto\.randomUUID\?\.\(\)/);
+  assert.match(layer,/crypto\.getRandomValues/);
+  assert.doesNotMatch(layer,/crypto\.randomUUID\(\)/);
 });
 
 test('My Requests owns request tracking, correction, cancellation, and permission-aware routing',async()=>{
