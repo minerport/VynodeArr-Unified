@@ -1063,6 +1063,8 @@ test('poster overlay editor uses three settings columns and an always-visible pr
   assert.match(layout,/touch-action:pan-y/);
   assert.match(layout,/padding-bottom:48px/);
   assert.match(layout,/scrollbar-width:auto/);
+  assert.match(layout,/overlay-editor-fields\{align-content:start\}/);
+  assert.match(layout,/overlay-editor-fields>\.overlay-layer-editor\{align-self:start;height:max-content;min-height:max-content\}/);
   assert.match(layout,/@media\(min-width:981px\)\{\.overlay-editor\{height:calc\(100dvh - 40px\);grid-template-rows:auto minmax\(0,1fr\) auto\}/);
   assert.match(layout,/overlay-layer-body>\.notice\{grid-column:1\/-1;display:grid/);
   assert.match(layout,/overlay-style-variants>header\{position:static;display:grid;height:auto/);

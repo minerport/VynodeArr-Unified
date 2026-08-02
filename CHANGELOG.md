@@ -7,6 +7,16 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.33-rc.15] - 2026-08-02
+
+### Fixed
+
+- Corrected the Poster Overlay Studio's second-column scroll ownership by
+  allowing the open layer editor to retain its full content height instead of
+  clipping controls inside a non-scrolling panel.
+- Verified the correction in an authenticated browser session with a real
+  885-pixel scroll range before release.
+
 ## [2.0.33-rc.14] - 2026-08-02
 
 ### Fixed
