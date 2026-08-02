@@ -7,6 +7,15 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.33-rc.12] - 2026-08-02
+
+### Fixed
+
+- Restored latest-episode and next-episode overlay variables when the
+  television gateway returns episode metadata in a paged records response.
+- Prevented transient episode-metadata failures from caching blank overlay
+  values for ten minutes.
+
 ## [2.0.33-rc.11] - 2026-08-02
 
 ### Changed

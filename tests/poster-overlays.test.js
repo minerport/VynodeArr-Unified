@@ -98,7 +98,7 @@ test('television overlays show the next episode or fall back to series status',(
 
 test('season and episode overlay values expose current, next, and latest context',()=>{
   const values=posterVariableValues({seasonCount:4,currentSeason:{seasonNumber:4,progress:'3 / 10',missing:7},nextEpisode:{title:'Tomorrow Again',seasonNumber:4,episodeNumber:4,airDateUtc:'2026-08-08T00:00:00Z'},latestEpisode:{title:'Yesterday Once',seasonNumber:4,episodeNumber:3,airDateUtc:'2026-08-01T00:00:00Z'}},{now:'2026-08-02T12:00:00Z'});
-  assert.equal(values.season_count,4);assert.equal(values.current_season,4);assert.equal(values.current_season_progress,'3 / 10');assert.equal(values.current_season_missing,7);assert.equal(values.next_episode_code,'S04E04');assert.equal(values.next_episode_season,4);assert.equal(values.next_episode_number,4);assert.equal(values.latest_episode_code,'S04E03');assert.equal(values.latest_episode_title,'Yesterday Once');
+  assert.equal(values.season_count,4);assert.equal(values.current_season,4);assert.equal(values.current_season_progress,'3 / 10');assert.equal(values.current_season_missing,7);assert.equal(values.next_episode_code,'S04E04');assert.equal(values.next_episode_title,'Tomorrow Again');assert.equal(values.next_episode_date,'Aug 8');assert.equal(values.next_episode_season,4);assert.equal(values.next_episode_number,4);assert.equal(values.latest_episode_code,'S04E03');assert.equal(values.latest_episode_title,'Yesterday Once');assert.equal(values.latest_episode_date,'Aug 1');assert.equal(values.latest_episode_season,4);assert.equal(values.latest_episode_number,3);
 });
 
 test('overlay layer conditions support AND and OR rules across variables',()=>{

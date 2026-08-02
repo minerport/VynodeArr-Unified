@@ -90,6 +90,17 @@ test('TV adapter maps seasons, episodes, and operational surfaces',async()=>{
   const client=new FakeClient({series:[seriesRecord],seriesDetail:seriesRecord,episode:[{id:4,seasonNumber:1,episodeNumber:1,title:'Pilot',monitored:true,hasFile:true}],queue:{records:[]},history:{records:[]},calendar:[],health:[],'system/status':{version:'1.0'}});
   const adapter=new TvEngineAdapter({enabled:true},client),item=(await adapter.listSeries())[0];assert.equal(item.id,'series_2');assert.equal(item.tmdbId,202);assert.equal(item.tvdbId,303);assert.equal(item.imdbId,'tt0000202');assert.equal(item.firstAired,'2024-03-04T00:00:00Z');assert.equal(item.addedAt,'2026-01-03T00:00:00Z');assert.equal(item.completionPercent,25);assert.equal((await adapter.getSeries('series_2')).seasons[0].episodes[0].title,'Pilot');
 });
+test('TV overlay metadata derives latest and next episode fields from paged episode responses',async()=>{
+  const now=Date.now(),client=new FakeClient({episode:{records:[
+    {id:1,seasonNumber:2,episodeNumber:7,title:'Previously',airDateUtc:new Date(now-2*86400000).toISOString(),hasFile:true},
+    {id:2,seasonNumber:2,episodeNumber:8,title:'Latest Chapter',airDateUtc:new Date(now-3600000).toISOString(),hasFile:true},
+    {id:3,seasonNumber:2,episodeNumber:9,title:'Next Chapter',airDateUtc:new Date(now+86400000).toISOString(),hasFile:false},
+    {id:4,seasonNumber:0,episodeNumber:1,title:'Special',airDateUtc:new Date(now+1800000).toISOString(),hasFile:false}
+  ]}}),metadata=await new TvEngineAdapter({enabled:true},client).getSeriesOverlayMetadata('series_2');
+  assert.deepEqual(metadata.latestEpisode,{title:'Latest Chapter',seasonNumber:2,episodeNumber:8,airDateUtc:metadata.latestEpisode.airDateUtc});
+  assert.deepEqual(metadata.nextEpisode,{title:'Next Chapter',seasonNumber:2,episodeNumber:9,airDateUtc:metadata.nextEpisode.airDateUtc});
+  assert.equal(metadata.seasonCount,1);assert.equal(metadata.currentSeason.seasonNumber,2);
+});
 test('TV attention counts only monitored missing episodes',async()=>{
   const monitored={...seriesRecord,statistics:{episodeCount:4,episodeFileCount:1}};
   const unmonitored={...monitored,id:3,title:'Unmonitored Series',monitored:false};

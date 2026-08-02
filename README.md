@@ -37,7 +37,7 @@ delivery controls. User ownership follows durable TMDB and TVDB identity across
 requests, rematches, and manual collection additions, while the collection
 builder and large user shelves remain usable on desktop and mobile.
 
-Version **2.0.33-rc.11** is available from the `develop` branch as a release
+Version **2.0.33-rc.12** is available from the `develop` branch as a release
 candidate for the administrator Poster Overlay Studio. It adds reusable,
 variable-aware text, shape, and media-icon layers; precise positioning and
 resizing; adaptive colors; conditional rendering; text wrapping and automatic
