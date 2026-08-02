@@ -104,7 +104,7 @@ function PosterAssignmentLayers({ item }: { item: LibraryItem }) {
             layer.variable === "custom_text"
               ? layer.label
               : value(layer.variable);
-          return overlayLayerVisible(layer, text) ? (
+          return overlayLayerVisible(layer, text, item.artwork?.overlayValues || {}) ? (
             <OverlayLayerView
               className="library-poster-assignment"
               key={layer.id}

@@ -42,12 +42,21 @@ export interface OverlayLayer {
   borderRadius: number;
   enabled: boolean;
   condition: { operator: "truthy" | "equals" | "not_equals"; value: string };
+  conditions: {
+    join: "and" | "or";
+    rules: Array<{
+      variable: string;
+      operator: "truthy" | "falsy" | "equals" | "not_equals" | "contains" | "not_contains" | "greater_than" | "less_than";
+      value: string;
+    }>;
+  };
 }
 export interface OverlayTemplate {
   id: string;
   name: string;
   domain: OverlayDomain;
   enabled: boolean;
+  tvFileAggregation: "most_common" | "best" | "lowest" | "mixed" | "latest";
   layers: OverlayLayer[];
   plexBadges: {
     monitored: boolean;
@@ -83,7 +92,10 @@ export interface OverlayMedia {
   year?: number;
   rating?: number;
   quality?: string;
+  qualityProfile?: string | number;
   collection?: string;
+  studio?: string;
+  originalLanguage?: string | { name?: string };
   network?: string;
   genres?: string[];
   monitoring?: string;
@@ -98,6 +110,19 @@ export interface OverlayMedia {
     overlayValues?: Record<string, string>;
   };
   cutoffUnmetEpisodes?: number;
+  runtimeMinutes?: number;
+  certification?: string;
+  seasonProgress?: string;
+  episodeProgress?: string;
+  seriesType?: string;
+  firstAired?: string;
+  addedAt?: string;
+  releaseDate?: string;
+  completionPercent?: number;
+  sizeOnDisk?: number;
+  tags?: string[];
+  queue?: { status?: string; progress?: number; eta?: string } | null;
+  fileMetadata?: { quality?: string; resolution?: string; videoCodec?: string; audioCodec?: string; audioChannels?: string | number; dynamicRange?: string; source?: string; languages?: string[]; subtitleLanguages?: string[]; bitrate?: number; edition?: string; releaseGroup?: string; customFormats?: string[]; customFormatScore?: number; size?: number; dateAdded?: string } | null;
 }
 export interface OverlayCollection {
   id: string;

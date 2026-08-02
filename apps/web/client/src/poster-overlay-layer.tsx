@@ -7,15 +7,14 @@ export const overlayClientId = () =>
     .map((value) => value.toString(36))
     .join("");
 
-export function overlayLayerVisible(layer: OverlayLayer, value: unknown) {
+export function overlayLayerVisible(layer: OverlayLayer, value: unknown, values: Record<string,unknown> = {}) {
   if (!layer.enabled) return false;
   const artworkOnly = layer.kind !== "text" && layer.variable === "custom_text" && !String(value ?? "").trim();
-  if (artworkOnly) return true;
   const text = String(value ?? "").trim();
-  if (!text) return false;
-  if (layer.condition?.operator === "equals") return text === layer.condition.value;
-  if (layer.condition?.operator === "not_equals") return text !== layer.condition.value;
-  return true;
+  if (!artworkOnly && !text) return false;
+  const resolved={...values,[layer.variable]:artworkOnly?"artwork":value},group=layer.conditions||{join:"and",rules:[{variable:layer.variable,...layer.condition}]};
+  const matches=(rule:(typeof group.rules)[number])=>{const actual=String(resolved[rule.variable]??"").trim(),expected=String(rule.value??"").trim(),left=actual.toLowerCase(),right=expected.toLowerCase();if(rule.operator==="falsy")return !actual;if(rule.operator==="equals")return left===right;if(rule.operator==="not_equals")return left!==right;if(rule.operator==="contains")return left.includes(right);if(rule.operator==="not_contains")return !left.includes(right);if(rule.operator==="greater_than")return Number(actual)>Number(expected);if(rule.operator==="less_than")return Number(actual)<Number(expected);return Boolean(actual)};
+  const results=group.rules.map(matches);return group.join==="or"?results.some(Boolean):results.every(Boolean);
 }
 
 const rgba = (color: string, opacity: number) => {

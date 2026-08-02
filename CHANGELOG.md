@@ -7,6 +7,26 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.33-rc.4] - 2026-08-02
+
+### Added
+
+- Expanded poster overlays with file-derived video, audio, HDR, source,
+  language, subtitle, bitrate, edition, release-group, custom-format, and score
+  variables, including configurable television episode-file aggregation.
+- Added television season, current-season progress, next-episode, and latest
+  aired-episode variables with season and episode codes.
+- Added a responsive multi-rule condition builder supporting AND/OR groups,
+  presence, equality, containment, and numeric comparisons across any overlay
+  variables.
+
+### Fixed
+
+- Kept editor, application-review, live-library, and composed SVG condition
+  evaluation consistent while preserving existing single-condition styles.
+- Corrected requester attribution matching for prefixed movie and television
+  detail identifiers.
+
 ## [2.0.33-rc.3] - 2026-08-02
 
 ### Fixed
@@ -820,7 +840,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33-rc.3...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33-rc.4...HEAD
+[2.0.33-rc.4]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33-rc.3...v2.0.33-rc.4
 [2.0.33-rc.3]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33-rc.2...v2.0.33-rc.3
 [2.0.33-rc.2]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33-rc.1...v2.0.33-rc.2
 [2.0.33-rc.1]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.32...v2.0.33-rc.1

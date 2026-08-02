@@ -1,6 +1,6 @@
 import { ReadOnlyEngineClient } from '../../platform/src/read-only-engine-client.js';
 import { engineError } from '../../platform/src/engine-errors.js';
-import { calendarItem, completedQueueItemHasArrived, completedQueueItemIsTerminal, historyItem, queueItem, seriesDetails, seriesSummary } from '../../contracts/src/mappers.js';
+import { calendarItem, completedQueueItemHasArrived, completedQueueItemIsTerminal, fileMetadata, historyItem, queueItem, seriesDetails, seriesSummary } from '../../contracts/src/mappers.js';
 
 const records = (value) => Array.isArray(value) ? value : Array.isArray(value?.records) ? value.records : null;
 const numericId = (id) => Number(String(id).replace(/^series_/, ''));
@@ -49,6 +49,18 @@ export class TvEngineAdapter {
       context.monitoredMissingBySeriesId.set(engineId, record?.monitored === false ? 0 : episodes.filter((episode) => episode.monitored !== false && !episode.hasFile).length);
       return seriesDetails(record, episodes, context);
     } catch (error) { if (error.code) throw error; throw engineError.invalid(); }
+  }
+  async getSeriesFileMetadata(id) {
+    const engineId=numericId(id);if(!Number.isFinite(engineId))return[];
+    const value=await this.client.get('episodefile',{seriesId:engineId});const items=records(value)||value;
+    if(!Array.isArray(items))throw engineError.invalid();return items.map(fileMetadata).filter(Boolean);
+  }
+  async getSeriesOverlayMetadata(id) {
+    const engineId=numericId(id);if(!Number.isFinite(engineId))return{};
+    const value=await this.client.get('episode',{seriesId:engineId,includeEpisodeFile:false});if(!Array.isArray(value))throw engineError.invalid();
+    const episodes=value.filter(item=>Number(item.seasonNumber)>0),now=Date.now(),aired=episodes.filter(item=>new Date(item.airDateUtc||item.airDate).getTime()<=now).sort((a,b)=>new Date(b.airDateUtc||b.airDate).getTime()-new Date(a.airDateUtc||a.airDate).getTime()),upcoming=episodes.filter(item=>new Date(item.airDateUtc||item.airDate).getTime()>now).sort((a,b)=>new Date(a.airDateUtc||a.airDate).getTime()-new Date(b.airDateUtc||b.airDate).getTime()),seasonNumber=Math.max(0,...episodes.map(item=>Number(item.seasonNumber)||0)),season=episodes.filter(item=>Number(item.seasonNumber)===seasonNumber),available=season.filter(item=>item.hasFile).length;
+    const episode=item=>item?{title:item.title||`Episode ${item.episodeNumber}`,seasonNumber:Number(item.seasonNumber),episodeNumber:Number(item.episodeNumber),airDateUtc:item.airDateUtc||item.airDate||null}:null;
+    return{nextEpisode:episode(upcoming[0]),latestEpisode:episode(aired[0]),seasonCount:new Set(episodes.map(item=>Number(item.seasonNumber))).size,currentSeason:seasonNumber?{seasonNumber,progress:`${available} / ${season.length}`,missing:season.filter(item=>item.monitored!==false&&!item.hasFile).length}:null};
   }
   async getQueue() {
     const value = await this.client.get('queue', { page: 1, pageSize: 1000, includeSeries: true, includeEpisode: true });

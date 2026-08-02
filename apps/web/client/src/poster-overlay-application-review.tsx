@@ -171,7 +171,7 @@ export default function ApplicationReview({
                   >
                     {template.layers.map((layer) => {
                       const value=valueFor(layer,sample);
-                      return overlayLayerVisible(layer,value) ? (
+                      return overlayLayerVisible(layer,value,sample.artwork?.overlayValues||{}) ? (
                         <OverlayLayerView
                           key={layer.id}
                           layer={layer}

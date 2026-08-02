@@ -5,9 +5,9 @@ export const MonitoringStatus = values('MonitoringStatus', ['all', 'future', 'mi
 
 export const modelSchemas = Object.freeze({
   MediaArtwork: ['url', 'kind', 'width', 'height'],
-  MovieSummary: ['id', 'title', 'sortTitle', 'year', 'genres', 'artwork', 'status', 'monitoring', 'hasFile', 'quality', 'qualityProfile', 'rootFolder', 'collection', 'runtimeMinutes', 'rating', 'certification', 'releaseDate', 'addedAt', 'completionPercent', 'sizeOnDisk', 'tags', 'state', 'queue'],
+  MovieSummary: ['id', 'title', 'sortTitle', 'year', 'genres', 'artwork', 'status', 'monitoring', 'hasFile', 'quality', 'qualityProfile', 'rootFolder', 'collection', 'runtimeMinutes', 'rating', 'certification', 'studio', 'originalLanguage', 'releaseDate', 'addedAt', 'completionPercent', 'sizeOnDisk', 'fileMetadata', 'tags', 'state', 'queue'],
   MovieDetails: ['id', 'title', 'year', 'overview', 'runtimeMinutes', 'minimumAvailability', 'artwork', 'status', 'monitoring', 'hasFile', 'quality'],
-  SeriesSummary: ['id', 'title', 'sortTitle', 'year', 'network', 'artwork', 'status', 'monitoring', 'seasonProgress', 'episodeProgress', 'missingEpisodes', 'cutoffUnmetEpisodes', 'nextEpisode', 'qualityProfile', 'rootFolder', 'runtimeMinutes', 'rating', 'certification', 'firstAired', 'addedAt', 'completionPercent', 'sizeOnDisk', 'tags', 'queue'],
+  SeriesSummary: ['id', 'title', 'sortTitle', 'year', 'network', 'seriesType', 'originalLanguage', 'artwork', 'status', 'monitoring', 'seasonProgress', 'episodeProgress', 'missingEpisodes', 'cutoffUnmetEpisodes', 'nextEpisode', 'qualityProfile', 'rootFolder', 'runtimeMinutes', 'rating', 'certification', 'firstAired', 'addedAt', 'completionPercent', 'sizeOnDisk', 'tags', 'queue'],
   SeriesDetails: ['id', 'title', 'year', 'overview', 'network', 'seriesType', 'artwork', 'status', 'monitoring', 'seasons'],
   SeasonSummary: ['seasonNumber', 'monitored', 'episodeCount', 'episodeFileCount', 'percentComplete'],
   EpisodeSummary: ['id', 'seriesId', 'seasonNumber', 'episodeNumber', 'absoluteNumber', 'title', 'airDateUtc', 'monitored', 'hasFile'],

@@ -1043,11 +1043,16 @@ test('poster overlay editor provides bounded layer fields and a shape library',a
   const rail=await read('apps/web/client/src/poster-overlay-editor-rail.tsx');
   for(const shape of ['rounded','square','pill','circle','ticket','ribbon','tag','hexagon','chevron'])assert.ok(rail.includes(shape),shape);
   assert.match(rail,/overlay-layer-body input/);assert.match(rail,/min-width:0/);
+  assert.match(rail,/width:min\(1380px,calc\(100vw - 32px\)\)/);
+  assert.match(rail,/grid-template-columns:220px minmax\(0,1fr\) minmax\(280px,340px\)/);
+  assert.match(rail,/overlay-preview-column>label select\{box-sizing:border-box;width:100%;min-width:0\}/);
 });
 
 test('icon and shape editors keep artwork separate from optional variables',async()=>{
   const identity=await read('apps/web/client/src/poster-overlay-layer-identity.tsx');
   assert.match(identity,/Icon artwork/);assert.match(identity,/Optional variable/);assert.match(identity,/Variable placement/);assert.match(identity,/Shape with optional metadata/);
+  for(const group of ['Identity','Media file','Library','Dates','Download','Television','Requests'])assert.ok(identity.includes(group),group);
+  assert.match(identity,/<optgroup label=\{group\}/);
 });
 
 test('new poster style opens as a non-submit dialog action',async()=>{
