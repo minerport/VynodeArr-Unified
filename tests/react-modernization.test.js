@@ -1059,8 +1059,18 @@ test('poster overlay editor uses three settings columns and an always-visible pr
   assert.match(layout,/overlay-preview-column\{grid-area:preview;align-self:start;position:sticky/);
   assert.match(layout,/overlay-editor-rail,.overlay-editor \.overlay-editor-fields,.overlay-editor \.overlay-editor-grid>\.overlay-condition-row\{box-sizing:border-box;max-height/);
   assert.match(layout,/@media\(min-width:1351px\).*height:100%!important;max-height:none!important;overflow-y:auto!important/);
+  assert.match(layout,/@media\(min-width:981px\)\{\.overlay-editor\{height:calc\(100dvh - 40px\)\}/);
   assert.match(layout,/overlay-layer-body>\.notice\{grid-column:1\/-1;display:grid/);
   assert.match(layout,/overlay-style-variants>header\{position:static;display:grid;height:auto/);
+});
+
+test('poster overlay sub-conditions are ranked and expose inherited appearance overrides',async()=>{
+  const source=await read('apps/web/client/src/poster-overlay-conditions.tsx'),types=await read('apps/web/client/src/poster-overlays-types.ts'),service=await read('packages/platform/src/poster-overlay-service.js');
+  assert.match(source,/Main condition — show this layer/);
+  assert.match(source,/Rank 1 has highest priority/);
+  assert.match(source,/Move up/);assert.match(source,/Move down/);
+  for(const label of ['Shape / background color','Text color','Font size','Font weight','Text alignment','Capitalization','Shape opacity','Inner spacing','Corner radius','Adaptive contrast'])assert.match(source,new RegExp(label.replace(/[\/]/g,'\\$&')));
+  assert.match(types,/rank: number/);assert.match(service,/sort\(\(a,b\)=>a\.rank-b\.rank\)/);
 });
 
 test('icon and shape editors keep artwork separate from optional variables',async()=>{

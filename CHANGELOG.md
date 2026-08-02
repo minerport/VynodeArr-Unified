@@ -7,6 +7,21 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.33-rc.10] - 2026-08-02
+
+### Added
+
+- Added an explicit main condition that determines whether a poster layer is
+  shown, followed by ranked appearance sub-conditions.
+- Added reorderable sub-conditions with highest-ranked or ranked-merge
+  resolution and inherited overrides for colors, typography, shape, opacity,
+  spacing, radius, icon sizing, and adaptive contrast.
+
+### Fixed
+
+- Restored access to every customization control by giving the desktop editor
+  a definite workspace height for its independent scrolling columns.
+
 ## [2.0.33-rc.9] - 2026-08-02
 
 ### Fixed

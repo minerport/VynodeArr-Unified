@@ -54,8 +54,9 @@ export interface OverlayLayer {
   styleRules: Array<{
     id: string;
     name: string;
+    rank: number;
     conditions: OverlayLayer["conditions"];
-    overrides: Partial<Pick<OverlayLayer,"foreground"|"background"|"iconColor"|"textOpacity"|"backgroundOpacity"|"shape"|"fontWeight"|"prefix"|"suffix"|"posterAware">>;
+    overrides: Partial<Pick<OverlayLayer,"foreground"|"background"|"iconColor"|"iconSize"|"fontSize"|"fontFamily"|"fontWeight"|"textAlign"|"textTransform"|"textOpacity"|"backgroundOpacity"|"shape"|"padding"|"borderRadius"|"prefix"|"suffix"|"posterAware">>;
   }>;
 }
 export interface OverlayTemplate {
