@@ -7,6 +7,13 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.33-rc.2] - 2026-08-02
+
+### Fixed
+
+- Made the New poster style action an explicit non-submit button so embedded
+  form behavior cannot prevent the Create Style editor from opening.
+
 ## [2.0.33-rc.1] - 2026-08-02
 
 ### Added
@@ -806,7 +813,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33-rc.1...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33-rc.2...HEAD
+[2.0.33-rc.2]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33-rc.1...v2.0.33-rc.2
 [2.0.33-rc.1]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.32...v2.0.33-rc.1
 [2.0.31]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.30...v2.0.31
 [2.0.30]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.29...v2.0.30

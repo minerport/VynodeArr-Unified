@@ -1050,6 +1050,11 @@ test('icon and shape editors keep artwork separate from optional variables',asyn
   assert.match(identity,/Icon artwork/);assert.match(identity,/Optional variable/);assert.match(identity,/Variable placement/);assert.match(identity,/Shape with optional metadata/);
 });
 
+test('new poster style opens as a non-submit dialog action',async()=>{
+  const source=await read('apps/web/client/src/poster-overlays.tsx');
+  assert.match(source,/type="button" className="primary" onClick=\{\(\) => setEditing\(blankTemplate\(\)\)\}/);
+});
+
 test('My Requests owns request tracking, correction, cancellation, and permission-aware routing',async()=>{
   const [view,types,islands,routing,dispatch,access,shell,server,html,styles,discoverRequest]=await Promise.all([
     read('apps/web/client/src/my-requests.tsx'),

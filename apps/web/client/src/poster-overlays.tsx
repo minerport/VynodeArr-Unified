@@ -490,11 +490,10 @@ export function PosterOverlaysView({
           <span className="eyebrow">ARTWORK</span>
           <h1>Poster Overlay Studio</h1>
           <p className="lede">
-            Create reusable, data-driven poster styles for VynodeArr. Original
-            artwork remains the automatic fallback.
+            Create reusable poster styles. Original artwork remains the fallback.
           </p>
         </div>
-        <button className="primary" onClick={() => setEditing(blankTemplate())}>
+        <button type="button" className="primary" onClick={() => setEditing(blankTemplate())}>
           New poster style
         </button>
       </div>
@@ -1235,7 +1234,7 @@ export function PosterOverlaysView({
                 </div>
                 <div className="overlay-preview-column">
                   <p className="overlay-preview-hint">
-                    Drag a layer to move it. Use its blue handle to resize.
+                    Drag to move. Use the blue handle to resize.
                   </p>
                   <label>
                     Design preview
