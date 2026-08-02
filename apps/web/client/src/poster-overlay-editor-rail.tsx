@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import type { OverlayDomain, OverlayLayer, OverlayTemplate } from "./poster-overlays-types";
 import { PosterIcon, posterIcons } from "./poster-overlay-icons";
+import "./poster-overlay-editor-layout";
 const shapes: Array<[OverlayLayer["shape"],string,CSSProperties]>=[
  ["rounded","Rounded",{borderRadius:6}],["square","Square",{}],["pill","Pill",{borderRadius:999}],
  ["circle","Circle",{borderRadius:"50%",aspectRatio:"1"}],["ticket","Ticket",{clipPath:"polygon(4% 0,96% 0,100% 22%,96% 50%,100% 78%,96% 100%,4% 100%,0 78%,4% 50%,0 22%)"}],

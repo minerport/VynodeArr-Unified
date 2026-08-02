@@ -1048,13 +1048,16 @@ test('poster overlay editor provides bounded layer fields and a shape library',a
   assert.match(rail,/overlay-preview-column>label select\{box-sizing:border-box;width:100%;min-width:0\}/);
 });
 
-test('poster overlay conditions live beneath the centered preview instead of the narrow inspector',async()=>{
-  const source=await read('apps/web/client/src/poster-overlays.tsx'),conditions=await read('apps/web/client/src/poster-overlay-conditions.tsx');
-  assert.ok(source.indexOf('className="overlay-condition-row"')>source.lastIndexOf('<Preview'));
+test('poster overlay editor uses three settings columns and an always-visible preview',async()=>{
+  const conditions=await read('apps/web/client/src/poster-overlay-conditions.tsx'),layout=await read('apps/web/client/src/poster-overlay-editor-layout.tsx');
   assert.match(conditions,/overlay-condition-row\{grid-column:1\/-1;grid-row:2;width:100%/);
   assert.match(conditions,/overlay-condition-rule\{display:grid;grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
   assert.match(conditions,/@media\(max-width:1000px\)\{\.overlay-condition-rule/);
   assert.match(conditions,/@media\(max-width:980px\)\{\.overlay-condition-row\{grid-row:auto\}/);
+  assert.match(layout,/grid-template-columns:220px minmax\(300px,1fr\) minmax\(340px,1\.1fr\) 340px/);
+  assert.match(layout,/grid-template-areas:"rail fields conditions preview"/);
+  assert.match(layout,/overlay-preview-column\{grid-area:preview;align-self:start;position:sticky/);
+  assert.match(layout,/overlay-editor-rail,.overlay-editor \.overlay-editor-fields,.overlay-editor \.overlay-editor-grid>\.overlay-condition-row\{box-sizing:border-box;max-height/);
 });
 
 test('icon and shape editors keep artwork separate from optional variables',async()=>{

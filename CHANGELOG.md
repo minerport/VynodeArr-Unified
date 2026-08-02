@@ -7,6 +7,16 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.33-rc.8] - 2026-08-02
+
+### Changed
+
+- Rebuilt Poster Overlay Studio as a four-column desktop workspace for library
+  and layer tools, selected-layer settings, conditions and style variants, and
+  an always-visible live poster preview.
+- Added responsive three-column, two-column, and mobile layouts while keeping
+  desktop settings columns independently scrollable.
+
 ## [2.0.33-rc.7] - 2026-08-02
 
 ### Fixed
