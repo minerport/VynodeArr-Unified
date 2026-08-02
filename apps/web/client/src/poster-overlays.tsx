@@ -489,7 +489,7 @@ export function PosterOverlaysView({
       options.notify(errorText(reason), "error");
     }
   };
-  const selectedLayer=editing?.layers.find(layer=>layer.id===selectedLayerId),updateSelectedLayer=(changes:Partial<OverlayLayer>)=>editing&&setEditing({...editing,layers:editing.layers.map(layer=>layer.id===selectedLayerId?{...layer,...changes}:layer)});
+  const selectedLayer=editing?.layers.find(layer=>layer.id===selectedLayerId),updateSelectedLayer=(changes:Partial<OverlayLayer>|((layer:OverlayLayer)=>Partial<OverlayLayer>))=>setEditing(current=>current?{...current,layers:current.layers.map(layer=>layer.id===selectedLayerId?{...layer,...(typeof changes==="function"?changes(layer):changes)}:layer)}:current);
   return (
     <div className="poster-overlay-route">
       <style>{styles + layoutStyles}</style>

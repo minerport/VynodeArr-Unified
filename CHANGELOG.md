@@ -7,6 +7,16 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.33-rc.14] - 2026-08-02
+
+### Fixed
+
+- Restored complete, independently scrollable Poster Overlay Studio settings
+  columns so every layer and conditional-formatting control remains reachable.
+- Isolated ranked sub-condition formatting by stable identifier and latest
+  editor state, preventing one condition's colors or other appearance settings
+  from overwriting another condition.
+
 ## [2.0.33-rc.13] - 2026-08-02
 
 ### Fixed

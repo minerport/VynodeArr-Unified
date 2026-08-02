@@ -1049,7 +1049,7 @@ test('poster overlay editor provides bounded layer fields and a shape library',a
 });
 
 test('poster overlay editor uses three settings columns and an always-visible preview',async()=>{
-  const conditions=await read('apps/web/client/src/poster-overlay-conditions.tsx'),layout=await read('apps/web/client/src/poster-overlay-editor-layout.tsx');
+  const conditions=await read('apps/web/client/src/poster-overlay-conditions.tsx'),layout=await read('apps/web/client/src/poster-overlay-editor-layout.tsx'),editor=await read('apps/web/client/src/poster-overlays.tsx');
   assert.match(conditions,/overlay-condition-row\{grid-column:1\/-1;grid-row:2;width:100%/);
   assert.match(conditions,/overlay-condition-rule\{display:grid;grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
   assert.match(conditions,/@media\(max-width:1000px\)\{\.overlay-condition-rule/);
@@ -1058,22 +1058,30 @@ test('poster overlay editor uses three settings columns and an always-visible pr
   assert.match(layout,/grid-template-areas:"rail fields conditions preview"/);
   assert.match(layout,/overlay-preview-column\{grid-area:preview;align-self:start;position:sticky/);
   assert.match(layout,/overlay-editor-rail,.overlay-editor \.overlay-editor-fields,.overlay-editor \.overlay-editor-grid>\.overlay-condition-row\{box-sizing:border-box;max-height/);
-  assert.match(layout,/@media\(min-width:1351px\).*height:auto;min-height:0/);
-  assert.match(layout,/max-height:100%!important;overflow-y:scroll!important/);
-  assert.match(layout,/padding-bottom:32px/);
-  assert.match(layout,/@media\(min-width:981px\)\{\.overlay-editor\{height:calc\(100dvh - 40px\)\}/);
+  assert.match(layout,/@media\(min-width:1351px\).*height:100%;max-height:100%;min-height:0/);
+  assert.match(layout,/max-height:100%!important;overflow-x:hidden!important;overflow-y:scroll!important/);
+  assert.match(layout,/touch-action:pan-y/);
+  assert.match(layout,/padding-bottom:48px/);
+  assert.match(layout,/scrollbar-width:auto/);
+  assert.match(layout,/@media\(min-width:981px\)\{\.overlay-editor\{height:calc\(100dvh - 40px\);grid-template-rows:auto minmax\(0,1fr\) auto\}/);
   assert.match(layout,/overlay-layer-body>\.notice\{grid-column:1\/-1;display:grid/);
   assert.match(layout,/overlay-style-variants>header\{position:static;display:grid;height:auto/);
+  for(const control of ['Position','Prefix','Suffix','Text color','Badge color','Horizontal position','Vertical position','Layer width','Adaptive poster contrast','Font size','Font weight','Text alignment','Capitalization','Text opacity','Shape opacity','Inner spacing','Corner radius','Remove layer'])assert.ok(editor.includes(control),control);
 });
 
 test('poster overlay sub-conditions are ranked and expose inherited appearance overrides',async()=>{
-  const source=await read('apps/web/client/src/poster-overlay-conditions.tsx'),types=await read('apps/web/client/src/poster-overlays-types.ts'),service=await read('packages/platform/src/poster-overlay-service.js');
+  const source=await read('apps/web/client/src/poster-overlay-conditions.tsx'),editor=await read('apps/web/client/src/poster-overlays.tsx'),types=await read('apps/web/client/src/poster-overlays-types.ts'),service=await read('packages/platform/src/poster-overlay-service.js');
   assert.match(source,/Main condition — show this layer/);
   assert.match(source,/Rank 1 has highest priority/);
   assert.match(source,/Move up/);assert.match(source,/Move down/);
   assert.match(source,/Formatting for this sub-condition/);assert.match(source,/Copy all default formatting/);
   assert.match(source,/overrides:defaultFormatting\(\)/);
   assert.match(source,/overlay-color-control/);assert.match(source,/hex value/);
+  assert.match(source,/setOverride\(style\.id,key,value\)/);
+  assert.match(source,/rule\.id===id/);
+  assert.doesNotMatch(source,/setOverride\(index,key,value\)/);
+  assert.match(editor,/setEditing\(current=>current\?/);
+  assert.match(editor,/typeof changes==="function"\?changes\(layer\):changes/);
   for(const label of ['Shape / background color','Text color','Font size','Font weight','Text alignment','Capitalization','Shape opacity','Inner spacing','Corner radius','Adaptive contrast'])assert.match(source,new RegExp(label.replace(/[\/]/g,'\\$&')));
   assert.match(types,/rank: number/);assert.match(service,/sort\(\(a,b\)=>a\.rank-b\.rank\)/);
 });
