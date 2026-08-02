@@ -7,6 +7,15 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.33-rc.9] - 2026-08-02
+
+### Fixed
+
+- Made all three Poster Overlay Studio settings columns independently scroll
+  within the editor's actual available workspace height.
+- Corrected compressed layer-description and conditional-style text, spacing,
+  fallback messaging, and action placement.
+
 ## [2.0.33-rc.8] - 2026-08-02
 
 ### Changed
