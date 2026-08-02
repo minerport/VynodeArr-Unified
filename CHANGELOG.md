@@ -7,6 +7,20 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.33-rc.11] - 2026-08-02
+
+### Changed
+
+- Gave every ranked poster overlay sub-condition its own complete formatting
+  profile, while retaining optional inheritance from the main layer defaults.
+- Added a one-click action to copy the complete default appearance into an
+  individual sub-condition.
+
+### Fixed
+
+- Rebuilt sub-condition color selectors as full-size swatches with editable
+  hexadecimal values so they no longer collapse into narrow vertical controls.
+
 ## [2.0.33-rc.10] - 2026-08-02
 
 ### Added

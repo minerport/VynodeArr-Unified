@@ -1069,6 +1069,9 @@ test('poster overlay sub-conditions are ranked and expose inherited appearance o
   assert.match(source,/Main condition — show this layer/);
   assert.match(source,/Rank 1 has highest priority/);
   assert.match(source,/Move up/);assert.match(source,/Move down/);
+  assert.match(source,/Formatting for this sub-condition/);assert.match(source,/Copy all default formatting/);
+  assert.match(source,/overrides:defaultFormatting\(\)/);
+  assert.match(source,/overlay-color-control/);assert.match(source,/hex value/);
   for(const label of ['Shape / background color','Text color','Font size','Font weight','Text alignment','Capitalization','Shape opacity','Inner spacing','Corner radius','Adaptive contrast'])assert.match(source,new RegExp(label.replace(/[\/]/g,'\\$&')));
   assert.match(types,/rank: number/);assert.match(service,/sort\(\(a,b\)=>a\.rank-b\.rank\)/);
 });
