@@ -1052,7 +1052,12 @@ test('icon and shape editors keep artwork separate from optional variables',asyn
 
 test('new poster style opens as a non-submit dialog action',async()=>{
   const source=await read('apps/web/client/src/poster-overlays.tsx');
+  const layer=await read('apps/web/client/src/poster-overlay-layer.tsx');
   assert.match(source,/type="button" className="primary" onClick=\{\(\) => setEditing\(blankTemplate\(\)\)\}/);
+  assert.match(source,/overlayClientId\(\)/);
+  assert.match(layer,/crypto\.randomUUID\?\.\(\)/);
+  assert.match(layer,/crypto\.getRandomValues/);
+  assert.doesNotMatch(layer,/crypto\.randomUUID\(\)/);
 });
 
 test('My Requests owns request tracking, correction, cancellation, and permission-aware routing',async()=>{

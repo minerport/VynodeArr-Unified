@@ -1,6 +1,12 @@
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
 import type { OverlayLayer } from "./poster-overlays-types";
 
+export const overlayClientId = () =>
+  crypto.randomUUID?.() ||
+  [...crypto.getRandomValues(new Uint32Array(4))]
+    .map((value) => value.toString(36))
+    .join("");
+
 export function overlayLayerVisible(layer: OverlayLayer, value: unknown) {
   if (!layer.enabled) return false;
   const artworkOnly = layer.kind !== "text" && layer.variable === "custom_text" && !String(value ?? "").trim();

@@ -7,6 +7,13 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.33-rc.3] - 2026-08-02
+
+### Fixed
+
+- Restored **New poster style** on Unraid and other plain-HTTP deployments by
+  generating overlay layer IDs without requiring `crypto.randomUUID()`.
+
 ## [2.0.33-rc.2] - 2026-08-02
 
 ### Fixed
@@ -813,7 +820,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33-rc.2...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33-rc.3...HEAD
+[2.0.33-rc.3]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33-rc.2...v2.0.33-rc.3
 [2.0.33-rc.2]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33-rc.1...v2.0.33-rc.2
 [2.0.33-rc.1]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.32...v2.0.33-rc.1
 [2.0.31]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.30...v2.0.31
