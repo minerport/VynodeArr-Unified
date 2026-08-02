@@ -7,6 +7,14 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.33-rc.7] - 2026-08-02
+
+### Fixed
+
+- Forced the Poster Overlay Studio condition workspace into its own desktop
+  grid row so it no longer overlaps the poster preview or editor side rails.
+- Restored normal stacked document flow at the responsive editor breakpoint.
+
 ## [2.0.33-rc.6] - 2026-08-02
 
 ### Fixed
