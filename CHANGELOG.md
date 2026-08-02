@@ -7,6 +7,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.34-rc.1] - 2026-08-02
+
 ### Added
 
 - Added an administrator Engine Update Center that discovers official upstream

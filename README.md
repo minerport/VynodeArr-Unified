@@ -28,7 +28,9 @@ consistent experience and account system.
 ## Current release
 
 Version **2.0.33** is available for production use on Unraid, Windows, and
-standard Docker installations. Its administrator Poster Overlay Studio adds reusable,
+standard Docker installations. Version **2.0.34-rc.1** is available as a
+prerelease for testing the Engine Update Center and its backup-gated candidate
+workflow. Its administrator Poster Overlay Studio adds reusable,
 variable-aware text, shape, and media-icon layers; precise positioning and
 resizing; adaptive colors; conditional rendering; text wrapping and automatic
 fitting; exact VynodeArr previews; reversible library assignments; expanded
