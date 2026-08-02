@@ -1,0 +1,68 @@
+const cleanEndpoint=value=>{
+  const input=String(value||'').trim();
+  if(!input)throw new Error('Plex server URL is required');
+  let parsed;try{parsed=new URL(input);}catch{throw new Error('Enter a valid Plex server URL');}
+  if(!['http:','https:'].includes(parsed.protocol))throw new Error('Plex server URL must use HTTP or HTTPS');
+  if(parsed.username||parsed.password)throw new Error('Do not include credentials in the Plex server URL');
+  parsed.pathname='';parsed.search='';parsed.hash='';return parsed.toString().replace(/\/$/,'');
+};
+const xmlAttribute=(value,name)=>String(value||'').match(new RegExp(`\\b${name}="([^"]*)"`,'i'))?.[1]||'';
+const decodeXml=value=>String(value||'').replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&');
+const externalId=value=>{const match=String(value||'').match(/^(tmdb|tvdb|imdb):\/\/(.+)$/i);return match?`${match[1].toLowerCase()}:${match[2].toLowerCase()}`:'';};
+const itemExternalIds=item=>{
+  const values=[];for(const [field,prefix]of [['tmdbId','tmdb'],['tvdbId','tvdb'],['imdbId','imdb']])if(item?.[field])values.push(`${prefix}:${String(item[field]).toLowerCase()}`);
+  for(const value of item?.guids||item?.Guid||[]){const id=externalId(value?.id||value);if(id)values.push(id);}return[...new Set(values)];
+};
+
+export class PlexService{
+  constructor({fetchImpl=fetch,timeoutMs=10000}={}){this.fetch=fetchImpl;this.timeoutMs=timeoutMs;}
+  async request(endpoint,token,path){
+    const response=await this.fetch(`${cleanEndpoint(endpoint)}${path}`,{headers:{accept:'application/json','x-plex-token':String(token||'')},signal:AbortSignal.timeout(this.timeoutMs)});
+    if(response.status===401)throw new Error('Plex rejected the access token');
+    if(!response.ok)throw new Error(`Plex returned HTTP ${response.status}`);
+    const text=await response.text();
+    try{return{type:'json',value:JSON.parse(text)}}catch{return{type:'xml',value:text}}
+  }
+  async inspect(endpoint,token){
+    if(!String(token||'').trim())throw new Error('Plex access token is required');
+    const [identity,sections]=await Promise.all([this.request(endpoint,token,'/identity'),this.request(endpoint,token,'/library/sections')]);
+    const identityContainer=identity.type==='json'?(identity.value.MediaContainer||identity.value):null;
+    const server={
+      name:String(identityContainer?.friendlyName||identityContainer?.machineIdentifier||xmlAttribute(identity.value,'machineIdentifier')||'Plex Media Server'),
+      machineIdentifier:String(identityContainer?.machineIdentifier||xmlAttribute(identity.value,'machineIdentifier')),
+      version:String(identityContainer?.version||xmlAttribute(identity.value,'version')),
+    };
+    if(!server.machineIdentifier)throw new Error('The endpoint did not identify itself as a Plex Media Server');
+    const directoryValue=sections.value?.MediaContainer?.Directory,directories=sections.type==='json'?(Array.isArray(directoryValue)?directoryValue:directoryValue?[directoryValue]:[]):[...String(sections.value).matchAll(/<Directory\b[^>]*\/>/gi)].map(match=>match[0]);
+    const libraries=directories.map(item=>({
+      key:String(item.key??xmlAttribute(item,'key')),
+      title:decodeXml(item.title??xmlAttribute(item,'title')),
+      type:String(item.type??xmlAttribute(item,'type')),
+      uuid:String(item.uuid??xmlAttribute(item,'uuid')),
+    })).filter(item=>item.key&&['movie','show'].includes(item.type));
+    return{endpoint:cleanEndpoint(endpoint),server,libraries};
+  }
+  async libraryItems(endpoint,token,library){
+    const response=await this.request(endpoint,token,`/library/sections/${encodeURIComponent(library.key)}/all?includeGuids=1`),metadataValue=response.value?.MediaContainer?.Metadata,metadata=response.type==='json'?(Array.isArray(metadataValue)?metadataValue:metadataValue?[metadataValue]:[]):[...String(response.value).matchAll(/<(?:Video|Directory)\b[^>]*>[\s\S]*?<\/(?:Video|Directory)>/gi)].map(match=>match[0]);
+    return metadata.slice(0,20000).map(item=>({ratingKey:String(item.ratingKey??xmlAttribute(item,'ratingKey')),title:decodeXml(item.title??xmlAttribute(item,'title')),year:Number(item.year??xmlAttribute(item,'year'))||null,type:String((item.type??xmlAttribute(item,'type'))||library.type),thumb:String(item.thumb??xmlAttribute(item,'thumb')),guids:item.Guid||[...String(item).matchAll(/<Guid\b[^>]*id="([^"]+)"[^>]*\/>/gi)].map(match=>({id:decodeXml(match[1])}))})).filter(item=>item.ratingKey);
+  }
+  async artwork(endpoint,token,path){
+    const value=String(path||'');if(!/^\/library\/metadata\/\d+\/thumb(?:\/\d+)?$/i.test(value)&&!/^\/library\/metadata\/\d+\/art(?:\/\d+)?$/i.test(value))throw new Error('Plex artwork path is invalid');
+    const response=await this.fetch(`${cleanEndpoint(endpoint)}${value}`,{headers:{accept:'image/*','x-plex-token':String(token||'')},signal:AbortSignal.timeout(this.timeoutMs)});if(response.status===401)throw new Error('Plex rejected the access token');if(!response.ok)throw new Error(`Plex artwork returned HTTP ${response.status}`);const contentType=String(response.headers.get('content-type')||'');if(!contentType.startsWith('image/'))throw new Error('Plex returned an invalid artwork response');const body=Buffer.from(await response.arrayBuffer());if(!body.length||body.length>20_000_000)throw new Error('Plex artwork is empty or too large');return{body,contentType};
+  }
+  async uploadPoster(endpoint,token,ratingKey,body,contentType){
+    if(!/^\d+$/.test(String(ratingKey||'')))throw new Error('Plex poster target is invalid');
+    if(!Buffer.isBuffer(body)||!body.length||body.length>20_000_000)throw new Error('Plex poster data is empty or too large');
+    if(!['image/jpeg','image/png'].includes(String(contentType||'').toLowerCase()))throw new Error('Plex poster upload must be JPEG or PNG');
+    const response=await this.fetch(`${cleanEndpoint(endpoint)}/library/metadata/${ratingKey}/posters`,{method:'POST',headers:{accept:'application/json','content-type':contentType,'content-length':String(body.length),'x-plex-token':String(token||'')},body,signal:AbortSignal.timeout(this.timeoutMs)});
+    if(response.status===401)throw new Error('Plex rejected the access token');
+    if(!response.ok)throw new Error(`Plex poster upload returned HTTP ${response.status}`);
+    return true;
+  }
+  match(vynodeItems,plexItems){
+    const index=new Map();for(const item of plexItems)for(const id of itemExternalIds(item)){const values=index.get(id)||[];values.push(item);index.set(id,values);}
+    return vynodeItems.map(item=>{const ids=itemExternalIds(item),matches=[...new Map(ids.flatMap(id=>index.get(id)||[]).map(value=>[value.ratingKey,value])).values()];return{domain:item.domain,id:item.id,title:item.title,year:item.year||null,externalIds:ids,status:!ids.length?'unmatched':matches.length===1?'matched':matches.length>1?'ambiguous':'unmatched',plex:matches.map(value=>({ratingKey:value.ratingKey,title:value.title,year:value.year,type:value.type,thumb:value.thumb}))};});
+  }
+}
+
+export {cleanEndpoint as sanitizePlexEndpoint,itemExternalIds as plexExternalIds};

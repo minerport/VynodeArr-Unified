@@ -7,6 +7,22 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.34-rc.2] - 2026-08-02
+
+### Added
+
+- Added an administrator-only Plex connection for Poster Overlay Studio with
+  encrypted token storage, server identity validation, and discovery of
+  compatible movie and television libraries.
+- Added external-ID-only Plex matching with matched, unmatched, and ambiguous
+  review states plus side-by-side current-poster and rendered-overlay previews.
+
+### Security
+
+- Added the first controlled Plex artwork workflow: one title per operation,
+  exact preview, typed confirmation, original-poster capture with SHA-256
+  integrity verification, audited upload, and an immediate restore action.
+
 ## [2.0.34-rc.1] - 2026-08-02
 
 ### Added

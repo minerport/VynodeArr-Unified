@@ -262,8 +262,12 @@ See the [changelog](CHANGELOG.md) for the detailed list of changes.
 - Artwork-backed detail pages with monitoring, search, refresh, edit, and location controls
 - An administrator-only Poster Overlay Studio for reusable metadata badges and
   selected-title or whole-library VynodeArr poster styling. Assignments are
-  reversible, preserve original artwork as a fallback, and do not modify Plex
-  during this initial phase.
+  reversible and preserve original artwork as a fallback. Administrators can
+  securely validate a Plex server and discover its movie and television
+  libraries, review TMDB/TVDB/IMDb matches, and compare current Plex posters
+  with rendered results. Administrators can apply one reviewed poster at a
+  time after typed confirmation; VynodeArr captures and integrity-checks the
+  original artwork first and provides an immediate audited restore action.
 - Movie filters for title, year, genre, and collection
 - Show, season, and episode monitoring with color-coded availability
 - Bulk profile, root-folder, availability, refresh, and removal actions

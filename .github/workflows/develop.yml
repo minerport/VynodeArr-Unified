@@ -36,7 +36,7 @@ jobs:
           platforms: linux/amd64
           push: true
           build-args: |
-            VYNODEARR_VERSION=2.0.33-develop.${{ github.run_number }}
+            VYNODEARR_VERSION=2.0.34-develop.${{ github.run_number }}
           tags: |
             ghcr.io/minerport/vynodearr-unified:develop
             ghcr.io/minerport/vynodearr-unified:develop-${{ github.sha }}

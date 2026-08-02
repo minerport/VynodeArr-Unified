@@ -1,9 +1,11 @@
 {
   "name": "vynodearr",
-  "version": "2.0.34-rc.1",
+  "version": "2.0.34-rc.2",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build:web": "vite build --config apps/web/client/vite.config.ts",
     "build:server": "tsc --project tsconfig.server.json",
@@ -18,7 +20,8 @@
   },
   "dependencies": {
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "sharp": "0.35.3"
   },
   "devDependencies": {
     "@types/node": "24.10.13",

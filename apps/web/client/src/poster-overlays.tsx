@@ -33,6 +33,7 @@ const PlexBadgeChoices = lazy(() =>
     default: module.PlexBadgeChoices,
   })),
 );
+const PlexConnectionPanel=lazy(()=>import("./poster-overlays-plex").then(module=>({default:module.PlexConnectionPanel})));
 const ApplicationReview = lazy(
   () => import("./poster-overlay-application-review"),
 );
@@ -504,12 +505,7 @@ export function PosterOverlaysView({
         </button>
       </div>
       <ServiceTabs active="poster-overlays" />
-      <div className="notice">
-        <strong>Safe app preview phase</strong>
-        <p>
-          VynodeArr layers are reversible. Plex artwork is not modified yet.
-        </p>
-      </div>
+      <Suspense fallback={<div className="panel skeleton">Loading Plex connection…</div>}><PlexConnectionPanel options={options} templates={templates}/></Suspense>
       {loading ? (
         <div className="panel skeleton">Loading poster styles…</div>
       ) : (

@@ -142,6 +142,21 @@ export interface OverlayUserCollection {
   movies: OverlayMedia[];
   television: OverlayMedia[];
 }
+export interface PlexOverlayConnection {
+  configured: boolean;
+  endpoint: string;
+  server: null | { name: string; machineIdentifier: string; version: string };
+  libraries: Array<{ key: string; title: string; type: "movie" | "show"; uuid: string }>;
+  updatedAt?: string | null;
+  artworkWritesEnabled: boolean;
+}
+export interface PlexMatchReview {
+  generatedAt: string;
+  summary: { matched: number; unmatched: number; ambiguous: number; total: number };
+  entries: Array<{ domain: "movie"|"tv"; id: string; title: string; year?: number|null; externalIds: string[]; status: "matched"|"unmatched"|"ambiguous"; plex: Array<{ratingKey:string;title:string;year?:number|null;type:string;thumb?:string}>; plexLibrary:{key:string;title:string;type:string} }>;
+  artworkWritesEnabled: boolean;
+}
+export interface PlexPosterApplication { id:string;title:string;domain:"movie"|"tv";templateName:string;plexLibraryTitle:string;appliedAt:string;restoredAt:string|null;status:"applied"|"restored" }
 export interface PosterOverlayMountOptions {
   request: <T = unknown>(path: string, options?: RequestInit) => Promise<T>;
   notify: (message: string, tone?: string) => void;
