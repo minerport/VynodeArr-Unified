@@ -1058,7 +1058,9 @@ test('poster overlay editor uses three settings columns and an always-visible pr
   assert.match(layout,/grid-template-areas:"rail fields conditions preview"/);
   assert.match(layout,/overlay-preview-column\{grid-area:preview;align-self:start;position:sticky/);
   assert.match(layout,/overlay-editor-rail,.overlay-editor \.overlay-editor-fields,.overlay-editor \.overlay-editor-grid>\.overlay-condition-row\{box-sizing:border-box;max-height/);
-  assert.match(layout,/@media\(min-width:1351px\).*height:100%!important;max-height:none!important;overflow-y:auto!important/);
+  assert.match(layout,/@media\(min-width:1351px\).*height:auto;min-height:0/);
+  assert.match(layout,/max-height:100%!important;overflow-y:scroll!important/);
+  assert.match(layout,/padding-bottom:32px/);
   assert.match(layout,/@media\(min-width:981px\)\{\.overlay-editor\{height:calc\(100dvh - 40px\)\}/);
   assert.match(layout,/overlay-layer-body>\.notice\{grid-column:1\/-1;display:grid/);
   assert.match(layout,/overlay-style-variants>header\{position:static;display:grid;height:auto/);

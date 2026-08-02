@@ -7,6 +7,16 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.33-rc.13] - 2026-08-02
+
+### Fixed
+
+- Kept the Poster Overlay Studio settings columns inside the modal's actual
+  workspace height instead of allowing the second column to clip under the
+  footer.
+- Added an independent, persistent scrollbar and bottom clearance so every
+  selected-layer setting remains reachable on desktop.
+
 ## [2.0.33-rc.12] - 2026-08-02
 
 ### Fixed
