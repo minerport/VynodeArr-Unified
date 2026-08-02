@@ -18,6 +18,10 @@ export interface SystemRecord {
   exception?:string;
 }
 export interface ApplicationUpdate {installedVersion:string;channel:string;mechanism:string;repository:string;message:string}
+export interface EngineUpdateCandidate {domain:SystemDomain;name:string;installedVersion:string;latestVersion?:string;updateAvailable?:boolean;publishedAt?:string|null;releaseUrl?:string;repository?:string;prerelease?:boolean;draft?:boolean;unavailable?:boolean;message?:string;asset?:{name:string;size:number;url:string}|null}
+export interface EngineUpdateCatalog {generatedAt:string;mechanism:string;engines:EngineUpdateCandidate[]}
+export interface EngineUpdateReview {generatedAt:string;domain:SystemDomain;outcome:'ready'|'review'|'blocked';candidate:EngineUpdateCandidate;applicationMode:'review-only';nextAction:string;checks:{id:string;status:'passed'|'warning'|'failed';title:string;message:string}[];issueDraft?:{title:string;body:string;url:string}}
+export interface EngineCandidatePlan {preparedAt:string;workflowUrl:string;workflowInputs:{base_ref:string;movie_version:string;tv_version:string;confirmation:string};candidateTag:string;rollbackImage:string;instructions:string[]}
 export interface MasterKeyStatus {managed:boolean;source:string;canRotate:boolean;storage:string}
 export interface ApplicationBackupSummary {fileName:string;createdAt:string;applicationVersion:string;fileCount:number;masterKeyManaged:boolean;groups:Record<'identity'|'credentials'|'masterKey'|'notifications'|'requests'|'collections'|'history'|'audit',boolean>;warnings:string[]}
 export type ValidationStatus='healthy'|'warning'|'failed';

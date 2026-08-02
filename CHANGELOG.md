@@ -7,6 +7,22 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Added an administrator Engine Update Center that discovers official upstream
+  releases, checks platform assets, version direction, engine health, storage,
+  and recovery readiness, and prepares sanitized GitHub issue drafts.
+- Added a backup-gated candidate workflow that pins reviewed movie and
+  television engine versions, verifies VynodeArr, smoke-tests the complete
+  container, and publishes an isolated candidate image without changing
+  `latest`.
+
+### Security
+
+- Engine updates remain container-based and never replace live binaries in
+  place. Candidate preparation requires fresh native engine backups and records
+  the prior image for rollback.
+
 ## [2.0.33] - 2026-08-02
 
 ### Added

@@ -1,0 +1,109 @@
+name: Engine Candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_ref:
+        description: Reviewed VynodeArr branch or commit
+        required: true
+        default: develop
+      movie_version:
+        description: Reviewed movie-engine version
+        required: true
+      tv_version:
+        description: Reviewed television-engine version
+        required: true
+      confirmation:
+        description: Type BUILD ENGINE CANDIDATE
+        required: true
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: engine-candidate-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  candidate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate reviewed inputs
+        shell: bash
+        run: |
+          test "${{ inputs.confirmation }}" = "BUILD ENGINE CANDIDATE"
+          test "${{ inputs.base_ref }}" = "develop"
+          [[ "${{ inputs.movie_version }}" =~ ^[0-9]+(\.[0-9]+){2,3}$ ]]
+          [[ "${{ inputs.tv_version }}" =~ ^[0-9]+(\.[0-9]+){2,3}$ ]]
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base_ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm install --include=dev --no-audit --no-fund
+      - run: npm run verify
+      - uses: docker/setup-buildx-action@v3
+      - name: Build pinned candidate locally
+        run: |
+          image="ghcr.io/minerport/vynodearr-unified:engine-candidate-${GITHUB_RUN_ID}"
+          docker build --file Dockerfile.unraid \
+            --build-arg RADARR_VERSION="${{ inputs.movie_version }}" \
+            --build-arg SONARR_VERSION="${{ inputs.tv_version }}" \
+            --build-arg VYNODEARR_VERSION="${{ inputs.base_ref }}-engine-candidate" \
+            --tag "$image" .
+          echo "CANDIDATE_IMAGE=$image" >> "$GITHUB_ENV"
+      - name: Smoke test the complete candidate
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/vynodearr-candidate"/{config,movies,tv,downloads}
+          docker run -d --name vynodearr-engine-candidate \
+            -v "$RUNNER_TEMP/vynodearr-candidate/config:/config" \
+            -v "$RUNNER_TEMP/vynodearr-candidate/movies:/movies" \
+            -v "$RUNNER_TEMP/vynodearr-candidate/tv:/tv" \
+            -v "$RUNNER_TEMP/vynodearr-candidate/downloads:/downloads" \
+            "$CANDIDATE_IMAGE"
+          for attempt in $(seq 1 60); do
+            status="$(docker inspect --format '{{.State.Health.Status}}' vynodearr-engine-candidate)"
+            test "$status" = healthy && exit 0
+            test "$status" = unhealthy && break
+            sleep 2
+          done
+          docker logs vynodearr-engine-candidate
+          exit 1
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish isolated candidate tag
+        run: docker push "$CANDIDATE_IMAGE"
+      - name: Write review summary
+        shell: bash
+        run: |
+          digest="$(docker image inspect "$CANDIDATE_IMAGE" --format '{{index .RepoDigests 0}}')"
+          {
+            echo '## Engine candidate ready'
+            echo "- Image: \`$CANDIDATE_IMAGE\`"
+            echo "- Digest: \`$digest\`"
+            echo "- Movie engine: \`${{ inputs.movie_version }}\`"
+            echo "- Television engine: \`${{ inputs.tv_version }}\`"
+            echo "- Rollback: recreate the container with the previously installed VynodeArr image tag or digest."
+            echo '- This workflow never updates `latest`.'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Preserve failure evidence
+        if: failure()
+        shell: bash
+        run: |
+          mkdir -p engine-candidate-evidence
+          docker logs vynodearr-engine-candidate > engine-candidate-evidence/container.log 2>&1 || true
+          printf '# Engine candidate failure\n\nRun: %s\nMovie: %s\nTelevision: %s\n' \
+            "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            '${{ inputs.movie_version }}' '${{ inputs.tv_version }}' \
+            > engine-candidate-evidence/issue-draft.md
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: engine-candidate-failure-${{ github.run_id }}
+          path: engine-candidate-evidence

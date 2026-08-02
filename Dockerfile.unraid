@@ -20,6 +20,8 @@ RUN npm run typecheck:web && npm run build:web && npm run build:server
 
 FROM node:24-alpine
 ARG VYNODEARR_VERSION=2.0.3
+ARG RADARR_VERSION=6.3.0.10514
+ARG SONARR_VERSION=4.0.19.2979
 LABEL org.opencontainers.image.title="VynodeArr" \
       org.opencontainers.image.description="Unified movie and television management for Unraid" \
       org.opencontainers.image.source="https://github.com/minerport/VynodeArr-Unified" \
@@ -43,6 +45,7 @@ RUN sed -i 's/\r$//' /usr/local/bin/vynodearr-entrypoint \
     && chown -R vynodearr:vynodearr /config /movies /tv /downloads
 ENV NODE_ENV=production PORT=8686 VYNODEARR_DATA_DIR=/config/vynodearr \
     VYNODEARR_DATA_MODE=engine VYNODEARR_BUNDLED_ENGINES=true \
+    VYNODEARR_MOVIE_ENGINE_VERSION=${RADARR_VERSION} VYNODEARR_TV_ENGINE_VERSION=${SONARR_VERSION} \
     VYNODEARR_BOOTSTRAP_ROOT_FOLDERS=true VYNODEARR_SECURE_COOKIES=false \
     MOVIE_ENGINE_HOST=127.0.0.1 \
     MOVIE_ENGINE_PORT=7878 TV_ENGINE_HOST=127.0.0.1 TV_ENGINE_PORT=8989 \

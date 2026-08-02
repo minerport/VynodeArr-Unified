@@ -13,6 +13,7 @@ import { AuthService } from '../../../packages/platform/src/auth-service.js';
 import { EngineSettingsService } from '../../../packages/platform/src/engine-settings-service.js';
 import { MasterKeyService } from '../../../packages/platform/src/master-key-service.js';
 import { EngineManagementService } from '../../../packages/platform/src/engine-management-service.js';
+import { EngineUpdateReviewService } from '../../../packages/platform/src/engine-update-review-service.js';
 import { JsonStore } from '../../../packages/platform/src/json-store.js';
 import { GuideTemplateService,formatForMovieEngine } from '../../../packages/platform/src/guide-template-service.js';
 import { MovieEngineAdapter } from '../../../packages/movie-domain/src/engine-adapter.js';
@@ -136,6 +137,7 @@ export function createApplication(options={}){
   const downloadClientRemotePath=domain=>String(env[domain==='movie'?'VYNODEARR_MOVIE_DOWNLOAD_CLIENT_REMOTE_PATH':'VYNODEARR_TV_DOWNLOAD_CLIENT_REMOTE_PATH']||env.VYNODEARR_DOWNLOAD_CLIENT_REMOTE_PATH||'/data/complete').replace(/\/+$/,'')||'/data/complete';
   const downloadFolderStore=options.downloadFolderStore||new JsonStore(join(dataDir,'download-folders.json'),{version:1,movie:{path:defaultDownloadFolder('movie')},tv:{path:defaultDownloadFolder('tv')},updatedAt:null});
   const validationStore=options.validationStore||new JsonStore(join(dataDir,'system-validation.json'),{version:1,report:null,updatedAt:null});
+  const engineUpdateReview=options.engineUpdateReview||new EngineUpdateReviewService({fetcher:options.fetcher||globalThis.fetch,versions:{movie:env.VYNODEARR_MOVIE_ENGINE_VERSION||'6.3.0.10514',tv:env.VYNODEARR_TV_ENGINE_VERSION||'4.0.19.2979'}});
   const applicationBackupFiles=['users.json','engine-settings.json','credentials.enc','master-key','collections.json','poster-overlays.json','user-requests.json','notification-events.json','guide-templates.json','engine-authentication.json','download-folders.json'];
   const applicationHistoryFiles=['search-activity.json','download-decisions.json'];
   const applicationAuditFiles=['management-audit.json'];
@@ -1451,6 +1453,19 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
           return json(res,400,{error:{code:'unsupported_repair',message:'Choose a supported validation repair action.'}});
         }
         if(url.pathname==='/api/system/application-update'&&req.method==='GET'){if(!administrator(res,session))return;return json(res,200,{application:'VynodeArr',installedVersion:String(env.VYNODEARR_VERSION||applicationVersion),channel:String(env.VYNODEARR_UPDATE_CHANNEL||'develop'),mechanism:'Container image',repository:'https://github.com/minerport/VynodeArr-Unified',message:'Pull the newest VynodeArr container image, then recreate the application container. Engine updates are managed separately.'});}
+        if(url.pathname==='/api/system/engine-updates'&&req.method==='GET'){if(!administrator(res,session))return;try{return json(res,200,await engineUpdateReview.catalog());}catch(error){return safeError(res,error);}}
+        if(url.pathname==='/api/system/engine-updates/review'&&req.method==='POST'){
+          if(!administrator(res,session)||!requireCsrf(req,res,session))return;const input=await body(req),domain=String(input.domain||'');if(!['movie','tv'].includes(domain))return json(res,400,{error:{code:'validation_failed',message:'Choose the movie or television engine.'}});
+          try{const validation=await systemValidation(),report=await engineUpdateReview.review(domain,{validation});await recordAudit(session,{category:'system',action:'engine_update.reviewed',target:`${domain} engine update`,domain,summary:`Reviewed the latest ${domain==='movie'?'movie':'television'} engine release; outcome: ${report.outcome}.`,metadata:{installedVersion:report.candidate.installedVersion,candidateVersion:report.candidate.latestVersion,outcome:report.outcome}});return json(res,200,report);}catch(error){return safeError(res,error);}
+        }
+        if(url.pathname==='/api/system/engine-updates/candidate-plan'&&req.method==='POST'){
+          if(!administrator(res,session)||!requireCsrf(req,res,session))return;const input=await body(req);if(input.confirmation!=='PREPARE CANDIDATE')return json(res,400,{error:{code:'confirmation_required',message:'Confirm preparation of the reviewed candidate workflow.'}});
+          try{const validation=await systemValidation(),reports=await Promise.all(['movie','tv'].map(domain=>engineUpdateReview.review(domain,{validation}))),backupResults=await Promise.allSettled(['movie','tv'].map(domain=>management.execute(domain,'backups','GET'))),cutoff=Date.now()-24*60*60_000;
+            const stale=backupResults.flatMap((result,index)=>{if(result.status==='rejected')return[index?'television':'movie'];const records=Array.isArray(result.value)?result.value:result.value?.records||[],latest=Math.max(0,...records.map(item=>new Date(item.time||item.createdAt||0).getTime()).filter(Number.isFinite));return latest>=cutoff?[]:[index?'television':'movie'];});
+            if(stale.length)return json(res,409,{error:{code:'fresh_backup_required',message:`Create a fresh ${stale.join(' and ')} engine backup before preparing a candidate.`}});
+            const installed=String(env.VYNODEARR_VERSION||applicationVersion),plan=engineUpdateReview.candidatePlan(reports,{baseRef:String(env.VYNODEARR_UPDATE_CHANNEL||'develop'),currentImage:`ghcr.io/minerport/vynodearr-unified:${installed}`});await recordAudit(session,{category:'system',action:'engine_update.candidate_prepared',target:'Engine candidate container',summary:'Prepared a pinned, review-only engine candidate workflow after validation and backup checks.',metadata:{movieVersion:plan.workflowInputs.movie_version,tvVersion:plan.workflowInputs.tv_version,rollbackImage:plan.rollbackImage}});return json(res,200,plan);
+          }catch(error){return safeError(res,error);}
+        }
         if(url.pathname==='/api/system/master-key'&&req.method==='GET'){
           if(!administrator(res,session))return;
           return json(res,200,masterKeyService.status());

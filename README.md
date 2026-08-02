@@ -442,6 +442,15 @@ Administrators can reveal or generate the individual API keys under **Account Se
 
 - On Unraid, update the container to pull the newest image.
 - Never remove the persistent `/config` mapping during an update.
+- Administrators can use **System → Updates** to review official movie and
+  television engine releases. VynodeArr blocks prereleases, downgrades,
+  unexpected archives, unhealthy connections, and unsafe storage states before
+  preparing a candidate.
+- Engine candidates are built through a separate GitHub Actions workflow using
+  exact reviewed versions. The complete container must pass verification and a
+  health smoke test, is published only under an isolated `engine-candidate-*`
+  tag, and never replaces `latest`. Keep the displayed rollback image until
+  post-update validation succeeds.
 - Download an encrypted **VynodeArr application backup** from **System →
   Backups** before uninstalling. It protects accounts, permissions, requests,
   notification channels and templates, saved credentials, collections, and
