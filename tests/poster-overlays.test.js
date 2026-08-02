@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {aggregateOverlayFileMetadata,assignmentMatches,posterVariableValues,renderOverlaySvg,resolveOverlayTemplate,sanitizeOverlayAssignment,sanitizeOverlayLayer,sanitizeOverlayTemplate} from '../packages/platform/src/poster-overlay-service.js';
+import {aggregateOverlayFileMetadata,assignmentMatches,posterVariableValues,renderOverlaySvg,resolveConditionalOverlayLayer,resolveOverlayTemplate,sanitizeOverlayAssignment,sanitizeOverlayLayer,sanitizeOverlayTemplate} from '../packages/platform/src/poster-overlay-service.js';
 
 test('poster overlay inputs are bounded and unsafe SVG content is escaped',()=>{
   const template=sanitizeOverlayTemplate({name:'<script>alert(1)</script>',domain:'movie',plexBadges:{monitored:true,availability:'yes'},layers:[{variable:'title',position:'custom',x:-12,y:500,width:9,fontSize:999,fontFamily:'serif',fontWeight:900,textAlign:'center',textOpacity:2,backgroundOpacity:-1,padding:99,borderRadius:99,foreground:'red',background:'#123456',prefix:'<',suffix:'>'}]});
@@ -106,6 +106,13 @@ test('overlay layer conditions support AND and OR rules across variables',()=>{
   assert.match(renderOverlaySvg({poster,template,item:{title:'Match',fileMetadata:{resolution:'2160p',dynamicRange:'HDR10'}}}).toString(),/>Match</);
   assert.doesNotMatch(renderOverlaySvg({poster,template,item:{title:'No match',fileMetadata:{resolution:'1080p',dynamicRange:'HDR10'}}}).toString(),/>No match</);
   const either={layers:[{...base,conditions:{...base.conditions,join:'or'}}]};assert.match(renderOverlaySvg({poster,template:either,item:{title:'Either',fileMetadata:{resolution:'1080p',dynamicRange:'HDR10'}}}).toString(),/>Either</);
+});
+
+test('conditional style variants override appearance deterministically',()=>{
+  const layer=sanitizeOverlayLayer({variable:'title',background:'#111827',foreground:'#ffffff',styleMode:'first',styleRules:[{name:'4K HDR',conditions:{join:'and',rules:[{variable:'resolution',operator:'equals',value:'2160p'},{variable:'dynamic_range',operator:'contains',value:'HDR'}]},overrides:{background:'#f59e0b',foreground:'#000000',shape:'pill',fontWeight:900}},{name:'4K',conditions:{join:'and',rules:[{variable:'resolution',operator:'equals',value:'2160p'}]},overrides:{background:'#2563eb'}}]});
+  const values={resolution:'2160p',dynamic_range:'HDR10'},resolved=resolveConditionalOverlayLayer(layer,values);assert.equal(resolved.background,'#f59e0b');assert.equal(resolved.foreground,'#000000');assert.equal(resolved.shape,'pill');assert.equal(resolved.fontWeight,900);
+  const svg=renderOverlaySvg({poster:Buffer.from('poster'),template:{layers:[layer]},item:{title:'Premium',fileMetadata:{resolution:'2160p',dynamicRange:'HDR10'}}}).toString();assert.match(svg,/#f59e0b/);assert.match(svg,/#000000/);
+  const merged=resolveConditionalOverlayLayer({...layer,styleMode:'merge'},values);assert.equal(merged.background,'#2563eb');assert.equal(merged.foreground,'#000000');
 });
 
 test('request overlay variables include people, count, and oldest request date',()=>{

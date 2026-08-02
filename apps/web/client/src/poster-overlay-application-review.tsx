@@ -1,7 +1,7 @@
 import { ModalPortal } from "./modal-portal";
 import type { OverlayMedia, OverlayTemplate } from "./poster-overlays-types";
 import { LibraryChrome } from "./poster-overlay-library-preview";
-import { OverlayLayerView, overlayLayerVisible } from "./poster-overlay-layer";
+import { OverlayLayerView, overlayLayerVisible, resolveConditionalLayer } from "./poster-overlay-layer";
 import { PosterLayerContent } from "./poster-overlay-icons";
 const previewStyles = `.overlay-application-preview{position:relative;width:min(240px,100%);aspect-ratio:2/3;overflow:hidden;border:1px solid var(--border);border-radius:14px;background:center/cover}.overlay-application-preview>span{position:absolute;z-index:3;overflow:hidden;padding:4px 6px;line-height:1.1;white-space:nowrap}.overlay-review-preview{display:grid;justify-items:center;gap:8px}`;
 const valueFor = (
@@ -170,13 +170,13 @@ export default function ApplicationReview({
                     }}
                   >
                     {template.layers.map((layer) => {
-                      const value=valueFor(layer,sample);
-                      return overlayLayerVisible(layer,value,sample.artwork?.overlayValues||{}) ? (
+                      const resolvedLayer=resolveConditionalLayer(layer,sample.artwork?.overlayValues||{}),value=valueFor(resolvedLayer,sample);
+                      return overlayLayerVisible(resolvedLayer,value,sample.artwork?.overlayValues||{}) ? (
                         <OverlayLayerView
                           key={layer.id}
-                          layer={layer}
+                          layer={resolvedLayer}
                         >
-                          <PosterLayerContent layer={layer} text={`${layer.prefix}${value}${layer.suffix}`} />
+                          <PosterLayerContent layer={resolvedLayer} text={`${resolvedLayer.prefix}${value}${resolvedLayer.suffix}`} />
                         </OverlayLayerView>
                       ) : null;
                     })}

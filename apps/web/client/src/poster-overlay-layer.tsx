@@ -7,14 +7,17 @@ export const overlayClientId = () =>
     .map((value) => value.toString(36))
     .join("");
 
+const conditionMatches=(rule:OverlayLayer["conditions"]["rules"][number],values:Record<string,unknown>)=>{const actual=String(values[rule.variable]??"").trim(),expected=String(rule.value??"").trim(),left=actual.toLowerCase(),right=expected.toLowerCase();if(rule.operator==="falsy")return !actual;if(rule.operator==="equals")return left===right;if(rule.operator==="not_equals")return left!==right;if(rule.operator==="contains")return left.includes(right);if(rule.operator==="not_contains")return !left.includes(right);if(rule.operator==="greater_than")return Number(actual)>Number(expected);if(rule.operator==="less_than")return Number(actual)<Number(expected);return Boolean(actual)};
+const groupMatches=(group:OverlayLayer["conditions"],values:Record<string,unknown>)=>{const results=(group?.rules||[]).map(rule=>conditionMatches(rule,values));return group?.join==="or"?results.some(Boolean):results.every(Boolean)};
+export function resolveConditionalLayer(layer:OverlayLayer,values:Record<string,unknown>={}){const matches=(layer.styleRules||[]).filter(rule=>groupMatches(rule.conditions,values)),chosen=layer.styleMode==="merge"?matches:matches.slice(0,1);return chosen.reduce((resolved,rule)=>({...resolved,...rule.overrides}),layer)}
+
 export function overlayLayerVisible(layer: OverlayLayer, value: unknown, values: Record<string,unknown> = {}) {
   if (!layer.enabled) return false;
   const artworkOnly = layer.kind !== "text" && layer.variable === "custom_text" && !String(value ?? "").trim();
   const text = String(value ?? "").trim();
   if (!artworkOnly && !text) return false;
   const resolved={...values,[layer.variable]:artworkOnly?"artwork":value},group=layer.conditions||{join:"and",rules:[{variable:layer.variable,...layer.condition}]};
-  const matches=(rule:(typeof group.rules)[number])=>{const actual=String(resolved[rule.variable]??"").trim(),expected=String(rule.value??"").trim(),left=actual.toLowerCase(),right=expected.toLowerCase();if(rule.operator==="falsy")return !actual;if(rule.operator==="equals")return left===right;if(rule.operator==="not_equals")return left!==right;if(rule.operator==="contains")return left.includes(right);if(rule.operator==="not_contains")return !left.includes(right);if(rule.operator==="greater_than")return Number(actual)>Number(expected);if(rule.operator==="less_than")return Number(actual)<Number(expected);return Boolean(actual)};
-  const results=group.rules.map(matches);return group.join==="or"?results.some(Boolean):results.every(Boolean);
+  const results=group.rules.map(rule=>conditionMatches(rule,resolved));return group.join==="or"?results.some(Boolean):results.every(Boolean);
 }
 
 const rgba = (color: string, opacity: number) => {

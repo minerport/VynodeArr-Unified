@@ -50,6 +50,13 @@ export interface OverlayLayer {
       value: string;
     }>;
   };
+  styleMode: "first" | "merge";
+  styleRules: Array<{
+    id: string;
+    name: string;
+    conditions: OverlayLayer["conditions"];
+    overrides: Partial<Pick<OverlayLayer,"foreground"|"background"|"iconColor"|"textOpacity"|"backgroundOpacity"|"shape"|"fontWeight"|"prefix"|"suffix"|"posterAware">>;
+  }>;
 }
 export interface OverlayTemplate {
   id: string;

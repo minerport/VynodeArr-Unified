@@ -1048,6 +1048,13 @@ test('poster overlay editor provides bounded layer fields and a shape library',a
   assert.match(rail,/overlay-preview-column>label select\{box-sizing:border-box;width:100%;min-width:0\}/);
 });
 
+test('poster overlay conditions live beneath the centered preview instead of the narrow inspector',async()=>{
+  const source=await read('apps/web/client/src/poster-overlays.tsx'),conditions=await read('apps/web/client/src/poster-overlay-conditions.tsx');
+  assert.ok(source.indexOf('className="overlay-preview-conditions"')>source.lastIndexOf('<Preview'));
+  assert.match(conditions,/overlay-condition-rule\{display:grid;grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
+  assert.match(conditions,/@media\(max-width:1000px\)\{\.overlay-condition-rule/);
+});
+
 test('icon and shape editors keep artwork separate from optional variables',async()=>{
   const identity=await read('apps/web/client/src/poster-overlay-layer-identity.tsx');
   assert.match(identity,/Icon artwork/);assert.match(identity,/Optional variable/);assert.match(identity,/Variable placement/);assert.match(identity,/Shape with optional metadata/);

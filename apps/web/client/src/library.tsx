@@ -20,7 +20,7 @@ import {
   type SortDirection,
 } from "./library-sorting";
 import "./react-library.css";
-import { OverlayLayerView, overlayLayerVisible } from "./poster-overlay-layer";
+import { OverlayLayerView, overlayLayerVisible, resolveConditionalLayer } from "./poster-overlay-layer";
 import { PosterLayerContent } from "./poster-overlay-icons";
 
 const views: LibraryView[] = ["poster", "cards", "compact", "list"];
@@ -100,17 +100,18 @@ function PosterAssignmentLayers({ item }: { item: LibraryItem }) {
       {layers
         .filter((layer) => layer.enabled)
         .map((layer) => {
+          const resolvedLayer=resolveConditionalLayer(layer,item.artwork?.overlayValues||{});
           const text =
-            layer.variable === "custom_text"
-              ? layer.label
-              : value(layer.variable);
-          return overlayLayerVisible(layer, text, item.artwork?.overlayValues || {}) ? (
+            resolvedLayer.variable === "custom_text"
+              ? resolvedLayer.label
+              : value(resolvedLayer.variable);
+          return overlayLayerVisible(resolvedLayer, text, item.artwork?.overlayValues || {}) ? (
             <OverlayLayerView
               className="library-poster-assignment"
               key={layer.id}
-              layer={layer}
+              layer={resolvedLayer}
             >
-              <PosterLayerContent layer={layer} text={`${layer.prefix}${text}${layer.suffix}`} />
+              <PosterLayerContent layer={resolvedLayer} text={`${resolvedLayer.prefix}${text}${resolvedLayer.suffix}`} />
             </OverlayLayerView>
           ) : null;
         })}

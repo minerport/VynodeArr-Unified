@@ -19,11 +19,10 @@ import type {
   OverlayUserCollection,
   PosterOverlayMountOptions,
 } from "./poster-overlays-types";
-import { OverlayLayerView, overlayClientId, overlayLayerVisible } from "./poster-overlay-layer";
+import { OverlayLayerView, overlayClientId, overlayLayerVisible, resolveConditionalLayer } from "./poster-overlay-layer";
 import { PosterLayerContent } from "./poster-overlay-icons";
 const styles = `.poster-overlay-route{display:grid;gap:20px}.overlay-studio-grid{display:grid;grid-template-columns:minmax(320px,.8fr) minmax(420px,1.2fr);gap:20px}.overlay-template-list{display:grid;gap:14px}.overlay-template-card{display:grid;grid-template-columns:92px 1fr;gap:14px;align-items:center;padding:12px;border:1px solid var(--border);border-radius:14px}.overlay-template-card small,.overlay-media-picker small{display:block;color:var(--muted)}.overlay-preview{position:relative;width:min(100%,300px);aspect-ratio:2/3;overflow:hidden;border:1px solid var(--border);border-radius:14px;background:linear-gradient(145deg,#24324b,#07101d 62%,#02060d) center/cover;box-shadow:inset 0 -100px 80px -70px #000}.overlay-preview-layer{font-weight:800}.overlay-scope-row,.overlay-layer-editor{display:grid;grid-template-columns:1fr 1fr;gap:10px}.overlay-media-picker{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;max-height:360px;overflow:auto}.overlay-media-picker label{display:grid;grid-template-columns:auto 38px 1fr;gap:8px;align-items:center;padding:8px;border:1px solid var(--border);border-radius:10px}.overlay-media-picker img{width:38px;aspect-ratio:2/3;object-fit:cover}.overlay-editor-backdrop{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:20px;background:#000c}.overlay-editor{display:grid;grid-template-rows:auto minmax(0,1fr) auto;width:min(1100px,100%);max-height:calc(100dvh - 40px);overflow:hidden;border:1px solid var(--border);border-radius:18px;background:var(--panel,#08111f)}.overlay-editor-grid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:20px;overflow:auto;padding:20px}.overlay-editor-fields{display:grid;gap:12px}.overlay-layer-editor{padding:12px;border:1px solid var(--border);border-radius:12px}.overlay-preview-column{display:grid;align-content:start;justify-items:center;gap:10px;position:sticky;top:0}.overlay-editor-footer{display:flex;justify-content:flex-end;gap:10px;padding:16px 20px;border-top:1px solid var(--border)}@media(max-width:800px){.overlay-studio-grid,.overlay-scope-row,.overlay-media-picker,.overlay-editor-grid,.overlay-layer-editor{grid-template-columns:1fr}.overlay-editor-backdrop{padding:0}.overlay-editor{width:100%;height:100dvh;max-height:none;border:0;border-radius:0}.overlay-editor-grid{padding:14px}.overlay-preview-column{position:static;order:-1}.overlay-preview-column .overlay-preview{width:180px}.poster-overlay-route .hero>.primary{width:100%}}`;
 const layoutStyles = `.overlay-template-card{grid-template-columns:76px minmax(0,1fr)}.overlay-template-card>.overlay-preview{width:76px}.overlay-template-content{min-width:0;display:grid;gap:8px;align-content:center}.overlay-template-content .form-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.overlay-template-content button{width:100%;padding-inline:7px}.overlay-assignment-panel label,.overlay-editor label{display:grid;gap:6px;min-width:0}.overlay-scope-row{align-items:end}.overlay-apply-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.overlay-apply-list button{width:100%;white-space:normal}.overlay-editor-backdrop{z-index:10000}.overlay-editor>.panel-heading{display:flex;flex-direction:row!important;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px}.overlay-editor>.panel-heading>div{flex:1;min-width:0}.overlay-editor>.panel-heading button{width:auto;flex:0 0 auto}.overlay-layer-editor{display:block;padding:0;overflow:hidden}.overlay-layer-editor>summary{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px;cursor:pointer;font-weight:800;list-style:none}.overlay-layer-editor>summary::-webkit-details-marker{display:none}.overlay-layer-editor>summary small{color:var(--muted);font-weight:500}.overlay-layer-editor[open]>summary{border-bottom:1px solid var(--border)}.overlay-layer-body{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:12px}.overlay-layer-body>.danger{align-self:end}.overlay-layer-toggle{align-content:center}@media(max-width:600px){.overlay-template-content .form-actions,.overlay-apply-list,.overlay-layer-body{grid-template-columns:1fr}.overlay-template-card{grid-template-columns:64px minmax(0,1fr)}.overlay-template-card>.overlay-preview{width:64px}.overlay-editor>.panel-heading{padding:12px 14px}}`;
-const conditionStyles = `.overlay-condition-builder{grid-column:1/-1;display:grid;gap:10px;margin:0;padding:12px;border:1px solid var(--border);border-radius:12px}.overlay-condition-builder legend{padding:0 6px;font-weight:800}.overlay-condition-rule{display:grid;grid-template-columns:minmax(120px,1fr) minmax(130px,1fr) minmax(100px,1fr) auto;gap:8px;align-items:end}.overlay-condition-rule .icon-button{width:42px}@media(max-width:600px){.overlay-condition-rule{grid-template-columns:1fr}.overlay-condition-rule .icon-button{width:100%}}`;
 const LibraryChrome = lazy(() =>
   import("./poster-overlay-library-preview").then((module) => ({
     default: module.LibraryChrome,
@@ -89,6 +88,8 @@ const blankLayer = (variable = "title"): OverlayLayer => ({
   enabled: true,
   condition: { operator: "truthy", value: "" },
   conditions: { join: "and", rules: [{ variable, operator: "truthy", value: "" }] },
+  styleMode: "first",
+  styleRules: [],
 });
 const blankTemplate = (): OverlayTemplate => ({
   id: "",
@@ -146,6 +147,8 @@ function Preview({
     dy: number;
     pointerId: number;
   } | null>(null);
+  const previewValues={...(media?.artwork?.overlayValues||{})};
+  for(const layer of template.layers)for(const rule of [...(layer.conditions?.rules||[]),...(layer.styleRules||[]).flatMap(style=>style.conditions.rules)])if(previewValues[rule.variable]===undefined)previewValues[rule.variable]=previewValue(rule.variable,media);
   return (
     <div
       className="overlay-preview"
@@ -169,19 +172,19 @@ function Preview({
         </Suspense>
       ) : null}
       {template.layers.map((layer) => {
-          const value=layer.variable === "custom_text" ? layer.label : previewValue(layer.variable, media);
-          if (!overlayLayerVisible(layer,value,media?.artwork?.overlayValues||{})) return null;
+          const values=previewValues,resolvedLayer=resolveConditionalLayer(layer,values),value=resolvedLayer.variable === "custom_text" ? resolvedLayer.label : previewValue(resolvedLayer.variable, media);
+          if (!overlayLayerVisible(resolvedLayer,value,values)) return null;
           const fallback =
               positionCoordinates[layer.position] || positionCoordinates.custom,
-            x = Number.isFinite(layer.x) ? layer.x : fallback[0],
-            y = Number.isFinite(layer.y) ? layer.y : fallback[1],
-            width = Number.isFinite(layer.width) ? layer.width : 40,
-            height = Number.isFinite(layer.height) ? layer.height : 0;
+            x = Number.isFinite(resolvedLayer.x) ? resolvedLayer.x : fallback[0],
+            y = Number.isFinite(resolvedLayer.y) ? resolvedLayer.y : fallback[1],
+            width = Number.isFinite(resolvedLayer.width) ? resolvedLayer.width : 40,
+            height = Number.isFinite(resolvedLayer.height) ? resolvedLayer.height : 0;
           return (
             <OverlayLayerView
               className="overlay-preview-layer"
               key={layer.id}
-              layer={layer}
+              layer={resolvedLayer}
               style={{
                 cursor: onLayerChange ? "grab" : "default",
                 touchAction: "none",
@@ -226,7 +229,7 @@ function Preview({
                 if (drag?.pointerId === event.pointerId) setDrag(null);
               }}
             >
-              <PosterLayerContent layer={layer} text={`${layer.prefix}${value}${layer.suffix}`} />
+                <PosterLayerContent layer={resolvedLayer} text={`${resolvedLayer.prefix}${value}${resolvedLayer.suffix}`} />
               {onLayerChange ? (
                 <span
                   className="overlay-resize-handle"
@@ -486,9 +489,10 @@ export function PosterOverlaysView({
       options.notify(errorText(reason), "error");
     }
   };
+  const selectedLayer=editing?.layers.find(layer=>layer.id===selectedLayerId),updateSelectedLayer=(changes:Partial<OverlayLayer>)=>editing&&setEditing({...editing,layers:editing.layers.map(layer=>layer.id===selectedLayerId?{...layer,...changes}:layer)});
   return (
     <div className="poster-overlay-route">
-      <style>{styles + layoutStyles + conditionStyles}</style>
+      <style>{styles + layoutStyles}</style>
       <div className="hero">
         <div>
           <span className="eyebrow">ARTWORK</span>
@@ -926,7 +930,6 @@ export function PosterOverlaysView({
                               ))}
                             </select>
                           </label>
-                          <Suspense><OverlayConditions layer={layer} variables={variables} onChange={update}/></Suspense>
                           <label>
                             Prefix
                             <input
@@ -1271,6 +1274,7 @@ export function PosterOverlaysView({
                     Preview values demonstrate placement. Saved posters use each
                     title’s real metadata.
                   </p>
+                  {selectedLayer?<div className="overlay-preview-conditions"><Suspense><OverlayConditions layer={selectedLayer} variables={variables} onChange={updateSelectedLayer}/></Suspense></div>:null}
                 </div>
               </div>
               <div className="overlay-editor-footer">

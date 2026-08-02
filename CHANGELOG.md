@@ -7,6 +7,23 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.33-rc.5] - 2026-08-02
+
+### Added
+
+- Added optional conditional style variants to poster layers. Independent
+  AND/OR rule groups can change background, text and icon colors, shape, font
+  weight, and adaptive contrast while retaining the base style as a fallback.
+- Added first-match and ordered merge behavior when multiple style variants
+  match the same title.
+
+### Fixed
+
+- Moved layer conditions beneath the centered poster preview and made their
+  controls responsive so values are no longer clipped in the narrow inspector.
+- Kept conditional appearance identical across the editor, application review,
+  VynodeArr library cards, and composed poster artwork.
+
 ## [2.0.33-rc.4] - 2026-08-02
 
 ### Added
@@ -840,7 +857,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33-rc.4...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33-rc.5...HEAD
+[2.0.33-rc.5]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33-rc.4...v2.0.33-rc.5
 [2.0.33-rc.4]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33-rc.3...v2.0.33-rc.4
 [2.0.33-rc.3]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33-rc.2...v2.0.33-rc.3
 [2.0.33-rc.2]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33-rc.1...v2.0.33-rc.2
