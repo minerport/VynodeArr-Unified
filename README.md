@@ -27,26 +27,16 @@ consistent experience and account system.
 
 ## Current release
 
-Version **2.0.32** is available for production use on Unraid, Windows, and
-standard Docker installations. It adds private and shared user collections,
-collection statistics, sorting, bulk management, request-to-import timelines,
-JSON/CSV transfer, library-detail ownership controls, and requester attribution
-through Queue, History, Wanted, and download decisions. Native Pushover delivery
-also joins Discord, Telegram, and Gotify with protected credentials and advanced
-delivery controls. User ownership follows durable TMDB and TVDB identity across
-requests, rematches, and manual collection additions, while the collection
-builder and large user shelves remain usable on desktop and mobile.
-
-Version **2.0.33-rc.15** is available from the `develop` branch as a release
-candidate for the administrator Poster Overlay Studio. It adds reusable,
+Version **2.0.33** is available for production use on Unraid, Windows, and
+standard Docker installations. Its administrator Poster Overlay Studio adds reusable,
 variable-aware text, shape, and media-icon layers; precise positioning and
 resizing; adaptive colors; conditional rendering; text wrapping and automatic
 fitting; exact VynodeArr previews; reversible library assignments; expanded
 movie-file metadata; season, next-episode, and latest-episode variables; and
 multi-rule AND/OR layer conditions. Conditional style variants can optionally
 change colors, shapes, icon appearance, font weight, and adaptive contrast when
-metadata matches. Release candidates do not replace the current stable
-`latest` image.
+metadata matches, with independent ranked formatting and fully scrollable editor
+controls. This stable release is published as the `latest` image.
 
 The administrator Validation Center checks
 engine connectivity, storage, acquisition providers, scheduled automation,

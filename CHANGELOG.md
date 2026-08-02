@@ -7,6 +7,26 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.33] - 2026-08-02
+
+### Added
+
+- Added the administrator Poster Overlay Studio with reusable text, shape, and
+  media-icon layers, metadata variables, precise placement, resizing, adaptive
+  contrast, reversible library assignments, and VynodeArr/Plex previews.
+- Added movie-file, television season, next-episode, latest-episode, request,
+  and calculated variables with AND/OR visibility rules.
+- Added ranked conditional styles with independent colors, typography, shapes,
+  opacity, spacing, icon appearance, and deterministic priority behavior.
+
+### Fixed
+
+- Ensured overlay previews and applied library artwork use the same variables,
+  dimensions, conditions, shapes, icons, and metadata fallbacks.
+- Made every Poster Overlay Studio settings column independently scrollable and
+  kept all controls reachable without clipping behind the modal footer.
+- Prevented one ranked sub-condition's formatting from overwriting another.
+
 ## [2.0.33-rc.15] - 2026-08-02
 
 ### Fixed
@@ -962,7 +982,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33-rc.5...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33...HEAD
+[2.0.33]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.32...v2.0.33
 [2.0.33-rc.5]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33-rc.4...v2.0.33-rc.5
 [2.0.33-rc.4]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33-rc.3...v2.0.33-rc.4
 [2.0.33-rc.3]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33-rc.2...v2.0.33-rc.3
