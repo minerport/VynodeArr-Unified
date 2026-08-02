@@ -1274,8 +1274,8 @@ export function PosterOverlaysView({
                     Preview values demonstrate placement. Saved posters use each
                     title’s real metadata.
                   </p>
-                  {selectedLayer?<div className="overlay-preview-conditions"><Suspense><OverlayConditions layer={selectedLayer} variables={variables} onChange={updateSelectedLayer}/></Suspense></div>:null}
                 </div>
+                {selectedLayer?<div className="overlay-condition-row"><Suspense><OverlayConditions layer={selectedLayer} variables={variables} onChange={updateSelectedLayer}/></Suspense></div>:null}
               </div>
               <div className="overlay-editor-footer">
                 <button className="secondary" onClick={() => setEditing(null)}>

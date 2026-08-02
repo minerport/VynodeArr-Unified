@@ -1050,7 +1050,8 @@ test('poster overlay editor provides bounded layer fields and a shape library',a
 
 test('poster overlay conditions live beneath the centered preview instead of the narrow inspector',async()=>{
   const source=await read('apps/web/client/src/poster-overlays.tsx'),conditions=await read('apps/web/client/src/poster-overlay-conditions.tsx');
-  assert.ok(source.indexOf('className="overlay-preview-conditions"')>source.lastIndexOf('<Preview'));
+  assert.ok(source.indexOf('className="overlay-condition-row"')>source.lastIndexOf('<Preview'));
+  assert.match(conditions,/overlay-condition-row\{grid-column:1\/-1;width:100%/);
   assert.match(conditions,/overlay-condition-rule\{display:grid;grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
   assert.match(conditions,/@media\(max-width:1000px\)\{\.overlay-condition-rule/);
 });

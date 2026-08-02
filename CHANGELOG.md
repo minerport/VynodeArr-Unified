@@ -7,6 +7,16 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.33-rc.6] - 2026-08-02
+
+### Fixed
+
+- Expanded the Poster Overlay Studio condition and conditional-style workspace
+  across the full editor grid so fields, labels, and actions no longer collapse
+  or overlap beneath the narrow poster preview.
+- Kept condition rules and style overrides responsive by stacking their controls
+  cleanly on narrower desktop and mobile layouts.
+
 ## [2.0.33-rc.5] - 2026-08-02
 
 ### Added
