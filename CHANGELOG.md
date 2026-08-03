@@ -7,6 +7,25 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.34-rc.5] - 2026-08-02
+
+### Fixed
+
+- Made the reviewed Plex preview and uploaded Plex poster use the same raster
+  rendering path so the approved composition is exactly what Plex receives.
+- Preserved the original Plex poster beneath overlays instead of allowing the
+  deployed SVG renderer to produce missing or black base artwork.
+- Added production fonts to Docker and Unraid images so overlay text and rating
+  symbols render correctly instead of appearing as boxes.
+
+### Changed
+
+- Poster styles now remember whether they were created for VynodeArr or Plex.
+- Plex application only offers and accepts Plex-targeted styles, while Plex
+  styles cannot be assigned to VynodeArr library cards.
+- Selected VynodeArr status, availability, cutoff, and rating bubbles are now
+  rendered directly into Plex artwork.
+
 ## [2.0.34-rc.4] - 2026-08-02
 
 ### Fixed
@@ -1042,7 +1061,12 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.34-rc.5...HEAD
+[2.0.34-rc.5]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.34-rc.4...v2.0.34-rc.5
+[2.0.34-rc.4]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.34-rc.3...v2.0.34-rc.4
+[2.0.34-rc.3]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.34-rc.2...v2.0.34-rc.3
+[2.0.34-rc.2]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.34-rc.1...v2.0.34-rc.2
+[2.0.34-rc.1]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33...v2.0.34-rc.1
 [2.0.33]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.32...v2.0.33
 [2.0.33-rc.5]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33-rc.4...v2.0.33-rc.5
 [2.0.33-rc.4]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33-rc.3...v2.0.33-rc.4

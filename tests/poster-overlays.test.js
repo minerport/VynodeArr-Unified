@@ -7,8 +7,21 @@ test('poster overlay inputs are bounded and unsafe SVG content is escaped',()=>{
   const layer=template.layers[0];
   assert.equal(layer.fontSize,96);assert.equal(layer.foreground,'#ffffff');assert.equal(layer.x,0);assert.equal(layer.y,96);assert.equal(layer.width,15);assert.equal(layer.textOpacity,1);assert.equal(layer.backgroundOpacity,0);assert.equal(layer.padding,30);assert.equal(layer.borderRadius,50);
   assert.deepEqual(template.plexBadges,{monitored:true,availability:false,cutoff:false,rating:false});
+  assert.equal(template.target,'plex');
   const svg=renderOverlaySvg({poster:Buffer.from('image'),template,item:{id:'movie_1',title:'<script>alert(2)</script>'}}).toString();
   assert.doesNotMatch(svg,/<script>/);assert.match(svg,/&lt;script&gt;/);assert.match(svg,/data:image\/jpeg;base64/);assert.match(svg,/font-family="Georgia, Times New Roman, serif"/);assert.match(svg,/font-weight="900"/);assert.match(svg,/text-anchor="middle"/);assert.match(svg,/fill-opacity="0"/);
+});
+
+test('poster destinations persist and Plex styles do not resolve in the VynodeArr library',()=>{
+  const vynode=sanitizeOverlayTemplate({id:'overlay_vynode',target:'vynode',layers:[{variable:'title'}]}),plex=sanitizeOverlayTemplate({id:'overlay_plex',target:'plex',layers:[{variable:'title'}]}),legacy=sanitizeOverlayTemplate({plexBadges:{rating:true},layers:[{variable:'rating'}]});
+  assert.equal(vynode.target,'vynode');assert.equal(plex.target,'plex');assert.equal(legacy.target,'plex');
+  const assignments=[sanitizeOverlayAssignment({templateId:plex.id,scope:{type:'items',domain:'movie',mediaIds:['movie_7']}}),sanitizeOverlayAssignment({templateId:vynode.id,scope:{type:'all',domain:'movie'}})];
+  assert.equal(resolveOverlayTemplate({id:'movie_7'},'movie',[plex,vynode],assignments)?.id,vynode.id);
+});
+
+test('Plex overlay SVG can render as a transparent composite with selected live badges',()=>{
+  const template=sanitizeOverlayTemplate({target:'plex',plexBadges:{monitored:true,availability:true,cutoff:true,rating:true},layers:[{variable:'title'}]}),svg=renderOverlaySvg({poster:Buffer.from('poster'),template,item:{title:'Movie',monitoring:'all',state:'cutoff',rating:8.4},includePoster:false}).toString();
+  assert.doesNotMatch(svg,/<image /);assert.match(svg,/MONITORED/);assert.match(svg,/AVAILABLE/);assert.match(svg,/CUTOFF UNMET/);assert.match(svg,/8\.4/);assert.match(svg,/DejaVu Sans/);
 });
 
 test('full-width poster layers anchor consistently and retain adaptive contrast',()=>{

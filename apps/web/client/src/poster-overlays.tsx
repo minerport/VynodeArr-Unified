@@ -96,6 +96,7 @@ const blankTemplate = (): OverlayTemplate => ({
   id: "",
   name: "New poster style",
   domain: "all",
+  target: "vynode",
   enabled: true,
   tvFileAggregation: "most_common",
   layers: [blankLayer("title")],
@@ -305,7 +306,6 @@ export function PosterOverlaysView({
     [selectedLayerId, setSelectedLayerId] = useState(""),
     [iconQuery, setIconQuery] = useState(""),
     [previewId, setPreviewId] = useState(""),
-    [previewTarget, setPreviewTarget] = useState<"vynode" | "plex">("vynode"),
     [applicationReview, setApplicationReview] = useState<{
       template: OverlayTemplate;
       payload: Record<string, unknown>;
@@ -523,6 +523,7 @@ export function PosterOverlaysView({
                 <article className="overlay-template-card" key={template.id}>
                   <Preview
                     template={template}
+                    target={template.target}
                     poster={
                       media.find((item) => item.artwork?.url)?.artwork?.url
                     }
@@ -755,7 +756,7 @@ export function PosterOverlaysView({
               {templates
                 .filter(
                   (template) =>
-                    template.domain === "all" || template.domain === domain,
+                    template.target === "vynode" && (template.domain === "all" || template.domain === domain),
                 )
                 .map((template) => (
                 <button
@@ -861,7 +862,7 @@ export function PosterOverlaysView({
                   />
                 </Suspense>
                 <div className="overlay-editor-fields">
-                  {previewTarget === "plex" ? (
+                  {editing.target === "plex" ? (
                     <Suspense>
                       <PlexBadgeChoices
                         value={editing.plexBadges}
@@ -1200,17 +1201,13 @@ export function PosterOverlaysView({
                     Drag to move. Use the blue handle to resize.
                   </p>
                   <label>
-                    Design preview
+                    Destination
                     <select
-                      value={previewTarget}
-                      onChange={(event) =>
-                        setPreviewTarget(
-                          event.target.value as "vynode" | "plex",
-                        )
-                      }
+                      value={editing.target}
+                      onChange={(event) => setEditing({ ...editing, target: event.target.value as "vynode" | "plex" })}
                     >
-                      <option value="vynode">VynodeArr library poster</option>
-                      <option value="plex">Plex artwork</option>
+                      <option value="vynode">VynodeArr</option>
+                      <option value="plex">Plex</option>
                     </select>
                   </label>
                   <label>
@@ -1239,7 +1236,7 @@ export function PosterOverlaysView({
                   </label>
                   <Preview
                     template={editing}
-                    target={previewTarget}
+                    target={editing.target}
                     media={
                       media.find(
                         (item) => `${item.domain}:${item.id}` === previewId,

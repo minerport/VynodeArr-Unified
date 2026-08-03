@@ -11,6 +11,7 @@ RUN npm run typecheck:web && npm run build:web && npm run build:server
 FROM node:24-alpine
 ENV NODE_ENV=production
 WORKDIR /app
+RUN apk add --no-cache font-dejavu
 COPY package.json ./
 RUN npm install --omit=dev --no-audit --no-fund
 COPY apps ./apps

@@ -63,6 +63,7 @@ export interface OverlayTemplate {
   id: string;
   name: string;
   domain: OverlayDomain;
+  target: "vynode" | "plex";
   enabled: boolean;
   tvFileAggregation: "most_common" | "best" | "lowest" | "mixed" | "latest";
   layers: OverlayLayer[];
