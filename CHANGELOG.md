@@ -7,6 +7,15 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.34-rc.11] - 2026-08-03
+
+### Fixed
+
+- Rebuilt mobile poster-style cards as compact poster, details, and action
+  rows instead of inheriting the global sticky mobile action bar.
+- Kept Edit, Duplicate, and Delete as accessible touch targets on one row and
+  prevented the poster-style count badge from stretching across the panel.
+
 ## [2.0.34-rc.10] - 2026-08-03
 
 ### Improved

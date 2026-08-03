@@ -1032,6 +1032,14 @@ test('poster overlays preserve existing library card sizing',async()=>{
   assert.match(library,/view !== "poster" \? <PosterAssignmentLayers item=\{item\} \/> : null/);
 });
 
+test('poster overlay style cards stay compact on phones',async()=>{
+  const source=await read('apps/web/client/src/poster-overlays.tsx');
+  assert.match(source,/overlay-template-panel \.panel-heading \.badge\{align-self:flex-start\}/);
+  assert.match(source,/\.overlay-template-card\{grid-template-columns:64px minmax\(0,1fr\);align-items:center/);
+  assert.match(source,/\.overlay-template-content \.form-actions\{grid-template-columns:repeat\(3,minmax\(0,1fr\)\);position:static/);
+  assert.match(source,/backdrop-filter:none/);
+});
+
 test('poster overlay editor layers retain drag and resize pointer input',async()=>{
   const source=await read('apps/web/client/src/poster-overlays.tsx');
   const preview=await read('apps/web/client/src/poster-overlay-library-preview.tsx');
