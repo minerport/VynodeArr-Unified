@@ -7,6 +7,18 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.34-rc.9] - 2026-08-03
+
+### Fixed
+
+- Correlated engine replacement events that omit download IDs using exact media
+  identity and event timing, while still rejecting conflicting download IDs.
+- Download decisions now distinguish new imports, quality upgrades,
+  same-quality score upgrades, and same-quality replacements whose detailed
+  ranking rationale was not retained by the engine.
+- Preserved and displayed native replacement reasons such as `Upgrade` instead
+  of reducing every background grab to a generic automation message.
+
 ## [2.0.34-rc.8] - 2026-08-03
 
 ### Fixed

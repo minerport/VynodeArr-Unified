@@ -169,6 +169,14 @@ test('native engine background grabs appear as upgrade decisions',()=>{
     assert.equal(item.title,grabbed.sourceTitle);assert.equal(item.previousQuality,'WEBDL-1080p');assert.equal(item.previousCustomFormatScore,25);assert.equal(item.currentCustomFormatScore,125);assert.equal(item.upgradeEligible,true);assert.match(item.reasons.join(' '),/score improved from 25 to 125/i);
   });
 });
+test('native replacement events without download IDs still explain same-quality grabs',()=>{
+  const grabbed={id:701,eventType:'grabbed',date:'2026-08-03T01:00:00Z',movie:{id:9,title:'Same Quality Movie'},sourceTitle:'Same.Quality.Movie.2026.1080p.WEB-DL',downloadId:'rss-701',quality:{quality:{name:'WEBDL-1080p'}},customFormatScore:0,data:{indexer:'RSS Indexer',protocol:'usenet'}},deleted={id:702,eventType:'movieFileDeleted',date:'2026-08-03T01:02:00Z',movie:{id:9,title:'Same Quality Movie'},quality:{quality:{name:'WEBDL-1080p'}},customFormatScore:0,data:{reason:'Upgrade'}},imported={id:703,eventType:'downloadFolderImported',date:'2026-08-03T01:03:00Z',movie:{id:9,title:'Same Quality Movie'},downloadId:'rss-701',quality:{quality:{name:'WEBDL-1080p'}},data:{}};
+  const client={get:async path=>path==='queue'?{records:[]}:path==='history'?{records:[imported,deleted,grabbed]}:[]},movie=Object.assign(new MovieFixtureAdapter(),{client}),tv=Object.assign(new TvFixtureAdapter(),{client:{get:async path=>path==='queue'||path==='history'?{records:[]}:[]}});
+  return appSession({movie,tv,env:{VYNODEARR_DATA_MODE:'engine'}},async({base,cookie})=>{
+    await fetch(`${base}/api/notifications`,{headers:{cookie}});const decisions=(await (await fetch(`${base}/api/download-decisions`,{headers:{cookie}})).json()).items,item=decisions.find(value=>value.id.includes('701'));
+    assert.equal(item.upgradeEligible,true);assert.equal(item.previousQuality,'WEBDL-1080p');assert.match(item.reasons.join(' '),/same-quality replacement/i);assert.match(item.reasons.join(' '),/replacement reason: Upgrade/i);
+  });
+});
 test('native engine grabs remain pending until import evidence arrives',()=>{
   const grabbed={id:601,eventType:'grabbed',date:'2026-08-03T01:00:00Z',movie:{id:8,title:'Pending Movie'},sourceTitle:'Pending.Movie.2026.1080p.WEB-DL',downloadId:'rss-601',quality:{quality:{name:'WEBDL-1080p'}},data:{indexer:'RSS Indexer',protocol:'torrent'}};
   const client={get:async path=>path==='queue'?{records:[]}:path==='history'?{records:[grabbed]}:[]},movie=Object.assign(new MovieFixtureAdapter(),{client}),tv=Object.assign(new TvFixtureAdapter(),{client:{get:async path=>path==='queue'||path==='history'?{records:[]}:[]}});
