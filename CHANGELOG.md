@@ -7,6 +7,22 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.34-rc.7] - 2026-08-03
+
+### Added
+
+- Added durable Download Decision Center evidence for native Movie Engine and
+  Television Engine background grabs, including prior and incoming quality,
+  custom-format scores, upgrade state, indexer, protocol, and release title.
+- Added background operational polling so engine imports, failures, and
+  external notification deliveries continue while the web app is closed.
+
+### Changed
+
+- Same-quality background upgrades now explain score improvements and identify
+  Proper, Repack, and Rerip revisions when the engine reports that evidence.
+- Missing prior-file evidence is explicitly reported instead of being guessed.
+
 ## [2.0.34-rc.6] - 2026-08-02
 
 ### Fixed

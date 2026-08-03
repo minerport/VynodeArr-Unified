@@ -36,15 +36,343 @@ export function Notifications({options}:{options:NotificationMountOptions}){
   </div>;
 }
 
-function DownloadDecisionList({items}:{items:DownloadDecision[]}){
-  const [domain,setDomain]=useState('all'),[decision,setDecision]=useState('all'),[query,setQuery]=useState(''),shown=items.filter(item=>(domain==='all'||item.domain===domain)&&(decision==='all'||item.decision===decision)&&`${item.title} ${item.indexer} ${item.quality} ${item.reasons.join(' ')}`.toLowerCase().includes(query.toLowerCase()));
-  return <div className="decision-center"><div className="decision-intro"><strong>Why a release was accepted or rejected</strong><p>Evidence comes from candidates returned by interactive searches and VynodeArr automatic selection. Engine-only command searches remain in Search Activity because their candidates are not exposed.</p></div><div className="decision-filters"><select aria-label="Library" value={domain} onChange={event=>setDomain(event.target.value)}><option value="all">All libraries</option><option value="movie">Movies</option><option value="tv">Television</option></select><select aria-label="Decision" value={decision} onChange={event=>setDecision(event.target.value)}><option value="all">All decisions</option><option value="selected">Selected</option><option value="accepted">Accepted</option><option value="rejected">Rejected</option></select><input type="search" aria-label="Find release decision" placeholder="Title, quality, source, or reason" value={query} onChange={event=>setQuery(event.target.value)}/></div>{shown.length?<div className="decision-list">{shown.map(item=><details className={`decision-card ${item.decision}`} key={item.id}><summary><span className="decision-state">{item.decision}</span><span><strong>{item.title}</strong><small>{item.domain==='movie'?'Movie':'Television'} · {item.source} · {relativeTime(item.observedAt)}</small>{item.requesters?.length?<small className="requester-attribution">Requested by {item.requesters.map(user=>user.name).join(', ')}</small>:null}</span><span className="decision-quality">{item.quality}</span></summary><div className="decision-evidence"><div className="decision-metrics"><span><strong>{item.customFormatScore}</strong>Custom format</span><span><strong>{item.preferredWordScore}</strong>Preferred words</span><span><strong>{item.size?`${(item.size/1073741824).toFixed(2)} GB`:'—'}</strong>Size</span><span><strong>{item.ageDays??'—'}</strong>Age (days)</span><span><strong>{item.seeders??'—'}</strong>Seeders</span><span><strong>{item.upgradeEligible===null?'Not reported':item.upgradeEligible?'Eligible':'Not eligible'}</strong>Upgrade</span></div><div className="decision-reasons"><strong>{item.decision==='rejected'?'Engine rejection evidence':'Decision evidence'}</strong><ul>{item.reasons.map(reason=><li key={reason}>{reason}</li>)}</ul><small>{item.indexer}{item.protocol?` · ${item.protocol}`:''}</small></div></div></details>)}</div>:<div className="notification-empty"><strong>No matching decisions</strong><span>Run an interactive search or VynodeArr automatic selection to capture candidate evidence.</span></div>}</div>;
+function DownloadDecisionList({ items }: { items: DownloadDecision[] }) {
+  const [domain, setDomain] = useState("all"),
+    [decision, setDecision] = useState("all"),
+    [query, setQuery] = useState(""),
+    shown = items.filter(
+      (item) =>
+        (domain === "all" || item.domain === domain) &&
+        (decision === "all" || item.decision === decision) &&
+        `${item.title} ${item.indexer} ${item.quality} ${item.reasons.join(" ")}`
+          .toLowerCase()
+          .includes(query.toLowerCase()),
+    );
+  return (
+    <div className="decision-center">
+      <div className="decision-intro">
+        <strong>Why a release was accepted or rejected</strong>
+        <p>
+          Includes user-triggered searches and native Movie Engine/Television
+          Engine background grabs. Engine automation uses retained history evidence and labels
+          unavailable prior-file details instead of estimating them.
+        </p>
+      </div>
+      <div className="decision-filters">
+        <select
+          aria-label="Library"
+          value={domain}
+          onChange={(event) => setDomain(event.target.value)}
+        >
+          <option value="all">All libraries</option>
+          <option value="movie">Movies</option>
+          <option value="tv">Television</option>
+        </select>
+        <select
+          aria-label="Decision"
+          value={decision}
+          onChange={(event) => setDecision(event.target.value)}
+        >
+          <option value="all">All decisions</option>
+          <option value="selected">Selected</option>
+          <option value="accepted">Accepted</option>
+          <option value="rejected">Rejected</option>
+        </select>
+        <input
+          type="search"
+          aria-label="Find release decision"
+          placeholder="Title, quality, source, or reason"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+        />
+      </div>
+      {shown.length ? (
+        <div className="decision-list">
+          {shown.map((item) => (
+            <details className={`decision-card ${item.decision}`} key={item.id}>
+              <summary>
+                <span className="decision-state">{item.decision}</span>
+                <span>
+                  <strong>{item.title}</strong>
+                  <small>
+                    {item.domain === "movie" ? "Movie" : "Television"} ·{" "}
+                    {item.source} · {relativeTime(item.observedAt)}
+                  </small>
+                  {item.requesters?.length ? (
+                    <small className="requester-attribution">
+                      Requested by{" "}
+                      {item.requesters.map((user) => user.name).join(", ")}
+                    </small>
+                  ) : null}
+                </span>
+                <span className="decision-quality">{item.quality}</span>
+              </summary>
+              <div className="decision-evidence">
+                <div className="decision-metrics">
+                  {item.source === "engine" ? (
+                    <>
+                      <span>
+                        <strong>{item.previousQuality || "Not reported"}</strong>
+                        Previous quality
+                      </span>
+                      <span>
+                        <strong>
+                          {item.previousCustomFormatScore ?? "Not reported"}
+                        </strong>
+                        Previous score
+                      </span>
+                    </>
+                  ) : null}
+                  <span>
+                    <strong>{item.customFormatScore}</strong>
+                    {item.source === "engine" ? "New score" : "Custom format"}
+                  </span>
+                  <span>
+                    <strong>{item.preferredWordScore}</strong>Preferred words
+                  </span>
+                  <span>
+                    <strong>
+                      {item.size
+                        ? `${(item.size / 1073741824).toFixed(2)} GB`
+                        : "—"}
+                    </strong>
+                    Size
+                  </span>
+                  <span>
+                    <strong>{item.ageDays ?? "—"}</strong>Age (days)
+                  </span>
+                  <span>
+                    <strong>{item.seeders ?? "—"}</strong>Seeders
+                  </span>
+                  <span>
+                    <strong>
+                      {item.upgradeEligible === null
+                        ? "Not reported"
+                        : item.upgradeEligible
+                          ? "Eligible"
+                          : "Not eligible"}
+                    </strong>
+                    Upgrade
+                  </span>
+                </div>
+                <div className="decision-reasons">
+                  <strong>
+                    {item.decision === "rejected"
+                      ? "Engine rejection evidence"
+                      : "Decision evidence"}
+                  </strong>
+                  <ul>
+                    {item.reasons.map((reason) => (
+                      <li key={reason}>{reason}</li>
+                    ))}
+                  </ul>
+                  <small>
+                    {item.indexer}
+                    {item.protocol ? ` · ${item.protocol}` : ""}
+                  </small>
+                </div>
+              </div>
+            </details>
+          ))}
+        </div>
+      ) : (
+        <div className="notification-empty">
+          <strong>No matching decisions</strong>
+          <span>
+            New user-triggered and engine background grabs will appear here
+            when the media engines report them.
+          </span>
+        </div>
+      )}
+    </div>
+  );
 }
 
-function NotificationSettings({value,defaults,administrator,channels,deliveries,onSave,onTest,onSaveChannel,onChannelAction}:{value:NotificationPreferences|null;defaults:NotificationPreferences|null;administrator:boolean;channels:NotificationChannel[];deliveries:NotificationDelivery[];onSave:(value:NotificationPreferences,scope?:'user'|'defaults')=>Promise<void>;onTest:()=>Promise<void>;onSaveChannel:(channel:NotificationChannel)=>Promise<void>;onChannelAction:(channelId:string,action:'test'|'delete',deliveryId?:string)=>Promise<void>}){
-  const [draft,setDraft]=useState<NotificationPreferences|null>(value);useEffect(()=>setDraft(value),[value]);if(!draft)return <div className="notification-empty"><strong>Loading preferences…</strong></div>;
-  const categories=Object.keys(draft.categories) as (keyof NotificationPreferences['categories'])[],set=(patch:Partial<NotificationPreferences>)=>setDraft(current=>current?{...current,...patch}:current);
-  return <div className="notification-settings-wrap"><form className="notification-settings" onSubmit={event=>{event.preventDefault();void onSave(draft);}}><label className="notification-toggle"><input type="checkbox" checked={draft.inApp} onChange={event=>set({inApp:event.target.checked})}/><span><strong>In-app notifications</strong><small>Show alerts in the notification center.</small></span></label><fieldset><legend>Categories</legend>{categories.map(category=><label key={category}><input type="checkbox" checked={draft.categories[category]} onChange={event=>set({categories:{...draft.categories,[category]:event.target.checked}})}/><span>{category.replace(/^./,letter=>letter.toUpperCase())}</span></label>)}</fieldset><label>Minimum severity<select value={draft.minimumSeverity} onChange={event=>set({minimumSeverity:event.target.value as NotificationPreferences['minimumSeverity']})}><option value="information">All activity</option><option value="warning">Warnings and critical</option><option value="critical">Critical only</option></select></label><fieldset><legend>Quiet hours (UTC)</legend><label><input type="checkbox" checked={draft.quietHours.enabled} onChange={event=>set({quietHours:{...draft.quietHours,enabled:event.target.checked}})}/><span>Suppress badges during quiet hours</span></label><div className="quiet-hours"><label>Start<input type="number" min="0" max="23" value={draft.quietHours.start} onChange={event=>set({quietHours:{...draft.quietHours,start:Number(event.target.value)}})}/></label><label>End<input type="number" min="0" max="23" value={draft.quietHours.end} onChange={event=>set({quietHours:{...draft.quietHours,end:Number(event.target.value)}})}/></label></div></fieldset><div className="notification-settings-actions"><button type="button" className="secondary" onClick={()=>void onTest()}>Send test</button><button type="submit" className="primary">Save mine</button>{administrator&&defaults?<button type="button" className="secondary" onClick={()=>void onSave(draft,'defaults')}>Set admin defaults</button>:null}</div></form>{administrator?<ExternalChannels channels={channels} deliveries={deliveries} onSave={onSaveChannel} onAction={onChannelAction}/>:null}</div>;
+function NotificationSettings({
+  value,
+  defaults,
+  administrator,
+  channels,
+  deliveries,
+  onSave,
+  onTest,
+  onSaveChannel,
+  onChannelAction,
+}: {
+  value: NotificationPreferences | null;
+  defaults: NotificationPreferences | null;
+  administrator: boolean;
+  channels: NotificationChannel[];
+  deliveries: NotificationDelivery[];
+  onSave: (
+    value: NotificationPreferences,
+    scope?: "user" | "defaults",
+  ) => Promise<void>;
+  onTest: () => Promise<void>;
+  onSaveChannel: (channel: NotificationChannel) => Promise<void>;
+  onChannelAction: (
+    channelId: string,
+    action: "test" | "delete",
+    deliveryId?: string,
+  ) => Promise<void>;
+}) {
+  const [draft, setDraft] = useState<NotificationPreferences | null>(value);
+  useEffect(() => setDraft(value), [value]);
+  if (!draft)
+    return (
+      <div className="notification-empty">
+        <strong>Loading preferences…</strong>
+      </div>
+    );
+  const categories = Object.keys(
+      draft.categories,
+    ) as (keyof NotificationPreferences["categories"])[],
+    set = (patch: Partial<NotificationPreferences>) =>
+      setDraft((current) => (current ? { ...current, ...patch } : current));
+  return (
+    <div className="notification-settings-wrap">
+      <form
+        className="notification-settings"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void onSave(draft);
+        }}
+      >
+        <label className="notification-toggle">
+          <input
+            type="checkbox"
+            checked={draft.inApp}
+            onChange={(event) => set({ inApp: event.target.checked })}
+          />
+          <span>
+            <strong>In-app notifications</strong>
+            <small>Show alerts in the notification center.</small>
+          </span>
+        </label>
+        <fieldset>
+          <legend>Categories</legend>
+          {categories.map((category) => (
+            <label key={category}>
+              <input
+                type="checkbox"
+                checked={draft.categories[category]}
+                onChange={(event) =>
+                  set({
+                    categories: {
+                      ...draft.categories,
+                      [category]: event.target.checked,
+                    },
+                  })
+                }
+              />
+              <span>
+                {category.replace(/^./, (letter) => letter.toUpperCase())}
+              </span>
+            </label>
+          ))}
+        </fieldset>
+        <label>
+          Minimum severity
+          <select
+            value={draft.minimumSeverity}
+            onChange={(event) =>
+              set({
+                minimumSeverity: event.target
+                  .value as NotificationPreferences["minimumSeverity"],
+              })
+            }
+          >
+            <option value="information">All activity</option>
+            <option value="warning">Warnings and critical</option>
+            <option value="critical">Critical only</option>
+          </select>
+        </label>
+        <fieldset>
+          <legend>Quiet hours (UTC)</legend>
+          <label>
+            <input
+              type="checkbox"
+              checked={draft.quietHours.enabled}
+              onChange={(event) =>
+                set({
+                  quietHours: {
+                    ...draft.quietHours,
+                    enabled: event.target.checked,
+                  },
+                })
+              }
+            />
+            <span>Suppress badges during quiet hours</span>
+          </label>
+          <div className="quiet-hours">
+            <label>
+              Start
+              <input
+                type="number"
+                min="0"
+                max="23"
+                value={draft.quietHours.start}
+                onChange={(event) =>
+                  set({
+                    quietHours: {
+                      ...draft.quietHours,
+                      start: Number(event.target.value),
+                    },
+                  })
+                }
+              />
+            </label>
+            <label>
+              End
+              <input
+                type="number"
+                min="0"
+                max="23"
+                value={draft.quietHours.end}
+                onChange={(event) =>
+                  set({
+                    quietHours: {
+                      ...draft.quietHours,
+                      end: Number(event.target.value),
+                    },
+                  })
+                }
+              />
+            </label>
+          </div>
+        </fieldset>
+        <div className="notification-settings-actions">
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => void onTest()}
+          >
+            Send test
+          </button>
+          <button type="submit" className="primary">
+            Save mine
+          </button>
+          {administrator && defaults ? (
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => void onSave(draft, "defaults")}
+            >
+              Set admin defaults
+            </button>
+          ) : null}
+        </div>
+      </form>
+      {administrator ? (
+        <ExternalChannels
+          channels={channels}
+          deliveries={deliveries}
+          onSave={onSaveChannel}
+          onAction={onChannelAction}
+        />
+      ) : null}
+    </div>
+  );
 }
 
 function ExternalChannels({channels,deliveries,onSave,onAction}:{channels:NotificationChannel[];deliveries:NotificationDelivery[];onSave:(channel:NotificationChannel)=>Promise<void>;onAction:(channelId:string,action:'test'|'delete',deliveryId?:string)=>Promise<void>}){

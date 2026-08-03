@@ -61,7 +61,7 @@ test('durable projections hydrate and report incremental updates',async()=>{
 });
 
 async function appSession(options,run){
-  const directory=await mkdtemp(join(tmpdir(),'vynodearr-n3-api-')),app=createApplication({...options,env:{VYNODEARR_DATA_MODE:'fixture',VYNODEARR_DATA_DIR:directory,VYNODEARR_MASTER_KEY:'test-master-key-with-32-characters'}});
+  const directory=await mkdtemp(join(tmpdir(),'vynodearr-n3-api-')),app=createApplication({...options,env:{VYNODEARR_DATA_MODE:'fixture',VYNODEARR_DATA_DIR:directory,VYNODEARR_MASTER_KEY:'test-master-key-with-32-characters',...(options.env||{})}});
   const server=createServer(app.handleRequest);await new Promise((resolve)=>server.listen(0,'127.0.0.1',resolve));const base=`http://127.0.0.1:${server.address().port}`;
   try{
     const setup=await fetch(`${base}/api/auth/setup`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(adminInput)}),result=await setup.json(),cookie=setup.headers.get('set-cookie').split(';')[0];
@@ -158,6 +158,15 @@ test('download decisions retain native candidate evidence and automatic selectio
     let decisions=(await (await fetch(`${base}/api/download-decisions`,{headers:{cookie}})).json()).items;assert.equal(decisions.length,2);assert.equal(decisions.find(item=>item.decision==='rejected').seeders,2);assert.match(decisions.find(item=>item.decision==='rejected').reasons.join(' '),/higher preference/);
     const automatic=await fetch(`${base}/api/manage/movie/automaticSearch`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({movieId:7})});assert.equal(automatic.status,201);assert.equal(posts.length,1);
     decisions=(await (await fetch(`${base}/api/download-decisions?decision=selected`,{headers:{cookie}})).json()).items;assert.equal(decisions.length,1);assert.equal(decisions[0].title,'Accepted.Movie.1080p');assert.equal(decisions[0].upgradeEligible,true);
+  });
+});
+test('native engine background grabs appear as upgrade decisions',()=>{
+  const grabbed={id:501,eventType:'grabbed',date:'2026-08-03T01:00:00Z',movie:{id:7,title:'Background Movie'},sourceTitle:'Background.Movie.2026.1080p.WEB-DL.PROPER',downloadId:'rss-501',quality:{quality:{name:'WEBDL-1080p'}},customFormatScore:125,data:{indexer:'RSS Indexer',protocol:'torrent',isUpgrade:'true',customFormatScore:125}},deleted={id:502,eventType:'movieFileDeleted',date:'2026-08-03T01:02:00Z',movie:{id:7,title:'Background Movie'},downloadId:'rss-501',quality:{quality:{name:'WEBDL-1080p'}},customFormatScore:25,data:{customFormatScore:25}},imported={id:503,eventType:'downloadFolderImported',date:'2026-08-03T01:03:00Z',movie:{id:7,title:'Background Movie'},downloadId:'rss-501',quality:{quality:{name:'WEBDL-1080p'}},data:{isUpgrade:'true'}},history={records:[imported,deleted,grabbed]};
+  const client={get:async path=>path==='queue'?{records:[]}:path==='history'?history:[]},movie=Object.assign(new MovieFixtureAdapter(),{client}),tv=Object.assign(new TvFixtureAdapter(),{client:{get:async path=>path==='queue'||path==='history'?{records:[]}:[]}});
+  return appSession({movie,tv,env:{VYNODEARR_DATA_MODE:'engine'}},async({base,cookie})=>{
+    assert.equal((await fetch(`${base}/api/notifications`,{headers:{cookie}})).status,200);
+    const decisions=(await (await fetch(`${base}/api/download-decisions`,{headers:{cookie}})).json()).items,item=decisions.find(value=>value.source==='engine');
+    assert.equal(item.title,grabbed.sourceTitle);assert.equal(item.previousQuality,'WEBDL-1080p');assert.equal(item.previousCustomFormatScore,25);assert.equal(item.currentCustomFormatScore,125);assert.equal(item.upgradeEligible,true);assert.match(item.reasons.join(' '),/score improved from 25 to 125/i);
   });
 });
 test('user page permissions are enforced by APIs and update active sessions immediately',()=>appSession({},async({base,cookie,csrf})=>{

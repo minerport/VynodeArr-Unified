@@ -44,6 +44,11 @@ test('engine history paging covers the requested window instead of truncating to
   assert.equal(items.length,501);
   assert.equal(items.filter(item=>item.eventType==='downloadFolderImported').length,250);
 });
+test('engine history preserves native background upgrade evidence',async()=>{
+  const record={id:44,eventType:'grabbed',date:'2026-08-03T01:00:00Z',movie:{id:1,title:'Mapped Movie'},sourceTitle:'Mapped.Movie.2026.1080p.WEB-DL.PROPER',downloadId:'native-download',quality:{quality:{name:'WEBDL-1080p'}},customFormatScore:125,data:{isUpgrade:'true',indexer:'Native RSS',protocol:'torrent',customFormatScore:125}};
+  const [item]=await new MovieEngineAdapter({enabled:true},new FakeClient({history:{records:[record]}})).getHistory();
+  assert.equal(item.sourceTitle,record.sourceTitle);assert.equal(item.downloadId,'native-download');assert.equal(item.indexer,'Native RSS');assert.equal(item.protocol,'torrent');assert.equal(item.customFormatScore,125);assert.equal(item.isUpgrade,true);assert.equal(item.data.isUpgrade,'true');
+});
 test('movie cutoff attention includes every engine result page',async()=>{
   const movies=Array.from({length:1001},(_,index)=>({...movieRecord,id:index+1,title:`Movie ${index+1}`}));
   const client={

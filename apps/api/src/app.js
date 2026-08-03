@@ -214,7 +214,7 @@ export function createApplication(options={}){
   const enginesConfigured=()=>mode==='fixture'||engineSettings.configured();
   const management=new EngineManagementService(registry);
 const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),completedQueueRefreshes=new Map(),completedQueueCleanups=new Map(),completedUpgradeRenames=new Map(),completedLibraryImports=new Map(),libraryReconciliations=new Map(),libraryEventClients=new Set(),interactiveReleaseCache=new Map(),renamePlans=new Map(),applicationBackupDownloads=new Map();
-  let initialized=false,queueCompletionTimer=null;
+  let initialized=false,queueCompletionTimer=null,operationalNotificationTimer=null;
   function importIdentityKeys(value={}){
     const keys=[],title=String(value.title||value.name||'').trim().toLowerCase(),year=Number(value.year||0);
     for(const field of ['tmdbId','tvdbId','imdbId'])if(value[field])keys.push(`${field}:${String(value[field]).toLowerCase()}`);
@@ -254,6 +254,26 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
       return{id:`decision_${createHash('sha256').update(`${domain}:${mediaId}:${identity}`).digest('hex').slice(0,24)}`,domain,mediaId,source,title:String(release.title||'Unknown release').slice(0,500),indexer:String(release.indexer||release.indexerName||'Unknown source').slice(0,120),protocol:String(release.protocol||''),decision:chosen?'selected':accepted?'accepted':'rejected',reasons:chosen?['Selected as the highest-ranked accepted candidate.']:nativeReasons.length?nativeReasons:['Meets the engine’s current release rules.'],quality,customFormatScore,preferredWordScore,size,ageDays,seeders,upgradeEligible:upgradeRejected?false:release.isUpgrade===true?true:null,observedAt:now,selectedAt:chosen?now:null};
     });
     if(!rows.length)return[];await downloadDecisionStore.update(current=>{current.version=1;current.decisions=Array.isArray(current.decisions)?current.decisions:[];for(const row of rows){const index=current.decisions.findIndex(item=>item.id===row.id);if(index>=0)current.decisions[index]={...current.decisions[index],...row,firstObservedAt:current.decisions[index].firstObservedAt||current.decisions[index].observedAt};else current.decisions.unshift({...row,firstObservedAt:row.observedAt,userId});}current.decisions=current.decisions.sort((left,right)=>String(right.observedAt).localeCompare(String(left.observedAt))).slice(0,2000);return rows.length;});return rows;
+  }
+  const nativeHistoryMediaId=(domain,item)=>Number(domain==='movie'?(item.movieId||item.movie?.id):(item.seriesId||item.series?.id||item.episode?.seriesId))||null;
+  const nativeHistoryQuality=item=>String(item.quality?.quality?.name||item.quality?.name||item.quality||'Unknown');
+  const nativeHistoryScore=item=>Number(item.customFormatScore??item.data?.customFormatScore??item.data?.customFormatScoreOffset)||0;
+  const nativeHistoryUpgrade=item=>truthyEngineValue(item?.data?.isUpgrade??item?.isUpgrade);
+  async function recordEngineDownloadDecisions(userId,domain,history){
+    const values=Array.isArray(history)?history:[],rows=[];
+    for(const item of values){
+      const eventType=String(item.eventType||'').toLowerCase();if(!/grab/.test(eventType))continue;
+      const mediaId=nativeHistoryMediaId(domain,item),timestamp=item.date||item.timestamp||item.createdAt||new Date().toISOString(),downloadId=String(item.downloadId||item.data?.downloadId||''),incomingQuality=nativeHistoryQuality(item),incomingScore=nativeHistoryScore(item),sourceTitle=String(item.sourceTitle||item.title||`${domain==='movie'?'Movie':'Television'} release`),grabTime=new Date(timestamp).getTime();
+      const related=values.filter(candidate=>candidate!==item&&nativeHistoryMediaId(domain,candidate)===mediaId&&(!downloadId||String(candidate.downloadId||candidate.data?.downloadId||'')===downloadId)&&new Date(candidate.date||candidate.timestamp||0).getTime()>=grabTime&&new Date(candidate.date||candidate.timestamp||0).getTime()-grabTime<=48*60*60*1000),imported=related.find(candidate=>/import/.test(String(candidate.eventType||'').toLowerCase())),deleted=related.find(candidate=>/filedeleted|file deleted|deleted/.test(String(candidate.eventType||'').toLowerCase())),upgrade=nativeHistoryUpgrade(imported)||nativeHistoryUpgrade(item),previousQuality=deleted?nativeHistoryQuality(deleted):null,previousScore=deleted?nativeHistoryScore(deleted):null,reasons=[];
+      if(upgrade&&previousQuality&&previousQuality===incomingQuality&&previousScore!==null&&incomingScore>previousScore)reasons.push(`Same-quality upgrade: custom-format score improved from ${previousScore} to ${incomingScore}.`);
+      else if(upgrade&&previousQuality&&previousQuality===incomingQuality)reasons.push(`Same-quality upgrade from ${previousQuality}; the engine reported an upgrade but did not retain the complete prior scoring evidence.`);
+      else if(upgrade&&previousQuality)reasons.push(`Quality upgrade from ${previousQuality} to ${incomingQuality}.`);
+      else if(upgrade)reasons.push('The engine marked this background grab as an upgrade to the existing library file.');
+      else reasons.push('The engine accepted this monitored release during background RSS or scheduled automation.');
+      if(/\b(?:proper|repack|rerip)\b/i.test(sourceTitle))reasons.push('The release title identifies a corrected Proper/Repack revision.');
+      const identity=String(item.id||createHash('sha256').update(`${domain}:${mediaId}:${sourceTitle}:${timestamp}`).digest('hex').slice(0,24));rows.push({id:`engine_decision_${domain}_${identity}`,domain,mediaId,source:'engine',title:sourceTitle,indexer:String(item.data?.indexer||item.indexer||'Media engine'),protocol:String(item.data?.protocol||item.protocol||''),decision:'selected',reasons,quality:incomingQuality,customFormatScore:incomingScore,preferredWordScore:Number(item.data?.preferredWordScore)||0,size:Number(item.data?.size||item.size||0),ageDays:Number.isFinite(Number(item.data?.age))?Number(item.data.age):null,seeders:null,upgradeEligible:upgrade,previousQuality,previousCustomFormatScore:previousScore,currentQuality:incomingQuality,currentCustomFormatScore:incomingScore,engineEventType:item.eventType||'grabbed',downloadId:downloadId||null,observedAt:new Date(timestamp).toISOString(),selectedAt:new Date(timestamp).toISOString()});
+    }
+    if(!rows.length)return[];await downloadDecisionStore.update(current=>{current.version=1;current.decisions=Array.isArray(current.decisions)?current.decisions:[];for(const row of rows){const index=current.decisions.findIndex(value=>value.id===row.id);if(index>=0)current.decisions[index]={...current.decisions[index],...row};else current.decisions.unshift({...row,userId,firstObservedAt:row.observedAt});}current.decisions=current.decisions.sort((left,right)=>String(right.observedAt).localeCompare(String(left.observedAt))).slice(0,2000);return rows.length;});return rows;
   }
   const releaseCacheTtlMs=45_000;
   const releaseCacheKey=(domain,query)=>`${domain}:${Object.entries(query||{}).filter(([key,value])=>key!=='force'&&value!==undefined&&value!=='').sort(([left],[right])=>left.localeCompare(right)).map(([key,value])=>`${key}=${value}`).join('&')}`;
@@ -732,6 +752,12 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
       librarySummaryTimer=setInterval(()=>{for(const domain of ['movie','tv'])void broadcastAuthoritativeAttention(domain).catch(()=>{});},interval);
       librarySummaryTimer.unref?.();
     }
+    if(mode==='engine'&&!operationalNotificationTimer){
+      const interval=Math.max(30_000,Number(env.VYNODEARR_OPERATIONAL_NOTIFICATION_POLL_MS||60_000));
+      const poll=()=>synchronizeAdministratorOperationalNotifications().catch(()=>{});
+      operationalNotificationTimer=setInterval(poll,interval);operationalNotificationTimer.unref?.();
+      const initialPoll=setTimeout(poll,2_000);initialPoll.unref?.();
+    }
     initialized=true;
     const automaticValidation=setTimeout(()=>{systemValidation().then(report=>validationStore.write({version:1,report,updatedAt:report.generatedAt})).catch(()=>{});},1000);automaticValidation.unref?.();
   }
@@ -960,12 +986,17 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
     if(firstRun)await notificationStore.update(current=>(current.operationalInitializedAt=since));
     const domainValues=mode==='engine'?await Promise.all(['movie','tv'].map(async domain=>{const client=registry.get(domain).client,[queueValue,historyValue]=await Promise.all([client.get('queue',domain==='movie'?{page:1,pageSize:500,includeMovie:true}:{page:1,pageSize:500,includeSeries:true,includeEpisode:true}).catch(()=>({records:[]})),client.get('history',{page:1,pageSize:200,sortKey:'date',sortDirection:'descending'}).catch(()=>({records:[]}))]);return{domain,queue:Array.isArray(queueValue?.records)?queueValue.records:[],history:Array.isArray(historyValue?.records)?historyValue.records:[]};})):[];
     for(const{domain,queue,history}of domainValues){
+      await recordEngineDownloadDecisions(session.user.id,domain,history);
       for(const item of queue){const status=String(item.trackedDownloadStatus||item.trackedDownloadState||item.status||'').toLowerCase(),problem=/fail|error|warning|stalled|unavailable/.test(status)||Boolean(item.errorMessage);if(!problem)continue;const identity=String(item.id||item.downloadId||item.title),title=item[domain==='movie'?'movie':'series']?.title||item.title||`${domain==='movie'?'Movie':'Television'} download`;events.push({id:`operational:queue:${domain}:${identity}`,eventGroup:'queue-problem',category:'download',severity:'critical',type:'failed',title:`${title} needs download attention`,message:item.errorMessage||item.statusMessages?.[0]?.messages?.[0]||'The download is stalled or the media engine reported a queue problem.',timestamp:item.added||item.addedAt||new Date().toISOString(),href:'#queue',requestId:'',actionable:true});}
       if(!firstRun)for(const item of history){const timestamp=item.date||item.timestamp||item.createdAt;if(!timestamp||new Date(timestamp)<new Date(since))continue;const eventType=String(item.eventType||'').toLowerCase(),imported=/import/.test(eventType),failed=/fail/.test(eventType);if(!imported&&!failed)continue;const title=item.movie?.title||item.series?.title||item.sourceTitle||item.title||`${domain==='movie'?'Movie':'Television'} item`;events.push({id:`operational:history:${domain}:${item.id||createHash('sha1').update(`${eventType}:${title}:${timestamp}`).digest('hex')}`,eventGroup:'history-event',category:imported?'import':'download',severity:imported?'success':'critical',type:imported?'imported':'failed',title:imported?`${title} was imported`:`${title} failed`,message:imported?'The media engine confirmed this media is now in the library.':friendlyRequestFailure(item.eventType||item.data?.message),timestamp,href:failed?'#history':domain==='movie'?'#movies':'#tv',requestId:'',actionable:failed});}
     }
     const health=mode==='engine'?await sync.operations('health').catch(()=>[]):[];for(const item of Array.isArray(health)?health:[]){const message=String(item.message||item.details||item.source||'Engine health issue'),identity=createHash('sha1').update(`${item.domain||''}:${item.source||''}:${message}`).digest('hex');events.push({id:`operational:health:${identity}`,eventGroup:'engine-health',category:'system',severity:'warning',type:'failed',title:`${item.domain==='tv'?'Television':item.domain==='movie'?'Movies':'Media engine'} needs attention`,message,timestamp:item.timestamp||new Date().toISOString(),href:'#service/library-health',requestId:'',actionable:true});}
     const activity=await searchActivityStore.read();for(const item of activity.activities||[])if(item.status==='completed'&&Date.now()-new Date(item.updatedAt||item.createdAt).getTime()<7*24*60*60*1000)events.push({id:`operational:search:${item.id}`,eventGroup:'search-no-result',category:'download',severity:'warning',type:'failed',title:`No download found for ${item.title}`,message:'The automatic search completed without a matching release entering Queue or History.',timestamp:item.updatedAt||item.createdAt,href:'#wanted',requestId:'',actionable:true});
     await persistNotificationEvents(session.user.id,events,{activeGroups});
+  }
+  async function synchronizeAdministratorOperationalNotifications(){
+    const users=await auth.listUsers(),administrator=users.find(user=>user.role==='administrator'&&user.enabled!==false);if(!administrator)return;
+    await synchronizeOperationalNotifications({user:administrator});
   }
   async function requestNotifications(session){
     await synchronizeOperationalNotifications(session);

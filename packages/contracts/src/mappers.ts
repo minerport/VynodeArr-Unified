@@ -160,7 +160,12 @@ export function historyItem(record, domain) {
     id: `${domain}_history_${record.id}`, domain, mediaId: publicMediaId,
     title: media?.title || record.sourceTitle || 'Media event', context, artwork: publicMediaId?{url:`/api/artwork/${domain}/${publicMediaId}/poster`,kind:'poster',width:0,height:0}:artwork([]),
     eventType: record.eventType || 'unknown', quality: record.quality?.quality?.name || null,
-    timestamp: safeDate(record.date), details: record.data?.message || null
+    timestamp: safeDate(record.date), details: record.data?.message || null,
+    sourceTitle: record.sourceTitle || null, downloadId: record.downloadId || record.data?.downloadId || null,
+    indexer: record.data?.indexer || record.indexer || null, protocol: record.data?.protocol || record.protocol || null,
+    customFormatScore: Number(record.customFormatScore ?? record.data?.customFormatScore ?? record.data?.customFormatScoreOffset) || 0,
+    isUpgrade: record.data?.isUpgrade === true || String(record.data?.isUpgrade || record.isUpgrade || '').toLowerCase() === 'true',
+    data: record.data && typeof record.data === 'object' ? { ...record.data } : {}
   };
 }
 
