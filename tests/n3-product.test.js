@@ -169,6 +169,14 @@ test('native engine background grabs appear as upgrade decisions',()=>{
     assert.equal(item.title,grabbed.sourceTitle);assert.equal(item.previousQuality,'WEBDL-1080p');assert.equal(item.previousCustomFormatScore,25);assert.equal(item.currentCustomFormatScore,125);assert.equal(item.upgradeEligible,true);assert.match(item.reasons.join(' '),/score improved from 25 to 125/i);
   });
 });
+test('native engine grabs remain pending until import evidence arrives',()=>{
+  const grabbed={id:601,eventType:'grabbed',date:'2026-08-03T01:00:00Z',movie:{id:8,title:'Pending Movie'},sourceTitle:'Pending.Movie.2026.1080p.WEB-DL',downloadId:'rss-601',quality:{quality:{name:'WEBDL-1080p'}},data:{indexer:'RSS Indexer',protocol:'torrent'}};
+  const client={get:async path=>path==='queue'?{records:[]}:path==='history'?{records:[grabbed]}:[]},movie=Object.assign(new MovieFixtureAdapter(),{client}),tv=Object.assign(new TvFixtureAdapter(),{client:{get:async path=>path==='queue'||path==='history'?{records:[]}:[]}});
+  return appSession({movie,tv,env:{VYNODEARR_DATA_MODE:'engine'}},async({base,cookie})=>{
+    await fetch(`${base}/api/notifications`,{headers:{cookie}});const decisions=(await (await fetch(`${base}/api/download-decisions`,{headers:{cookie}})).json()).items,item=decisions.find(value=>value.id.includes('601'));
+    assert.equal(item.upgradeEligible,null);assert.match(item.reasons.join(' '),/waiting for the engine import event/i);
+  });
+});
 test('user page permissions are enforced by APIs and update active sessions immediately',()=>appSession({},async({base,cookie,csrf})=>{
   const create=await fetch(`${base}/api/admin/users`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({name:'Limited User',username:'limited',email:'limited@example.test',password:'Limited-strong-pass5',role:'user',permissions:{dashboard:false,discover:true,movies:true,tv:false,calendar:true}})});
   assert.equal(create.status,201);const created=(await create.json()).user;

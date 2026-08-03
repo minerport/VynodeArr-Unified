@@ -28,7 +28,7 @@ consistent experience and account system.
 ## Current release
 
 Version **2.0.33** is available for production use on Unraid, Windows, and
-standard Docker installations. Version **2.0.34-rc.7** is available as a
+standard Docker installations. Version **2.0.34-rc.8** is available as a
 prerelease for testing the Engine Update Center and its backup-gated candidate
 workflow. Its administrator Poster Overlay Studio adds reusable,
 variable-aware text, shape, and media-icon layers; precise positioning and

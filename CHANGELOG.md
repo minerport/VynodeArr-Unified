@@ -7,6 +7,15 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.34-rc.8] - 2026-08-03
+
+### Fixed
+
+- Fresh native engine grabs now remain explicitly pending until their import
+  event confirms whether they are new files or upgrades.
+- Download Decision cards now expose their primary explanation and a clear
+  evidence-expansion control in the collapsed mobile view.
+
 ## [2.0.34-rc.7] - 2026-08-03
 
 ### Added

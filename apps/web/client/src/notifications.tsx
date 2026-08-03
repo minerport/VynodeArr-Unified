@@ -104,6 +104,10 @@ function DownloadDecisionList({ items }: { items: DownloadDecision[] }) {
                       {item.requesters.map((user) => user.name).join(", ")}
                     </small>
                   ) : null}
+                  <small className="decision-summary-reason">
+                    {item.reasons[0] || "Decision evidence is available."}
+                  </small>
+                  <small className="decision-expand-cue">View evidence</small>
                 </span>
                 <span className="decision-quality">{item.quality}</span>
               </summary>
