@@ -7,6 +7,18 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.34-rc.4] - 2026-08-02
+
+### Fixed
+
+- Restored production dependencies in the Unraid container so Plex overlay
+  previews can be rasterized and applied instead of failing to load `sharp`.
+
+### Changed
+
+- Reworked Plex match results into wide, searchable, scrollable rows with
+  clearer match details, large selection targets, and responsive mobile layout.
+
 ## [2.0.34-rc.3] - 2026-08-02
 
 ### Fixed

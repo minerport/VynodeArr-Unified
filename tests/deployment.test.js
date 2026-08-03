@@ -38,6 +38,7 @@ test('1.0 release includes self-contained Unraid and Windows distributions',asyn
     readFile(new URL('../distribution/windows/compose.yaml',import.meta.url),'utf8')
   ]);
   for(const value of ['Radarr.master.','Sonarr.main.','EXPOSE 8686','vynodearr-entrypoint'])assert.match(image,new RegExp(value.replaceAll('.','\\.')));
+  assert.match(image,/npm install --omit=dev/, 'the runtime image must include production dependencies such as the poster renderer');
   assert.match(image,/sed -i 's\/\\r\$\/\/' \/usr\/local\/bin\/vynodearr-entrypoint/);
   assert.doesNotMatch(template,/Target="(?:7878|8989)"/);
   for(const value of ['/config/movies','/config/television','MOVIE_ENGINE_API_CREDENTIAL','TV_ENGINE_API_CREDENTIAL','env -u PORT'])assert.match(entrypoint,new RegExp(value));

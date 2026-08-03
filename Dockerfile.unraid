@@ -30,6 +30,7 @@ LABEL org.opencontainers.image.title="VynodeArr" \
 RUN apk add --no-cache icu-libs sqlite-libs libgcc libstdc++ tzdata tini
 WORKDIR /app
 COPY package.json ./
+RUN npm install --omit=dev --no-audit --no-fund
 COPY apps ./apps
 COPY --from=web-build /app/apps/web/public/react ./apps/web/public/react
 COPY --from=web-build /app/.server-build/apps/api ./apps/api
