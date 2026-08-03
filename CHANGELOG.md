@@ -7,6 +7,17 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.34-rc.6] - 2026-08-02
+
+### Fixed
+
+- Made Plex overlay height follow the text's actual rendered line count instead
+  of reserving space for the configured maximum, keeping the editor, review,
+  and applied Plex artwork geometry consistent.
+- Changed multi-library Plex matching to review each real Plex item once and
+  match it back to VynodeArr through exact external identifiers, avoiding
+  repeated unmatched entries when several Plex libraries are selected.
+
 ## [2.0.34-rc.5] - 2026-08-02
 
 ### Fixed
@@ -1061,7 +1072,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.34-rc.5...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.34-rc.6...HEAD
+[2.0.34-rc.6]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.34-rc.5...v2.0.34-rc.6
 [2.0.34-rc.5]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.34-rc.4...v2.0.34-rc.5
 [2.0.34-rc.4]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.34-rc.3...v2.0.34-rc.4
 [2.0.34-rc.3]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.34-rc.2...v2.0.34-rc.3

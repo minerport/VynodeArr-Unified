@@ -154,7 +154,7 @@ export interface PlexOverlayConnection {
 export interface PlexMatchReview {
   generatedAt: string;
   summary: { matched: number; unmatched: number; ambiguous: number; total: number };
-  entries: Array<{ domain: "movie"|"tv"; id: string; title: string; year?: number|null; externalIds: string[]; status: "matched"|"unmatched"|"ambiguous"; plex: Array<{ratingKey:string;title:string;year?:number|null;type:string;thumb?:string}>; plexLibrary:{key:string;title:string;type:string} }>;
+  entries: Array<{ domain: "movie"|"tv"; id: string; title: string; year?: number|null; externalIds: string[]; status: "matched"|"unmatched"|"ambiguous"; candidateCount?:number; plex: Array<{ratingKey:string;title:string;year?:number|null;type:string;thumb?:string}>; plexLibrary:{key:string;title:string;type:string} }>;
   artworkWritesEnabled: boolean;
 }
 export interface PlexPosterApplication { id:string;title:string;domain:"movie"|"tv";templateName:string;plexLibraryTitle:string;appliedAt:string;restoredAt:string|null;status:"applied"|"restored" }

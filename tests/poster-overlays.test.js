@@ -71,6 +71,11 @@ test('overlay text can shrink or wrap into bounded lines',()=>{
   assert.ok(size>=12&&size<80,size);
 });
 
+test('wrapped overlay height follows rendered lines instead of the maximum line allowance',()=>{
+  const template=sanitizeOverlayTemplate({layers:[{variable:'genres',textFit:'wrap',maxLines:6,width:100,fontSize:32,padding:12,background:'#ff0000'}]}),single=renderOverlaySvg({poster:Buffer.from('poster'),template,item:{genres:['Thriller','Drama','Horror']}}).toString(),many=renderOverlaySvg({poster:Buffer.from('poster'),template,item:{genres:['A very long genre value that must wrap across multiple actual lines on a narrow poster layer']}}).toString(),height=value=>Number(value.match(/<rect x="0" y="[^"]+" width="600" height="([^"]+)"/)?.[1]);
+  assert.ok(height(single)<100,`single-line wrap height was ${height(single)}`);assert.ok(height(many)>height(single));
+});
+
 test('poster layer shapes are sanitized and composed into matching SVG geometry',()=>{
   const template=sanitizeOverlayTemplate({layers:[{variable:'title',shape:'tag',label:'Title'}]});
   assert.equal(template.layers[0].shape,'tag');

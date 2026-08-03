@@ -71,6 +71,10 @@ export class PlexService{
     const index=new Map();for(const item of plexItems)for(const id of itemExternalIds(item)){const values=index.get(id)||[];values.push(item);index.set(id,values);}
     return vynodeItems.map(item=>{const ids=itemExternalIds(item),matches=[...new Map(ids.flatMap(id=>index.get(id)||[]).map(value=>[value.ratingKey,value])).values()];return{domain:item.domain,id:item.id,title:item.title,year:item.year||null,externalIds:ids,status:!ids.length?'unmatched':matches.length===1?'matched':matches.length>1?'ambiguous':'unmatched',plex:matches.map(value=>({ratingKey:value.ratingKey,title:value.title,year:value.year,type:value.type,thumb:value.thumb}))};});
   }
+  matchLibrary(vynodeItems,plexItems){
+    const index=new Map();for(const item of vynodeItems)for(const id of itemExternalIds(item)){const values=index.get(id)||[];values.push(item);index.set(id,values);}
+    return plexItems.map(plex=>{const ids=itemExternalIds(plex),matches=[...new Map(ids.flatMap(id=>index.get(id)||[]).map(value=>[value.id,value])).values()],item=matches[0];return{domain:item?.domain||(plex.type==='show'?'tv':'movie'),id:item?.id||`plex_${plex.ratingKey}`,title:item?.title||plex.title,year:item?.year||plex.year||null,externalIds:ids,status:!ids.length||!matches.length?'unmatched':matches.length===1?'matched':'ambiguous',candidateCount:matches.length,plex:[{ratingKey:plex.ratingKey,title:plex.title,year:plex.year,type:plex.type,thumb:plex.thumb}]};});
+  }
 }
 
 export {cleanEndpoint as sanitizePlexEndpoint,itemExternalIds as plexExternalIds};

@@ -24,6 +24,11 @@ test('Plex matching uses external IDs and reports ambiguity without title fallba
   const result=service.match(vynode,plex);assert.equal(result[0].status,'matched');assert.equal(result[0].plex[0].ratingKey,'a');assert.equal(result[1].status,'ambiguous');assert.equal(result[2].status,'unmatched');
 });
 
+test('multi-library review is driven by Plex items instead of repeating every VynodeArr title',()=>{
+  const service=new PlexService(),vynode=[{id:'movie_a',domain:'movie',title:'Alpha',tmdbId:10},{id:'movie_b',domain:'movie',title:'Beta',tmdbId:20}],first=service.matchLibrary(vynode,[{ratingKey:'1',title:'Alpha',type:'movie',Guid:[{id:'tmdb://10'}]}]),second=service.matchLibrary(vynode,[{ratingKey:'2',title:'Other',type:'movie',Guid:[{id:'tmdb://99'}]}]);
+  assert.equal(first.length,1);assert.equal(first[0].status,'matched');assert.equal(first[0].id,'movie_a');assert.equal(second.length,1);assert.equal(second[0].status,'unmatched');assert.equal(second[0].id,'plex_2');
+});
+
 test('Plex library hydration retrieves omitted GUIDs and accepts legacy agent identifiers',async()=>{
   const calls=[],service=new PlexService({fetchImpl:async url=>{calls.push(url);if(url.includes('/library/sections/1/all'))return new Response(JSON.stringify({MediaContainer:{Metadata:[{ratingKey:'10',title:'Modern',year:2024,guid:'plex://movie/modern'},{ratingKey:'11',title:'Legacy',year:2009,guid:'com.plexapp.agents.themoviedb://34653?lang=en'}]}}));if(url.includes('/library/metadata/10'))return new Response(JSON.stringify({MediaContainer:{Metadata:[{ratingKey:'10',title:'Modern',Guid:[{id:'tmdb://32562'},{id:'imdb://tt1517451'}]}]}}));throw new Error(`Unexpected URL ${url}`);}}),items=await service.libraryItems('http://plex.local:32400','token',{key:'1',type:'movie'}),result=service.match([{id:'movie_a',domain:'movie',title:'Modern',tmdbId:32562},{id:'movie_b',domain:'movie',title:'Legacy',tmdbId:34653}],items);assert.equal(result[0].status,'matched');assert.equal(result[1].status,'matched');assert.equal(calls.length,2);assert.match(calls[1],/library\/metadata\/10\?includeGuids=1/);
 });
