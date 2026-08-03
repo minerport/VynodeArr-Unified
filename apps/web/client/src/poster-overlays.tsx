@@ -19,10 +19,16 @@ import type {
   OverlayUserCollection,
   PosterOverlayMountOptions,
 } from "./poster-overlays-types";
-import { OverlayLayerView, overlayClientId, overlayLayerVisible, resolveConditionalLayer } from "./poster-overlay-layer";
+import {
+  OverlayLayerView,
+  overlayClientId,
+  overlayLayerVisible,
+  resolveConditionalLayer,
+} from "./poster-overlay-layer";
 import { PosterLayerContent } from "./poster-overlay-icons";
 const styles = `.poster-overlay-route{display:grid;gap:20px}.overlay-studio-grid{display:grid;grid-template-columns:minmax(320px,.8fr) minmax(420px,1.2fr);gap:20px}.overlay-template-list{display:grid;gap:14px}.overlay-template-card{display:grid;grid-template-columns:92px 1fr;gap:14px;align-items:center;padding:12px;border:1px solid var(--border);border-radius:14px}.overlay-template-card small,.overlay-media-picker small{display:block;color:var(--muted)}.overlay-preview{position:relative;width:min(100%,300px);aspect-ratio:2/3;overflow:hidden;border:1px solid var(--border);border-radius:14px;background:linear-gradient(145deg,#24324b,#07101d 62%,#02060d) center/cover;box-shadow:inset 0 -100px 80px -70px #000}.overlay-preview-layer{font-weight:800}.overlay-scope-row,.overlay-layer-editor{display:grid;grid-template-columns:1fr 1fr;gap:10px}.overlay-media-picker{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;max-height:360px;overflow:auto}.overlay-media-picker label{display:grid;grid-template-columns:auto 38px 1fr;gap:8px;align-items:center;padding:8px;border:1px solid var(--border);border-radius:10px}.overlay-media-picker img{width:38px;aspect-ratio:2/3;object-fit:cover}.overlay-editor-backdrop{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:20px;background:#000c}.overlay-editor{display:grid;grid-template-rows:auto minmax(0,1fr) auto;width:min(1100px,100%);max-height:calc(100dvh - 40px);overflow:hidden;border:1px solid var(--border);border-radius:18px;background:var(--panel,#08111f)}.overlay-editor-grid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:20px;overflow:auto;padding:20px}.overlay-editor-fields{display:grid;gap:12px}.overlay-layer-editor{padding:12px;border:1px solid var(--border);border-radius:12px}.overlay-preview-column{display:grid;align-content:start;justify-items:center;gap:10px;position:sticky;top:0}.overlay-editor-footer{display:flex;justify-content:flex-end;gap:10px;padding:16px 20px;border-top:1px solid var(--border)}@media(max-width:800px){.overlay-studio-grid,.overlay-scope-row,.overlay-media-picker,.overlay-editor-grid,.overlay-layer-editor{grid-template-columns:1fr}.overlay-editor-backdrop{padding:0}.overlay-editor{width:100%;height:100dvh;max-height:none;border:0;border-radius:0}.overlay-editor-grid{padding:14px}.overlay-preview-column{position:static;order:-1}.overlay-preview-column .overlay-preview{width:180px}.poster-overlay-route .hero>.primary{width:100%}}`;
-const layoutStyles = `.overlay-template-card{grid-template-columns:76px minmax(0,1fr)}.overlay-template-card>.overlay-preview{width:76px}.overlay-template-content{min-width:0;display:grid;gap:8px;align-content:center}.overlay-template-content .form-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.overlay-template-content button{width:100%;padding-inline:7px}.overlay-assignment-panel label,.overlay-editor label{display:grid;gap:6px;min-width:0}.overlay-scope-row{align-items:end}.overlay-apply-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.overlay-apply-list button{width:100%;white-space:normal}.overlay-editor-backdrop{z-index:10000}.overlay-editor>.panel-heading{display:flex;flex-direction:row!important;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px}.overlay-editor>.panel-heading>div{flex:1;min-width:0}.overlay-editor>.panel-heading button{width:auto;flex:0 0 auto}.overlay-layer-editor{display:block;padding:0;overflow:hidden}.overlay-layer-editor>summary{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px;cursor:pointer;font-weight:800;list-style:none}.overlay-layer-editor>summary::-webkit-details-marker{display:none}.overlay-layer-editor>summary small{color:var(--muted);font-weight:500}.overlay-layer-editor[open]>summary{border-bottom:1px solid var(--border)}.overlay-layer-body{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:12px}.overlay-layer-body>.danger{align-self:end}.overlay-layer-toggle{align-content:center}@media(max-width:600px){.overlay-template-content .form-actions,.overlay-apply-list,.overlay-layer-body{grid-template-columns:1fr}.overlay-template-card{grid-template-columns:64px minmax(0,1fr)}.overlay-template-card>.overlay-preview{width:64px}.overlay-editor>.panel-heading{padding:12px 14px}}`;
+const layoutStyles = `.poster-overlay-route{min-width:0}.poster-overlay-route .hero{min-width:0}.poster-overlay-route .hero h1{font-size:clamp(2rem,5vw,4rem);overflow-wrap:anywhere}.poster-overlay-route>.settings-tabs{display:flex;flex-wrap:nowrap;gap:8px;overflow-x:auto;overscroll-behavior-inline:contain;scrollbar-width:thin;padding:8px}.poster-overlay-route>.settings-tabs a{flex:0 0 auto;min-width:max-content;padding:10px 14px}.overlay-template-card{grid-template-columns:76px minmax(0,1fr);min-width:0}.overlay-template-card>.overlay-preview{width:76px}.overlay-template-content{min-width:0;display:grid;gap:8px;align-content:center}.overlay-template-content>strong,.overlay-template-content>small{overflow-wrap:anywhere}.overlay-template-content .form-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.overlay-template-content button{width:100%;min-width:0;padding-inline:7px}.overlay-assignment-panel label,.overlay-editor label{display:grid;gap:6px;min-width:0}.overlay-scope-row{align-items:end}.overlay-apply-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.overlay-apply-list button{width:100%;white-space:normal}.overlay-editor-backdrop{z-index:10000}.overlay-editor>.panel-heading{display:flex;flex-direction:row!important;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px}.overlay-editor>.panel-heading>div{flex:1;min-width:0}.overlay-editor>.panel-heading button{width:auto;flex:0 0 auto}.overlay-layer-editor{display:block;padding:0;overflow:hidden}.overlay-layer-editor>summary{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px;cursor:pointer;font-weight:800;list-style:none}.overlay-layer-editor>summary::-webkit-details-marker{display:none}.overlay-layer-editor>summary small{color:var(--muted);font-weight:500}.overlay-layer-editor[open]>summary{border-bottom:1px solid var(--border)}.overlay-layer-body{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:12px}.overlay-layer-body>.danger{align-self:end}.overlay-layer-toggle{align-content:center}@media(max-width:800px){.poster-overlay-route{gap:14px}.poster-overlay-route>.settings-tabs{margin-inline:0}.poster-overlay-route>.panel,.poster-overlay-route .overlay-studio-grid>.panel{padding:14px}.overlay-studio-grid{grid-template-columns:1fr}.overlay-template-list{gap:10px}}@media(max-width:600px){.poster-overlay-route .hero{gap:12px}.poster-overlay-route .hero>.primary{min-height:48px}.poster-overlay-route>.settings-tabs a{padding:9px 12px}.overlay-template-card{grid-template-columns:72px minmax(0,1fr);align-items:start;padding:10px}.overlay-template-card>.overlay-preview{width:72px;grid-row:1/span 2}.overlay-template-content .form-actions{grid-template-columns:repeat(2,minmax(0,1fr))}.overlay-template-content .form-actions .danger{grid-column:1/-1}.overlay-apply-list,.overlay-layer-body{grid-template-columns:1fr}.overlay-editor>.panel-heading{padding:12px 14px}}`;
+const responsiveLayoutStyles = `.poster-overlay-route{min-width:0}.poster-overlay-route .hero h1{font-size:clamp(2rem,5vw,4rem);overflow-wrap:anywhere}.poster-overlay-route>.settings-tabs{display:flex;flex-wrap:nowrap;gap:8px;overflow-x:auto;padding:8px}.poster-overlay-route>.settings-tabs a{flex:0 0 auto;min-width:max-content;padding:10px 14px}.overlay-template-card{grid-template-columns:76px minmax(0,1fr);min-width:0}.overlay-template-card>.overlay-preview{width:76px}.overlay-template-content{min-width:0}.overlay-template-content .form-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.overlay-template-content button{width:100%;min-width:0}@media(max-width:800px){.poster-overlay-route{gap:14px}.poster-overlay-route>.panel{padding:14px}.overlay-studio-grid{grid-template-columns:1fr}.overlay-template-list{gap:10px}}@media(max-width:600px){.poster-overlay-route .hero>.primary{width:100%;min-height:48px}.poster-overlay-route>.settings-tabs a{padding:9px 12px}.overlay-template-card{grid-template-columns:72px minmax(0,1fr);align-items:start;padding:10px}.overlay-template-card>.overlay-preview{width:72px}.overlay-template-content .form-actions{grid-template-columns:repeat(2,minmax(0,1fr))}.overlay-template-content .form-actions .danger{grid-column:1/-1}}`;
 const LibraryChrome = lazy(() =>
   import("./poster-overlay-library-preview").then((module) => ({
     default: module.LibraryChrome,
@@ -33,7 +39,11 @@ const PlexBadgeChoices = lazy(() =>
     default: module.PlexBadgeChoices,
   })),
 );
-const PlexConnectionPanel=lazy(()=>import("./poster-overlays-plex").then(module=>({default:module.PlexConnectionPanel})));
+const PlexConnectionPanel = lazy(() =>
+  import("./poster-overlays-plex").then((module) => ({
+    default: module.PlexConnectionPanel,
+  })),
+);
 const ApplicationReview = lazy(
   () => import("./poster-overlay-application-review"),
 );
@@ -61,7 +71,12 @@ const positionCoordinates: Record<OverlayPosition, [number, number]> = {
 };
 const blankLayer = (variable = "title"): OverlayLayer => ({
   id: `layer_${overlayClientId()}`,
-  label: variable === "custom_text" ? "Custom badge" : variable === "icon" ? "movie" : `{${variable}}`,
+  label:
+    variable === "custom_text"
+      ? "Custom badge"
+      : variable === "icon"
+        ? "movie"
+        : `{${variable}}`,
   variable,
   kind: "text",
   iconName: "movie",
@@ -88,7 +103,10 @@ const blankLayer = (variable = "title"): OverlayLayer => ({
   borderRadius: 18,
   enabled: true,
   condition: { operator: "truthy", value: "" },
-  conditions: { join: "and", rules: [{ variable, operator: "truthy", value: "" }] },
+  conditions: {
+    join: "and",
+    rules: [{ variable, operator: "truthy", value: "" }],
+  },
   styleMode: "first",
   styleRules: [],
 });
@@ -115,7 +133,9 @@ const previewValue = (variable: string, media?: OverlayMedia) => {
   const resolved = media?.artwork?.overlayValues?.[variable];
   if (resolved !== undefined) return resolved;
   if (variable === "resolution")
-    return String(media?.quality || "").match(/(?:2160|1080|720|480)p?/i)?.[0] || "";
+    return (
+      String(media?.quality || "").match(/(?:2160|1080|720|480)p?/i)?.[0] || ""
+    );
   if (variable === "monitored")
     return media?.monitoring === "none" ? "Unmonitored" : "Monitored";
   if (variable === "availability")
@@ -149,12 +169,21 @@ function Preview({
     dy: number;
     pointerId: number;
   } | null>(null);
-  const previewValues={...(media?.artwork?.overlayValues||{})};
-  for(const layer of template.layers)for(const rule of [...(layer.conditions?.rules||[]),...(layer.styleRules||[]).flatMap(style=>style.conditions.rules)])if(previewValues[rule.variable]===undefined)previewValues[rule.variable]=previewValue(rule.variable,media);
+  const previewValues = { ...(media?.artwork?.overlayValues || {}) };
+  for (const layer of template.layers)
+    for (const rule of [
+      ...(layer.conditions?.rules || []),
+      ...(layer.styleRules || []).flatMap((style) => style.conditions.rules),
+    ])
+      if (previewValues[rule.variable] === undefined)
+        previewValues[rule.variable] = previewValue(rule.variable, media);
   return (
     <div
       className="overlay-preview"
-      style={{ containerType: "inline-size", ...(poster ? { backgroundImage: `url(${poster})` } : {}) }}
+      style={{
+        containerType: "inline-size",
+        ...(poster ? { backgroundImage: `url(${poster})` } : {}),
+      }}
     >
       {media ? (
         <Suspense>
@@ -174,115 +203,131 @@ function Preview({
         </Suspense>
       ) : null}
       {template.layers.map((layer) => {
-          const values=previewValues,resolvedLayer=resolveConditionalLayer(layer,values),value=resolvedLayer.variable === "custom_text" ? resolvedLayer.label : previewValue(resolvedLayer.variable, media);
-          if (!overlayLayerVisible(resolvedLayer,value,values)) return null;
-          const fallback =
-              positionCoordinates[layer.position] || positionCoordinates.custom,
-            x = Number.isFinite(resolvedLayer.x) ? resolvedLayer.x : fallback[0],
-            y = Number.isFinite(resolvedLayer.y) ? resolvedLayer.y : fallback[1],
-            width = Number.isFinite(resolvedLayer.width) ? resolvedLayer.width : 40,
-            height = Number.isFinite(resolvedLayer.height) ? resolvedLayer.height : 0;
-          return (
-            <OverlayLayerView
-              className="overlay-preview-layer"
-              key={layer.id}
+        const values = previewValues,
+          resolvedLayer = resolveConditionalLayer(layer, values),
+          value =
+            resolvedLayer.variable === "custom_text"
+              ? resolvedLayer.label
+              : previewValue(resolvedLayer.variable, media);
+        if (!overlayLayerVisible(resolvedLayer, value, values)) return null;
+        const fallback =
+            positionCoordinates[layer.position] || positionCoordinates.custom,
+          x = Number.isFinite(resolvedLayer.x) ? resolvedLayer.x : fallback[0],
+          y = Number.isFinite(resolvedLayer.y) ? resolvedLayer.y : fallback[1],
+          width = Number.isFinite(resolvedLayer.width)
+            ? resolvedLayer.width
+            : 40,
+          height = Number.isFinite(resolvedLayer.height)
+            ? resolvedLayer.height
+            : 0;
+        return (
+          <OverlayLayerView
+            className="overlay-preview-layer"
+            key={layer.id}
+            layer={resolvedLayer}
+            style={{
+              cursor: onLayerChange ? "grab" : "default",
+              touchAction: "none",
+            }}
+            onPointerDown={(event) => {
+              if (!onLayerChange) return;
+              const rect = event.currentTarget.getBoundingClientRect();
+              event.currentTarget.setPointerCapture(event.pointerId);
+              setDrag({
+                id: layer.id,
+                dx: event.clientX - rect.left,
+                dy: event.clientY - rect.top,
+                pointerId: event.pointerId,
+              });
+            }}
+            onPointerMove={(event) => {
+              if (!onLayerChange || !drag || drag.id !== layer.id) return;
+              const parent =
+                event.currentTarget.parentElement?.getBoundingClientRect();
+              if (!parent) return;
+              onLayerChange(layer.id, {
+                position: "custom",
+                x: Math.max(
+                  0,
+                  Math.min(
+                    100 - width,
+                    ((event.clientX - parent.left - drag.dx) / parent.width) *
+                      100,
+                  ),
+                ),
+                y: Math.max(
+                  0,
+                  Math.min(
+                    96,
+                    ((event.clientY - parent.top - drag.dy) / parent.height) *
+                      100,
+                  ),
+                ),
+              });
+            }}
+            onPointerUp={(event) => {
+              if (drag?.pointerId === event.pointerId) setDrag(null);
+            }}
+          >
+            <PosterLayerContent
               layer={resolvedLayer}
-              style={{
-                cursor: onLayerChange ? "grab" : "default",
-                touchAction: "none",
-              }}
-              onPointerDown={(event) => {
-                if (!onLayerChange) return;
-                const rect = event.currentTarget.getBoundingClientRect();
-                event.currentTarget.setPointerCapture(event.pointerId);
-                setDrag({
-                  id: layer.id,
-                  dx: event.clientX - rect.left,
-                  dy: event.clientY - rect.top,
-                  pointerId: event.pointerId,
-                });
-              }}
-              onPointerMove={(event) => {
-                if (!onLayerChange || !drag || drag.id !== layer.id) return;
-                const parent =
-                  event.currentTarget.parentElement?.getBoundingClientRect();
-                if (!parent) return;
-                onLayerChange(layer.id, {
-                  position: "custom",
-                  x: Math.max(
-                    0,
-                    Math.min(
-                      100 - width,
-                      ((event.clientX - parent.left - drag.dx) / parent.width) *
-                        100,
-                    ),
-                  ),
-                  y: Math.max(
-                    0,
-                    Math.min(
-                      96,
-                      ((event.clientY - parent.top - drag.dy) / parent.height) *
-                        100,
-                    ),
-                  ),
-                });
-              }}
-              onPointerUp={(event) => {
-                if (drag?.pointerId === event.pointerId) setDrag(null);
-              }}
-            >
-                <PosterLayerContent layer={resolvedLayer} text={`${resolvedLayer.prefix}${value}${resolvedLayer.suffix}`} />
-              {onLayerChange ? (
-                <span
-                  className="overlay-resize-handle"
-                  aria-label="Resize layer"
-                  onPointerDown={(event) => {
-                    event.stopPropagation();
-                    const startX = event.clientX;
-                    const startY = event.clientY;
-                    const startWidth = width;
-                    const layerRect = event.currentTarget.parentElement?.getBoundingClientRect();
-                    const posterRect = event.currentTarget.parentElement?.parentElement?.getBoundingClientRect();
-                    const posterWidth = posterRect?.width || 1;
-                    const posterHeight = posterRect?.height || 1;
-                    const startHeight = height > 0
+              text={`${resolvedLayer.prefix}${value}${resolvedLayer.suffix}`}
+            />
+            {onLayerChange ? (
+              <span
+                className="overlay-resize-handle"
+                aria-label="Resize layer"
+                onPointerDown={(event) => {
+                  event.stopPropagation();
+                  const startX = event.clientX;
+                  const startY = event.clientY;
+                  const startWidth = width;
+                  const layerRect =
+                    event.currentTarget.parentElement?.getBoundingClientRect();
+                  const posterRect =
+                    event.currentTarget.parentElement?.parentElement?.getBoundingClientRect();
+                  const posterWidth = posterRect?.width || 1;
+                  const posterHeight = posterRect?.height || 1;
+                  const startHeight =
+                    height > 0
                       ? height
                       : ((layerRect?.height || 1) / posterHeight) * 100;
-                    const resize = (move: PointerEvent) => {
-                      const changes: Partial<OverlayLayer> = {
-                        position: "custom",
-                        width: Math.max(
-                          15,
-                          Math.min(
-                            100 - x,
-                            startWidth +
-                              ((move.clientX - startX) / posterWidth) * 100,
-                          ),
+                  const resize = (move: PointerEvent) => {
+                    const changes: Partial<OverlayLayer> = {
+                      position: "custom",
+                      width: Math.max(
+                        15,
+                        Math.min(
+                          100 - x,
+                          startWidth +
+                            ((move.clientX - startX) / posterWidth) * 100,
                         ),
-                      };
-                      if (layer.kind === "shape") {
-                        changes.height = Math.max(
-                          3,
-                          Math.min(
-                            100 - y,
-                            startHeight + ((move.clientY - startY) / posterHeight) * 100,
-                          ),
-                        );
-                      }
-                      onLayerChange(layer.id, changes);
+                      ),
                     };
-                    const finish = () => {
-                      window.removeEventListener("pointermove", resize);
-                      window.removeEventListener("pointerup", finish);
-                    };
-                    window.addEventListener("pointermove", resize);
-                    window.addEventListener("pointerup", finish);
-                  }}
-                />
-              ) : null}
-            </OverlayLayerView>
-          );
-        })}
+                    if (layer.kind === "shape") {
+                      changes.height = Math.max(
+                        3,
+                        Math.min(
+                          100 - y,
+                          startHeight +
+                            ((move.clientY - startY) / posterHeight) * 100,
+                        ),
+                      );
+                    }
+                    onLayerChange(layer.id, changes);
+                  };
+                  const finish = () => {
+                    window.removeEventListener("pointermove", resize);
+                    window.removeEventListener("pointerup", finish);
+                  };
+                  window.addEventListener("pointermove", resize);
+                  window.addEventListener("pointerup", finish);
+                }}
+              />
+            ) : null}
+          </OverlayLayerView>
+        );
+      })}
     </div>
   );
 }
@@ -364,7 +409,10 @@ export function PosterOverlaysView({
     void load();
   }, [load]);
   useEffect(() => {
-    if (editing && !editing.layers.some((layer) => layer.id === selectedLayerId))
+    if (
+      editing &&
+      !editing.layers.some((layer) => layer.id === selectedLayerId)
+    )
       setSelectedLayerId(editing.layers[0]?.id || "");
   }, [editing, selectedLayerId]);
   const visible = useMemo(
@@ -448,9 +496,8 @@ export function PosterOverlaysView({
       );
       return;
     }
-    const { buildApplicationReview } = await import(
-      "./poster-overlay-application-review"
-    );
+    const { buildApplicationReview } =
+      await import("./poster-overlay-application-review");
     setApplicationReview(
       buildApplicationReview(template, label, scope, domain, mediaIds, {
         genres,
@@ -490,22 +537,51 @@ export function PosterOverlaysView({
       options.notify(errorText(reason), "error");
     }
   };
-  const selectedLayer=editing?.layers.find(layer=>layer.id===selectedLayerId),updateSelectedLayer=(changes:Partial<OverlayLayer>|((layer:OverlayLayer)=>Partial<OverlayLayer>))=>setEditing(current=>current?{...current,layers:current.layers.map(layer=>layer.id===selectedLayerId?{...layer,...(typeof changes==="function"?changes(layer):changes)}:layer)}:current);
+  const selectedLayer = editing?.layers.find(
+      (layer) => layer.id === selectedLayerId,
+    ),
+    updateSelectedLayer = (
+      changes:
+        | Partial<OverlayLayer>
+        | ((layer: OverlayLayer) => Partial<OverlayLayer>),
+    ) =>
+      setEditing(current=>current?
+          {
+              ...current,
+              layers: current.layers.map((layer) =>
+                layer.id === selectedLayerId
+                  ? {
+                      ...layer,
+                      ...(typeof changes==="function"?changes(layer):changes),
+                    }
+                  : layer,
+              ),
+            }
+          : current,
+      );
   return (
     <div className="poster-overlay-route">
-      <style>{styles + layoutStyles}</style>
+      <style>{styles + responsiveLayoutStyles}</style>
       <div className="hero">
         <div>
           <span className="eyebrow">ARTWORK</span>
           <h1>Poster Overlay Studio</h1>
-          <p className="lede">Reusable poster styles with original-art fallback.</p>
+          <p className="lede">
+            Reusable poster styles with original-art fallback.
+          </p>
         </div>
         <button type="button" className="primary" onClick={() => setEditing(blankTemplate())}>
           New poster style
         </button>
       </div>
       <ServiceTabs active="poster-overlays" />
-      <Suspense fallback={<div className="panel skeleton">Loading Plex connection…</div>}><PlexConnectionPanel options={options} templates={templates}/></Suspense>
+      <Suspense
+        fallback={
+          <div className="panel skeleton">Loading Plex connection…</div>
+        }
+      >
+        <PlexConnectionPanel options={options} templates={templates} />
+      </Suspense>
       {loading ? (
         <div className="panel skeleton">Loading poster styles…</div>
       ) : (
@@ -756,17 +832,18 @@ export function PosterOverlaysView({
               {templates
                 .filter(
                   (template) =>
-                    template.target === "vynode" && (template.domain === "all" || template.domain === domain),
+                    template.target === "vynode" &&
+                    (template.domain === "all" || template.domain === domain),
                 )
                 .map((template) => (
-                <button
-                  className="secondary"
-                  disabled={busy}
-                  onClick={() => void assign(template)}
-                  key={template.id}
-                >
-                  Review “{template.name}”
-                </button>
+                  <button
+                    className="secondary"
+                    disabled={busy}
+                    onClick={() => void assign(template)}
+                    key={template.id}
+                  >
+                    Review “{template.name}”
+                  </button>
                 ))}
             </div>
             <h3>Active assignments</h3>
@@ -843,20 +920,46 @@ export function PosterOverlaysView({
                     query={iconQuery}
                     onQuery={setIconQuery}
                     onSelect={setSelectedLayerId}
-                    onChange={(changes) => setEditing({ ...editing, ...changes })}
+                    onChange={(changes) =>
+                      setEditing({ ...editing, ...changes })
+                    }
                     onAddText={() => {
                       const layer = blankLayer(variables[0]);
-                      setEditing({ ...editing, layers: [...editing.layers, layer] });
+                      setEditing({
+                        ...editing,
+                        layers: [...editing.layers, layer],
+                      });
                       setSelectedLayerId(layer.id);
                     }}
                     onAddIcon={(name) => {
-                      const layer = { ...blankLayer("custom_text"), kind: "icon" as const, iconName: name, label: "", contentPosition: "none" as const, width: 22, fontSize: 56 };
-                      setEditing({ ...editing, layers: [...editing.layers, layer] });
+                      const layer = {
+                        ...blankLayer("custom_text"),
+                        kind: "icon" as const,
+                        iconName: name,
+                        label: "",
+                        contentPosition: "none" as const,
+                        width: 22,
+                        fontSize: 56,
+                      };
+                      setEditing({
+                        ...editing,
+                        layers: [...editing.layers, layer],
+                      });
                       setSelectedLayerId(layer.id);
                     }}
                     onAddShape={(shape) => {
-                      const layer = { ...blankLayer("custom_text"), kind: "shape" as const, label: "", shape, width: 40, height: 10 };
-                      setEditing({ ...editing, layers: [...editing.layers, layer] });
+                      const layer = {
+                        ...blankLayer("custom_text"),
+                        kind: "shape" as const,
+                        label: "",
+                        shape,
+                        width: 40,
+                        height: 10,
+                      };
+                      setEditing({
+                        ...editing,
+                        layers: [...editing.layers, layer],
+                      });
                       setSelectedLayerId(layer.id);
                     }}
                   />
@@ -907,7 +1010,11 @@ export function PosterOverlaysView({
                             Show this layer
                           </label>
                           <Suspense>
-                            <LayerIdentity layer={layer} variables={variables} onChange={update} />
+                            <LayerIdentity
+                              layer={layer}
+                              variables={variables}
+                              onChange={update}
+                            />
                           </Suspense>
                           <label>
                             Position
@@ -1204,7 +1311,12 @@ export function PosterOverlaysView({
                     Destination
                     <select
                       value={editing.target}
-                      onChange={(event) => setEditing({ ...editing, target: event.target.value as "vynode" | "plex" })}
+                      onChange={(event) =>
+                        setEditing({
+                          ...editing,
+                          target: event.target.value as "vynode" | "plex",
+                        })
+                      }
                     >
                       <option value="vynode">VynodeArr</option>
                       <option value="plex">Plex</option>
@@ -1268,7 +1380,17 @@ export function PosterOverlaysView({
                     title’s real metadata.
                   </p>
                 </div>
-                {selectedLayer?<div className="overlay-condition-row"><Suspense><OverlayConditions layer={selectedLayer} variables={variables} onChange={updateSelectedLayer}/></Suspense></div>:null}
+                {selectedLayer ? (
+                  <div className="overlay-condition-row">
+                    <Suspense>
+                      <OverlayConditions
+                        layer={selectedLayer}
+                        variables={variables}
+                        onChange={updateSelectedLayer}
+                      />
+                    </Suspense>
+                  </div>
+                ) : null}
               </div>
               <div className="overlay-editor-footer">
                 <button className="secondary" onClick={() => setEditing(null)}>

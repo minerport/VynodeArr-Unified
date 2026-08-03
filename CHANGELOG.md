@@ -7,6 +7,17 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.34-rc.10] - 2026-08-03
+
+### Improved
+
+- Reorganized the Poster Overlay Studio for cleaner desktop and mobile use,
+  including compact style cards and a horizontally scrollable settings menu.
+- Made Plex connection fields, long server names, library selection, and
+  actions responsive without clipping or horizontal page overflow.
+- Replaced the oversized Plex poster-change history with compact rows and
+  recent/all history controls while preserving poster restoration actions.
+
 ## [2.0.34-rc.9] - 2026-08-03
 
 ### Fixed
