@@ -7,6 +7,20 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.34-rc.3] - 2026-08-02
+
+### Fixed
+
+- Improved Plex poster matching by hydrating external GUIDs omitted from library
+  listings and recognizing legacy Plex TMDB, TVDB, and IMDb agent identifiers.
+- Constrained Plex artwork comparisons to responsive 2:3 poster previews instead
+  of allowing full-resolution artwork to expand across the page.
+
+### Added
+
+- Added individual, multi-select, and select-all-matched Plex poster application
+  with typed batch confirmation and a separate rollback record per title.
+
 ## [2.0.34-rc.2] - 2026-08-02
 
 ### Added

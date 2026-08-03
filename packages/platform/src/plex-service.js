@@ -8,10 +8,17 @@ const cleanEndpoint=value=>{
 };
 const xmlAttribute=(value,name)=>String(value||'').match(new RegExp(`\\b${name}="([^"]*)"`,'i'))?.[1]||'';
 const decodeXml=value=>String(value||'').replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&');
-const externalId=value=>{const match=String(value||'').match(/^(tmdb|tvdb|imdb):\/\/(.+)$/i);return match?`${match[1].toLowerCase()}:${match[2].toLowerCase()}`:'';};
+const externalId=value=>{
+  const input=String(value||'').trim(),modern=input.match(/^(tmdb|tvdb|imdb):\/\/([^?/#]+)/i);if(modern)return`${modern[1].toLowerCase()}:${modern[2].toLowerCase()}`;
+  const legacy=input.match(/^com\.plexapp\.agents\.(themoviedb|thetvdb|imdb):\/\/([^?/#]+)/i);if(!legacy)return'';const source={themoviedb:'tmdb',thetvdb:'tvdb',imdb:'imdb'}[legacy[1].toLowerCase()];return`${source}:${legacy[2].toLowerCase()}`;
+};
 const itemExternalIds=item=>{
   const values=[];for(const [field,prefix]of [['tmdbId','tmdb'],['tvdbId','tvdb'],['imdbId','imdb']])if(item?.[field])values.push(`${prefix}:${String(item[field]).toLowerCase()}`);
-  for(const value of item?.guids||item?.Guid||[]){const id=externalId(value?.id||value);if(id)values.push(id);}return[...new Set(values)];
+  for(const value of [item?.guid,...(item?.guids||item?.Guid||[])]){const id=externalId(value?.id||value);if(id)values.push(id);}return[...new Set(values)];
+};
+const plexMetadata=(response,libraryType)=>{
+  const metadataValue=response.value?.MediaContainer?.Metadata,metadata=response.type==='json'?(Array.isArray(metadataValue)?metadataValue:metadataValue?[metadataValue]:[]):[...String(response.value).matchAll(/<(?:Video|Directory)\b[^>]*(?:\/>|>[\s\S]*?<\/(?:Video|Directory)>)/gi)].map(match=>match[0]);
+  return metadata.map(item=>({ratingKey:String(item.ratingKey??xmlAttribute(item,'ratingKey')),title:decodeXml(item.title??xmlAttribute(item,'title')),year:Number(item.year??xmlAttribute(item,'year'))||null,type:String((item.type??xmlAttribute(item,'type'))||libraryType),thumb:String(item.thumb??xmlAttribute(item,'thumb')),guid:String(item.guid??xmlAttribute(item,'guid')),guids:item.Guid||[...String(item).matchAll(/<Guid\b[^>]*id="([^"]+)"[^>]*\/>/gi)].map(match=>({id:decodeXml(match[1])}))})).filter(item=>item.ratingKey);
 };
 
 export class PlexService{
@@ -43,8 +50,9 @@ export class PlexService{
     return{endpoint:cleanEndpoint(endpoint),server,libraries};
   }
   async libraryItems(endpoint,token,library){
-    const response=await this.request(endpoint,token,`/library/sections/${encodeURIComponent(library.key)}/all?includeGuids=1`),metadataValue=response.value?.MediaContainer?.Metadata,metadata=response.type==='json'?(Array.isArray(metadataValue)?metadataValue:metadataValue?[metadataValue]:[]):[...String(response.value).matchAll(/<(?:Video|Directory)\b[^>]*>[\s\S]*?<\/(?:Video|Directory)>/gi)].map(match=>match[0]);
-    return metadata.slice(0,20000).map(item=>({ratingKey:String(item.ratingKey??xmlAttribute(item,'ratingKey')),title:decodeXml(item.title??xmlAttribute(item,'title')),year:Number(item.year??xmlAttribute(item,'year'))||null,type:String((item.type??xmlAttribute(item,'type'))||library.type),thumb:String(item.thumb??xmlAttribute(item,'thumb')),guids:item.Guid||[...String(item).matchAll(/<Guid\b[^>]*id="([^"]+)"[^>]*\/>/gi)].map(match=>({id:decodeXml(match[1])}))})).filter(item=>item.ratingKey);
+    const response=await this.request(endpoint,token,`/library/sections/${encodeURIComponent(library.key)}/all?includeGuids=1`),items=plexMetadata(response,library.type).slice(0,20000),missing=items.filter(item=>itemExternalIds(item).length===0);
+    for(let offset=0;offset<missing.length;offset+=100){const batch=missing.slice(offset,offset+100),ids=batch.map(item=>item.ratingKey).join(','),details=await this.request(endpoint,token,`/library/metadata/${ids}?includeGuids=1`).then(value=>plexMetadata(value,library.type)).catch(()=>[]),byKey=new Map(details.map(item=>[item.ratingKey,item]));for(const item of batch){const detail=byKey.get(item.ratingKey);if(detail){item.guid=detail.guid;item.guids=detail.guids;item.thumb=item.thumb||detail.thumb;}}}
+    return items;
   }
   async artwork(endpoint,token,path){
     const value=String(path||'');if(!/^\/library\/metadata\/\d+\/thumb(?:\/\d+)?$/i.test(value)&&!/^\/library\/metadata\/\d+\/art(?:\/\d+)?$/i.test(value))throw new Error('Plex artwork path is invalid');
