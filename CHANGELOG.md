@@ -7,6 +7,14 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.34-rc.17] - 2026-08-04
+
+### Fixed
+
+- Prevented loaded Action Center records from widening the mobile viewport.
+- Kept tabs, filters, action cards, timestamps, and decision evidence bounded
+  and readable when release names or explanations contain long text.
+
 ## [2.0.34-rc.16] - 2026-08-04
 
 ### Fixed

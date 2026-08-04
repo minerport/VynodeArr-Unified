@@ -4,6 +4,13 @@ import test from 'node:test';
 
 const read=(path)=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
+test('loaded Action Center records cannot widen the mobile viewport',async()=>{
+  const styles=await read('apps/web/public/styles.css');
+  assert.match(styles,/\.operations-center > \*,[\s\S]*?\.operations-action header > div[\s\S]*?min-width: 0;[\s\S]*?max-width: 100%;/);
+  assert.match(styles,/\.operations-action h2,[\s\S]*?overflow-wrap: anywhere;[\s\S]*?word-break: break-word;/);
+  assert.match(styles,/@media \(max-width: 800px\)[\s\S]*?\.operations-tabs,[\s\S]*?\.operations-toolbar[\s\S]*?max-width: 100%;/);
+});
+
 test('library titles can be attributed to a user without creating another download request',async()=>{
   const [detail,collections,server,queue,history,wanted,notifications,libraryCss]=await Promise.all([read('apps/web/client/src/discover-detail.tsx'),read('apps/web/client/src/collections.tsx'),read('apps/api/src/app.js'),read('apps/web/client/src/queue.tsx'),read('apps/web/client/src/history.tsx'),read('apps/web/client/src/wanted.tsx'),read('apps/web/client/src/notifications.tsx'),read('apps/web/public/library-enhancements.css')]);
   assert.match(detail,/Add to my collection/);assert.match(detail,/\/api\/user-collections\/items/);assert.match(detail,/\/api\/user-collections\/contains/);

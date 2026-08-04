@@ -103,6 +103,49 @@
   isolation: isolate;
 }
 
+/* Keep data-loaded Action Center content from widening the mobile page. */
+.operations-center,
+.operations-center > *,
+.operations-action-list,
+.operations-action,
+.operations-action header > div,
+.operations-evidence,
+.operations-evidence > div {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.operations-action {
+  width: 100%;
+  overflow: hidden;
+}
+
+.operations-action h2,
+.operations-action p,
+.operations-action time {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+@media (max-width: 800px) {
+  .operations-tabs,
+  .operations-toolbar {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .operations-toolbar,
+  .operations-action {
+    overflow: hidden;
+  }
+
+  .operations-action time {
+    white-space: normal !important;
+  }
+}
+
 :is(
   .react-collections,
   .react-add-media,
