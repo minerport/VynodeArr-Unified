@@ -1191,6 +1191,7 @@ test('request notification bell has durable role-aware request updates',async()=
   assert.match(server,/notificationReads/);assert.match(server,/\/api\/notifications\/read/);assert.match(server,/href:'#request-management'/);assert.match(server,/href:'#requests'/);
   assert.match(server,/notification-events\.json/);assert.match(server,/notificationStore\.update/);assert.match(server,/recipientUserId/);
   for(const value of ['synchronizeOperationalNotifications','operationalInitializedAt','queue-problem','engine-health','search-no-result',"client.get('queue'","client.get('history'","sync.operations('health')"])assert.ok(server.includes(value),value);
+  for(const value of ['operationalGrabDeliveryInitializedAt','suppressExternalIds','deliverable=added.filter','recordEngineSearchActivities'])assert.ok(server.includes(value),value);
   for(const value of ['/api/notifications/preferences','notificationPreferenceDefaults','minimumSeverity','quietHours','/api/notifications/test','notification_preferences.updated'])assert.ok(server.includes(value),value);
   for(const value of ['Notification preferences','In-app notifications','Minimum severity','Quiet hours','Send test','Set admin defaults'])assert.ok(notifications.includes(value),value);
   for(const value of ['/api/notifications/channels','discord','telegram','gotify','pushover','api.pushover.net/1/messages.json','encryptPushoverField','sendExternalNotification','recordExternalDelivery','notification_channel.saved'])assert.ok(server.includes(value),value);

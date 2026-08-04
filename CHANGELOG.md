@@ -7,6 +7,16 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.34-rc.16] - 2026-08-04
+
+### Fixed
+
+- Prevented historical engine grabs from being replayed to Telegram, Discord,
+  Gotify, or Pushover after an application upgrade.
+- Added a persistent background-delivery watermark so old activity is silently
+  backfilled in the app while new events continue delivering externally even
+  when no browser session is open.
+
 ## [2.0.34-rc.15] - 2026-08-04
 
 ### Fixed
