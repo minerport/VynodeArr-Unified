@@ -1040,6 +1040,13 @@ test('poster overlay style cards stay compact on phones',async()=>{
   assert.match(source,/backdrop-filter:none/);
 });
 
+test('poster overlay creation stays available beside the style list',async()=>{
+  const source=await read('apps/web/client/src/poster-overlays.tsx');
+  assert.match(source,/className="overlay-new-action"/);
+  assert.match(source,/Create new style/);
+  assert.match(source,/\.overlay-new-action\{display:grid;grid-template-columns:auto 1fr;width:100%\}/);
+});
+
 test('poster overlay editor layers retain drag and resize pointer input',async()=>{
   const source=await read('apps/web/client/src/poster-overlays.tsx');
   const preview=await read('apps/web/client/src/poster-overlay-library-preview.tsx');
@@ -1216,6 +1223,15 @@ test('administrator search activity visualizes every automatic-search entry poin
   for(const value of ['Search activity','Queued','Searching','Grabbed','Downloading','Imported','Open Queue','Open title'])assert.match(notifications,new RegExp(value),value);
   assert.match(notifications,/5_000/);assert.match(styles,/search-stage-track/);assert.match(styles,/bottom:0/);assert.match(styles,/aspect-ratio:2\/3/);
   assert.match(notifications,/artwork\/movie\/movie_\$\{item\.movieId\}\/poster/);assert.match(notifications,/#movie\/movie_\$\{item\.movieId\}/);
+});
+
+test('search activity reconciles in the server background and refreshes when the app returns',async()=>{
+  const [server,notifications]=await Promise.all([read('apps/api/src/app.js'),read('apps/web/client/src/notifications.tsx')]);
+  assert.match(server,/reconcileSearchActivities\(userId,providedSnapshots=null\)/);
+  assert.match(server,/activitySnapshots\.set\(domain,\{queue:engineRecords,history:engineHistory\}\)/);
+  assert.match(server,/await reconcileSearchActivities\(null,activitySnapshots\)/);
+  assert.match(notifications,/visibilitychange/);
+  assert.match(notifications,/window\.addEventListener\('focus',refresh\)/);
 });
 
 test('download decision center explains native candidate evidence',async()=>{

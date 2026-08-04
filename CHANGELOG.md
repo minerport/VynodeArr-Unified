@@ -7,6 +7,17 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.34-rc.14] - 2026-08-04
+
+### Fixed
+
+- Reconciled bell and search activity from the server's background queue pass
+  so statuses continue advancing while the application is closed.
+- Refreshed notifications immediately when a phone or desktop browser returns
+  to the foreground.
+- Restored the Poster Overlay Studio creation action directly beside the style
+  list with compact desktop and touch-friendly mobile layouts.
+
 ## [2.0.34-rc.13] - 2026-08-03
 
 ### Fixed
