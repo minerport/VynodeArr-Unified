@@ -7,6 +7,22 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.34-rc.12] - 2026-08-03
+
+### Added
+
+- Added an administrator Library Action Center that explains operational
+  issues, affected areas, and recommended next actions with reversible
+  dismiss and restore controls.
+- Added a filterable Automation Timeline spanning requests, searches,
+  download decisions, queue and history events, notifications, audit events,
+  validation results, and Plex poster changes.
+
+### Improved
+
+- Added responsive desktop and mobile layouts for the new operations views
+  without replacing or removing existing activity workflows.
+
 ## [2.0.34-rc.11] - 2026-08-03
 
 ### Fixed

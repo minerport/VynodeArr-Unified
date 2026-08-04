@@ -28,9 +28,13 @@ consistent experience and account system.
 ## Current release
 
 Version **2.0.33** is available for production use on Unraid, Windows, and
-standard Docker installations. Version **2.0.34-rc.11** is available as a
+standard Docker installations. Version **2.0.34-rc.12** is available as a
 prerelease for testing the Engine Update Center and its backup-gated candidate
-workflow. Its administrator Poster Overlay Studio adds reusable,
+workflow. The new administrator Library Action Center identifies operational
+issues, explains their impact, recommends a safe next action, and provides a
+unified Automation Timeline across requests, searches, downloads, queue and
+history events, notifications, audits, validation, and Plex artwork. Its
+Poster Overlay Studio adds reusable,
 variable-aware text, shape, and media-icon layers; precise positioning and
 resizing; adaptive colors; conditional rendering; text wrapping and automatic
 fitting; exact VynodeArr previews; reversible library assignments; expanded
