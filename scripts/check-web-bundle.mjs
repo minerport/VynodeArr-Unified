@@ -23,8 +23,9 @@ const stylesheet=sizes.find(file=>file.name==='vynodearr-react.css');
 // accidental growth while accounting for those intentional surfaces.
 const limits={entry:300_000,shell:252_000,route:45_000,css:69_000};
 // The admin-only Action Center adds one typed route/mount boundary to the shell;
-// its UI and data views remain isolated in a lazy-loaded route chunk.
-const mobileAllowance={shell:1_700,css:3_000};
+// its UI and data views remain isolated in a lazy-loaded route chunk. The shell
+// also restores the active hash route when Safari revives its back-forward cache.
+const mobileAllowance={shell:1_800,css:3_000};
 const failures=[];
 
 if(!entry)failures.push('The React entry bundle was not produced.');

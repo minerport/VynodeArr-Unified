@@ -29,12 +29,14 @@ export function wireNavigationLifecycle(options:NavigationLifecycleOptions):()=>
     activeRoute=nextRoute;
     void options.route();
   };
+  const onPageShow=({persisted}:PageTransitionEvent)=>persisted&&void options.route();
   const preloadBindings:Array<{
     link:HTMLAnchorElement;
     preload:()=>void;
   }>=[];
 
   options.window.addEventListener('hashchange',onHashChange);
+  options.window.addEventListener('pageshow',onPageShow);
   for(const link of options.document.querySelectorAll<HTMLAnchorElement>('a[href^="#"]')){
     const preload=()=>options.bridge()?.preloadRoute?.(parseRoute(link.hash).key);
     link.addEventListener('pointerenter',preload,{passive:true});
@@ -50,6 +52,7 @@ export function wireNavigationLifecycle(options:NavigationLifecycleOptions):()=>
 
   return()=>{
     options.window.removeEventListener('hashchange',onHashChange);
+    options.window.removeEventListener('pageshow',onPageShow);
     for(const {link,preload} of preloadBindings){
       link.removeEventListener('pointerenter',preload);
       link.removeEventListener('focus',preload);

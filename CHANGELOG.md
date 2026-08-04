@@ -7,6 +7,19 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.34-rc.18] - 2026-08-04
+
+### Fixed
+
+- Bounded binary artwork and television metadata caches by age, item count,
+  and total bytes so browsing large libraries cannot retain artwork forever.
+- Pruned expired browser requests, interactive searches, authentication
+  attempts, sessions, and completed-event tracking during long uptimes.
+- Prevented Action Center card headers, release names, and timestamps from
+  overlapping on mobile screens.
+- Restored the current hash route when Safari revives a cached page so opening
+  Action Center does not unexpectedly return administrators to Dashboard.
+
 ## [2.0.34-rc.17] - 2026-08-04
 
 ### Fixed

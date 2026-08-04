@@ -120,6 +120,16 @@
   overflow: hidden;
 }
 
+.operations-action > header {
+  position: static;
+  height: auto;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  backdrop-filter: none;
+}
+
 .operations-action h2,
 .operations-action p,
 .operations-action time {
@@ -142,6 +152,8 @@
   }
 
   .operations-action time {
+    display: block;
+    margin-top: 2px;
     white-space: normal !important;
   }
 }

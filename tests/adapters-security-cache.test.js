@@ -12,6 +12,7 @@ import { EncryptedCredentialVault } from '../.server-build/packages/platform/src
 import { MovieFixtureAdapter } from '../.server-build/packages/movie-domain/src/fixture-adapter.js';
 import { completedQueueItemHasArrived, completedQueueItemIsTerminal } from '../.server-build/packages/contracts/src/mappers.js';
 import { TvFixtureAdapter } from '../.server-build/packages/tv-domain/src/fixture-adapter.js';
+import { BoundedCache } from '../.server-build/packages/platform/src/bounded-cache.js';
 
 class FakeClient{constructor(values){this.values=values;}async get(path){if(path in this.values)return structuredClone(this.values[path]);return path.startsWith('movie/')?this.values.movieDetail:path.startsWith('series/')?this.values.seriesDetail:[];}}
 const movieRecord={id:1,tmdbId:101,imdbId:'tt0000101',title:'Mapped Movie',sortTitle:'mapped movie',year:2025,releaseDate:'2025-02-03T00:00:00Z',added:'2026-01-02T00:00:00Z',runtime:110,certification:'PG-13',ratings:{imdb:{value:7.4}},monitored:true,status:'released',hasFile:true,sizeOnDisk:1024,movieFile:{quality:{quality:{name:'1080p'}}},qualityProfileId:2,path:'/media',tags:[],images:[]};
@@ -141,6 +142,16 @@ test('engine mutation validation remains actionable',async()=>{
 test('bounded cache reuses data, invalidates, and recovers stale values',async()=>{
   let calls=0;const movie=new MovieFixtureAdapter();const original=movie.listMovies.bind(movie);movie.listMovies=async(...args)=>{calls++;return original(...args);};const sync=new SynchronizationService({movie,tv:new TvFixtureAdapter(),maxItems:2,pollIntervalMs:999999});
   assert.equal((await sync.list('movie')).length,2);await sync.list('movie');assert.equal(calls,1);sync.invalidate('movie');await sync.list('movie');assert.equal(calls,2);movie.listMovies=async()=>{throw new Error('private failure');};assert.equal((await sync.synchronize('movie')).length,2);assert.equal(sync.snapshot().movie.status,'stale');
+});
+test('binary cache expires entries and remains within item and byte limits',async()=>{
+  const cache=new BoundedCache({maxItems:2,maxBytes:6,ttlMs:20,sizeOf:value=>value.length});
+  cache.set('one',Buffer.alloc(3,1)).set('two',Buffer.alloc(3,2));
+  assert.equal(cache.stats().bytes,6);assert.equal(cache.get('one')[0],1);
+  cache.set('three',Buffer.alloc(3,3));
+  assert.equal(cache.has('two'),false);assert.equal(cache.size,2);assert.equal(cache.stats().bytes,6);
+  cache.set('oversized',Buffer.alloc(7));assert.equal(cache.has('oversized'),false);
+  await new Promise(resolve=>setTimeout(resolve,25));
+  assert.equal(cache.size,0);assert.equal(cache.stats().bytes,0);
 });
 test('credential vault encrypts, replaces, redacts status, and removes',async()=>{
   const dir=await mkdtemp(join(tmpdir(),'vynodearr-vault-'));const path=join(dir,'credentials.enc');const vault=new EncryptedCredentialVault(path,'a-long-review-master-key-value');

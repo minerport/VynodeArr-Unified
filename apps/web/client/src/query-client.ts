@@ -2,6 +2,7 @@ type Entry<T>={value:T;expires:number};
 
 const memory=new Map<string,Entry<unknown>>();
 const pending=new Map<string,Promise<unknown>>();
+const prune=()=>{const now=Date.now();for(const [key,value]of memory)if(value.expires<=now)memory.delete(key);while(memory.size>=250){const key=memory.keys().next().value;if(key===undefined)break;memory.delete(key);}};
 
 export async function cachedRequest<T>(
   key:string,
@@ -11,9 +12,11 @@ export async function cachedRequest<T>(
 ):Promise<T>{
   const cached=memory.get(key) as Entry<T>|undefined;
   if(cached&&cached.expires>Date.now())return cached.value;
+  prune();
   const active=pending.get(key) as Promise<T>|undefined;
   if(active)return active;
   const run=loader().then(value=>{
+    prune();
     memory.set(key,{value,expires:Date.now()+ttlMs});
     pending.delete(key);
     return value;
@@ -28,6 +31,7 @@ export async function cachedRequest<T>(
 }
 
 export function primeRequest<T>(key:string,value:T,ttlMs=60_000){
+  prune();
   memory.set(key,{value,expires:Date.now()+ttlMs});
 }
 

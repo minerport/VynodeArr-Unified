@@ -71,7 +71,7 @@ export class AuthService {
     this.users.push(user);await this.#persistUsers();return this.publicUser(user);
   }
   publicUser(user){const {passwordHash,...safe}=user;return safe;}
-  #allow(ip){const key=ip||'unknown',now=Date.now(),attempt=this.attempts.get(key)||{count:0,resetAt:now+60000};if(now>attempt.resetAt)Object.assign(attempt,{count:0,resetAt:now+60000});attempt.count++;this.attempts.set(key,attempt);return attempt.count<=this.rateLimit;}
+  #allow(ip){const key=ip||'unknown',now=Date.now();for(const [candidate,attempt]of this.attempts)if(attempt.resetAt<=now)this.attempts.delete(candidate);while(this.attempts.size>=10000)this.attempts.delete(this.attempts.keys().next().value);const attempt=this.attempts.get(key)||{count:0,resetAt:now+60000};attempt.count++;this.attempts.set(key,attempt);return attempt.count<=this.rateLimit;}
   async login(identifier,password,context={}){
     if(!this.#allow(context.ip))return null;const needle=normalize(identifier).toLowerCase();
     const user=this.users.find((candidate)=>candidate.username.toLowerCase()===needle||candidate.email.toLowerCase()===needle);
@@ -80,6 +80,7 @@ export class AuthService {
   }
   async createSession(user,context={}){
     const id=encode(randomBytes(32)),csrf=encode(randomBytes(24)),now=Date.now(),info=clientInfo(context.userAgent);
+    for(const [sessionId,session]of this.sessions)if(session.expiresAt<=now)this.sessions.delete(sessionId);
     const session={id,userId:user.id,csrf,createdAt:now,lastActivity:now,expiresAt:now+(context.remember?this.rememberTtlMs:this.sessionTtlMs),remember:Boolean(context.remember),ipMasked:maskIp(context.ip),...info};
     this.sessions.set(id,session);await this.#persistSessions();return{id,csrf,user:this.publicUser(user)};
   }

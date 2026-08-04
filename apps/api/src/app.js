@@ -17,6 +17,7 @@ import { EngineUpdateReviewService } from '../../../packages/platform/src/engine
 import { PlexService,sanitizePlexEndpoint } from '../../../packages/platform/src/plex-service.js';
 import { JsonStore } from '../../../packages/platform/src/json-store.js';
 import { GuideTemplateService,formatForMovieEngine } from '../../../packages/platform/src/guide-template-service.js';
+import { BoundedCache } from '../../../packages/platform/src/bounded-cache.js';
 import { MovieEngineAdapter } from '../../../packages/movie-domain/src/engine-adapter.js';
 import { TvEngineAdapter } from '../../../packages/tv-domain/src/engine-adapter.js';
 import { MovieFixtureAdapter } from '../../../packages/movie-domain/src/fixture-adapter.js';
@@ -231,7 +232,8 @@ export function createApplication(options={}){
     const unique=new Map();for(const item of actions.sort((a,b)=>b.timestamp.localeCompare(a.timestamp)))if(!unique.has(item.id))unique.set(item.id,item);return[...unique.values()].slice(0,500);
   }
   const discovery=options.discovery||new TmdbDiscoveryService({token:env.TMDB_API_READ_TOKEN||env.TMDB_API_KEY});
-  const artworkCache=new Map(),artworkRuns=new Map(),tvMetadataCache=new Map();let mode=baseConfig.dataMode,librarySummaryTimer=null;
+  const boundedInteger=(value,fallback,min,max)=>Math.max(min,Math.min(max,Math.trunc(Number(value)||fallback)));
+  const artworkCache=new BoundedCache({maxItems:boundedInteger(env.VYNODEARR_ARTWORK_CACHE_ITEMS,250,10,2000),maxBytes:boundedInteger(env.VYNODEARR_ARTWORK_CACHE_BYTES,128*1024*1024,1024*1024,1024*1024*1024),ttlMs:boundedInteger(env.VYNODEARR_ARTWORK_CACHE_TTL_MS,30*60*1000,60_000,24*60*60*1000)}),artworkRuns=new Map(),tvMetadataCache=new BoundedCache({maxItems:100,maxBytes:32*1024*1024,ttlMs:30*60*1000});let mode=baseConfig.dataMode,librarySummaryTimer=null;
   let movie=options.movie||(mode==='fixture'?new MovieFixtureAdapter(baseConfig.movie):new MovieEngineAdapter(baseConfig.movie));
   let tv=options.tv||(mode==='fixture'?new TvFixtureAdapter(baseConfig.tv):new TvEngineAdapter(baseConfig.tv));
   const registry=options.registry||new MediaEngineRegistry().register('movie',movie).register('tv',tv);
@@ -319,8 +321,10 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
   async function cachedInteractiveReleases(domain,query,loader){
     const key=releaseCacheKey(domain,query),now=Date.now(),cached=interactiveReleaseCache.get(key),force=String(query?.force||'')==='true';
     if(!force&&cached&&cached.expiresAt>now)return cached.promise;
+    for(const [cacheKey,value]of interactiveReleaseCache)if(value.expiresAt<=now)interactiveReleaseCache.delete(cacheKey);
     const promise=Promise.resolve().then(loader).then(result=>Array.isArray(result)?result:[]).catch(error=>{interactiveReleaseCache.delete(key);throw error;});
     interactiveReleaseCache.set(key,{expiresAt:now+releaseCacheTtlMs,promise});
+    while(interactiveReleaseCache.size>250)interactiveReleaseCache.delete(interactiveReleaseCache.keys().next().value);
     return promise;
   }
   async function televisionSeriesReleases(seriesId,seasonNumber){
@@ -860,6 +864,7 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
     }catch{return null;}
   }
   async function liveQueue(){
+    const retentionCutoff=Date.now()-24*60*60*1000;for(const cache of [completedQueueRefreshes,completedQueueCleanups,completedUpgradeRenames,completedLibraryImports])for(const [key,timestamp]of cache)if(timestamp<retentionCutoff)cache.delete(key);
     const activitySnapshots=new Map();
     const results=await Promise.all(['movie','tv'].map(async domain=>{
       const client=registry.get(domain).client;
