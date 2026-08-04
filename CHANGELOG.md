@@ -7,6 +7,16 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.34-rc.19] - 2026-08-04
+
+### Fixed
+
+- Canceled the matching Radarr or Sonarr compatibility request immediately
+  when its browser or external caller disconnects, preventing abandoned
+  upstream response work while preserving submitted background operations.
+- Retained the existing engine timeout as a fallback and verified that normal
+  compatibility responses still complete without premature cancellation.
+
 ## [2.0.34-rc.18] - 2026-08-04
 
 ### Fixed

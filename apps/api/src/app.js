@@ -1185,13 +1185,24 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
     for(const[name,value]of Object.entries(req.headers))if(!hopHeaders.has(name)&&name!=='host'&&value!==undefined)headers[name]=value;
     headers.host=`${config.host}:${config.port}`;
     if(/^\/api\//i.test(relative))headers.accept='application/json';
+    let upstreamResponse=null,upstreamComplete=false,downstreamAborted=false;
+    const removeDownstreamListeners=()=>{req.off('aborted',abortUpstream);res.off('close',abortUpstream);};
+    const abortUpstream=()=>{
+      if(upstreamComplete||res.writableFinished)return;
+      downstreamAborted=true;removeDownstreamListeners();upstreamResponse?.destroy();upstream.destroy();
+    };
     const upstream=transport({protocol:config.https?'https:':'http:',hostname:config.host,port:config.port,method:req.method,path:`${upstreamBase}${relative}${url.search}`,headers,rejectUnauthorized:config.tlsVerify},response=>{
+      upstreamResponse=response;
+      const finishUpstream=()=>{upstreamComplete=true;removeDownstreamListeners();};
+      response.once('end',finishUpstream);response.once('close',finishUpstream);
+      if(downstreamAborted||res.destroyed){response.destroy();return;}
       const responseHeaders={};
       for(const[name,value]of Object.entries(response.headers))if(!hopHeaders.has(name)&&value!==undefined)responseHeaders[name]=value;
       res.writeHead(response.statusCode||502,responseHeaders);response.pipe(res);
     });
+    req.once('aborted',abortUpstream);res.once('close',abortUpstream);
     upstream.setTimeout(config.timeoutMs||10000,()=>upstream.destroy(new Error('Compatibility API timed out')));
-    upstream.on('error',()=>{if(!res.headersSent)json(res,502,{error:{message:`${domain==='movie'?'Movie':'Television'} service unavailable`}});else res.destroy();});
+    upstream.on('error',()=>{removeDownstreamListeners();if(downstreamAborted||res.destroyed)return;if(!res.headersSent)json(res,502,{error:{message:`${domain==='movie'?'Movie':'Television'} service unavailable`}});else res.destroy();});
     req.pipe(upstream);
   }
 
