@@ -62,6 +62,13 @@ test('unified queue, history, calendar, health, and engine status',()=>fixtureSe
   }
   const engines=await (await get(base,'/api/system/engines',cookie)).json();assert.equal(engines.engines.length,2);assert.equal(JSON.stringify(engines).includes('apiCredential'),false);
 }));
+test('Action Center normalizes existing activity and safely retains dismiss state',()=>fixtureServer(async({base,cookie,csrf})=>{
+  const timelineResponse=await get(base,'/api/operations/timeline',cookie),timeline=await timelineResponse.json();
+  assert.equal(timelineResponse.status,200);assert.ok(timeline.items.length>=6);assert.ok(timeline.items.every(item=>item.id&&item.source&&item.title&&item.timestamp));
+  const movieResponse=await get(base,'/api/operations/timeline?domain=movie',cookie),movies=await movieResponse.json();assert.equal(movieResponse.status,200);assert.ok(movies.items.every(item=>item.domain==='movie'));
+  const actionsResponse=await get(base,'/api/operations/actions?dismissed=true',cookie),actions=await actionsResponse.json();assert.equal(actionsResponse.status,200);assert.ok(Array.isArray(actions.items));
+  if(actions.items.length){const item=actions.items[0],path=`/api/operations/actions/${encodeURIComponent(item.id)}`;const rejected=await fetch(`${base}${path}/dismiss`,{method:'POST',headers:{cookie}});assert.equal(rejected.status,403);const dismissed=await fetch(`${base}${path}/dismiss`,{method:'POST',headers:{cookie,'x-vynodearr-csrf':csrf,'content-type':'application/json'},body:'{}'});assert.equal(dismissed.status,200);const hidden=await (await get(base,'/api/operations/actions',cookie)).json();assert.equal(hidden.items.some(value=>value.id===item.id),false);const restored=await fetch(`${base}${path}/restore`,{method:'POST',headers:{cookie,'x-vynodearr-csrf':csrf,'content-type':'application/json'},body:'{}'});assert.equal(restored.status,200);}
+}));
 test('public errors and health are neutral',async()=>{
   const directory=await mkdtemp(join(tmpdir(),'vynodearr-error-'));const app=createApplication({env:{VYNODEARR_DATA_MODE:'fixture',VYNODEARR_DATA_DIR:directory}});
   const server=createServer(app.handleRequest);await new Promise((resolve)=>server.listen(0,'127.0.0.1',resolve));const base=`http://127.0.0.1:${server.address().port}`;
@@ -82,7 +89,7 @@ test('static assets use safe caching, validation, and gzip compression',()=>fixt
 }));
 test('UI exposes login, dashboard, media, operations, settings, and responsive shell',async()=>{
   const html=await readFile(new URL('../apps/web/public/index.html',import.meta.url),'utf8');const script=await readFile(new URL('../apps/web/client/src/app-shell.ts',import.meta.url),'utf8');const loader=await readFile(new URL('../apps/web/public/app.js',import.meta.url),'utf8');const css=await readFile(new URL('../apps/web/public/styles.css',import.meta.url),'utf8');
-  for(const value of ['Create Administrator','Sign in','Username or email','Remember me','Forgot password','Discover','Movies','TV','Queue','History','Calendar','Settings','System','Read-only mode'])assert.match(html,new RegExp(value));
+  for(const value of ['Create Administrator','Sign in','Username or email','Remember me','Forgot password','Discover','Movies','TV','Action Center','Queue','History','Calendar','Settings','System','Read-only mode'])assert.match(html,new RegExp(value));
   for(const value of ['showDashboard','showDiscoverV2','showDiscoverSettings','Configure Discover','/api/settings/discover','TMDB_API_READ_TOKEN','openLiveDiscoverDetails','addDiscoverToEngine','markLiveDiscoverRequested','scrollPositions','discoverLibraryKey','discover-taxonomy','discover-request-title','showHealthReact','mountHealth','showMedia','showDetail','showOperational','showSettings','showEngineSetup','showAccountSettings','showSessions','showUsers'])assert.match(script,new RegExp(value));
   assert.doesNotMatch(script,/requested and sent[^;]+;location\.hash/);
   assert.match(loader,/\/react\/vynodearr-app\.js/);

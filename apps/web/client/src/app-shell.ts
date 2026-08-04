@@ -600,6 +600,11 @@ function showRequestManagementReact(){
   const host=createRouteHost(content,'request-management-react');
   window.VynodeArrReact.mountRequestManagement(host,{request:api,notify});
 }
+function showOperationsReact(){
+  if(state.user.role!=='administrator'){content.innerHTML='<div class="empty error-state"><h2>Administrator access required</h2><p>The Action Center is available to administrators.</p></div>';return;}
+  if(!window.VynodeArrReact?.mountOperations){content.innerHTML='<div class="panel error-state"><h2>Action Center unavailable</h2><p>Reload VynodeArr to load this section.</p></div>';return;}
+  const host=createRouteHost(content,'operations-react');window.VynodeArrReact.mountOperations(host,{request:api,notify});
+}
 async function reviewLibraryImport(domain,root,reload){
   const movie=domain==='movie',dialog=document.querySelector('#detail-dialog')||document.body.appendChild(Object.assign(document.createElement('dialog'),{id:'detail-dialog'})),normalizePath=value=>String(value||'').replaceAll('\\','/').replace(/\/+$/,'').toLowerCase();let rootPath=normalizePath(root.path);
   dialog.innerHTML=`<div class="library-import"><div class="panel-heading"><div><span class="eyebrow">SCAN EXISTING ${movie?'MOVIES':'TELEVISION'}</span><h2>${esc(root.path)}</h2></div><button class="secondary close-import" type="button">Cancel</button></div><div class="skeleton">Comparing folders with your library…</div></div>`;dialog.querySelector('.close-import').onclick=()=>dialog.close();dialog.showModal();
@@ -766,6 +771,7 @@ async function route(){
     case'discover':return showDiscoverV2();
     case'requests':return showRequestsReact();
     case'requestManagement':return showRequestManagementReact();
+    case'operations':return showOperationsReact();
     case'library':return showMedia(action.kind);
     case'collections':return showCollectionsReact();
     case'addMedia':return showAddMediaReact();

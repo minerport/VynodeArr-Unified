@@ -3,6 +3,7 @@ export const routeKeys=[
   'discover',
   'requests',
   'request-management',
+  'operations',
   'movies',
   'tv',
   'collections',

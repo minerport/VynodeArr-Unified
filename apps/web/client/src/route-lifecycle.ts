@@ -7,6 +7,7 @@ const unmountMethods=[
   'unmountQueue',
   'unmountRequests',
   'unmountRequestManagement',
+  'unmountOperations',
   'unmountWanted',
   'unmountCalendar',
   'unmountCollections',
