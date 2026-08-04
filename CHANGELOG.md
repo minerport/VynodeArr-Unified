@@ -7,6 +7,16 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.34-rc.13] - 2026-08-03
+
+### Fixed
+
+- Reworked the Automation Timeline filters and event rows for phone-sized
+  screens so controls stack cleanly and long activity details remain inside
+  the viewport.
+- Made timeline actions, tabs, summaries, and metadata easier to read and use
+  on mobile without changing the desktop workflow.
+
 ## [2.0.34-rc.12] - 2026-08-03
 
 ### Added

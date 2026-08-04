@@ -94,4 +94,5 @@ test('UI exposes login, dashboard, media, operations, settings, and responsive s
   assert.doesNotMatch(script,/requested and sent[^;]+;location\.hash/);
   assert.match(loader,/\/react\/vynodearr-app\.js/);
   assert.match(css,/@media\(max-width:760px\)/);
+  for(const value of ['.operations-toolbar label{display:grid!important','.operations-timeline article{display:grid;grid-template-columns:minmax(0,1fr)',".operations-timeline article p,.operations-timeline article small{display:block;max-width:100%;overflow-wrap:anywhere",'.operations-timeline article>a{width:100%'])assert.ok(css.includes(value),value);
 });
