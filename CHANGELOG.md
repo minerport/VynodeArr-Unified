@@ -7,6 +7,17 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.34-rc.15] - 2026-08-04
+
+### Fixed
+
+- Persisted engine-initiated background grabs into administrator Search
+  Activity even when no browser session is open.
+- Reconciled those durable entries through downloading, imported, and failed
+  states using queue and engine-history evidence.
+- Added background engine grabs to bell History with stable event identities
+  that prevent duplicate entries across polling cycles.
+
 ## [2.0.34-rc.14] - 2026-08-04
 
 ### Fixed

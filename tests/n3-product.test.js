@@ -167,6 +167,8 @@ test('native engine background grabs appear as upgrade decisions',()=>{
     assert.equal((await fetch(`${base}/api/notifications`,{headers:{cookie}})).status,200);
     const decisions=(await (await fetch(`${base}/api/download-decisions`,{headers:{cookie}})).json()).items,item=decisions.find(value=>value.source==='engine');
     assert.equal(item.title,grabbed.sourceTitle);assert.equal(item.previousQuality,'WEBDL-1080p');assert.equal(item.previousCustomFormatScore,25);assert.equal(item.currentCustomFormatScore,125);assert.equal(item.upgradeEligible,true);assert.match(item.reasons.join(' '),/score improved from 25 to 125/i);
+    const activities=(await (await fetch(`${base}/api/search-activities`,{headers:{cookie}})).json()).items,activity=activities.find(value=>value.source==='engine');
+    assert.equal(activity.title,'Background Movie');assert.equal(activity.movieId,7);assert.equal(activity.status,'imported');assert.match(activity.message,/imported into the library/i);
   });
 });
 test('native replacement events without download IDs still explain same-quality grabs',()=>{
