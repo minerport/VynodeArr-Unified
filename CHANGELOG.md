@@ -7,6 +7,34 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.34] - 2026-08-04
+
+### Added
+
+- Added the Engine Update Center with upstream release review, compatibility
+  validation, backup requirements, candidate builds, and issue-draft support.
+- Added the Library Action Center and unified Automation Timeline across
+  requests, searches, downloads, imports, notifications, audits, validation,
+  and Plex artwork operations.
+- Added reversible Plex poster-overlay application with exact previews,
+  external-ID matching, rollback artwork, and multi-library title selection.
+
+### Changed
+
+- Made engine activity, search history, bell history, and external
+  notifications reconcile in the background without requiring an open browser.
+- Improved Poster Overlay Studio and Action Center layouts across desktop and
+  mobile, including bounded controls, readable cards, and responsive filters.
+
+### Fixed
+
+- Bounded artwork, metadata, request, authentication, session, queue, and
+  completion caches to prevent long-running resource growth.
+- Prevented historical notifications from replaying after upgrades while
+  continuing to deliver genuinely new external notifications.
+- Canceled abandoned Radarr and Sonarr compatibility responses immediately
+  when their callers disconnect, without canceling submitted background work.
+
 ## [2.0.34-rc.19] - 2026-08-04
 
 ### Fixed
