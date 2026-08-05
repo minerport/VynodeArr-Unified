@@ -13,7 +13,7 @@ export class ReadOnlyEngineClient {
     for(const [key,value] of Object.entries(query))if(value!=null)url.searchParams.set(key,String(value));
     return url;
   }
-  #request(url: URL,{method='GET',payload,timeoutMs=this.config.timeoutMs}:{method?: string;payload?: unknown;timeoutMs?: number}={}){
+  #request(url: URL,{method='GET',payload,timeoutMs=this.config.timeoutMs,notFoundNull=false}:{method?: string;payload?: unknown;timeoutMs?: number;notFoundNull?: boolean}={}){
     return new Promise<any>((resolve,reject)=>{
       const transport=url.protocol==='https:'?httpsRequest:httpRequest;
       const encoded=payload===undefined?null:Buffer.from(JSON.stringify(payload));
@@ -23,6 +23,7 @@ export class ReadOnlyEngineClient {
         res.on('data',(chunk)=>{size+=chunk.length;if(size>32*1024*1024){req.destroy(engineError.invalid());return;}chunks.push(chunk);});
         res.on('end',()=>{
           if(res.statusCode===401||res.statusCode===403)return reject(engineError.authentication());
+          if(notFoundNull&&res.statusCode===404)return resolve(null);
           const text=Buffer.concat(chunks).toString('utf8');
           if(res.statusCode<200||res.statusCode>=300){
             if([400,404,409,422,500].includes(res.statusCode)){
@@ -71,6 +72,16 @@ export class ReadOnlyEngineClient {
     let lastError: any;
     for(let attempt=0;attempt<=this.config.retries;attempt+=1){
       try{return await this.#request(this.buildUrl(path,query));}
+      catch(error:any){lastError=error;if(error?.code==='engine_authentication_failed')break;}
+    }
+    if(lastError?.safeMessage)throw lastError;
+    throw engineError.unavailable(this.domain);
+  }
+  async getOptional(path: string,query?: Record<string, unknown>): Promise<any>{
+    if(!this.config.enabled)throw engineError.unavailable(this.domain);
+    let lastError: any;
+    for(let attempt=0;attempt<=this.config.retries;attempt+=1){
+      try{return await this.#request(this.buildUrl(path,query),{notFoundNull:true});}
       catch(error:any){lastError=error;if(error?.code==='engine_authentication_failed')break;}
     }
     if(lastError?.safeMessage)throw lastError;

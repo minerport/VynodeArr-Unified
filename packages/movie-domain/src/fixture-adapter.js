@@ -18,6 +18,7 @@ export class MovieFixtureAdapter {
   constructor(config = { enabled:true, displayName:'Movies' }) { this.config = config; }
   async listMovies({ limit = 5000 } = {}) { return movies.slice(0, Math.min(limit, 5000)).map(({ availability, backdrop, ...summary }) => summary); }
   async getMovie(id) { const movie = movies.find((item) => item.id === id); return movie ? { ...movie, recentHistory:history.filter((item)=>item.mediaId===id), calendar:calendar.filter((item)=>item.mediaId===id) } : null; }
+  async getMovieSummary(id){return movies.find((item)=>item.id===id)||null;}
   async getQueue() { return structuredClone(queue); }
   async getHistory() { return structuredClone(history); }
   async getCalendar() { return structuredClone(calendar); }

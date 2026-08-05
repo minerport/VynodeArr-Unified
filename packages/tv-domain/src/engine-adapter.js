@@ -15,10 +15,10 @@ export class TvEngineAdapter {
     const count = value => Number.isFinite(Number(value?.totalRecords)) ? Number(value.totalRecords) : (records(value) || []).length;
     return { missing: count(missing), cutoff: count(cutoff) };
   }
-  async #context() {
+  async #context({includeMissing=true}={}) {
     const [queue, missing] = await Promise.all([
       this.getQueue().catch(() => []),
-      this.client.get('wanted/missing', { page: 1, pageSize: 10000, monitored: true, includeSeries: false }).catch(() => null)
+      includeMissing?this.client.get('wanted/missing', { page: 1, pageSize: 10000, monitored: true, includeSeries: false }).catch(() => null):Promise.resolve(null)
     ]);
     const monitoredMissingBySeriesId = new Map();
     for (const episode of records(missing) || []) {
@@ -49,6 +49,11 @@ export class TvEngineAdapter {
       context.monitoredMissingBySeriesId.set(engineId, record?.monitored === false ? 0 : episodes.filter((episode) => episode.monitored !== false && !episode.hasFile).length);
       return seriesDetails(record, episodes, context);
     } catch (error) { if (error.code) throw error; throw engineError.invalid(); }
+  }
+  async getSeriesSummary(id) {
+    const engineId=numericId(id);if(!Number.isFinite(engineId))return null;
+    try { const [record,context]=await Promise.all([this.client.getOptional(`series/${engineId}`),this.#context({includeMissing:false})]);return record?seriesSummary(record,context):null; }
+    catch(error){if(error.code)throw error;throw engineError.invalid();}
   }
   async getSeriesFileMetadata(id) {
     const engineId=numericId(id);if(!Number.isFinite(engineId))return[];

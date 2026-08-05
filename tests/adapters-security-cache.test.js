@@ -143,6 +143,12 @@ test('bounded cache reuses data, invalidates, and recovers stale values',async()
   let calls=0;const movie=new MovieFixtureAdapter();const original=movie.listMovies.bind(movie);movie.listMovies=async(...args)=>{calls++;return original(...args);};const sync=new SynchronizationService({movie,tv:new TvFixtureAdapter(),maxItems:2,pollIntervalMs:999999});
   assert.equal((await sync.list('movie')).length,2);await sync.list('movie');assert.equal(calls,1);sync.invalidate('movie');await sync.list('movie');assert.equal(calls,2);movie.listMovies=async()=>{throw new Error('private failure');};assert.equal((await sync.synchronize('movie')).length,2);assert.equal(sync.snapshot().movie.status,'stale');
 });
+test('optional engine reads distinguish a missing title from an unavailable engine',async()=>{
+  const server=createServer((req,res)=>{res.writeHead(req.url.includes('/404')?404:503,{'content-type':'application/json'});res.end('{}');});await new Promise((resolve)=>server.listen(0,'127.0.0.1',resolve));
+  const client=new ReadOnlyEngineClient({enabled:true,host:'127.0.0.1',port:server.address().port,https:false,urlBase:'',apiCredential:'secret',timeoutMs:100,retries:0,tlsVerify:true},'Movie');
+  assert.equal(await client.getOptional('404'),null);await assert.rejects(()=>client.getOptional('503'),error=>error.code==='engine_unavailable');
+  await new Promise((resolve)=>server.close(resolve));
+});
 test('binary cache expires entries and remains within item and byte limits',async()=>{
   const cache=new BoundedCache({maxItems:2,maxBytes:6,ttlMs:20,sizeOf:value=>value.length});
   cache.set('one',Buffer.alloc(3,1)).set('two',Buffer.alloc(3,2));

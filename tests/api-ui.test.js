@@ -110,7 +110,9 @@ test('static assets use safe caching, validation, and gzip compression',()=>fixt
   const compressed=await fetch(`${base}/styles.css`,{headers:{'accept-encoding':'gzip'}});
   assert.equal(compressed.status,200);assert.equal(compressed.headers.get('content-encoding'),'gzip');assert.match(await compressed.text(),/--bg/);
   const shell=await fetch(`${base}/not-a-real-route`);
-  assert.equal(shell.status,200);assert.equal(shell.headers.get('cache-control'),'no-cache');assert.match(await shell.text(),/VynodeArr/);
+  assert.equal(shell.status,200);assert.equal(shell.headers.get('cache-control'),'no-cache');const shellHtml=await shell.text();assert.match(shellHtml,/VynodeArr/);
+  const packageVersion=JSON.parse(await readFile(new URL('../package.json',import.meta.url),'utf8')).version;
+  assert.ok(shellHtml.includes(`/react/vynodearr-app.js?v=${packageVersion}`));assert.ok(shellHtml.includes(`/react/vynodearr-react.js?v=${packageVersion}`));assert.doesNotMatch(shellHtml,/__VYNODEARR_VERSION__/);
   const stableEntry=await fetch(`${base}/react/vynodearr-react.js`);assert.equal(stableEntry.headers.get('cache-control'),'no-cache');
 }));
 test('UI exposes login, dashboard, media, operations, settings, and responsive shell',async()=>{

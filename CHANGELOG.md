@@ -7,6 +7,33 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.35-rc.1] - 2026-08-04
+
+### Added
+
+- Added durable projected Movie and Television catalogs so library pages load
+  the last verified engine state immediately instead of requesting the entire
+  engine library on every visit.
+- Added targeted reconciliation after adds, edits, imports, refreshes, renames,
+  and removals, plus filesystem monitoring and a six-hour integrity sweep for
+  changes made outside VynodeArr.
+- Added an administrator-only **Sync now** recovery action and visible library
+  freshness information on Movie and Television pages.
+
+### Changed
+
+- Queue enrichment now joins against the projected catalog instead of loading
+  both complete engine libraries during frequent queue polling.
+- Library update events now add, replace, or remove only affected titles and
+  request a full client refresh only after a successful integrity reconciliation.
+
+### Fixed
+
+- Preserved the last good projected catalog when an engine is temporarily
+  unavailable during filesystem or scheduled reconciliation.
+- Serialized targeted and full reconciliation so an older full snapshot cannot
+  overwrite a newer item-level update.
+
 ## [2.0.34-rc.19] - 2026-08-04
 
 ### Fixed

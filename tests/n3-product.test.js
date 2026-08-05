@@ -59,6 +59,39 @@ test('durable projections hydrate and report incremental updates',async()=>{
   const hydrated=new SynchronizationService({movie:new MovieFixtureAdapter(),tv:new TvFixtureAdapter(),projectionStore:store,maxItems:100,pollIntervalMs:999999});await hydrated.hydrate();assert.equal((await hydrated.list('movie')).length,3);
   await rm(directory,{recursive:true,force:true});
 });
+test('targeted projection reconciliation updates, adds, removes, and deduplicates one title',async()=>{
+  const directory=await mkdtemp(join(tmpdir(),'vynodearr-projection-item-')),store=new ProjectionStore(join(directory,'projections.json'));
+  let reads=0,current={id:'movie_1',title:'Changed title',year:2026};
+  const movie={listMovies:async()=>[{id:'movie_1',title:'Original title',year:2025}],getMovieSummary:async()=>{reads+=1;await new Promise(resolve=>setTimeout(resolve,10));return current;}};
+  const tv={listSeries:async()=>[],getQueue:async()=>[],getHistory:async()=>[],getCalendar:async()=>[],getHealth:async()=>[]};
+  Object.assign(movie,{getQueue:async()=>[],getHistory:async()=>[],getCalendar:async()=>[],getHealth:async()=>[]});
+  const sync=new SynchronizationService({movie,tv,projectionStore:store,maxItems:100,pollIntervalMs:999999});
+  await sync.synchronize('movie');
+  const [first,duplicate]=await Promise.all([sync.reconcileItem('movie','movie_1'),sync.reconcileItem('movie','movie_1')]);
+  assert.equal(reads,1);assert.equal(first.item.title,'Changed title');assert.equal(duplicate.item.title,'Changed title');assert.equal((await store.domain('movie'))[0].year,2026);
+  current={id:'movie_2',title:'Added title',year:2026};await sync.reconcileItem('movie','movie_2');assert.equal((await sync.list('movie')).length,2);
+  current=null;const removed=await sync.reconcileItem('movie','movie_2');assert.equal(removed.removed,1);assert.deepEqual((await store.domain('movie')).map(item=>item.id),['movie_1']);
+  await rm(directory,{recursive:true,force:true});
+});
+test('full reconciliation reports removals and notifies subscribers once',async()=>{
+  const directory=await mkdtemp(join(tmpdir(),'vynodearr-projection-removal-')),store=new ProjectionStore(join(directory,'projections.json'));
+  let items=[{id:'movie_1',title:'One'},{id:'movie_2',title:'Two'}],notifications=[];
+  const movie={listMovies:async()=>structuredClone(items),getQueue:async()=>[],getHistory:async()=>[],getCalendar:async()=>[],getHealth:async()=>[]};
+  const tv={listSeries:async()=>[],getQueue:async()=>[],getHistory:async()=>[],getCalendar:async()=>[],getHealth:async()=>[]};
+  const sync=new SynchronizationService({movie,tv,projectionStore:store,pollIntervalMs:999999});sync.onFullSync(value=>notifications.push(value));
+  await sync.synchronize('movie');items=items.slice(0,1);await sync.synchronize('movie');
+  assert.equal(sync.snapshot().movie.itemsRemoved,1);assert.equal(sync.snapshot().movie.itemsUpdated,1);assert.equal(notifications.length,2);assert.equal(notifications[1].itemsRemoved,1);
+  await rm(directory,{recursive:true,force:true});
+});
+test('targeted reconciliation waits for an active full reconciliation so the newest item wins',async()=>{
+  const directory=await mkdtemp(join(tmpdir(),'vynodearr-projection-order-')),store=new ProjectionStore(join(directory,'projections.json'));
+  let releaseFull;const fullReady=new Promise(resolve=>{releaseFull=resolve;});
+  const movie={listMovies:async()=>{await fullReady;return[{id:'movie_1',title:'Full snapshot'}];},getMovieSummary:async()=>({id:'movie_1',title:'Newest targeted value'}),getQueue:async()=>[],getHistory:async()=>[],getCalendar:async()=>[],getHealth:async()=>[]};
+  const tv={listSeries:async()=>[],getQueue:async()=>[],getHistory:async()=>[],getCalendar:async()=>[],getHealth:async()=>[]};
+  const sync=new SynchronizationService({movie,tv,projectionStore:store,pollIntervalMs:999999}),full=sync.synchronize('movie'),targeted=sync.reconcileItem('movie','movie_1');
+  releaseFull();await Promise.all([full,targeted]);assert.equal((await sync.list('movie'))[0].title,'Newest targeted value');
+  await rm(directory,{recursive:true,force:true});
+});
 
 async function appSession(options,run){
   const directory=await mkdtemp(join(tmpdir(),'vynodearr-n3-api-')),app=createApplication({...options,env:{VYNODEARR_DATA_MODE:'fixture',VYNODEARR_DATA_DIR:directory,VYNODEARR_MASTER_KEY:'test-master-key-with-32-characters',...(options.env||{})}});
@@ -82,6 +115,13 @@ test('dashboard API returns useful product metrics',()=>appSession({movie:new Mo
   const diagnostics=await (await fetch(`${base}/api/library/diagnostics?domain=movie`,{headers:{cookie}})).json();
   assert.equal(diagnostics.summary.total,diagnostics.items.length);assert.ok(diagnostics.items.every(item=>item.domain==='movie'&&['#movie/','#wanted','#service/root-folders'].some(prefix=>item.href.startsWith(prefix))&&item.actionLabel));
 }));
+test('repeated library page reads use the projection until an administrator requests recovery',()=>{
+  let fullReads=0;const movie=new MovieFixtureAdapter(),original=movie.listMovies.bind(movie);movie.listMovies=async(...args)=>{fullReads+=1;return original(...args);};
+  return appSession({movie,tv:new TvFixtureAdapter()},async({base,cookie})=>{
+    await fetch(`${base}/api/media/movies`,{headers:{cookie}});await fetch(`${base}/api/media/movies`,{headers:{cookie}});assert.equal(fullReads,1);
+    assert.equal((await fetch(`${base}/api/media/movies?refresh=true`,{headers:{cookie}})).status,200);assert.equal(fullReads,2);
+  });
+});
 test('poster overlays are opt-in, administrator-managed, and safely rendered',()=>appSession({
   movie:Object.assign(new MovieFixtureAdapter(),{getArtwork:async()=>({body:Buffer.from('image-data'),contentType:'image/jpeg'})}),tv:Object.assign(new TvFixtureAdapter(),{getArtwork:async()=>({body:Buffer.from('image-data'),contentType:'image/jpeg'})})
 },async({base,cookie,csrf})=>{
@@ -194,6 +234,7 @@ test('user page permissions are enforced by APIs and update active sessions imme
   assert.equal(login.status,200);const userLogin=await login.json(),userCookie=login.headers.get('set-cookie').split(';')[0];
   assert.equal((await fetch(`${base}/api/dashboard`,{headers:{cookie:userCookie}})).status,403);
   assert.equal((await fetch(`${base}/api/media/movies`,{headers:{cookie:userCookie}})).status,200);
+  assert.equal((await fetch(`${base}/api/media/movies?refresh=true`,{headers:{cookie:userCookie}})).status,403);
   assert.equal((await fetch(`${base}/api/media/tv`,{headers:{cookie:userCookie}})).status,403);
   const calendarResponse=await fetch(`${base}/api/calendar?start=2026-08-01&end=2026-09-01&movies=true&tv=false`,{headers:{cookie:userCookie}});
   assert.equal(calendarResponse.status,200);

@@ -325,6 +325,8 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
     [searching, setSearching] = useState(false),
     [priorityIds, setPriorityIds] = useState<Set<string>>(() => new Set()),
     [loading, setLoading] = useState(!options.items.length),
+    [syncing, setSyncing] = useState(false),
+    [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null),
     [loadError, setLoadError] = useState("");
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const gridRef = useRef<HTMLDivElement | null>(null);
@@ -333,7 +335,8 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
   const [activeLetter, setActiveLetter] = useState("#");
   useEffect(() => {
     let active = true,
-      pending = false;
+      pending = false,
+      lastLoadedAt = 0;
     const refresh = async () => {
       if (pending) return;
       pending = true;
@@ -342,12 +345,15 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
           items?: LibraryItem[];
           attention?: { missing: number; cutoff: number };
           mode?: string;
+          sync?: { lastSuccess?: string | null };
         }>(movie ? "/api/media/movies" : "/api/media/tv");
         if (active && Array.isArray(value.items)) {
           setItems(value.items);
           options.onLoaded?.(value.items, value.mode);
+          lastLoadedAt = Date.now();
         }
         if (active && value.attention) setAttention(value.attention);
+        if (active && value.sync?.lastSuccess) setLastSyncedAt(value.sync.lastSuccess);
         if (active) setLoadError("");
       } catch (error) {
         if (active)
@@ -362,7 +368,11 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
       }
     };
     const resume = () => {
-      if (document.visibilityState === "visible") void refresh();
+      if (
+        document.visibilityState === "visible" &&
+        Date.now() - lastLoadedAt >= 5 * 60 * 1000
+      )
+        void refresh();
     };
     void refresh();
     const events = new EventSource("/api/library-events");
@@ -371,17 +381,50 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
         const update = JSON.parse((raw as MessageEvent<string>).data) as {
           domain?: string;
           items?: LibraryItem[];
+          removedIds?: string[];
+          replaceAll?: boolean;
           attention?: { missing: number; cutoff: number };
+          updatedAt?: string;
         };
         if (update.domain !== (movie ? "movie" : "tv")) return;
         if (update.attention) setAttention(update.attention);
-        if (Array.isArray(update.items) && update.items.length) {
+        if (update.updatedAt) setLastSyncedAt(update.updatedAt);
+        if (update.replaceAll) {
+          void refresh();
+          return;
+        }
+        if (
+          (Array.isArray(update.items) && update.items.length) ||
+          (Array.isArray(update.removedIds) && update.removedIds.length)
+        ) {
           const replacements = new Map(
-            update.items.map((item) => [item.id, item]),
+            (update.items || []).map((item) => [item.id, item]),
           );
-          setItems((current) =>
-            current.map((item) => replacements.get(item.id) || item),
-          );
+          const removed = new Set(update.removedIds || []);
+          setItems((current) => {
+            const next = current
+              .filter((item) => !removed.has(item.id))
+              .map((item) => replacements.get(item.id) || item);
+            const known = new Set(next.map((item) => item.id));
+            for (const item of replacements.values())
+              if (!known.has(item.id)) next.push(item);
+            return next;
+          });
+          for (const item of update.items || []) {
+            const detailPath = movie
+              ? `/api/media/movies/${encodeURIComponent(item.id)}`
+              : `/api/media/tv/${encodeURIComponent(item.id)}`;
+            void request<{ item?: LibraryItem }>(detailPath)
+              .then((value) => {
+                if (!value.item) return;
+                setItems((current) => {
+                  const index = current.findIndex((candidate) => candidate.id === value.item?.id);
+                  if (index < 0) return [...current, value.item as LibraryItem];
+                  const next = [...current];next[index] = value.item as LibraryItem;return next;
+                });
+              })
+              .catch(() => {});
+          }
         }
       } catch {}
     });
@@ -679,6 +722,32 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
         : `/api/media/tv/${encodeURIComponent(item.id)}`,
     ).catch(() => {});
   };
+  const synchronizeLibrary = async () => {
+    setSyncing(true);
+    try {
+      const value = await request<{
+        items?: LibraryItem[];
+        attention?: { missing: number; cutoff: number };
+        mode?: string;
+        sync?: { lastSuccess?: string | null };
+      }>(`${movie ? "/api/media/movies" : "/api/media/tv"}?refresh=true`);
+      if (Array.isArray(value.items)) {
+        setItems(value.items);
+        options.onLoaded?.(value.items, value.mode);
+      }
+      if (value.attention) setAttention(value.attention);
+      if (value.sync?.lastSuccess) setLastSyncedAt(value.sync.lastSuccess);
+      setLoadError("");
+      options.notify("Library synchronized with the media engine.");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Library synchronization failed.";
+      setLoadError(message);
+      options.notify(message, "error");
+    } finally {
+      setSyncing(false);
+    }
+  };
   function chooseView(next: LibraryView) {
     setView(next);
     options.onViewChange(next);
@@ -713,7 +782,12 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
               : "Every season and episode, normalized in one library."}
           </p>
         </div>
-        <span className="read-only">Connected library</span>
+        <div className="library-hero-actions" style={{display:"grid",gap:".65rem",justifyItems:"stretch"}}>
+          <span className="read-only">Connected library{lastSyncedAt ? ` · updated ${new Date(lastSyncedAt).toLocaleString()}` : ""}</span>
+          {options.administrator ? <button className="secondary" disabled={syncing} onClick={() => void synchronizeLibrary()}>
+            {syncing ? "Synchronizing…" : "Sync now"}
+          </button> : null}
+        </div>
       </div>
       {loadError ? (
         <div className="notice warning">

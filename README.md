@@ -28,7 +28,7 @@ consistent experience and account system.
 ## Current release
 
 Version **2.0.33** is available for production use on Unraid, Windows, and
-standard Docker installations. Version **2.0.34-rc.19** is available as a
+standard Docker installations. Version **2.0.35-rc.1** is available as a
 prerelease for testing the Engine Update Center and its backup-gated candidate
 workflow. The new administrator Library Action Center identifies operational
 issues, explains their impact, recommends a safe next action, and provides a
@@ -50,6 +50,29 @@ engine connectivity, storage, acquisition providers, scheduled automation,
 credentials, notifications, and application data after startup, updates, and
 restores. It provides guided fixes plus guarded re-synchronization and managed
 connection repair.
+
+## How library data stays current
+
+VynodeArr keeps a durable projected catalog of the Movie and Television
+engines. Opening either library reads that local verified projection, so normal
+navigation does not repeatedly ask an engine to return every title. All existing
+library cards, filters, details, actions, artwork, request attribution, and
+poster overlays continue to use the same engine-backed data and permissions.
+
+Changes made through VynodeArr reconcile only the affected title. Engine import
+history and mounted-library filesystem changes trigger background
+reconciliation, while a full integrity sweep runs every six hours to recover
+changes made directly in an engine or on disk. Administrators can also use
+**Sync now** on a library page for immediate recovery. If an engine is
+temporarily unavailable, VynodeArr retains the last good projection instead of
+emptying the library.
+
+The following optional environment values control this behavior:
+
+- `VYNODEARR_SYNC_INTERVAL_MS` changes the full integrity interval.
+- `VYNODEARR_LIBRARY_WATCH_ENABLED=false` disables mounted-library monitoring.
+- `VYNODEARR_MOVIE_LIBRARY_PATH` and `VYNODEARR_TV_LIBRARY_PATH` override the
+  watched container paths (normally `/movies` and `/tv`).
 
 The Download Decision Center explains why returned releases were selected,
 accepted, or rejected using native engine evidence for quality, custom formats,
