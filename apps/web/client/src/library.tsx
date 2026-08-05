@@ -20,7 +20,11 @@ import {
   type SortDirection,
 } from "./library-sorting";
 import "./react-library.css";
-import { OverlayLayerView, overlayLayerVisible, resolveConditionalLayer } from "./poster-overlay-layer";
+import {
+  OverlayLayerView,
+  overlayLayerVisible,
+  resolveConditionalLayer,
+} from "./poster-overlay-layer";
 import { PosterLayerContent } from "./poster-overlay-icons";
 
 const views: LibraryView[] = ["poster", "cards", "compact", "list"];
@@ -100,18 +104,28 @@ function PosterAssignmentLayers({ item }: { item: LibraryItem }) {
       {layers
         .filter((layer) => layer.enabled)
         .map((layer) => {
-          const resolvedLayer=resolveConditionalLayer(layer,item.artwork?.overlayValues||{});
+          const resolvedLayer = resolveConditionalLayer(
+            layer,
+            item.artwork?.overlayValues || {},
+          );
           const text =
             resolvedLayer.variable === "custom_text"
               ? resolvedLayer.label
               : value(resolvedLayer.variable);
-          return overlayLayerVisible(resolvedLayer, text, item.artwork?.overlayValues || {}) ? (
+          return overlayLayerVisible(
+            resolvedLayer,
+            text,
+            item.artwork?.overlayValues || {},
+          ) ? (
             <OverlayLayerView
               className="library-poster-assignment"
               key={layer.id}
               layer={resolvedLayer}
             >
-              <PosterLayerContent layer={resolvedLayer} text={`${resolvedLayer.prefix}${text}${resolvedLayer.suffix}`} />
+              <PosterLayerContent
+                layer={resolvedLayer}
+                text={`${resolvedLayer.prefix}${text}${resolvedLayer.suffix}`}
+              />
             </OverlayLayerView>
           ) : null;
         })}
@@ -318,7 +332,13 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
     [query, setQuery] = useState(saved.query || ""),
     [debouncedQuery, setDebouncedQuery] = useState(saved.query || ""),
     [view, setView] = useState(options.initialView),
+    [batchSize, setBatchSize] = useState(60),
     [limit, setLimit] = useState(60),
+    [total, setTotal] = useState(options.items.length),
+    [letterIndex, setLetterIndex] = useState<
+      Record<string, { offset: number; count: number }>
+    >({}),
+    [pendingLetter, setPendingLetter] = useState<string | null>(null),
     [searching, setSearching] = useState(false),
     [priorityIds, setPriorityIds] = useState<Set<string>>(() => new Set()),
     [loading, setLoading] = useState(!options.items.length),
@@ -338,19 +358,46 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
       if (pending) return;
       pending = true;
       try {
+        const parameters = new URLSearchParams({
+          limit: String(limit),
+          offset: "0",
+          query: debouncedQuery,
+          filter,
+          sort,
+          direction,
+          randomSeed: String(randomSeed),
+        });
         const value = await request<{
           items?: LibraryItem[];
+          page?: {
+            total: number;
+            hasMore: boolean;
+            preferredLimit?: number;
+            letters?: Record<string, { offset: number; count: number }>;
+          };
           attention?: { missing: number; cutoff: number };
           mode?: string;
           sync?: { lastSuccess?: string | null };
-        }>(movie ? "/api/media/movies" : "/api/media/tv");
+        }>(`${movie ? "/api/media/movies" : "/api/media/tv"}?${parameters}`);
         if (active && Array.isArray(value.items)) {
           setItems(value.items);
           options.onLoaded?.(value.items, value.mode);
+          setTotal(value.page?.total ?? value.items.length);
+          const preferred = Number(value.page?.preferredLimit);
+          if (
+            Number.isFinite(preferred) &&
+            preferred >= 20 &&
+            preferred <= 250
+          ) {
+            setBatchSize(preferred);
+            if (limit === 60 && preferred !== 60) setLimit(preferred);
+          }
+          if (value.page?.letters) setLetterIndex(value.page.letters);
           lastLoadedAt = Date.now();
         }
         if (active && value.attention) setAttention(value.attention);
-        if (active && value.sync?.lastSuccess) setLastSyncedAt(value.sync.lastSuccess);
+        if (active && value.sync?.lastSuccess)
+          setLastSyncedAt(value.sync.lastSuccess);
         if (active) setLoadError("");
       } catch (error) {
         if (active)
@@ -415,9 +462,13 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
               .then((value) => {
                 if (!value.item) return;
                 setItems((current) => {
-                  const index = current.findIndex((candidate) => candidate.id === value.item?.id);
+                  const index = current.findIndex(
+                    (candidate) => candidate.id === value.item?.id,
+                  );
                   if (index < 0) return [...current, value.item as LibraryItem];
-                  const next = [...current];next[index] = value.item as LibraryItem;return next;
+                  const next = [...current];
+                  next[index] = value.item as LibraryItem;
+                  return next;
                 });
               })
               .catch(() => {});
@@ -433,14 +484,24 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
       window.removeEventListener("focus", resume);
       document.removeEventListener("visibilitychange", resume);
     };
-  }, [movie, request, options]);
+  }, [
+    movie,
+    request,
+    options,
+    limit,
+    debouncedQuery,
+    filter,
+    sort,
+    direction,
+    randomSeed,
+  ]);
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedQuery(query), 200);
     return () => window.clearTimeout(timer);
   }, [query]);
   useEffect(() => {
-    setLimit(60);
-  }, [filter, sort, debouncedQuery, view]);
+    setLimit(batchSize);
+  }, [filter, sort, debouncedQuery, view, batchSize]);
   useEffect(() => {
     const persist = () =>
       sessionStorage.setItem(
@@ -495,11 +556,25 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
     [items, filter, sort, direction, randomSeed, debouncedQuery, movie, kind],
   );
   const availableLetters = useMemo(
-    () => new Set(visible.map((item) => titleLetter(item))),
-    [visible],
+    () =>
+      new Set(
+        Object.keys(letterIndex).length
+          ? Object.keys(letterIndex)
+          : visible.map((item) => titleLetter(item)),
+      ),
+    [visible, letterIndex],
   );
   const jumpToLetter = useCallback(
     (letter: string) => {
+      const indexed = letterIndex[letter];
+      if (indexed && indexed.offset >= visible.length) {
+        setSort("title");
+        setDirection("ascending");
+        setActiveLetter(letter);
+        setPendingLetter(letter);
+        setLimit(indexed.offset + Math.min(24, indexed.count));
+        return;
+      }
       const alphabetical = [...visible].sort((a, b) =>
         (a.sortTitle || a.title).localeCompare(b.sortTitle || b.title),
       );
@@ -528,8 +603,19 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
         ),
       );
     },
-    [visible],
+    [visible, letterIndex],
   );
+  useEffect(() => {
+    if (!pendingLetter) return;
+    const target = visible.find((item) => titleLetter(item) === pendingLetter);
+    if (!target) return;
+    setPendingLetter(null);
+    requestAnimationFrame(() =>
+      document
+        .querySelector<HTMLElement>(`[data-library-id="${target.id}"]`)
+        ?.scrollIntoView({ behavior: "auto", block: "start" }),
+    );
+  }, [visible, pendingLetter]);
   const selectFromPointer = useCallback(
     (event: ReactPointerEvent<HTMLElement>) => {
       const bounds = alphabetRef.current?.getBoundingClientRect();
@@ -550,18 +636,17 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
   );
   useEffect(() => {
     const node = loadMoreRef.current;
-    if (!node || limit >= visible.length || !("IntersectionObserver" in window))
-      return;
+    if (!node || limit >= total || !("IntersectionObserver" in window)) return;
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting))
-          setLimit((value) => value + 60);
+          setLimit((value) => value + batchSize);
       },
       { rootMargin: "600px" },
     );
     observer.observe(node);
     return () => observer.disconnect();
-  }, [limit, visible.length]);
+  }, [limit, total, batchSize]);
   useEffect(() => {
     const alignRail = () =>
       setRailTop(
@@ -731,7 +816,9 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
       options.notify("Library synchronized with the media engine.");
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Library synchronization failed.";
+        error instanceof Error
+          ? error.message
+          : "Library synchronization failed.";
       setLoadError(message);
       options.notify(message, "error");
     } finally {
@@ -772,11 +859,25 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
               : "Every season and episode, normalized in one library."}
           </p>
         </div>
-        <div className="library-hero-actions" style={{display:"grid",gap:".65rem",justifyItems:"stretch"}}>
-          <span className="read-only">Connected library{lastSyncedAt ? ` · updated ${new Date(lastSyncedAt).toLocaleString()}` : ""}</span>
-          {options.administrator ? <button className="secondary" disabled={syncing} onClick={() => void synchronizeLibrary()}>
-            {syncing ? "Synchronizing…" : "Sync now"}
-          </button> : null}
+        <div
+          className="library-hero-actions"
+          style={{ display: "grid", gap: ".65rem", justifyItems: "stretch" }}
+        >
+          <span className="read-only">
+            Connected library
+            {lastSyncedAt
+              ? ` · updated ${new Date(lastSyncedAt).toLocaleString()}`
+              : ""}
+          </span>
+          {options.administrator ? (
+            <button
+              className="secondary"
+              disabled={syncing}
+              onClick={() => void synchronizeLibrary()}
+            >
+              {syncing ? "Synchronizing…" : "Sync now"}
+            </button>
+          ) : null}
         </div>
       </div>
       {loadError ? (
@@ -987,7 +1088,7 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
           <button
             className="secondary"
             type="button"
-            onClick={() => setLimit((value) => value + 60)}
+            onClick={() => setLimit((value) => value + batchSize)}
           >
             Load more
           </button>

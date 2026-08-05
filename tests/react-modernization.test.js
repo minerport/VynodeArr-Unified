@@ -1194,6 +1194,7 @@ test('request notification bell has durable role-aware request updates',async()=
   assert.match(islands,/mountNotifications/);assert.match(shell,/mountNotifications/);
   assert.match(shell,/nav-count-badge/);assert.match(notifications,/onPageBadge/);
   assert.match(notifications,/\/api\/notifications/);assert.match(notifications,/Mark all read/);assert.match(notifications,/15_000/);
+  assert.match(notifications,/hasActiveActivity/);assert.doesNotMatch(notifications,/\},\[activities,load\]\)/,'notification polling must not restart after every loaded activity array');
   assert.match(notifications,/Notification history/);assert.match(notifications,/Read and resolved notifications will remain here/);assert.match(notifications,/tab==='inbox'/);
   assert.match(notifications,/notification-mark-read/);assert.match(notifications,/Mark read/);assert.match(notifications,/vynodearr:notifications-changed/);
   assert.match(notifications,/Close notification center/);assert.match(styles,/notification-panel-close/);

@@ -10,6 +10,11 @@ export class SynchronizationService {
   setEngines(movie,tv){this.engines={movie,tv};this.invalidate();}
   async hydrate(){
     if(!this.projectionStore)return;
+    if(typeof this.projectionStore.countDomain==='function'){
+      await this.projectionStore.initialize?.();
+      for(const domain of ['movie','tv']){const count=await this.projectionStore.countDomain(domain);if(count)Object.assign(this.state[domain],{status:'ready',itemCount:count,source:'sqlite-catalog'});}
+      return;
+    }
     const projection=await this.projectionStore.load();
     for(const domain of ['movie','tv']){const items=projection.domains?.[domain]||[];if(items.length){this.cache.set(domain,{items,cachedAt:projection.updatedAt||new Date().toISOString(),durable:true});Object.assign(this.state[domain],{status:'ready',itemCount:items.length,source:'durable-projection',projectionUpdatedAt:projection.updatedAt||null});}}
   }
@@ -25,13 +30,15 @@ export class SynchronizationService {
     try{
       const items=domain==='movie'?await this.engines.movie.listMovies({limit:this.maxItems}):await this.engines.tv.listSeries({limit:this.maxItems});
       const bounded=items.slice(0,this.maxItems);const projection=this.projectionStore?await this.projectionStore.replaceDomain(domain,bounded):{updated:bounded.length,total:bounded.length};
-      this.cache.set(domain,{items:bounded,cachedAt:new Date().toISOString()});
+      if(typeof this.projectionStore?.queryDomain!=='function')this.cache.set(domain,{items:bounded,cachedAt:new Date().toISOString()});
       const completedAt=new Date().toISOString();Object.assign(this.state[domain],{status:'ready',lastSuccess:completedAt,lastFullSync:completedAt,lastFailure:null,safeError:null,durationMs:Date.now()-started,itemCount:bounded.length,itemsUpdated:projection.updated,itemsRemoved:projection.removed||0,source:'full-reconciliation'});
       for(const listener of this.fullSyncListeners)try{listener({domain,itemsUpdated:projection.updated,itemsRemoved:projection.removed||0,itemCount:bounded.length,updatedAt:completedAt});}catch{}
       return bounded;
     }catch(error){
       Object.assign(this.state[domain],{status:this.cache.has(domain)?'stale':'unavailable',lastFailure:new Date().toISOString(),safeError:error.safeMessage||`${domain==='movie'?'Movie':'TV'} service unavailable`,durationMs:Date.now()-started,itemsUpdated:0});
-      if(this.cache.has(domain))return this.cache.get(domain).items;throw error;
+      if(this.cache.has(domain))return this.cache.get(domain).items;
+      if(typeof this.projectionStore?.countDomain==='function'&&(await this.projectionStore.countDomain(domain))>0)return this.projectionStore.domain(domain);
+      throw error;
     }
   }
   async synchronizeOperations(){
@@ -59,11 +66,11 @@ export class SynchronizationService {
       const getter=domain==='movie'?(engine.getMovieSummary||engine.getMovie):(engine.getSeriesSummary||engine.getSeries);
       const item=await getter.call(engine,id);
       if(!item)return this.removeItem(domain,id);
-      const current=this.cache.get(domain)?.items||await this.projectionStore?.domain(domain)||[],index=current.findIndex((candidate)=>candidate.id===item.id),items=[...current];
-      if(index>=0)items[index]=item;else items.push(item);
+      const catalog=typeof this.projectionStore?.getDomainItem==='function',currentItem=catalog?await this.projectionStore.getDomainItem(domain,item.id):null,current=catalog?[]:(this.cache.get(domain)?.items||await this.projectionStore?.domain(domain)||[]),index=catalog?(currentItem?0:-1):current.findIndex((candidate)=>candidate.id===item.id),items=catalog?[]:[...current];
+      if(!catalog){if(index>=0)items[index]=item;else items.push(item);}
       const projection=this.projectionStore?await this.projectionStore.upsertDomainItem(domain,item):{updated:index>=0&&JSON.stringify(current[index])===JSON.stringify(item)?0:1,total:items.length,item,created:index<0};
-      this.cache.set(domain,{items,cachedAt:new Date().toISOString(),targeted:true});
-      Object.assign(this.state[domain],{status:'ready',lastSuccess:new Date().toISOString(),lastTargetedSync:new Date().toISOString(),lastFailure:null,safeError:null,durationMs:Date.now()-started,itemCount:items.length,itemsUpdated:projection.updated,source:'targeted-reconciliation'});
+      if(!catalog)this.cache.set(domain,{items,cachedAt:new Date().toISOString(),targeted:true});
+      Object.assign(this.state[domain],{status:'ready',lastSuccess:new Date().toISOString(),lastTargetedSync:new Date().toISOString(),lastFailure:null,safeError:null,durationMs:Date.now()-started,itemCount:projection.total,itemsUpdated:projection.updated,source:'targeted-reconciliation'});
       return {...projection,item};
     }catch(error){
       Object.assign(this.state[domain],{status:this.cache.has(domain)?'stale':'unavailable',lastFailure:new Date().toISOString(),safeError:error.safeMessage||`${domain==='movie'?'Movie':'TV'} service unavailable`,durationMs:Date.now()-started,itemsUpdated:0});
@@ -71,15 +78,17 @@ export class SynchronizationService {
     }
   }
   async removeItem(domain,id) {
-    const current=this.cache.get(domain)?.items||await this.projectionStore?.domain(domain)||[],items=current.filter((item)=>item.id!==id),removed=current.length-items.length;
+    const catalog=typeof this.projectionStore?.getDomainItem==='function',current=catalog?[]:(this.cache.get(domain)?.items||await this.projectionStore?.domain(domain)||[]),items=current.filter((item)=>item.id!==id),removed=catalog?Number(Boolean(await this.projectionStore.getDomainItem(domain,id))):current.length-items.length;
     const projection=this.projectionStore?await this.projectionStore.removeDomainItem(domain,id):{removed,total:items.length};
-    this.cache.set(domain,{items,cachedAt:new Date().toISOString(),targeted:true});
-    Object.assign(this.state[domain],{status:'ready',lastSuccess:new Date().toISOString(),lastTargetedSync:new Date().toISOString(),lastFailure:null,itemCount:items.length,itemsUpdated:removed,source:'targeted-reconciliation'});
+    if(!catalog)this.cache.set(domain,{items,cachedAt:new Date().toISOString(),targeted:true});
+    Object.assign(this.state[domain],{status:'ready',lastSuccess:new Date().toISOString(),lastTargetedSync:new Date().toISOString(),lastFailure:null,itemCount:projection.total,itemsUpdated:removed,source:'targeted-reconciliation'});
     return {...projection,id};
   }
   async operations(name){if(this.operationCache?.[name])return this.operationCache[name];if(this.projectionStore){this.operationCache=await this.projectionStore.operations();return this.operationCache[name]||[];}return [];}
   onFullSync(listener){this.fullSyncListeners.add(listener);return()=>this.fullSyncListeners.delete(listener);}
-  async list(domain,{refresh=false}={}){if(!refresh&&this.cache.has(domain))return this.cache.get(domain).items;return this.synchronize(domain);}
+  async list(domain,{refresh=false,...query}={}){if(!refresh&&typeof this.projectionStore?.queryDomain==='function')return (await this.projectionStore.queryDomain(domain,{limit:5000,...query})).items;if(!refresh&&this.cache.has(domain))return this.cache.get(domain).items;return this.synchronize(domain);}
+  async page(domain,query={}){if(typeof this.projectionStore?.queryDomain==='function')return this.projectionStore.queryDomain(domain,query);const items=await this.list(domain),offset=Math.max(0,Number(query.offset)||0),limit=Math.max(1,Math.min(5000,Number(query.limit)||60));return{items:items.slice(offset,offset+limit),total:items.length,offset,limit,hasMore:offset+limit<items.length};}
+  async item(domain,id){if(typeof this.projectionStore?.getDomainItem==='function')return this.projectionStore.getDomainItem(domain,id);return(await this.list(domain)).find(item=>item.id===id)||null;}
   invalidate(domain){if(domain)this.cache.delete(domain);else this.cache.clear();}
   snapshot(){const state=structuredClone(this.state);for(const domain of ['movie','tv'])state[domain].nextIntegrityCheck=this.nextIntegrityCheck||null;return state;}
   async startup(){
@@ -89,4 +98,5 @@ export class SynchronizationService {
   }
   startPolling(){this.stopPolling();this.nextIntegrityCheck=new Date(Date.now()+this.pollIntervalMs).toISOString();this.timer=setInterval(()=>{this.nextIntegrityCheck=new Date(Date.now()+this.pollIntervalMs).toISOString();this.startup();},this.pollIntervalMs);this.timer.unref?.();}
   stopPolling(){if(this.timer)clearInterval(this.timer);this.nextIntegrityCheck=null;}
+  setPollingInterval(value){this.pollIntervalMs=Math.max(30*60*1000,Number(value)||this.pollIntervalMs);if(this.timer)this.startPolling();return this.pollIntervalMs;}
 }

@@ -28,11 +28,12 @@ consistent experience and account system.
 ## Current release
 
 Version **2.0.33** is available for production use on Unraid, Windows, and
-standard Docker installations. Version **2.0.35-rc.2** is available as a
-prerelease with projected Movie and Television catalogs, targeted detail reads,
-progressive poster loading, and persistent artwork caching that reduce engine
-CPU and network load while preserving current library information and poster
-overlays. It also includes the Engine Update Center and its backup-gated
+standard Docker installations. Version **2.0.35-rc.3** is available as a
+prerelease with a durable local Movie and Television catalog, targeted
+event-driven updates, server-side paging, performance controls, and persistent
+artwork caching that reduce engine CPU and network load while preserving
+current library information and poster overlays. It also includes the Engine
+Update Center and its backup-gated
 candidate workflow. The new administrator Library Action Center identifies operational
 issues, explains their impact, recommends a safe next action, and provides a
 unified Automation Timeline across requests, searches, downloads, queue and
@@ -56,14 +57,16 @@ connection repair.
 
 ## How library data stays current
 
-VynodeArr keeps a durable projected catalog of the Movie and Television
+VynodeArr keeps a durable SQLite projected catalog of the Movie and Television
 engines. Opening either library reads that local verified projection, so normal
-navigation does not repeatedly ask an engine to return every title. All existing
+navigation, server-side search, filtering, sorting, and progressive pages do not
+repeatedly ask an engine to return every title. All existing
 library cards, filters, details, actions, artwork, request attribution, and
 poster overlays continue to use the same engine-backed data and permissions.
 
-Changes made through VynodeArr reconcile only the affected title. Engine import
-history and mounted-library filesystem changes trigger background
+Changes made through VynodeArr reconcile only the affected title. Managed native
+engine webhooks, engine import history, and mounted-library filesystem changes
+enter a restart-safe, deduplicated background queue for targeted
 reconciliation, while a full integrity sweep runs every six hours to recover
 changes made directly in an engine or on disk. Administrators can also use
 **Sync now** on a library page for immediate recovery. If an engine is
@@ -76,6 +79,11 @@ The following optional environment values control this behavior:
 - `VYNODEARR_LIBRARY_WATCH_ENABLED=false` disables mounted-library monitoring.
 - `VYNODEARR_MOVIE_LIBRARY_PATH` and `VYNODEARR_TV_LIBRARY_PATH` override the
   watched container paths (normally `/movies` and `/tv`).
+
+Administrators can use **System → Performance** to review application memory,
+catalog and event health, artwork queues, and the most expensive API routes.
+Library page size, event-worker concurrency, artwork concurrency, and the full
+integrity interval can be adjusted there without restarting the application.
 
 The Download Decision Center explains why returned releases were selected,
 accepted, or rejected using native engine evidence for quality, custom formats,

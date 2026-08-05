@@ -7,6 +7,34 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.35-rc.3] - 2026-08-05
+
+### Added
+
+- Added a WAL-backed SQLite library catalog with indexed server-side search,
+  filters, sorting, progressive pages, alphabet offsets, and direct detail
+  lookup while keeping the media engines authoritative.
+- Added a durable, deduplicated engine-event queue and managed Radarr/Sonarr
+  webhooks for targeted add, update, import, rename, and removal reconciliation.
+- Added administrator Performance diagnostics for process memory, catalog and
+  event health, artwork queues, expensive API routes, and live resource limits.
+
+### Changed
+
+- Existing projected library data migrates automatically into SQLite, remains
+  available during engine outages, and is included in encrypted application
+  backup and restore workflows.
+- Artwork downloads and disk writes are concurrency-limited, indexed on disk,
+  reused across restarts, and invalidated only when the affected title changes.
+- Full engine reconciliation is now a configurable integrity backstop; normal
+  browsing, searching, sorting, filtering, details, and live updates read the
+  local catalog without rescanning an entire engine library.
+
+### Fixed
+
+- Prevented notification activity refreshes from restarting after every
+  response and creating a high-frequency API request loop.
+
 ## [2.0.35-rc.2] - 2026-08-04
 
 ### Changed
