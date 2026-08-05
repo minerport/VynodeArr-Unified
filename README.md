@@ -28,9 +28,12 @@ consistent experience and account system.
 ## Current release
 
 Version **2.0.33** is available for production use on Unraid, Windows, and
-standard Docker installations. Version **2.0.35-rc.1** is available as a
-prerelease for testing the Engine Update Center and its backup-gated candidate
-workflow. The new administrator Library Action Center identifies operational
+standard Docker installations. Version **2.0.35-rc.2** is available as a
+prerelease with projected Movie and Television catalogs, targeted detail reads,
+progressive poster loading, and persistent artwork caching that reduce engine
+CPU and network load while preserving current library information and poster
+overlays. It also includes the Engine Update Center and its backup-gated
+candidate workflow. The new administrator Library Action Center identifies operational
 issues, explains their impact, recommends a safe next action, and provides a
 unified Automation Timeline across requests, searches, downloads, queue and
 history events, notifications, audits, validation, and Plex artwork, with a

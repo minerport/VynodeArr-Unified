@@ -1,4 +1,4 @@
-import { mkdir,readFile,rename,writeFile } from 'node:fs/promises';
+import { mkdir,readFile,rename,unlink,writeFile } from 'node:fs/promises';
 import { watch } from 'node:fs';
 import { createCipheriv,createDecipheriv,createHash,createHmac,randomBytes,randomUUID,scryptSync } from 'node:crypto';
 import { request as httpRequest } from 'node:http';
@@ -131,6 +131,7 @@ export function createApplication(options={}){
   const masterKeyService=options.masterKeyService||new MasterKeyService({path:join(dataDir,'master-key'),vaultPath:join(dataDir,'credentials.enc'),configuredKey:options.masterKey||loadSecret(env,'VYNODEARR_MASTER_KEY')});
   const engineSettings=options.engineSettings||new EngineSettingsService({path:join(dataDir,'engine-settings.json'),vaultPath:join(dataDir,'credentials.enc'),masterKey:masterKeyService.resolve(),defaults:baseConfig});
   const projectionStore=options.projectionStore||new ProjectionStore(join(dataDir,'projections.json'));
+  const artworkDiskDir=join(dataDir,'artwork-cache'),artworkDiskStore=options.artworkDiskStore||new JsonStore(join(dataDir,'artwork-cache.json'),{version:1,entries:{}});
   const auditStore=options.auditStore||new JsonStore(join(dataDir,'management-audit.json'),{version:1,entries:[]});
   const collectionStore=options.collectionStore||new JsonStore(join(dataDir,'collections.json'),{version:1,collections:[]});
   const posterOverlayStore=options.posterOverlayStore||new JsonStore(join(dataDir,'poster-overlays.json'),{version:1,templates:[],assignments:[]});
@@ -240,6 +241,7 @@ export function createApplication(options={}){
   const discovery=options.discovery||new TmdbDiscoveryService({token:env.TMDB_API_READ_TOKEN||env.TMDB_API_KEY});
   const boundedInteger=(value,fallback,min,max)=>Math.max(min,Math.min(max,Math.trunc(Number(value)||fallback)));
   const artworkCache=new BoundedCache({maxItems:boundedInteger(env.VYNODEARR_ARTWORK_CACHE_ITEMS,250,10,2000),maxBytes:boundedInteger(env.VYNODEARR_ARTWORK_CACHE_BYTES,128*1024*1024,1024*1024,1024*1024*1024),ttlMs:boundedInteger(env.VYNODEARR_ARTWORK_CACHE_TTL_MS,30*60*1000,60_000,24*60*60*1000)}),artworkRuns=new Map(),tvMetadataCache=new BoundedCache({maxItems:100,maxBytes:32*1024*1024,ttlMs:30*60*1000}),attentionSnapshots=new Map();let mode=baseConfig.dataMode,librarySummaryTimer=null;
+  const artworkDiskMaxItems=boundedInteger(env.VYNODEARR_ARTWORK_DISK_CACHE_ITEMS,2000,100,10000),artworkDiskMaxBytes=boundedInteger(env.VYNODEARR_ARTWORK_DISK_CACHE_BYTES,1024*1024*1024,64*1024*1024,4*1024*1024*1024);
   let movie=options.movie||(mode==='fixture'?new MovieFixtureAdapter(baseConfig.movie):new MovieEngineAdapter(baseConfig.movie));
   let tv=options.tv||(mode==='fixture'?new TvFixtureAdapter(baseConfig.tv):new TvEngineAdapter(baseConfig.tv));
   const registry=options.registry||new MediaEngineRegistry().register('movie',movie).register('tv',tv);
@@ -1178,7 +1180,7 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
     for(const userId of visibleUserIds)if(!groups.has(userId)){const user=userMap.get(userId);groups.set(userId,{user:{id:userId,name:user?.name||user?.username||'Deleted user',username:user?.username||'deleted'},movies:[],television:[]});}
     return[...groups.values()].map(group=>{const items=[...group.movies,...group.television],available=items.filter(item=>item.hasFile||item.state==='available').length;return{...group,movies:group.movies.sort((a,b)=>a.title.localeCompare(b.title)),television:group.television.sort((a,b)=>a.title.localeCompare(b.title)),count:items.length,sharing:{visibility:preferences[group.user.id]?.visibility||'private',sharedWith:preferences[group.user.id]?.sharedWith||[]},statistics:{movies:group.movies.length,television:group.television.length,available,missing:items.length-available,sizeOnDisk:items.reduce((sum,item)=>sum+Number(item.sizeOnDisk||0),0),requested:items.filter(item=>item.collectionSource==='request').length,saved:items.filter(item=>item.collectionSource==='saved').length}};}).sort((a,b)=>a.user.name.localeCompare(b.user.name));
   }
-  const posterOverlayCache=new Map(),posterFileMetadataCache=new Map(),posterEpisodeMetadataCache=new Map(),fileOverlayVariables=new Set(['quality','resolution','video_codec','audio_codec','audio_channels','dynamic_range','source','languages','subtitle_languages','bitrate','edition','release_group','custom_formats','custom_format_score','file_size']),episodeOverlayVariables=new Set(['season_count','current_season','current_season_progress','current_season_missing','next_episode','next_episode_title','next_episode_date','next_episode_countdown','next_episode_season','next_episode_number','next_episode_code','latest_episode_title','latest_episode_date','latest_episode_season','latest_episode_number','latest_episode_code']);
+  const posterOverlayCache=new Map(),posterFileMetadataCache=new Map(),posterEpisodeMetadataCache=new Map(),mediaDetailCache=new Map(),mediaDetailRuns=new Map(),fileOverlayVariables=new Set(['quality','resolution','video_codec','audio_codec','audio_channels','dynamic_range','source','languages','subtitle_languages','bitrate','edition','release_group','custom_formats','custom_format_score','file_size']),episodeOverlayVariables=new Set(['season_count','current_season','current_season_progress','current_season_missing','next_episode','next_episode_title','next_episode_date','next_episode_countdown','next_episode_season','next_episode_number','next_episode_code','latest_episode_title','latest_episode_date','latest_episode_season','latest_episode_number','latest_episode_code']);
   const templateUsesVariables=(template,set)=>template?.layers?.some(layer=>set.has(layer.variable)||(layer.conditions?.rules||[]).some(rule=>set.has(rule.variable))||(layer.styleRules||[]).some(style=>(style.conditions?.rules||[]).some(rule=>set.has(rule.variable))));
   const posterTemplateTarget=template=>['vynode','plex'].includes(template?.target)?template.target:Object.values(template?.plexBadges||{}).some(Boolean)?'plex':'vynode';
   async function posterOverlayConfiguration(){const stored=await posterOverlayStore.read();return{templates:(stored.templates||[]).map(template=>({...template,target:posterTemplateTarget(template),layers:(template.layers||[]).map(sanitizeOverlayLayer)})),assignments:stored.assignments||[]};}
@@ -1190,6 +1192,10 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
     return aggregateOverlayFileMetadata(files,template.tvFileAggregation||'most_common');
   }
   async function televisionEpisodeMetadata(item,template){if(!templateUsesVariables(template,episodeOverlayVariables))return{};const key=collectionMediaId('tv',item.id),cached=posterEpisodeMetadataCache.get(key);if(cached?.expires>Date.now())return cached.value;const adapter=registry.get('tv');if(typeof adapter.getSeriesOverlayMetadata!=='function')return{};try{const value=await adapter.getSeriesOverlayMetadata(item.id),useful=value&&(value.nextEpisode||value.latestEpisode||value.currentSeason||Number(value.seasonCount)>0);if(useful)posterEpisodeMetadataCache.set(key,{value,expires:Date.now()+10*60_000});return value||{};}catch{return{};}}
+  function cachedTelevisionOverlay(item,template){
+    const key=collectionMediaId('tv',item.id),fileEntry=posterFileMetadataCache.get(key),episodeEntry=posterEpisodeMetadataCache.get(key),files=fileEntry?.expires>Date.now()?fileEntry.files:null,episodes=episodeEntry?.expires>Date.now()?episodeEntry.value:{};
+    return{...item,...episodes,...(files?{fileMetadata:aggregateOverlayFileMetadata(files,template.tvFileAggregation||'most_common')}:{})};
+  }
   async function enrichTelevisionOverlay(item,template){const[fileMetadata,episodes]=await Promise.all([televisionFileMetadata(item,template),televisionEpisodeMetadata(item,template)]);return{...item,...episodes,fileMetadata};}
   async function overlayRenderContext(domain,item,template,session){const enriched=domain==='tv'?await enrichTelevisionOverlay(item,template):item,attribution=session?await requestAttribution(domain,[item.id],session):{};return{item:enriched,context:{requesters:attribution[`${domain}:${item.id}`]||[]}};}
   async function plexPreviewTarget({domain,mediaId,libraryKey,ratingKey}){const settings=await plexSettingsStore.read(),token=await engineSettings.plexCredential();if(!settings.endpoint||!token)throw new Error('Connect Plex before reviewing poster artwork');const library=(settings.libraries||[]).find(item=>String(item.key)===String(libraryKey));if(!library||(library.type==='movie'?'movie':'tv')!==domain)throw new Error('Choose a compatible Plex library');const item=(await sync.list(domain)).find(value=>value.id===mediaId);if(!item)throw new Error('The VynodeArr library title is no longer available');const plexItems=await plexService.libraryItems(settings.endpoint,token,library),matched=plexService.match([{...item,domain}],plexItems)[0],plex=matched?.status==='matched'&&matched.plex.find(value=>String(value.ratingKey)===String(ratingKey));if(!plex)throw new Error('The Plex title no longer has one unambiguous external-ID match');const poster=await plexService.artwork(settings.endpoint,token,plex.thumb||`/library/metadata/${plex.ratingKey}/thumb`);return{domain,settings,token,library,item,plex,poster};}
@@ -1205,8 +1211,53 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
   }
   async function decoratePosterArtwork(domain,items,session){
     const state=await posterOverlayConfiguration(),attribution=session?await requestAttribution(domain,items.map(item=>item.id),session):{},resolved=items.map(item=>({item,template:resolveOverlayTemplate(item,domain,state.templates,state.assignments)})),enriched=[];
-    for(let start=0;start<resolved.length;start+=6){const batch=resolved.slice(start,start+6);enriched.push(...await Promise.all(batch.map(async({item,template})=>domain==='tv'&&template?await enrichTelevisionOverlay(item,template):item)));}
+    for(const {item,template} of resolved)enriched.push(domain==='tv'&&template?cachedTelevisionOverlay(item,template):item);
     return enriched.map((item,index)=>{const template=resolved[index].template,overlayValues=posterVariableValues(item,{requesters:attribution[`${domain}:${item.id}`]||[]}),artwork={...(item.artwork||{}),overlayValues};return template?{...item,artwork:{...artwork,originalUrl:item.artwork?.url,overlayTemplateId:template.id,overlayTemplate:template}}:{...item,artwork};});
+  }
+  async function warmAssignedTelevisionOverlay(template,assignment){
+    if(assignment.scope.domain!=='tv'||(!templateUsesVariables(template,fileOverlayVariables)&&!templateUsesVariables(template,episodeOverlayVariables)))return;
+    const library=await sync.list('tv'),selected=new Set((assignment.scope.mediaIds||[]).map(String)),items=assignment.scope.type==='items'?library.filter(item=>selected.has(String(item.id))):library;
+    for(let start=0;start<items.length;start+=2)await Promise.all(items.slice(start,start+2).map(item=>enrichTelevisionOverlay(item,template).catch(()=>null)));
+  }
+  function projectedMediaDetail(domain,item){
+    if(!item)return null;
+    if(domain==='movie')return{...item,availability:item.availability||item.status||'unknown',releaseDates:item.releaseDates||{cinemas:null,digital:item.releaseDate||null,physical:null},location:item.location||item.rootFolder||null,fileLocation:item.fileLocation||null,backdrop:item.backdrop||{url:`/api/artwork/movie/${item.id}/fanart`,kind:'backdrop',width:0,height:0}};
+    return{...item,location:item.location||item.rootFolder||null,backdrop:item.backdrop||{url:`/api/artwork/tv/${item.id}/fanart`,kind:'backdrop',width:0,height:0},seasons:Array.isArray(item.seasons)?item.seasons:[]};
+  }
+  async function mediaDetail(domain,id){
+    const key=`${domain}:${id}`,cached=mediaDetailCache.get(key);
+    if(cached?.expires>Date.now())return cached.item;
+    if(mediaDetailRuns.has(key))return mediaDetailRuns.get(key);
+    const run=(async()=>{
+      const projected=(await sync.list(domain)).find(item=>item.id===id);
+      if(!projected)return null;
+      try{
+        const adapter=registry.get(domain),live=domain==='movie'?await adapter.getMovie(id):await adapter.getSeries(id),item=live||projectedMediaDetail(domain,projected);
+        mediaDetailCache.set(key,{item,expires:Date.now()+10*60_000});
+        return item;
+      }catch{const item=projectedMediaDetail(domain,projected);mediaDetailCache.set(key,{item,expires:Date.now()+60_000});return item;}
+    })().finally(()=>mediaDetailRuns.delete(key));
+    mediaDetailRuns.set(key,run);return run;
+  }
+  function invalidateMediaDetail(domain,id){if(id)mediaDetailCache.delete(`${domain}:${id}`);else for(const key of mediaDetailCache.keys())if(key.startsWith(`${domain}:`))mediaDetailCache.delete(key);}
+  async function durableArtworkGet(key){
+    try{const state=await artworkDiskStore.read(),entry=state.entries?.[key];if(!entry||Date.now()-Number(entry.cachedAt||0)>7*24*60*60*1000)return null;const body=await readFile(join(artworkDiskDir,entry.file));return{body,contentType:entry.contentType,cachedAt:entry.cachedAt};}catch{return null;}
+  }
+  async function durableArtworkSet(key,value){
+    if(!value?.body?.length||value.body.length>10*1024*1024)return;
+    const file=`${createHash('sha256').update(key).digest('hex')}.bin`;await mkdir(artworkDiskDir,{recursive:true});await writeFile(join(artworkDiskDir,file),value.body);
+    const evicted=[];await artworkDiskStore.update(state=>{state.entries=state.entries||{};state.entries[key]={file,contentType:value.contentType||'application/octet-stream',cachedAt:Date.now(),size:value.body.length};const ordered=Object.entries(state.entries).sort((a,b)=>Number(b[1].cachedAt)-Number(a[1].cachedAt));let bytes=ordered.reduce((total,[,entry])=>total+Math.max(0,Number(entry.size)||0),0);for(let index=ordered.length-1;index>=0&&(index>=artworkDiskMaxItems||bytes>artworkDiskMaxBytes);index--){const[oldKey,entry]=ordered[index];if(oldKey===key&&ordered.length===1)break;evicted.push(entry.file);bytes-=Math.max(0,Number(entry.size)||0);delete state.entries[oldKey];}});await Promise.allSettled(evicted.map(name=>unlink(join(artworkDiskDir,name))));
+  }
+  async function libraryArtwork(domain,id,kind){
+    const key=`${domain}:${id}:${kind}`;let value=artworkCache.get(key);
+    if(!value){value=await durableArtworkGet(key);if(value)artworkCache.set(key,value);}
+    if(value)return value;
+    let run=artworkRuns.get(key);
+    if(!run){
+      run=registry.get(domain).getArtwork(id,kind).then(async result=>{if(result){const cached={...result,cachedAt:Date.now()};artworkCache.set(key,cached);await durableArtworkSet(key,cached).catch(()=>{});}return result;}).finally(()=>artworkRuns.delete(key));
+      artworkRuns.set(key,run);
+    }
+    return run;
   }
   function clearPosterOverlayCache(){posterOverlayCache.clear();}
   async function requestAttribution(domain,mediaIds,session){
@@ -1739,7 +1790,7 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
           if(!administrator(res,session)||!requireCsrf(req,res,session))return;let removed=null;await posterOverlayStore.update(state=>{removed=(state.templates||[]).find(item=>item.id===overlayTemplateMatch[1])||null;state.templates=(state.templates||[]).filter(item=>item.id!==overlayTemplateMatch[1]);state.assignments=(state.assignments||[]).filter(item=>item.templateId!==overlayTemplateMatch[1]);});if(!removed)return json(res,404,{error:{code:'not_found',message:'Poster overlay template was not found.'}});clearPosterOverlayCache();await recordAudit(session,{category:'configuration',action:'poster_overlay.template_deleted',target:removed.name,summary:'Deleted a poster overlay template and its assignments.'});return json(res,200,{deleted:true});
         }
         if(url.pathname==='/api/poster-overlays/assignments'&&req.method==='POST'){
-          if(!administrator(res,session)||!requireCsrf(req,res,session))return;const input=await body(req),state=await posterOverlayStore.read(),template=(state.templates||[]).find(item=>item.id===input.templateId);if(!template)return json(res,400,{error:{code:'invalid_template',message:'Choose an existing poster overlay template.'}});if(posterTemplateTarget(template)==='plex')return json(res,400,{error:{code:'template_target_mismatch',message:`${template.name} was created for Plex artwork and cannot be assigned to the VynodeArr library.`}});const assignment=sanitizeOverlayAssignment(input);if(template.domain!=='all'&&template.domain!==assignment.scope.domain)return json(res,400,{error:{code:'template_domain_mismatch',message:`${template.name} can only be applied to ${template.domain==='movie'?'Movies':'Television'}.`}});await posterOverlayStore.update(current=>{current.assignments=current.assignments||[];current.assignments.push(assignment);});clearPosterOverlayCache();await recordAudit(session,{category:'configuration',action:'poster_overlay.assignment_created',target:assignment.name,summary:'Created a poster overlay assignment.'});return json(res,201,{assignment});
+          if(!administrator(res,session)||!requireCsrf(req,res,session))return;const input=await body(req),state=await posterOverlayStore.read(),template=(state.templates||[]).find(item=>item.id===input.templateId);if(!template)return json(res,400,{error:{code:'invalid_template',message:'Choose an existing poster overlay template.'}});if(posterTemplateTarget(template)==='plex')return json(res,400,{error:{code:'template_target_mismatch',message:`${template.name} was created for Plex artwork and cannot be assigned to the VynodeArr library.`}});const assignment=sanitizeOverlayAssignment(input);if(template.domain!=='all'&&template.domain!==assignment.scope.domain)return json(res,400,{error:{code:'template_domain_mismatch',message:`${template.name} can only be applied to ${template.domain==='movie'?'Movies':'Television'}.`}});await warmAssignedTelevisionOverlay(template,assignment);await posterOverlayStore.update(current=>{current.assignments=current.assignments||[];current.assignments.push(assignment);});clearPosterOverlayCache();await recordAudit(session,{category:'configuration',action:'poster_overlay.assignment_created',target:assignment.name,summary:'Created a poster overlay assignment.'});return json(res,201,{assignment});
         }
         const overlayAssignmentMatch=url.pathname.match(/^\/api\/poster-overlays\/assignments\/(assignment_[A-Za-z0-9_-]+)$/);
         if(overlayAssignmentMatch&&req.method==='PUT'){
@@ -2088,11 +2139,12 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
             await recordAudit(session,{category:backupCommand?'backup':'engine',action:backupCommand?'backup.created':`engine.${managementMatch[2]}.${method.toLowerCase()}`,target:backupCommand?`${managementMatch[1]} configuration backup`:`${managementMatch[1]} ${managementMatch[2]}`,domain:managementMatch[1],summary:backupCommand?`Queued a ${managementMatch[1]==='movie'?'Movies':'Television'} configuration backup.`:`${method} ${managementMatch[2]} in the ${managementMatch[1]==='movie'?'movie':'television'} engine.`,metadata:{resourceId:managementMatch[3]||null,...(commandName?{command:commandName}:{})}});
             if(managementMatch[2]==='library'){
               const domain=managementMatch[1],prefix=domain==='movie'?'movie':'series',engineId=Number(result?.id||managementMatch[3]||input?.id),publicId=Number.isFinite(engineId)?`${prefix}_${engineId}`:null;
-              if(method==='DELETE'&&publicId){await sync.removeItem(domain,publicId);broadcastLibraryEvent({domain,removedIds:[publicId],updatedAt:new Date().toISOString()});}
+              if(method==='DELETE'&&publicId){invalidateMediaDetail(domain,publicId);await sync.removeItem(domain,publicId);broadcastLibraryEvent({domain,removedIds:[publicId],updatedAt:new Date().toISOString()});}
               else if(publicId){
+                invalidateMediaDetail(domain,publicId);
                 const reconcile=()=>sync.reconcileItem(domain,publicId).then(value=>broadcastLibraryEvent({domain,items:value.item?[value.item]:[],updatedAt:new Date().toISOString()})).catch(()=>{});
                 await reconcile();if(mode==='engine')for(const delay of [5_000,20_000])setTimeout(reconcile,delay);
-              }else{sync.invalidate(domain);await sync.synchronize(domain);}
+              }else{invalidateMediaDetail(domain);sync.invalidate(domain);await sync.synchronize(domain);}
             }else if(managementMatch[2]==='libraryEditor'){
               sync.invalidate(managementMatch[1]);await sync.synchronize(managementMatch[1]);
             }
@@ -2122,27 +2174,19 @@ const importJobs=new Map(),searchJobs=new Map(),namingAuditJobs=new Map(),comple
         const artworkMatch=url.pathname.match(/^\/api\/artwork\/(movie|tv)\/((?:movie|series)_[A-Za-z0-9_-]+)\/(poster|fanart|logo|banner|episode|season)$/);
         if(artworkMatch){
           if(!permitted(res,session,artworkMatch[1]==='movie'?'movies':'tv'))return;
-          const key=artworkMatch.slice(1).join(':');let value=artworkCache.get(key);
-          if(!value){
-            let run=artworkRuns.get(key);
-            if(!run){
-              run=registry.get(artworkMatch[1]).getArtwork(artworkMatch[2],artworkMatch[3]).then(result=>{if(result)artworkCache.set(key,{...result,cachedAt:Date.now()});return result;}).finally(()=>artworkRuns.delete(key));
-              artworkRuns.set(key,run);
-            }
-            value=await run;
-            if(!value){res.writeHead(204,{'cache-control':'private, max-age=300'});return res.end();}
-          }
+          const value=await libraryArtwork(artworkMatch[1],artworkMatch[2],artworkMatch[3]);
+          if(!value){res.writeHead(204,{'cache-control':'private, max-age=300'});return res.end();}
           if(artworkMatch[3]==='poster'&&url.searchParams.has('variant')){try{const domain=artworkMatch[1],library=await sync.list(domain),baseItem=library.find(entry=>entry.id===artworkMatch[2]),template=baseItem?await overlayForItem(domain,baseItem):null;if(baseItem&&template){const{item,context}=await overlayRenderContext(domain,baseItem,template,session),revision=overlayRevision(template,item,context),renderKey=`${domain}:${item.id}:${revision}`;let rendered=posterOverlayCache.get(renderKey);if(!rendered){rendered=renderOverlaySvg({poster:value.body,contentType:value.contentType,template,item,context});if(posterOverlayCache.size>=500)posterOverlayCache.delete(posterOverlayCache.keys().next().value);posterOverlayCache.set(renderKey,rendered);}res.writeHead(200,{'content-type':'image/svg+xml; charset=utf-8','cache-control':'private, max-age=86400','content-security-policy':"default-src 'none'; img-src data:",'x-content-type-options':'nosniff'});return res.end(rendered);}}catch{} }
           res.writeHead(200,{'content-type':value.contentType,'cache-control':'private, max-age=86400, stale-while-revalidate=604800','x-content-type-options':'nosniff'});return res.end(value.body);
         }
         const overlayRenderMatch=url.pathname.match(/^\/api\/(?:artwork\/composed|poster-overlays\/render)\/(movie|tv)\/((?:movie|series)_[A-Za-z0-9_-]+)$/);
         if(overlayRenderMatch){
-          const domain=overlayRenderMatch[1];if(!permitted(res,session,domain==='movie'?'movies':'tv'))return;const library=await sync.list(domain),baseItem=library.find(value=>value.id===overlayRenderMatch[2]);if(!baseItem)return json(res,404,{error:{code:'not_found',message:'Library item was not found.'}});const original=await registry.get(domain).getArtwork(baseItem.id,'poster');if(!original){res.writeHead(204,{'cache-control':'private, max-age=300'});return res.end();}try{const template=await overlayForItem(domain,baseItem);if(!template){res.writeHead(200,{'content-type':original.contentType,'cache-control':'private, max-age=86400','x-content-type-options':'nosniff'});return res.end(original.body);}const{item,context}=await overlayRenderContext(domain,baseItem,template,session),revision=overlayRevision(template,item,context),key=`${domain}:${item.id}:${revision}`;let rendered=posterOverlayCache.get(key);if(!rendered){rendered=renderOverlaySvg({poster:original.body,contentType:original.contentType,template,item,context});if(posterOverlayCache.size>=500)posterOverlayCache.delete(posterOverlayCache.keys().next().value);posterOverlayCache.set(key,rendered);}res.writeHead(200,{'content-type':'image/svg+xml; charset=utf-8','cache-control':'private, max-age=86400','content-security-policy':"default-src 'none'; img-src data:",'x-content-type-options':'nosniff'});return res.end(rendered);}catch{res.writeHead(200,{'content-type':original.contentType,'cache-control':'private, max-age=300','x-content-type-options':'nosniff'});return res.end(original.body);}
+          const domain=overlayRenderMatch[1];if(!permitted(res,session,domain==='movie'?'movies':'tv'))return;const library=await sync.list(domain),baseItem=library.find(value=>value.id===overlayRenderMatch[2]);if(!baseItem)return json(res,404,{error:{code:'not_found',message:'Library item was not found.'}});const original=await libraryArtwork(domain,baseItem.id,'poster');if(!original){res.writeHead(204,{'cache-control':'private, max-age=300'});return res.end();}try{const template=await overlayForItem(domain,baseItem);if(!template){res.writeHead(200,{'content-type':original.contentType,'cache-control':'private, max-age=86400','x-content-type-options':'nosniff'});return res.end(original.body);}const{item,context}=await overlayRenderContext(domain,baseItem,template,session),revision=overlayRevision(template,item,context),key=`${domain}:${item.id}:${revision}`;let rendered=posterOverlayCache.get(key);if(!rendered){rendered=renderOverlaySvg({poster:original.body,contentType:original.contentType,template,item,context});if(posterOverlayCache.size>=500)posterOverlayCache.delete(posterOverlayCache.keys().next().value);posterOverlayCache.set(key,rendered);}res.writeHead(200,{'content-type':'image/svg+xml; charset=utf-8','cache-control':'private, max-age=86400','content-security-policy':"default-src 'none'; img-src data:",'x-content-type-options':'nosniff'});return res.end(rendered);}catch{res.writeHead(200,{'content-type':original.contentType,'cache-control':'private, max-age=300','x-content-type-options':'nosniff'});return res.end(original.body);}
         }
         if(url.pathname==='/api/media/movies'){if(!permitted(res,session,'movies'))return;const refresh=url.searchParams.get('refresh')==='true';if(refresh&&!administrator(res,session))return;const rawItems=await sync.list('movie',{refresh}),attention=refresh?await authoritativeAttention('movie'):cachedAttention('movie',rawItems),items=await decoratePosterArtwork('movie',rawItems,session);return json(res,200,{items,attention,mode,sync:sync.snapshot().movie});}
-        const movieMatch=url.pathname.match(/^\/api\/media\/movies\/(movie_[A-Za-z0-9_-]+)$/);if(movieMatch){if(!permitted(res,session,'movies'))return;const item=await registry.movie().getMovie(movieMatch[1]),decorated=item?(await decoratePosterArtwork('movie',[item],session))[0]:null;return decorated?json(res,200,{item:decorated,mode}):json(res,404,{error:{code:'not_found',message:'Movie was not found.'}});}
+        const movieMatch=url.pathname.match(/^\/api\/media\/movies\/(movie_[A-Za-z0-9_-]+)$/);if(movieMatch){if(!permitted(res,session,'movies'))return;const item=await mediaDetail('movie',movieMatch[1]),decorated=item?(await decoratePosterArtwork('movie',[item],session))[0]:null;return decorated?json(res,200,{item:decorated,mode}):json(res,404,{error:{code:'not_found',message:'Movie was not found.'}});}
         if(url.pathname==='/api/media/tv'){if(!permitted(res,session,'tv'))return;const refresh=url.searchParams.get('refresh')==='true';if(refresh&&!administrator(res,session))return;const rawItems=await sync.list('tv',{refresh}),attention=refresh?await authoritativeAttention('tv'):cachedAttention('tv',rawItems),items=await decoratePosterArtwork('tv',rawItems,session);return json(res,200,{items,attention,mode,sync:sync.snapshot().tv});}
-        const tvMatch=url.pathname.match(/^\/api\/media\/tv\/(series_[A-Za-z0-9_-]+)$/);if(tvMatch){if(!permitted(res,session,'tv'))return;const item=await registry.tv().getSeries(tvMatch[1]),decorated=item?(await decoratePosterArtwork('tv',[item],session))[0]:null;return decorated?json(res,200,{item:decorated,mode}):json(res,404,{error:{code:'not_found',message:'TV series was not found.'}});}
+        const tvMatch=url.pathname.match(/^\/api\/media\/tv\/(series_[A-Za-z0-9_-]+)$/);if(tvMatch){if(!permitted(res,session,'tv'))return;const item=await mediaDetail('tv',tvMatch[1]),decorated=item?(await decoratePosterArtwork('tv',[item],session))[0]:null;return decorated?json(res,200,{item:decorated,mode}):json(res,404,{error:{code:'not_found',message:'TV series was not found.'}});}
         if(url.pathname==='/api/activity/queue/live'||url.pathname==='/api/activity/queue'){if(!administrator(res,session))return;let items=mode==='engine'?await liveQueue():await sync.operations('queue');const attributions={...(await requestAttribution('movie',items.filter(item=>item.domain==='movie').map(item=>item.mediaId),session)),...(await requestAttribution('tv',items.filter(item=>item.domain==='tv').map(item=>item.mediaId),session))};items=items.map(item=>({...item,requesters:attributions[`${item.domain}:${item.mediaId}`]||[]}));return json(res,200,{items});}
         if(url.pathname==='/api/activity/history'){if(!administrator(res,session))return;let items=await sync.operations('history');const attributions={...(await requestAttribution('movie',items.filter(item=>item.domain==='movie').map(item=>item.mediaId),session)),...(await requestAttribution('tv',items.filter(item=>item.domain==='tv').map(item=>item.mediaId),session))};items=items.map(item=>({...item,requesters:attributions[`${item.domain}:${item.mediaId}`]||[]}));return json(res,200,{items});}
         if(url.pathname==='/api/calendar'){

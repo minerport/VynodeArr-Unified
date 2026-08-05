@@ -126,7 +126,6 @@ function LibraryCard({
   priority,
   administrator,
   onMonitor,
-  onPrefetch,
 }: {
   item: LibraryItem;
   kind: LibraryMountOptions["kind"];
@@ -134,7 +133,6 @@ function LibraryCard({
   priority: boolean;
   administrator: boolean;
   onMonitor: (item: LibraryItem) => Promise<void>;
-  onPrefetch: (item: LibraryItem) => void;
 }) {
   const movie = kind === "movies",
     href = `#${movie ? "movie" : "series"}/${item.id}`;
@@ -167,7 +165,6 @@ function LibraryCard({
       ];
   const prefetch = () => {
     window.VynodeArrReact?.preloadRoute?.(movie ? "movie" : "series");
-    onPrefetch(item);
   };
   return (
     <article
@@ -321,7 +318,7 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
     [query, setQuery] = useState(saved.query || ""),
     [debouncedQuery, setDebouncedQuery] = useState(saved.query || ""),
     [view, setView] = useState(options.initialView),
-    [limit, setLimit] = useState(120),
+    [limit, setLimit] = useState(60),
     [searching, setSearching] = useState(false),
     [priorityIds, setPriorityIds] = useState<Set<string>>(() => new Set()),
     [loading, setLoading] = useState(!options.items.length),
@@ -442,7 +439,7 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
     return () => window.clearTimeout(timer);
   }, [query]);
   useEffect(() => {
-    setLimit(120);
+    setLimit(60);
   }, [filter, sort, debouncedQuery, view]);
   useEffect(() => {
     const persist = () =>
@@ -558,7 +555,7 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting))
-          setLimit((value) => value + 120);
+          setLimit((value) => value + 60);
       },
       { rootMargin: "600px" },
     );
@@ -715,13 +712,6 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
       setSearching(false);
     }
   }
-  const prefetch = (item: LibraryItem) => {
-    void request(
-      movie
-        ? `/api/media/movies/${encodeURIComponent(item.id)}`
-        : `/api/media/tv/${encodeURIComponent(item.id)}`,
-    ).catch(() => {});
-  };
   const synchronizeLibrary = async () => {
     setSyncing(true);
     try {
@@ -945,7 +935,6 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
             priority={priorityIds.has(item.id)}
             administrator={options.administrator}
             onMonitor={monitor}
-            onPrefetch={prefetch}
           />
         ))}
       </div>
@@ -998,7 +987,7 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
           <button
             className="secondary"
             type="button"
-            onClick={() => setLimit((value) => value + 120)}
+            onClick={() => setLimit((value) => value + 60)}
           >
             Load more
           </button>

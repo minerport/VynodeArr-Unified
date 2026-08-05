@@ -7,6 +7,29 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.35-rc.2] - 2026-08-04
+
+### Changed
+
+- Movie and Television detail pages now request only the selected title's
+  records and reuse a short-lived, deduplicated detail cache instead of loading
+  global queue, wanted, or cutoff data.
+- Library poster grids now load progressively in 60-title batches while keeping
+  automatic loading, manual loading, filtering, sorting, and alphabet jumps.
+- Normal and composed overlay posters now share one bounded artwork path with a
+  persistent, size-limited disk cache across application restarts.
+
+### Fixed
+
+- Stopped poster hover and keyboard focus from issuing live engine detail
+  requests before a user actually opens a title.
+- Prevented passive Television library rendering from making per-series file
+  and episode metadata requests for existing overlay assignments.
+- Prevented overlay-heavy libraries from bypassing the artwork cache and
+  repeatedly downloading original posters from the movie or television engine.
+- Cached projected detail fallbacks briefly during engine interruptions so
+  repeated navigation cannot create an immediate retry storm.
+
 ## [2.0.35-rc.1] - 2026-08-04
 
 ### Added

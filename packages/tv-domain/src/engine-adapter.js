@@ -41,11 +41,11 @@ export class TvEngineAdapter {
   async getSeries(id) {
     const engineId = numericId(id); if (!Number.isFinite(engineId)) return null;
     try {
-      const [record, episodes, context] = await Promise.all([
-        this.client.get(`series/${engineId}`), this.client.get('episode', { seriesId: engineId, includeEpisodeFile: true }),
-        this.#context()
+      const [record, episodes] = await Promise.all([
+        this.client.get(`series/${engineId}`), this.client.get('episode', { seriesId: engineId, includeEpisodeFile: true })
       ]);
       if (!Array.isArray(episodes)) throw engineError.invalid();
+      const context={queueById:new Map(),monitoredMissingBySeriesId:new Map()};
       context.monitoredMissingBySeriesId.set(engineId, record?.monitored === false ? 0 : episodes.filter((episode) => episode.monitored !== false && !episode.hasFile).length);
       return seriesDetails(record, episodes, context);
     } catch (error) { if (error.code) throw error; throw engineError.invalid(); }

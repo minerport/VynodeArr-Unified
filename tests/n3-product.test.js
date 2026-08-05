@@ -107,6 +107,23 @@ test('authenticated artwork proxy caches binary responses without exposing engin
   const response=await fetch(`${base}/api/artwork/movie/movie_1/poster`,{headers:{cookie}});assert.equal(response.status,200);assert.equal(response.headers.get('content-type'),'image/jpeg');assert.equal(Buffer.from(await response.arrayBuffer()).toString(),'image-data');
   assert.equal((await fetch(`${base}/api/artwork/movie/movie_1/poster`)).status,401);
 }));
+test('composed posters reuse the same bounded artwork cache as library posters',()=>{
+  let artworkReads=0;const movie=Object.assign(new MovieFixtureAdapter(),{getArtwork:async()=>{artworkReads+=1;return{body:Buffer.from('image-data'),contentType:'image/jpeg'};}});
+  return appSession({movie,tv:new TvFixtureAdapter()},async({base,cookie})=>{
+    assert.equal((await fetch(`${base}/api/artwork/movie/movie_orbit-city/poster`,{headers:{cookie}})).status,200);
+    assert.equal((await fetch(`${base}/api/poster-overlays/render/movie/movie_orbit-city`,{headers:{cookie}})).status,200);
+    assert.equal(artworkReads,1);
+  });
+});
+test('repeated detail reads are deduplicated without refreshing the full library',()=>{
+  let movieDetails=0,tvDetails=0;const movie=new MovieFixtureAdapter(),tv=new TvFixtureAdapter(),readMovie=movie.getMovie.bind(movie),readSeries=tv.getSeries.bind(tv);
+  movie.getMovie=async(...args)=>{movieDetails+=1;return readMovie(...args);};tv.getSeries=async(...args)=>{tvDetails+=1;return readSeries(...args);};
+  return appSession({movie,tv},async({base,cookie})=>{
+    await fetch(`${base}/api/media/movies/movie_orbit-city`,{headers:{cookie}});await fetch(`${base}/api/media/movies/movie_orbit-city`,{headers:{cookie}});
+    await fetch(`${base}/api/media/tv/series_afterlight`,{headers:{cookie}});await fetch(`${base}/api/media/tv/series_afterlight`,{headers:{cookie}});
+    assert.equal(movieDetails,1);assert.equal(tvDetails,1);
+  });
+});
 test('dashboard API returns useful product metrics',()=>appSession({movie:new MovieFixtureAdapter(),tv:new TvFixtureAdapter()},async({base,cookie})=>{
   const response=await fetch(`${base}/api/dashboard`,{headers:{cookie}}),value=await response.json();assert.equal(value.metrics.movies,3);assert.equal(value.metrics.tv,3);assert.ok('missing'in value.metrics&&'upcomingEpisodes'in value.metrics);assert.ok(Array.isArray(value.upcoming));assert.ok(value.recentActivity.length);
   assert.equal(value.analytics.rangeDays,30);assert.equal(value.analytics.downloadsOverTime.movie.length,30);assert.equal(value.analytics.downloadsOverTime.tv.length,30);

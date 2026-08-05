@@ -67,11 +67,17 @@ test('movie cutoff attention includes every engine result page',async()=>{
   assert.equal(items.filter(item=>item.state==='cutoff').length,1001);
 });
 test('single movie details do not load the full cutoff library',async()=>{
-  let cutoffRequests=0;
-  const client={async get(path){if(path==='movie/1')return movieRecord;if(path==='queue')return{records:[]};if(path==='wanted/cutoff'){cutoffRequests++;return{records:[]};}return[];}};
+  let cutoffRequests=0,queueRequests=0;
+  const client={async get(path){if(path==='movie/1')return movieRecord;if(path==='queue'){queueRequests++;return{records:[]};}if(path==='wanted/cutoff'){cutoffRequests++;return{records:[]};}return[];}};
   const item=await new MovieEngineAdapter({enabled:true},client).getMovie('movie_1');
   assert.equal(item.title,'Mapped Movie');
   assert.equal(cutoffRequests,0);
+  assert.equal(queueRequests,0);
+});
+test('single television details load only the selected series and its episodes',async()=>{
+  const paths=[];const client={async get(path){paths.push(path);if(path==='series/2')return seriesRecord;if(path==='episode')return[{id:4,seasonNumber:1,episodeNumber:1,title:'Pilot',monitored:true,hasFile:true}];throw new Error(`Unexpected ${path}`);}};
+  const item=await new TvEngineAdapter({enabled:true},client).getSeries('series_2');
+  assert.equal(item.title,seriesRecord.title);assert.deepEqual(paths.sort(),['episode','series/2']);
 });
 test('completed queue records clear once they are no longer active in the download client',async()=>{
   const movie=new MovieEngineAdapter({enabled:true},new FakeClient({queue:{records:[
