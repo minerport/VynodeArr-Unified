@@ -6409,11 +6409,11 @@ export function createApplication(options = {}) {
     if (!run) {
       run = artworkFetchLimiter
         .run(() => registry.get(domain).getArtwork(id, kind))
-        .then((result) => {
+        .then(async (result) => {
           if (result) {
             const cached = { ...result, cachedAt: Date.now() };
             artworkCache.set(key, cached);
-            void artworkWriteLimiter
+            await artworkWriteLimiter
               .run(() => durableArtworkSet(key, cached))
               .catch(() => {});
           }
