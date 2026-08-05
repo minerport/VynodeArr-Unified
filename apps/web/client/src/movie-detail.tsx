@@ -20,6 +20,7 @@ export function MovieDetailView({options}:{options:MovieDetailMountOptions}){
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState('');
   const [busy,setBusy]=useState('');
+  const [freshness,setFreshness]=useState<{source:string;updatedAt:string}|null>(null);
   const [releases,setReleases]=useState<ReleaseRecord[]|null>(null);
   const [editing,setEditing]=useState<{movie:LibraryMovie;profiles:SelectOption[];roots:SelectOption[]}|null>(null);
   const [enrichment,setEnrichment]=useState<MediaEnrichment|null>(null);
@@ -28,7 +29,7 @@ export function MovieDetailView({options}:{options:MovieDetailMountOptions}){
   const [renamePreview,setRenamePreview]=useState<RenamePreviewRecord|null>(null);
   const [fixingMatch,setFixingMatch]=useState(false);
   const loadController=useRef<AbortController|null>(null);
-  const load=useCallback(async()=>{loadController.current?.abort();const controller=new AbortController();loadController.current=controller;setLoading(true);try{const value=await options.request<{item:MovieDetail}>(`/api/media/movies/${encodeURIComponent(options.publicId)}`,{signal:controller.signal});if(controller.signal.aborted)return;setItem(value.item);setError('');setLoading(false);setEnrichment(null);setEnrichmentLoading(true);void options.request<{item:MediaEnrichment|null}>(`/api/discover/enrich?domain=movie&title=${encodeURIComponent(value.item.title)}&year=${value.item.year||''}`,{signal:controller.signal}).then(rich=>{if(!controller.signal.aborted)setEnrichment(rich.item);}).catch(()=>{}).finally(()=>{if(!controller.signal.aborted)setEnrichmentLoading(false);});}catch(reason){if(!controller.signal.aborted)setError(errorMessage(reason));}finally{if(!controller.signal.aborted)setLoading(false);}},[options]);
+  const load=useCallback(async(refresh=false)=>{loadController.current?.abort();const controller=new AbortController();loadController.current=controller;if(!refresh)setLoading(true);try{const value=await options.request<{item:MovieDetail;freshness?:{source:string;updatedAt:string}}>(`/api/media/movies/${encodeURIComponent(options.publicId)}${refresh?'?refresh=true':''}`,{signal:controller.signal});if(controller.signal.aborted)return;setItem(value.item);setFreshness(value.freshness||null);setError('');setLoading(false);setEnrichment(null);setEnrichmentLoading(true);void options.request<{item:MediaEnrichment|null}>(`/api/discover/enrich?domain=movie&title=${encodeURIComponent(value.item.title)}&year=${value.item.year||''}`,{signal:controller.signal}).then(rich=>{if(!controller.signal.aborted)setEnrichment(rich.item);}).catch(()=>{}).finally(()=>{if(!controller.signal.aborted)setEnrichmentLoading(false);});}catch(reason){if(!controller.signal.aborted)setError(errorMessage(reason));}finally{if(!controller.signal.aborted)setLoading(false);}},[options]);
   useEffect(()=>{void load();return()=>loadController.current?.abort();},[load]);
   const run=async(name:string,work:()=>Promise<unknown>,notice:string,refreshAfter=false)=>{setBusy(name);try{await work();options.notify(notice);if(refreshAfter)await load();}catch(reason){options.notify(errorMessage(reason),'error');}finally{setBusy('');}};
   const monitor=async()=>{
@@ -44,6 +45,7 @@ export function MovieDetailView({options}:{options:MovieDetailMountOptions}){
   };
   const automatic=()=>run('automatic',()=>options.request('/api/manage/movie/automaticSearch',{method:'POST',body:JSON.stringify({movieId:engineId})}),'Best available release selected.');
   const refresh=()=>run('refresh',()=>options.request('/api/manage/movie/commands',{method:'POST',body:JSON.stringify({name:'RefreshMovie',movieIds:[engineId]})}),'Refresh and folder scan queued.');
+  const refreshDetails=()=>run('details',()=>load(true),'Movie details updated from the engine.');
   const rename=async()=>{setBusy('rename-preview');try{const value=await options.request<{preview:RenamePreviewRecord}>(`/api/media-files/rename?domain=movie&mediaId=${engineId}`);setRenamePreview(value.preview);}catch(reason){options.notify(errorMessage(reason),'error');}finally{setBusy('');}};
   const applyRename=(selection:{moveFolder:boolean;fileIds:number[]})=>run('rename-apply',async()=>{await options.request('/api/media-files/rename',{method:'POST',body:JSON.stringify({domain:'movie',mediaId:engineId,previewId:renamePreview?.previewId,...selection})});setRenamePreview(null);},`Selected organization changes queued for ${item?.title}.`,true);
   const deletePreviewFile=async(file:{id?:number})=>{await options.request('/api/media-files/rename/file',{method:'DELETE',body:JSON.stringify({previewId:renamePreview?.previewId,fileId:file.id})});setRenamePreview(current=>current?{...current,files:(current.files||[]).filter(entry=>entry.id!==file.id)}:current);options.notify('File permanently deleted.');};
@@ -63,6 +65,7 @@ export function MovieDetailView({options}:{options:MovieDetailMountOptions}){
     <div className="vynode-detail-surface">
     {item.backdrop?.url?<div className="detail-backdrop"><img src={item.backdrop.url} alt="" aria-hidden="true"/></div>:null}
     <a className="back-link" href="#movies">← Back to Movies</a>
+    <div className="panel-heading detail-freshness"><span className={`badge ${freshness?.source==='catalog'?'amber':'green'}`}>{freshness?.source==='catalog'?'Catalog fallback':freshness?.source==='cache'?'Cached live details':'Live engine details'}</span><small>{freshness?.updatedAt?`Updated ${new Date(freshness.updatedAt).toLocaleString()}`:'Freshness unavailable'}</small>{options.administrator?<button className="secondary" disabled={Boolean(busy)} onClick={()=>void refreshDetails()}>{busy==='details'?'Updating…':'Update details'}</button>:null}</div>
     <section className="detail-hero"><div className="detail-art">{item.artwork?.url?<img src={item.artwork.url} alt=""/>:<span className="art-fallback">M</span>}</div><div className="detail-copy"><span className="eyebrow">MOVIE</span><h1>{item.title}</h1><p className="lede">{item.overview}</p><span className="badge green">{item.monitoring||'Unknown'}</span>{options.administrator?<div className="detail-actions">
       <button className={`primary${busy==='automatic'?' is-working':''}`} disabled={Boolean(busy)} onClick={()=>void automatic()}>{busy==='automatic'?'Searching…':'Automatic search'}</button>
       <button className={`secondary${busy==='interactive'?' is-working':''}`} disabled={Boolean(busy)} onClick={()=>void interactive()}>{busy==='interactive'?'Finding releases…':'Interactive search'}</button>

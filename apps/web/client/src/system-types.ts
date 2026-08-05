@@ -42,6 +42,12 @@ export interface PerformanceReport {
     write: { active: number; queued: number; limit: number };
   };
   requests: { path: string; count: number; averageMs: number; maxMs: number }[];
+  activity: {
+    catalogReads: number;
+    engineReads: number;
+    fullReconciliations: number;
+    targetedReconciliations: number;
+  };
   settings: PerformanceSettings;
 }
 

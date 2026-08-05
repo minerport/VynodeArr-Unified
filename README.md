@@ -27,12 +27,15 @@ consistent experience and account system.
 
 ## Current release
 
-Version **2.0.33** is available for production use on Unraid, Windows, and
-standard Docker installations. Version **2.0.35-rc.3** is available as a
+Version **2.0.34** is available for production use on Unraid, Windows, and
+standard Docker installations. Version **2.0.35-rc.4** is available as a
 prerelease with a durable local Movie and Television catalog, targeted
 event-driven updates, server-side paging, performance controls, and persistent
 artwork caching that reduce engine CPU and network load while preserving
-current library information and poster overlays. It also includes the Engine
+current library information and poster overlays. Engine requests are now
+concurrency-limited and shared across operational readers, while import bursts
+are reconciled after a quiet period to reduce SQLite lock contention and engine
+thread-pool pressure on large libraries. It also includes the Engine
 Update Center and its backup-gated
 candidate workflow. The new administrator Library Action Center identifies operational
 issues, explains their impact, recommends a safe next action, and provides a

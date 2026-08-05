@@ -1183,7 +1183,10 @@ export function createApplication(options = {}) {
         requestStore.read().catch(() => ({ requests: [] })),
         notificationStore.read().catch(() => ({ events: [], deliveries: [] })),
         plexPosterApplicationStore.read().catch(() => ({ applications: [] })),
-        (mode === "engine" ? liveQueue() : sync.operations("queue")).catch(
+        (mode === "engine"
+          ? liveQueue({ maxAgeMs: 3e4 })
+          : sync.operations("queue")
+        ).catch(
           () => [],
         ),
         sync.operations("history").catch(() => []),
@@ -1535,9 +1538,14 @@ export function createApplication(options = {}) {
   const requestMetrics = new Map();
   let initialized = false,
     queueCompletionTimer = null,
-    operationalNotificationTimer = null;
+    operationalNotificationTimer = null,
+    liveQueueRun = null,
+    liveQueueSnapshot = [],
+    liveQueueSnapshotAt = 0,
+    operationalEngineSnapshots = new Map();
   const libraryWatchers = [],
-    libraryWatchTimers = new Map();
+    libraryWatchTimers = new Map(),
+    libraryWatchLastSync = new Map();
   function importIdentityKeys(value = {}) {
     const keys = [],
       title = String(value.title || value.name || "")
@@ -3734,14 +3742,25 @@ export function createApplication(options = {}) {
       try {
         const watcher = watch(path, { persistent: false }, () => {
           clearTimeout(libraryWatchTimers.get(domain));
+          const quietPeriodMs = Math.max(
+            3e4,
+            Number(env.VYNODEARR_LIBRARY_WATCH_QUIET_MS || 2 * 60 * 1e3),
+          );
+          const cooldownMs = Math.max(
+            quietPeriodMs,
+            Number(env.VYNODEARR_LIBRARY_WATCH_COOLDOWN_MS || 10 * 60 * 1e3),
+          );
+          const elapsed = Date.now() - (libraryWatchLastSync.get(domain) || 0);
+          const delay = Math.max(quietPeriodMs, cooldownMs - elapsed);
           const timer = setTimeout(async () => {
             libraryWatchTimers.delete(domain);
             dashboardSnapshot = null;
             dashboardSnapshotExpires = 0;
             try {
               await sync.synchronize(domain);
+              libraryWatchLastSync.set(domain, Date.now());
             } catch {}
-          }, 1e4);
+          }, delay);
           timer.unref?.();
           libraryWatchTimers.set(domain, timer);
         });
@@ -3986,6 +4005,7 @@ export function createApplication(options = {}) {
         operationalNotificationTimer = null;
         for (const timer of libraryWatchTimers.values()) clearTimeout(timer);
         libraryWatchTimers.clear();
+        libraryWatchLastSync.clear();
         for (const watcher of libraryWatchers.splice(0)) watcher.close?.();
         void projectionStore.close?.();
       };
@@ -4208,7 +4228,26 @@ export function createApplication(options = {}) {
       return null;
     }
   }
-  async function liveQueue() {
+  async function liveQueue({ maxAgeMs = 1e4 } = {}) {
+    if (
+      liveQueueSnapshotAt &&
+      Date.now() - liveQueueSnapshotAt <= Math.max(0, Number(maxAgeMs) || 0)
+    )
+      return liveQueueSnapshot;
+    if (liveQueueRun) return liveQueueRun;
+    const run = refreshLiveQueue()
+      .then((items) => {
+        liveQueueSnapshot = items;
+        liveQueueSnapshotAt = Date.now();
+        return items;
+      })
+      .finally(() => {
+        if (liveQueueRun === run) liveQueueRun = null;
+      });
+    liveQueueRun = run;
+    return run;
+  }
+  async function refreshLiveQueue() {
     const retentionCutoff = Date.now() - 24 * 60 * 60 * 1e3;
     for (const cache of [
       completedQueueRefreshes,
@@ -4221,7 +4260,11 @@ export function createApplication(options = {}) {
     const activitySnapshots = new Map();
     const results = await Promise.all(
       ["movie", "tv"].map(async (domain) => {
-        const client = registry.get(domain).client;
+        const client = registry.get(domain).client,
+          previousSnapshot = operationalEngineSnapshots.get(domain),
+          historyFresh =
+            previousSnapshot?.historyAt &&
+            Date.now() - previousSnapshot.historyAt < 6e4;
         const queueQuery =
           domain === "movie"
             ? { page: 1, pageSize: 500, includeMovie: true }
@@ -4234,14 +4277,16 @@ export function createApplication(options = {}) {
         const [queueValue, library, historyValue] = await Promise.all([
           client.get("queue", queueQuery),
           sync.list(domain).catch(() => []),
-          client
-            .get("history", {
-              page: 1,
-              pageSize: 500,
-              sortKey: "date",
-              sortDirection: "descending",
-            })
-            .catch(() => ({ records: [] })),
+          historyFresh
+            ? Promise.resolve({ records: previousSnapshot.history })
+            : client
+                .get("history", {
+                  page: 1,
+                  pageSize: 200,
+                  sortKey: "date",
+                  sortDirection: "descending",
+                })
+                .catch(() => ({ records: previousSnapshot?.history || [] })),
         ]);
         const engineRecords = Array.isArray(queueValue?.records)
             ? queueValue.records
@@ -4268,6 +4313,9 @@ export function createApplication(options = {}) {
         activitySnapshots.set(domain, {
           queue: engineRecords,
           history: engineHistory,
+          historyAt: historyFresh
+            ? previousSnapshot.historyAt
+            : Date.now(),
         });
         const importedHistory = engineHistory.filter(
           (event) =>
@@ -4363,6 +4411,7 @@ export function createApplication(options = {}) {
       }),
     );
     await reconcileSearchActivities(null, activitySnapshots);
+    operationalEngineSnapshots = activitySnapshots;
     return results.flat();
   }
   const requestEngineId = (domain, value) =>
@@ -4580,37 +4629,16 @@ export function createApplication(options = {}) {
           .filter((domain) => ["movie", "tv"].includes(domain)),
       ),
     ];
+    if (mode === "engine" && domains.length)
+      await liveQueue({ maxAgeMs: 3e4 }).catch(() => []);
     const snapshots = new Map(
       await Promise.all(
         domains.map(async (domain) => {
-          const client = registry.get(domain).client;
-          const [libraryResult, queueValue, historyValue] = await Promise.all([
-            client
-              .get(domain === "movie" ? "movie" : "series")
+          const libraryResult = await sync
+              .list(domain)
               .then((value) => ({ available: true, value: value }))
               .catch(() => ({ available: false, value: [] })),
-            client
-              .get(
-                "queue",
-                domain === "movie"
-                  ? { page: 1, pageSize: 500, includeMovie: true }
-                  : {
-                      page: 1,
-                      pageSize: 500,
-                      includeSeries: true,
-                      includeEpisode: true,
-                    },
-              )
-              .catch(() => ({ records: [] })),
-            client
-              .get("history", {
-                page: 1,
-                pageSize: 500,
-                sortKey: "date",
-                sortDirection: "descending",
-              })
-              .catch(() => ({ records: [] })),
-          ]);
+            operational = operationalEngineSnapshots.get(domain) || {};
           return [
             domain,
             {
@@ -4619,13 +4647,16 @@ export function createApplication(options = {}) {
                 (Array.isArray(libraryResult.value)
                   ? libraryResult.value
                   : []
-                ).map((item) => [Number(item.id), item]),
+                ).map((item) => [
+                  Number(String(item.id).replace(/^(?:movie|series)_/, "")),
+                  item,
+                ]),
               ),
-              queue: Array.isArray(queueValue?.records)
-                ? queueValue.records
+              queue: Array.isArray(operational.queue)
+                ? operational.queue
                 : [],
-              history: Array.isArray(historyValue?.records)
-                ? historyValue.records
+              history: Array.isArray(operational.history)
+                ? operational.history
                 : [],
             },
           ];
@@ -4931,45 +4962,18 @@ export function createApplication(options = {}) {
       await notificationStore.update(
         (current) => (current.operationalInitializedAt = since),
       );
+    if (mode === "engine")
+      await liveQueue({ maxAgeMs: 3e4 }).catch(() => []);
     const domainValues =
       mode === "engine"
-        ? await Promise.all(
-            ["movie", "tv"].map(async (domain) => {
-              const client = registry.get(domain).client,
-                [queueValue, historyValue] = await Promise.all([
-                  client
-                    .get(
-                      "queue",
-                      domain === "movie"
-                        ? { page: 1, pageSize: 500, includeMovie: true }
-                        : {
-                            page: 1,
-                            pageSize: 500,
-                            includeSeries: true,
-                            includeEpisode: true,
-                          },
-                    )
-                    .catch(() => ({ records: [] })),
-                  client
-                    .get("history", {
-                      page: 1,
-                      pageSize: 200,
-                      sortKey: "date",
-                      sortDirection: "descending",
-                    })
-                    .catch(() => ({ records: [] })),
-                ]);
-              return {
-                domain: domain,
-                queue: Array.isArray(queueValue?.records)
-                  ? queueValue.records
-                  : [],
-                history: Array.isArray(historyValue?.records)
-                  ? historyValue.records
-                  : [],
-              };
-            }),
-          )
+        ? ["movie", "tv"].map((domain) => {
+            const snapshot = operationalEngineSnapshots.get(domain) || {};
+            return {
+              domain: domain,
+              queue: Array.isArray(snapshot.queue) ? snapshot.queue : [],
+              history: Array.isArray(snapshot.history) ? snapshot.history : [],
+            };
+          })
         : [];
     for (const {
       domain: domain,
@@ -6283,7 +6287,7 @@ export function createApplication(options = {}) {
   async function mediaDetail(domain, id) {
     const key = `${domain}:${id}`,
       cached = mediaDetailCache.get(key);
-    if (cached?.expires > Date.now()) return cached.item;
+    if (cached?.expires > Date.now()) return {...cached, source:"cache"};
     if (mediaDetailRuns.has(key)) return mediaDetailRuns.get(key);
     const run = (async () => {
       const projected = await sync.item(domain, id);
@@ -6295,15 +6299,19 @@ export function createApplication(options = {}) {
               ? await adapter.getMovie(id)
               : await adapter.getSeries(id),
           item = live || projectedMediaDetail(domain, projected);
+        const refreshedAt = new Date().toISOString();
         mediaDetailCache.set(key, {
           item: item,
           expires: Date.now() + 10 * 6e4,
+          source: live ? "engine" : "catalog",
+          refreshedAt,
         });
-        return item;
+        return {item,source:live ? "engine" : "catalog",refreshedAt};
       } catch {
         const item = projectedMediaDetail(domain, projected);
-        mediaDetailCache.set(key, { item: item, expires: Date.now() + 6e4 });
-        return item;
+        const refreshedAt = new Date().toISOString();
+        mediaDetailCache.set(key, { item: item, expires: Date.now() + 6e4, source:"catalog", refreshedAt });
+        return {item,source:"catalog",refreshedAt};
       }
     })().finally(() => mediaDetailRuns.delete(key));
     mediaDetailRuns.set(key, run);
@@ -6949,6 +6957,12 @@ export function createApplication(options = {}) {
               }))
               .sort((a, b) => b.totalMs - a.totalMs)
               .slice(0, 50),
+            activity: sync.snapshot().metrics || {
+              catalogReads: 0,
+              engineReads: 0,
+              fullReconciliations: 0,
+              targetedReconciliations: 0,
+            },
             sync: sync.snapshot(),
             settings: settings,
           });
@@ -12595,12 +12609,19 @@ export function createApplication(options = {}) {
         );
         if (movieMatch) {
           if (!permitted(res, session, "movies")) return;
-          const item = await mediaDetail("movie", movieMatch[1]),
+          const refresh = url.searchParams.get("refresh") === "true";
+          if (refresh && !administrator(res, session)) return;
+          if (refresh) {
+            await sync.reconcileItem("movie", movieMatch[1]);
+            invalidateMediaDetail("movie", movieMatch[1]);
+          }
+          const detail = await mediaDetail("movie", movieMatch[1]),
+            item = detail?.item,
             decorated = item
               ? (await decoratePosterArtwork("movie", [item], session))[0]
               : null;
           return decorated
-            ? json(res, 200, { item: decorated, mode: mode })
+            ? json(res, 200, { item: decorated, mode: mode, freshness:{source:detail.source,updatedAt:detail.refreshedAt} })
             : json(res, 404, {
                 error: { code: "not_found", message: "Movie was not found." },
               });
@@ -12654,12 +12675,19 @@ export function createApplication(options = {}) {
         );
         if (tvMatch) {
           if (!permitted(res, session, "tv")) return;
-          const item = await mediaDetail("tv", tvMatch[1]),
+          const refresh = url.searchParams.get("refresh") === "true";
+          if (refresh && !administrator(res, session)) return;
+          if (refresh) {
+            await sync.reconcileItem("tv", tvMatch[1]);
+            invalidateMediaDetail("tv", tvMatch[1]);
+          }
+          const detail = await mediaDetail("tv", tvMatch[1]),
+            item = detail?.item,
             decorated = item
               ? (await decoratePosterArtwork("tv", [item], session))[0]
               : null;
           return decorated
-            ? json(res, 200, { item: decorated, mode: mode })
+            ? json(res, 200, { item: decorated, mode: mode, freshness:{source:detail.source,updatedAt:detail.refreshedAt} })
             : json(res, 404, {
                 error: {
                   code: "not_found",

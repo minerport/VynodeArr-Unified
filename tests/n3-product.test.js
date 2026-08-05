@@ -92,6 +92,17 @@ test('targeted reconciliation waits for an active full reconciliation so the new
   releaseFull();await Promise.all([full,targeted]);assert.equal((await sync.list('movie'))[0].title,'Newest targeted value');
   await rm(directory,{recursive:true,force:true});
 });
+test('operational synchronization is single flight under overlapping callers',async()=>{
+  let reads=0,release;const ready=new Promise(resolve=>{release=resolve;});
+  const engine={
+    getQueue:async()=>{reads+=1;await ready;return[];},getHistory:async()=>[],getCalendar:async()=>[],getHealth:async()=>[]
+  };
+  const sync=new SynchronizationService({movie:engine,tv:engine,pollIntervalMs:999999});
+  const first=sync.synchronizeOperations(),second=sync.synchronizeOperations();
+  release();
+  assert.strictEqual(await first,await second);
+  assert.equal(reads,2,'each engine queue is read once for a shared operation cycle');
+});
 
 async function appSession(options,run){
   const directory=await mkdtemp(join(tmpdir(),'vynodearr-n3-api-')),app=createApplication({...options,env:{VYNODEARR_DATA_MODE:'fixture',VYNODEARR_DATA_DIR:directory,VYNODEARR_MASTER_KEY:'test-master-key-with-32-characters',...(options.env||{})}});
@@ -119,9 +130,12 @@ test('repeated detail reads are deduplicated without refreshing the full library
   let movieDetails=0,tvDetails=0;const movie=new MovieFixtureAdapter(),tv=new TvFixtureAdapter(),readMovie=movie.getMovie.bind(movie),readSeries=tv.getSeries.bind(tv);
   movie.getMovie=async(...args)=>{movieDetails+=1;return readMovie(...args);};tv.getSeries=async(...args)=>{tvDetails+=1;return readSeries(...args);};
   return appSession({movie,tv},async({base,cookie})=>{
-    await fetch(`${base}/api/media/movies/movie_orbit-city`,{headers:{cookie}});await fetch(`${base}/api/media/movies/movie_orbit-city`,{headers:{cookie}});
+    const first=await (await fetch(`${base}/api/media/movies/movie_orbit-city`,{headers:{cookie}})).json(),second=await (await fetch(`${base}/api/media/movies/movie_orbit-city`,{headers:{cookie}})).json();
+    assert.equal(first.freshness.source,'engine');assert.equal(second.freshness.source,'cache');
     await fetch(`${base}/api/media/tv/series_afterlight`,{headers:{cookie}});await fetch(`${base}/api/media/tv/series_afterlight`,{headers:{cookie}});
     assert.equal(movieDetails,1);assert.equal(tvDetails,1);
+    const refreshed=await (await fetch(`${base}/api/media/movies/movie_orbit-city?refresh=true`,{headers:{cookie}})).json();assert.equal(refreshed.freshness.source,'engine');assert.equal(movieDetails,2);
+    const performance=await (await fetch(`${base}/api/system/performance`,{headers:{cookie}})).json();assert.ok(performance.activity.engineReads>=1);assert.ok(performance.activity.targetedReconciliations>=1);assert.equal(typeof performance.activity.catalogReads,'number');
   });
 });
 test('dashboard API returns useful product metrics',()=>appSession({movie:new MovieFixtureAdapter(),tv:new TvFixtureAdapter()},async({base,cookie})=>{

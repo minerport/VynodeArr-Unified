@@ -15,7 +15,7 @@ export class TvEngineAdapter {
     const count = value => Number.isFinite(Number(value?.totalRecords)) ? Number(value.totalRecords) : (records(value) || []).length;
     return { missing: count(missing), cutoff: count(cutoff) };
   }
-  async #context({includeMissing=true}={}) {
+  async #context({includeMissing=false}={}) {
     const [queue, missing] = await Promise.all([
       this.getQueue().catch(() => []),
       includeMissing?this.client.get('wanted/missing', { page: 1, pageSize: 10000, monitored: true, includeSeries: false }).catch(() => null):Promise.resolve(null)
@@ -34,7 +34,7 @@ export class TvEngineAdapter {
   async listSeries({ limit = 5000 } = {}) {
     const value = await this.client.get('series');
     if (!Array.isArray(value)) throw engineError.invalid();
-    const context = await this.#context();
+    const context = await this.#context({includeMissing:false});
     try { return value.slice(0, limit).map((record) => seriesSummary(record, context)); }
     catch { throw engineError.invalid(); }
   }

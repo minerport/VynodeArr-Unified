@@ -113,15 +113,14 @@ test('TV overlay metadata derives latest and next episode fields from paged epis
   assert.deepEqual(metadata.nextEpisode,{title:'Next Chapter',seasonNumber:2,episodeNumber:9,airDateUtc:metadata.nextEpisode.airDateUtc});
   assert.equal(metadata.seasonCount,1);assert.equal(metadata.currentSeason.seasonNumber,2);
 });
-test('TV attention counts only monitored missing episodes',async()=>{
+test('TV library synchronization uses embedded statistics instead of loading the full missing-episode table',async()=>{
   const monitored={...seriesRecord,statistics:{episodeCount:4,episodeFileCount:1}};
   const unmonitored={...monitored,id:3,title:'Unmonitored Series',monitored:false};
-  const client=new FakeClient({series:[monitored,unmonitored],queue:{records:[]},'wanted/missing':{records:[
-    {id:10,seriesId:2,monitored:true},{id:11,seriesId:2,monitored:false},{id:12,seriesId:3,monitored:true}
-  ]}});
+  const paths=[];const client={async get(path){paths.push(path);if(path==='series')return[monitored,unmonitored];if(path==='queue')return{records:[]};throw new Error(`Unexpected ${path}`);}};
   const items=await new TvEngineAdapter({enabled:true},client).listSeries();
-  assert.equal(items[0].missingEpisodes,1);
+  assert.equal(items[0].missingEpisodes,3);
   assert.equal(items[1].missingEpisodes,0);
+  assert.deepEqual(paths.sort(),['queue','series']);
 });
 test('health adapters remove bundled engine product names from public messages',async()=>{
   const movie=new MovieEngineAdapter({enabled:true},new FakeClient({health:[{type:'warning',source:'Radarr.Core.Health',message:'Radarr will not grab releases'}]}));
@@ -138,6 +137,15 @@ test('authentication failure, timeout, and invalid response are neutral',async()
   const slow=createServer(()=>{});await new Promise((resolve)=>slow.listen(0,'127.0.0.1',resolve));const timeoutClient=new ReadOnlyEngineClient({enabled:true,host:'127.0.0.1',port:slow.address().port,https:false,urlBase:'',apiCredential:'secret',timeoutMs:30,retries:0,tlsVerify:true},'TV');
   await assert.rejects(()=>timeoutClient.get('series'),(error)=>error.code==='engine_timeout');await new Promise((resolve)=>slow.close(resolve));
   const invalid=new MovieEngineAdapter({enabled:true},new FakeClient({movie:{wrong:true},queue:{records:[]},'wanted/cutoff':{records:[]}}));await assert.rejects(()=>invalid.listMovies(),(error)=>error.code==='engine_response_invalid');
+});
+test('engine clients bound concurrent API work to protect busy SQLite engines',async()=>{
+  let active=0,maximum=0;
+  const server=createServer((req,res)=>{active+=1;maximum=Math.max(maximum,active);setTimeout(()=>{active-=1;res.writeHead(200,{'content-type':'application/json'});res.end('{}');},20);});
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  const client=new ReadOnlyEngineClient({enabled:true,host:'127.0.0.1',port:server.address().port,https:false,urlBase:'',apiCredential:'secret',timeoutMs:1000,retries:0,tlsVerify:true,requestConcurrency:2},'TV');
+  await Promise.all(Array.from({length:6},(_,index)=>client.get(`resource/${index}`)));
+  assert.equal(maximum,2);
+  await new Promise(resolve=>server.close(resolve));
 });
 test('engine mutation validation remains actionable',async()=>{
   const server=createServer((req,res)=>{res.writeHead(400,{'content-type':'application/json'});res.end(JSON.stringify([{errorMessage:"Invalid Path: 'E:/movies'"}]));});await new Promise((resolve)=>server.listen(0,'127.0.0.1',resolve));

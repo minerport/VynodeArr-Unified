@@ -1,7 +1,8 @@
 export class SynchronizationService {
   constructor({movie,tv,maxItems=5000,pollIntervalMs=300000,projectionStore=null}) {
     this.engines={movie,tv};this.maxItems=maxItems;this.pollIntervalMs=pollIntervalMs;this.projectionStore=projectionStore;
-    this.domainRuns=new Map();this.itemRuns=new Map();this.startupRun=null;this.fullSyncListeners=new Set();
+    this.domainRuns=new Map();this.itemRuns=new Map();this.startupRun=null;this.operationsRun=null;this.fullSyncListeners=new Set();
+    this.metrics={catalogReads:0,engineReads:0,fullReconciliations:0,targetedReconciliations:0};
     this.cache=new Map();this.state={
       movie:{status:'idle',lastSuccess:null,lastFullSync:null,lastTargetedSync:null,lastFailure:null,durationMs:null,itemCount:0,itemsUpdated:0,source:'empty'},
       tv:{status:'idle',lastSuccess:null,lastFullSync:null,lastTargetedSync:null,lastFailure:null,durationMs:null,itemCount:0,itemsUpdated:0,source:'empty'}
@@ -28,6 +29,7 @@ export class SynchronizationService {
   async runDomainSynchronization(domain){
     const started=Date.now();this.state[domain].status='synchronizing';
     try{
+      this.metrics.engineReads++;this.metrics.fullReconciliations++;
       const items=domain==='movie'?await this.engines.movie.listMovies({limit:this.maxItems}):await this.engines.tv.listSeries({limit:this.maxItems});
       const bounded=items.slice(0,this.maxItems);const projection=this.projectionStore?await this.projectionStore.replaceDomain(domain,bounded):{updated:bounded.length,total:bounded.length};
       if(typeof this.projectionStore?.queryDomain!=='function')this.cache.set(domain,{items:bounded,cachedAt:new Date().toISOString()});
@@ -42,6 +44,11 @@ export class SynchronizationService {
     }
   }
   async synchronizeOperations(){
+    if(this.operationsRun)return this.operationsRun;
+    const run=this.runOperationsSynchronization();this.operationsRun=run;
+    try{return await run;}finally{if(this.operationsRun===run)this.operationsRun=null;}
+  }
+  async runOperationsSynchronization(){
     const settled=await Promise.allSettled([
       Promise.all([this.engines.movie.getQueue(),this.engines.tv.getQueue()]).then((parts)=>parts.flat()),
       Promise.all([this.engines.movie.getHistory(),this.engines.tv.getHistory()]).then((parts)=>parts.flat().sort((a,b)=>String(b.timestamp).localeCompare(String(a.timestamp)))),
@@ -63,6 +70,7 @@ export class SynchronizationService {
   async runItemReconciliation(domain,id) {
     const started=Date.now(),engine=this.engines[domain];
     try{
+      this.metrics.engineReads++;this.metrics.targetedReconciliations++;
       const getter=domain==='movie'?(engine.getMovieSummary||engine.getMovie):(engine.getSeriesSummary||engine.getSeries);
       const item=await getter.call(engine,id);
       if(!item)return this.removeItem(domain,id);
@@ -86,11 +94,11 @@ export class SynchronizationService {
   }
   async operations(name){if(this.operationCache?.[name])return this.operationCache[name];if(this.projectionStore){this.operationCache=await this.projectionStore.operations();return this.operationCache[name]||[];}return [];}
   onFullSync(listener){this.fullSyncListeners.add(listener);return()=>this.fullSyncListeners.delete(listener);}
-  async list(domain,{refresh=false,...query}={}){if(!refresh&&typeof this.projectionStore?.queryDomain==='function')return (await this.projectionStore.queryDomain(domain,{limit:5000,...query})).items;if(!refresh&&this.cache.has(domain))return this.cache.get(domain).items;return this.synchronize(domain);}
-  async page(domain,query={}){if(typeof this.projectionStore?.queryDomain==='function')return this.projectionStore.queryDomain(domain,query);const items=await this.list(domain),offset=Math.max(0,Number(query.offset)||0),limit=Math.max(1,Math.min(5000,Number(query.limit)||60));return{items:items.slice(offset,offset+limit),total:items.length,offset,limit,hasMore:offset+limit<items.length};}
-  async item(domain,id){if(typeof this.projectionStore?.getDomainItem==='function')return this.projectionStore.getDomainItem(domain,id);return(await this.list(domain)).find(item=>item.id===id)||null;}
+  async list(domain,{refresh=false,...query}={}){if(!refresh&&typeof this.projectionStore?.queryDomain==='function'){this.metrics.catalogReads++;return (await this.projectionStore.queryDomain(domain,{limit:5000,...query})).items;}if(!refresh&&this.cache.has(domain))return this.cache.get(domain).items;return this.synchronize(domain);}
+  async page(domain,query={}){if(typeof this.projectionStore?.queryDomain==='function'){this.metrics.catalogReads++;return this.projectionStore.queryDomain(domain,query);}const items=await this.list(domain),offset=Math.max(0,Number(query.offset)||0),limit=Math.max(1,Math.min(5000,Number(query.limit)||60));return{items:items.slice(offset,offset+limit),total:items.length,offset,limit,hasMore:offset+limit<items.length};}
+  async item(domain,id){if(typeof this.projectionStore?.getDomainItem==='function'){this.metrics.catalogReads++;return this.projectionStore.getDomainItem(domain,id);}return(await this.list(domain)).find(item=>item.id===id)||null;}
   invalidate(domain){if(domain)this.cache.delete(domain);else this.cache.clear();}
-  snapshot(){const state=structuredClone(this.state);for(const domain of ['movie','tv'])state[domain].nextIntegrityCheck=this.nextIntegrityCheck||null;return state;}
+  snapshot(){const state=structuredClone(this.state);for(const domain of ['movie','tv'])state[domain].nextIntegrityCheck=this.nextIntegrityCheck||null;return {...state,metrics:{...this.metrics}};}
   async startup(){
     if(this.startupRun)return this.startupRun;
     this.startupRun=(async()=>{await this.hydrate();const result=await Promise.allSettled(['movie','tv'].map((domain)=>this.synchronize(domain)));await this.synchronizeOperations().catch(()=>{});return result;})();

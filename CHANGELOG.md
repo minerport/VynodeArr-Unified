@@ -7,6 +7,32 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.35-rc.4] - 2026-08-05
+
+### Added
+
+- Added administrator performance counters for catalog activity and engine
+  requests, plus visible per-title freshness and guarded targeted refreshes on
+  Movie and Television detail pages.
+
+### Changed
+
+- Engine API traffic is now bounded per engine, with duplicate queue,
+  history, notification, and request-status reads sharing short-lived
+  snapshots instead of opening competing requests.
+- Filesystem reconciliation now waits for a quiet period and observes a
+  cooldown so large import bursts become one controlled catalog update.
+- Television catalog synchronization now derives attention totals from series
+  statistics instead of requesting an unbounded missing-episode result set.
+
+### Fixed
+
+- Reduced SQLite lock contention and Kestrel thread-pool starvation during
+  large-library synchronization by serializing catalog operations, limiting
+  engine concurrency, and lowering operational history pressure.
+- Kept detail-page refreshes mounted on the selected title while their targeted
+  catalog reconciliation completes.
+
 ## [2.0.35-rc.3] - 2026-08-05
 
 ### Added

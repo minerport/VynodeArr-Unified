@@ -1135,8 +1135,7 @@ function Performance({
             titles
           </h2>
           <p>
-            {report.catalog.movie || 0} movies · {report.catalog.tv || 0} series
-            · {report.catalog.events?.queue?.pending || 0} events pending
+            {report.activity?.catalogReads || 0} database reads · {report.activity?.engineReads || 0} engine reads
           </p>
         </section>
         <section className="panel">

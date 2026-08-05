@@ -5,6 +5,8 @@ import { engineError } from './engine-errors.js';
 export class ReadOnlyEngineClient {
   config: Record<string, any>;
   domain: string;
+  activeRequests = 0;
+  pendingRequests: Array<()=>void> = [];
 
   constructor(config: Record<string, any>, domain: string) { this.config=config;this.domain=domain; }
   buildUrl(path: string,query: Record<string, unknown>={}){
@@ -13,7 +15,23 @@ export class ReadOnlyEngineClient {
     for(const [key,value] of Object.entries(query))if(value!=null)url.searchParams.set(key,String(value));
     return url;
   }
-  #request(url: URL,{method='GET',payload,timeoutMs=this.config.timeoutMs,notFoundNull=false}:{method?: string;payload?: unknown;timeoutMs?: number;notFoundNull?: boolean}={}){
+  #schedule<T>(operation:()=>Promise<T>){
+    return new Promise<T>((resolve,reject)=>{
+      const start=()=>{
+        this.activeRequests+=1;
+        operation().then(resolve,reject).finally(()=>{
+          this.activeRequests-=1;
+          this.pendingRequests.shift()?.();
+        });
+      };
+      const limit=Math.max(1,Math.min(8,Number(this.config.requestConcurrency)||3));
+      if(this.activeRequests<limit)start();else this.pendingRequests.push(start);
+    });
+  }
+  #request(url: URL,options:{method?: string;payload?: unknown;timeoutMs?: number;notFoundNull?: boolean}={}){
+    return this.#schedule(()=>this.#performRequest(url,options));
+  }
+  #performRequest(url: URL,{method='GET',payload,timeoutMs=this.config.timeoutMs,notFoundNull=false}:{method?: string;payload?: unknown;timeoutMs?: number;notFoundNull?: boolean}={}){
     return new Promise<any>((resolve,reject)=>{
       const transport=url.protocol==='https:'?httpsRequest:httpRequest;
       const encoded=payload===undefined?null:Buffer.from(JSON.stringify(payload));
