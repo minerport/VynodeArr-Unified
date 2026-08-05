@@ -13,7 +13,7 @@ export class SynchronizationService {
     if(!this.projectionStore)return;
     if(typeof this.projectionStore.countDomain==='function'){
       await this.projectionStore.initialize?.();
-      for(const domain of ['movie','tv']){const count=await this.projectionStore.countDomain(domain);if(count)Object.assign(this.state[domain],{status:'ready',itemCount:count,source:'sqlite-catalog'});}
+      for(const domain of ['movie','tv']){const count=await this.projectionStore.countDomain(domain),persisted=await this.projectionStore.synchronizationState?.(domain);if(count)Object.assign(this.state[domain],{status:'ready',lastSuccess:persisted?.lastSuccess||null,lastFullSync:persisted?.lastSuccess||null,itemCount:count,itemsUpdated:Number(persisted?.updated)||0,itemsRemoved:Number(persisted?.removed)||0,source:'sqlite-catalog'});}
       return;
     }
     const projection=await this.projectionStore.load();
@@ -37,9 +37,10 @@ export class SynchronizationService {
       for(const listener of this.fullSyncListeners)try{listener({domain,itemsUpdated:projection.updated,itemsRemoved:projection.removed||0,itemCount:bounded.length,updatedAt:completedAt});}catch{}
       return bounded;
     }catch(error){
-      Object.assign(this.state[domain],{status:this.cache.has(domain)?'stale':'unavailable',lastFailure:new Date().toISOString(),safeError:error.safeMessage||`${domain==='movie'?'Movie':'TV'} service unavailable`,durationMs:Date.now()-started,itemsUpdated:0});
+      const persisted=typeof this.projectionStore?.countDomain==='function'&&(await this.projectionStore.countDomain(domain))>0;
+      Object.assign(this.state[domain],{status:this.cache.has(domain)||persisted?'stale':'unavailable',lastFailure:new Date().toISOString(),safeError:error.safeMessage||`${domain==='movie'?'Movie':'TV'} service unavailable`,durationMs:Date.now()-started,itemsUpdated:0});
       if(this.cache.has(domain))return this.cache.get(domain).items;
-      if(typeof this.projectionStore?.countDomain==='function'&&(await this.projectionStore.countDomain(domain))>0)return this.projectionStore.domain(domain);
+      if(persisted)return this.projectionStore.domain(domain);
       throw error;
     }
   }

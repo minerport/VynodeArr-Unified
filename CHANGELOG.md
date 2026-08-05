@@ -7,6 +7,18 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.35-rc.5] - 2026-08-05
+
+### Fixed
+
+- Restored persisted SQLite catalog synchronization timestamps after restart
+  so Validation and the Action Center recognize usable synchronized libraries.
+- Kept Movie and Television refresh responses usable when live attention
+  totals fail, falling back to catalog-derived totals instead of returning
+  `Load failed`.
+- Marked failed live reconciliations stale when a durable catalog exists and
+  clearly tell administrators that the local library remains available.
+
 ## [2.0.35-rc.4] - 2026-08-05
 
 ### Added

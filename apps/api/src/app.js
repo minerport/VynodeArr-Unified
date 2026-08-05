@@ -3196,6 +3196,18 @@ export function createApplication(options = {}) {
     attentionSnapshots.set(domain, attention);
     return attention;
   }
+  async function refreshAttention(domain, items) {
+    try {
+      return await authoritativeAttention(domain);
+    } catch {
+      const attention =
+        typeof projectionStore.attentionSummary === "function"
+          ? await projectionStore.attentionSummary(domain)
+          : cachedAttention(domain, items);
+      attentionSnapshots.set(domain, attention);
+      return attention;
+    }
+  }
   sync.onFullSync?.(({ domain: domain, updatedAt: updatedAt }) => {
     dashboardSnapshot = null;
     dashboardSnapshotExpires = 0;
@@ -12580,7 +12592,7 @@ export function createApplication(options = {}) {
               ? page.items
               : await sync.list("movie", { refresh: refresh }),
             attention = refresh
-              ? await authoritativeAttention("movie")
+              ? await refreshAttention("movie", rawItems)
               : typeof projectionStore.attentionSummary === "function"
                 ? await projectionStore.attentionSummary("movie")
                 : cachedAttention("movie", rawItems),
@@ -12646,7 +12658,7 @@ export function createApplication(options = {}) {
               ? page.items
               : await sync.list("tv", { refresh: refresh }),
             attention = refresh
-              ? await authoritativeAttention("tv")
+              ? await refreshAttention("tv", rawItems)
               : typeof projectionStore.attentionSummary === "function"
                 ? await projectionStore.attentionSummary("tv")
                 : cachedAttention("tv", rawItems),

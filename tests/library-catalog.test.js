@@ -11,6 +11,7 @@ test('SQLite library catalog imports projections and supports indexed paging, re
   const store=new LibraryCatalogStore(database,{legacyPath:legacy});
   try{
     await store.initialize();assert.equal(await store.countDomain('movie'),2);
+    await store.replaceDomain('movie',await store.domain('movie'));const synchronization=await store.synchronizationState('movie');assert.ok(synchronization.lastSuccess);assert.equal(synchronization.itemCount,2);
     const page=await store.queryDomain('movie',{limit:1,sort:'title'});assert.equal(page.items[0].title,'Alpha');assert.equal(page.total,2);assert.deepEqual(page.letters.A,{offset:0,count:1});
     await store.enqueueEvent({dedupeKey:'movie:1:changed',domain:'movie',mediaId:'movie_1',eventType:'changed'});await store.enqueueEvent({dedupeKey:'movie:1:changed',domain:'movie',mediaId:'movie_1',eventType:'changed'});assert.equal((await store.claimEvents(10)).length,1);
     await store.artworkSet('movie:movie_1:poster',{file:'one.bin',contentType:'image/jpeg',size:10,cachedAt:Date.now()});assert.equal((await store.artworkGet('movie:movie_1:poster')).file,'one.bin');assert.deepEqual(await store.artworkRemovePrefix('movie:movie_1:'),['one.bin']);

@@ -804,7 +804,11 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
         items?: LibraryItem[];
         attention?: { missing: number; cutoff: number };
         mode?: string;
-        sync?: { lastSuccess?: string | null };
+        sync?: {
+          status?: string;
+          lastSuccess?: string | null;
+          safeError?: string | null;
+        };
       }>(`${movie ? "/api/media/movies" : "/api/media/tv"}?refresh=true`);
       if (Array.isArray(value.items)) {
         setItems(value.items);
@@ -812,8 +816,17 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
       }
       if (value.attention) setAttention(value.attention);
       if (value.sync?.lastSuccess) setLastSyncedAt(value.sync.lastSuccess);
-      setLoadError("");
-      options.notify("Library synchronized with the media engine.");
+      if (value.sync?.status === "stale") {
+        const message = value.sync.safeError || "The media engine refresh is delayed.";
+        setLoadError(message);
+        options.notify(
+          "The existing library remains available, but the live engine refresh was delayed.",
+          "error",
+        );
+      } else {
+        setLoadError("");
+        options.notify("Library synchronized with the media engine.");
+      }
     } catch (error) {
       const message =
         error instanceof Error
