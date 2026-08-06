@@ -26,14 +26,18 @@ const limits={entry:300_000,shell:252_000,route:45_000,css:69_000};
 // its UI and data views remain isolated in a lazy-loaded route chunk. The shell
 // also restores the active hash route when Safari revives its back-forward cache.
 const mobileAllowance={shell:1_800,css:3_000};
+// The admin System route now includes catalog/event/artwork diagnostics and
+// live resource controls. Keep that intentional surface under a narrow,
+// route-specific allowance instead of raising every lazy-route budget.
+const performanceAllowance={systemRoute:1_500,css:600};
 const failures=[];
 
 if(!entry)failures.push('The React entry bundle was not produced.');
 else if(entry.bytes>limits.entry)failures.push(`React entry is ${entry.bytes} bytes (limit ${limits.entry}).`);
 if(!shell)failures.push('The TypeScript application shell bundle was not produced.');
 else if(shell.bytes>limits.shell+mobileAllowance.shell)failures.push(`Application shell is ${shell.bytes} bytes (limit ${limits.shell+mobileAllowance.shell}).`);
-for(const chunk of routeChunks)if(chunk.bytes>limits.route)failures.push(`${chunk.name} is ${chunk.bytes} bytes (route limit ${limits.route}).`);
-if(stylesheet&&stylesheet.bytes>limits.css+mobileAllowance.css)failures.push(`React stylesheet is ${stylesheet.bytes} bytes (limit ${limits.css+mobileAllowance.css}).`);
+for(const chunk of routeChunks){const routeLimit=limits.route+(chunk.name.startsWith('system-')?performanceAllowance.systemRoute:0);if(chunk.bytes>routeLimit)failures.push(`${chunk.name} is ${chunk.bytes} bytes (route limit ${routeLimit}).`);}
+if(stylesheet&&stylesheet.bytes>limits.css+mobileAllowance.css+performanceAllowance.css)failures.push(`React stylesheet is ${stylesheet.bytes} bytes (limit ${limits.css+mobileAllowance.css+performanceAllowance.css}).`);
 
 if(failures.length){
   console.error(`Web bundle budget failed:\n- ${failures.join('\n- ')}`);

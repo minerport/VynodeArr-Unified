@@ -44,12 +44,14 @@ export class MovieEngineAdapter {
     const engineId = numericId(id);
     if (!Number.isFinite(engineId)) return null;
     try {
-      const [record, context] = await Promise.all([
-        this.client.get(`movie/${engineId}`),
-        this.#context({includeCutoff:false})
-      ]);
-      return movieDetails(record, context);
+      const record = await this.client.get(`movie/${engineId}`);
+      return movieDetails(record, {queueById:new Map(),cutoffIds:new Set()});
     } catch (error) { if (error.code) throw error; throw engineError.invalid(); }
+  }
+  async getMovieSummary(id) {
+    const engineId=numericId(id);if(!Number.isFinite(engineId))return null;
+    try { const [record,context]=await Promise.all([this.client.getOptional(`movie/${engineId}`),this.#context({includeCutoff:false})]);return record?movieSummary(record,context):null; }
+    catch(error){if(error.code)throw error;throw engineError.invalid();}
   }
   async getQueue() {
     const value = await this.client.get('queue', { page: 1, pageSize: 1000, includeMovie: true });

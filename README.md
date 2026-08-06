@@ -28,8 +28,26 @@ consistent experience and account system.
 ## Current release
 
 Version **2.0.34** is available for production use on Unraid, Windows, and
-standard Docker installations. Its Engine Update Center provides a
-backup-gated candidate workflow. The administrator Library Action Center identifies operational
+standard Docker installations. Version **2.0.35-rc.8** is available as a
+prerelease with a durable local Movie and Television catalog, targeted
+event-driven updates, server-side paging, performance controls, and persistent
+artwork caching that reduce engine CPU and network load while preserving
+current library information and poster overlays. Persisted synchronization
+health now survives restarts, and a temporary engine or attention-summary
+failure keeps the durable catalog available instead of replacing the library
+with a generic load failure. RC.6 adds per-engine circuit breakers, prioritized
+and deduplicated synchronization queues, catalog integrity diagnostics, and
+safe administrator retry and rebuild controls that preserve the last usable
+catalog until a complete replacement is ready. Engine requests are now
+concurrency-limited and shared across operational readers, while import bursts
+are reconciled after a quiet period to reduce SQLite lock contention and engine
+thread-pool pressure on large libraries. RC.7 makes background interface
+refreshes visibility-aware, prevents polling and navigation from shifting the
+visible page, groups Service Settings without removing routes, clarifies
+Action Center and Automation Timeline behavior, and standardizes accessible
+desktop and mobile dialogs without removing any controls. It also includes the Engine
+Update Center and its backup-gated
+candidate workflow. The new administrator Library Action Center identifies operational
 issues, explains their impact, recommends a safe next action, and provides a
 unified Automation Timeline across requests, searches, downloads, queue and
 history events, notifications, audits, validation, and Plex artwork, with a
@@ -49,6 +67,36 @@ engine connectivity, storage, acquisition providers, scheduled automation,
 credentials, notifications, and application data after startup, updates, and
 restores. It provides guided fixes plus guarded re-synchronization and managed
 connection repair.
+
+## How library data stays current
+
+VynodeArr keeps a durable SQLite projected catalog of the Movie and Television
+engines. Opening either library reads that local verified projection, so normal
+navigation, server-side search, filtering, sorting, and progressive pages do not
+repeatedly ask an engine to return every title. All existing
+library cards, filters, details, actions, artwork, request attribution, and
+poster overlays continue to use the same engine-backed data and permissions.
+
+Changes made through VynodeArr reconcile only the affected title. Managed native
+engine webhooks, engine import history, and mounted-library filesystem changes
+enter a restart-safe, deduplicated background queue for targeted
+reconciliation, while a full integrity sweep runs every six hours to recover
+changes made directly in an engine or on disk. Administrators can also use
+**Sync now** on a library page for immediate recovery. If an engine is
+temporarily unavailable, VynodeArr retains the last good projection instead of
+emptying the library.
+
+The following optional environment values control this behavior:
+
+- `VYNODEARR_SYNC_INTERVAL_MS` changes the full integrity interval.
+- `VYNODEARR_LIBRARY_WATCH_ENABLED=false` disables mounted-library monitoring.
+- `VYNODEARR_MOVIE_LIBRARY_PATH` and `VYNODEARR_TV_LIBRARY_PATH` override the
+  watched container paths (normally `/movies` and `/tv`).
+
+Administrators can use **System → Performance** to review application memory,
+catalog and event health, artwork queues, and the most expensive API routes.
+Library page size, event-worker concurrency, artwork concurrency, and the full
+integrity interval can be adjusted there without restarting the application.
 
 The Download Decision Center explains why returned releases were selected,
 accepted, or rejected using native engine evidence for quality, custom formats,

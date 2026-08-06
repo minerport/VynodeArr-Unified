@@ -67,11 +67,17 @@ test('movie cutoff attention includes every engine result page',async()=>{
   assert.equal(items.filter(item=>item.state==='cutoff').length,1001);
 });
 test('single movie details do not load the full cutoff library',async()=>{
-  let cutoffRequests=0;
-  const client={async get(path){if(path==='movie/1')return movieRecord;if(path==='queue')return{records:[]};if(path==='wanted/cutoff'){cutoffRequests++;return{records:[]};}return[];}};
+  let cutoffRequests=0,queueRequests=0;
+  const client={async get(path){if(path==='movie/1')return movieRecord;if(path==='queue'){queueRequests++;return{records:[]};}if(path==='wanted/cutoff'){cutoffRequests++;return{records:[]};}return[];}};
   const item=await new MovieEngineAdapter({enabled:true},client).getMovie('movie_1');
   assert.equal(item.title,'Mapped Movie');
   assert.equal(cutoffRequests,0);
+  assert.equal(queueRequests,0);
+});
+test('single television details load only the selected series and its episodes',async()=>{
+  const paths=[];const client={async get(path){paths.push(path);if(path==='series/2')return seriesRecord;if(path==='episode')return[{id:4,seasonNumber:1,episodeNumber:1,title:'Pilot',monitored:true,hasFile:true}];throw new Error(`Unexpected ${path}`);}};
+  const item=await new TvEngineAdapter({enabled:true},client).getSeries('series_2');
+  assert.equal(item.title,seriesRecord.title);assert.deepEqual(paths.sort(),['episode','series/2']);
 });
 test('completed queue records clear once they are no longer active in the download client',async()=>{
   const movie=new MovieEngineAdapter({enabled:true},new FakeClient({queue:{records:[
@@ -107,15 +113,14 @@ test('TV overlay metadata derives latest and next episode fields from paged epis
   assert.deepEqual(metadata.nextEpisode,{title:'Next Chapter',seasonNumber:2,episodeNumber:9,airDateUtc:metadata.nextEpisode.airDateUtc});
   assert.equal(metadata.seasonCount,1);assert.equal(metadata.currentSeason.seasonNumber,2);
 });
-test('TV attention counts only monitored missing episodes',async()=>{
+test('TV library synchronization uses embedded statistics instead of loading the full missing-episode table',async()=>{
   const monitored={...seriesRecord,statistics:{episodeCount:4,episodeFileCount:1}};
   const unmonitored={...monitored,id:3,title:'Unmonitored Series',monitored:false};
-  const client=new FakeClient({series:[monitored,unmonitored],queue:{records:[]},'wanted/missing':{records:[
-    {id:10,seriesId:2,monitored:true},{id:11,seriesId:2,monitored:false},{id:12,seriesId:3,monitored:true}
-  ]}});
+  const paths=[];const client={async get(path){paths.push(path);if(path==='series')return[monitored,unmonitored];if(path==='queue')return{records:[]};throw new Error(`Unexpected ${path}`);}};
   const items=await new TvEngineAdapter({enabled:true},client).listSeries();
-  assert.equal(items[0].missingEpisodes,1);
+  assert.equal(items[0].missingEpisodes,3);
   assert.equal(items[1].missingEpisodes,0);
+  assert.deepEqual(paths.sort(),['queue','series']);
 });
 test('health adapters remove bundled engine product names from public messages',async()=>{
   const movie=new MovieEngineAdapter({enabled:true},new FakeClient({health:[{type:'warning',source:'Radarr.Core.Health',message:'Radarr will not grab releases'}]}));
@@ -133,6 +138,21 @@ test('authentication failure, timeout, and invalid response are neutral',async()
   await assert.rejects(()=>timeoutClient.get('series'),(error)=>error.code==='engine_timeout');await new Promise((resolve)=>slow.close(resolve));
   const invalid=new MovieEngineAdapter({enabled:true},new FakeClient({movie:{wrong:true},queue:{records:[]},'wanted/cutoff':{records:[]}}));await assert.rejects(()=>invalid.listMovies(),(error)=>error.code==='engine_response_invalid');
 });
+test('engine clients bound concurrent API work to protect busy SQLite engines',async()=>{
+  let active=0,maximum=0;
+  const server=createServer((req,res)=>{active+=1;maximum=Math.max(maximum,active);setTimeout(()=>{active-=1;res.writeHead(200,{'content-type':'application/json'});res.end('{}');},20);});
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  const client=new ReadOnlyEngineClient({enabled:true,host:'127.0.0.1',port:server.address().port,https:false,urlBase:'',apiCredential:'secret',timeoutMs:1000,retries:0,tlsVerify:true,requestConcurrency:2},'TV');
+  await Promise.all(Array.from({length:6},(_,index)=>client.get(`resource/${index}`)));
+  assert.equal(maximum,2);
+  await new Promise(resolve=>server.close(resolve));
+});
+test('engine circuit breaker backs off after repeated upstream failures and can be reset',async()=>{
+  let requests=0;const server=createServer((req,res)=>{requests+=1;res.writeHead(503,{'content-type':'application/json'});res.end('{}');});await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  const client=new ReadOnlyEngineClient({enabled:true,host:'127.0.0.1',port:server.address().port,https:false,urlBase:'',apiCredential:'secret',timeoutMs:100,retries:0,tlsVerify:true,circuitFailureThreshold:2,circuitCooldownMs:60000},'Movie');
+  await assert.rejects(()=>client.get('movie'));await assert.rejects(()=>client.get('movie'));assert.equal(client.circuitSnapshot().state,'open');await assert.rejects(()=>client.get('movie'));assert.equal(requests,2);client.resetCircuit();assert.equal(client.circuitSnapshot().state,'closed');
+  await new Promise(resolve=>server.close(resolve));
+});
 test('engine mutation validation remains actionable',async()=>{
   const server=createServer((req,res)=>{res.writeHead(400,{'content-type':'application/json'});res.end(JSON.stringify([{errorMessage:"Invalid Path: 'E:/movies'"}]));});await new Promise((resolve)=>server.listen(0,'127.0.0.1',resolve));
   const client=new ReadOnlyEngineClient({enabled:true,host:'127.0.0.1',port:server.address().port,https:false,urlBase:'',apiCredential:'secret',timeoutMs:100,retries:0,tlsVerify:true},'Movie');
@@ -142,6 +162,12 @@ test('engine mutation validation remains actionable',async()=>{
 test('bounded cache reuses data, invalidates, and recovers stale values',async()=>{
   let calls=0;const movie=new MovieFixtureAdapter();const original=movie.listMovies.bind(movie);movie.listMovies=async(...args)=>{calls++;return original(...args);};const sync=new SynchronizationService({movie,tv:new TvFixtureAdapter(),maxItems:2,pollIntervalMs:999999});
   assert.equal((await sync.list('movie')).length,2);await sync.list('movie');assert.equal(calls,1);sync.invalidate('movie');await sync.list('movie');assert.equal(calls,2);movie.listMovies=async()=>{throw new Error('private failure');};assert.equal((await sync.synchronize('movie')).length,2);assert.equal(sync.snapshot().movie.status,'stale');
+});
+test('optional engine reads distinguish a missing title from an unavailable engine',async()=>{
+  const server=createServer((req,res)=>{res.writeHead(req.url.includes('/404')?404:503,{'content-type':'application/json'});res.end('{}');});await new Promise((resolve)=>server.listen(0,'127.0.0.1',resolve));
+  const client=new ReadOnlyEngineClient({enabled:true,host:'127.0.0.1',port:server.address().port,https:false,urlBase:'',apiCredential:'secret',timeoutMs:100,retries:0,tlsVerify:true},'Movie');
+  assert.equal(await client.getOptional('404'),null);await assert.rejects(()=>client.getOptional('503'),error=>error.code==='engine_unavailable');
+  await new Promise((resolve)=>server.close(resolve));
 });
 test('binary cache expires entries and remains within item and byte limits',async()=>{
   const cache=new BoundedCache({maxItems:2,maxBytes:6,ttlMs:20,sizeOf:value=>value.length});

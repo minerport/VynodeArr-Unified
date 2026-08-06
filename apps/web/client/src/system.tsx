@@ -1,26 +1,105 @@
-import { useCallback,useEffect,useMemo,useRef,useState,type ReactNode } from 'react';
-import type { ApplicationBackupSummary,ApplicationUpdate,AuditEntry,DiskSpace,EngineCandidatePlan,EngineUpdateCatalog,EngineUpdateReview,MasterKeyStatus,SystemDomain,SystemMountOptions,SystemRecord,SystemView,ValidationCheck,ValidationReport } from './system-types';
-import './react-system.css';
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import type {
+  ApplicationBackupSummary,
+  ApplicationUpdate,
+  AuditEntry,
+  DiskSpace,
+  EngineCandidatePlan,
+  EngineUpdateCatalog,
+  EngineUpdateReview,
+  MasterKeyStatus,
+  PerformanceReport,
+  PerformanceSettings,
+  SystemDomain,
+  SystemMountOptions,
+  SystemRecord,
+  SystemView,
+  ValidationCheck,
+  ValidationReport,
+} from "./system-types";
+import "./react-system.css";
+import "./system-performance.css";
 
-const domains:SystemDomain[]=['movie','tv'],label=(domain:SystemDomain)=>domain==='movie'?'Movies':'Television',errorText=(reason:unknown)=>reason instanceof Error?reason.message:'System information could not be loaded.';
-const date=(value?:string)=>value?new Intl.DateTimeFormat(undefined,{dateStyle:'medium',timeStyle:'short'}).format(new Date(value)):'Never';
-const size=(value=0)=>value<1048576?`${Math.max(1,Math.round(value/1024))} KB`:`${(value/1048576).toFixed(1)} MB`;
-const storageSize=(bytes=0)=>bytes>=1099511627776?`${(bytes/1099511627776).toFixed(1)} TB`:`${Math.round(bytes/1073741824)} GB`;
-const cadence=(minutes=0)=>!minutes?'Automatic schedule unavailable':minutes%10080===0?`Every ${minutes/10080} week${minutes===10080?'':'s'}`:minutes%1440===0?`Every ${minutes/1440} day${minutes===1440?'':'s'}`:minutes%60===0?`Every ${minutes/60} hour${minutes===60?'':'s'}`:`Every ${minutes} minute${minutes===1?'':'s'}`;
+const domains: SystemDomain[] = ["movie", "tv"],
+  label = (domain: SystemDomain) =>
+    domain === "movie" ? "Movies" : "Television",
+  errorText = (reason: unknown) =>
+    reason instanceof Error
+      ? reason.message
+      : "System information could not be loaded.";
+const SystemPerformancePanel = lazy(() => import("./system-performance-panel"));
+const date = (value?: string) =>
+  value
+    ? new Intl.DateTimeFormat(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(new Date(value))
+    : "Never";
+const size = (value = 0) =>
+  value < 1048576
+    ? `${Math.max(1, Math.round(value / 1024))} KB`
+    : `${(value / 1048576).toFixed(1)} MB`;
+const storageSize = (bytes = 0) =>
+  bytes >= 1099511627776
+    ? `${(bytes / 1099511627776).toFixed(1)} TB`
+    : `${Math.round(bytes / 1073741824)} GB`;
+const cadence = (minutes = 0) =>
+  !minutes
+    ? "Automatic schedule unavailable"
+    : minutes % 10080 === 0
+      ? `Every ${minutes / 10080} week${minutes === 10080 ? "" : "s"}`
+      : minutes % 1440 === 0
+        ? `Every ${minutes / 1440} day${minutes === 1440 ? "" : "s"}`
+        : minutes % 60 === 0
+          ? `Every ${minutes / 60} hour${minutes === 60 ? "" : "s"}`
+          : `Every ${minutes} minute${minutes === 1 ? "" : "s"}`;
 
-function DomainSection({domain,count,children}:{domain:SystemDomain;count:number;children:ReactNode}){
-  return <section className="system-domain-section"><div className="panel-heading"><div><span className="eyebrow">{domain==='movie'?'MOVIE ENGINE':'TELEVISION ENGINE'}</span><h2>{label(domain)}</h2></div><span className="badge">{count}</span></div>{children}</section>;
+function DomainSection({
+  domain,
+  count,
+  children,
+}: {
+  domain: SystemDomain;
+  count: number;
+  children: ReactNode;
+}) {
+  return (
+    <section className="system-domain-section">
+      <div className="panel-heading">
+        <div>
+          <span className="eyebrow">
+            {domain === "movie" ? "MOVIE ENGINE" : "TELEVISION ENGINE"}
+          </span>
+          <h2>{label(domain)}</h2>
+        </div>
+        <span className="badge">{count}</span>
+      </div>
+      {children}
+    </section>
+  );
 }
-function Status({disks}:{disks:Record<SystemDomain,DiskSpace[]>}){
+function Status({ disks }: { disks: Record<SystemDomain, DiskSpace[]> }) {
   return (
     <div className="system-domain-grid system-status-grid">
-      {domains.map(domain=>{
-        const items=disks[domain]||[];
-        const primary=items.find(item=>item.path===(domain==='movie'?'/movies':'/tv'))||items[0];
-        const free=Number(primary?.freeSpace||0);
-        const total=Number(primary?.totalSpace||0);
-        const used=Math.max(0,total-free);
-        const percent=total?Math.round(used/total*100):0;
+      {domains.map((domain) => {
+        const items = disks[domain] || [];
+        const primary =
+          items.find(
+            (item) => item.path === (domain === "movie" ? "/movies" : "/tv"),
+          ) || items[0];
+        const free = Number(primary?.freeSpace || 0);
+        const total = Number(primary?.totalSpace || 0);
+        const used = Math.max(0, total - free);
+        const percent = total ? Math.round((used / total) * 100) : 0;
 
         return (
           <DomainSection domain={domain} count={items.length} key={domain}>
@@ -36,18 +115,30 @@ function Status({disks}:{disks:Record<SystemDomain,DiskSpace[]>}){
                 <small>{percent}% utilized</small>
               </div>
             </div>
-            <div className="storage-meter" aria-label={`${percent}% storage used`}>
-              <span style={{width:`${percent}%`}}/>
+            <div
+              className="storage-meter"
+              aria-label={`${percent}% storage used`}
+            >
+              <span style={{ width: `${percent}%` }} />
             </div>
             <div className="storage-path-list">
-              {items.map(item=>(
+              {items.map((item) => (
                 <div className="data-row" key={item.path}>
                   <span>
                     <strong>{item.path}</strong>
-                    <small>{storageSize(item.freeSpace)} free of {storageSize(item.totalSpace)}</small>
+                    <small>
+                      {storageSize(item.freeSpace)} free of{" "}
+                      {storageSize(item.totalSpace)}
+                    </small>
                   </span>
-                  <span className={item.freeSpace>10737418240?'status-path-state healthy':'status-path-state warning'}>
-                    {item.freeSpace>10737418240?'Available':'Low space'}
+                  <span
+                    className={
+                      item.freeSpace > 10737418240
+                        ? "status-path-state healthy"
+                        : "status-path-state warning"
+                    }
+                  >
+                    {item.freeSpace > 10737418240 ? "Available" : "Low space"}
                   </span>
                 </div>
               ))}
@@ -58,72 +149,1515 @@ function Status({disks}:{disks:Record<SystemDomain,DiskSpace[]>}){
     </div>
   );
 }
-function Tasks({items,run}:{items:SystemRecord[];run:(item:SystemRecord)=>void}){
-  return <><div className="notice"><strong>Automatic schedules are active</strong><p>Run now starts an additional execution without changing the recurring schedule.</p></div><div className="system-domain-grid">{domains.map(domain=>{const records=items.filter(item=>item.domain===domain);return <DomainSection domain={domain} count={records.length} key={domain}>{records.map(item=><div className="data-row task-row" key={`${domain}:${item.taskName}`}><span><strong>{item.name||item.taskName}</strong><small>{cadence(item.interval)}</small><small>Last {date(item.lastExecution)} · Next {date(item.nextExecution)}</small></span><button className="secondary" onClick={()=>run(item)}>Run now</button></div>)}</DomainSection>;})}</div></>;
+function Tasks({
+  items,
+  run,
+}: {
+  items: SystemRecord[];
+  run: (item: SystemRecord) => void;
+}) {
+  return (
+    <>
+      <div className="notice">
+        <strong>Automatic schedules are active</strong>
+        <p>
+          Run now starts an additional execution without changing the recurring
+          schedule.
+        </p>
+      </div>
+      <div className="system-domain-grid">
+        {domains.map((domain) => {
+          const records = items.filter((item) => item.domain === domain);
+          return (
+            <DomainSection domain={domain} count={records.length} key={domain}>
+              {records.map((item) => (
+                <div
+                  className="data-row task-row"
+                  key={`${domain}:${item.taskName}`}
+                >
+                  <span>
+                    <strong>{item.name || item.taskName}</strong>
+                    <small>{cadence(item.interval)}</small>
+                    <small>
+                      Last {date(item.lastExecution)} · Next{" "}
+                      {date(item.nextExecution)}
+                    </small>
+                  </span>
+                  <button className="secondary" onClick={() => run(item)}>
+                    Run now
+                  </button>
+                </div>
+              ))}
+            </DomainSection>
+          );
+        })}
+      </div>
+    </>
+  );
 }
-function Validation({report,options,reload}:{report:ValidationReport;options:SystemMountOptions;reload:()=>void}){
-  const [busy,setBusy]=useState('');
-  async function repair(check:ValidationCheck){if(!check.action?.repair)return;setBusy(check.id);try{await options.request('/api/system/validation/repair',{method:'POST',body:JSON.stringify({action:check.action.repair})});options.notify(`${check.title} repair completed. Validation is running again.`);reload();}catch(reason){options.notify(errorText(reason),'error');}finally{setBusy('');}}
-  const groups=[...new Set(report.checks.map(check=>check.group))],statusLabel={healthy:'Healthy',warning:'Review',failed:'Action needed'};
-  return <><section className={`panel validation-overview validation-${report.overall}`}><div><span className="eyebrow">POST-UPDATE & RECOVERY</span><h2>{report.overall==='healthy'?'Installation validated':report.overall==='failed'?'Action is required':'Review recommended'}</h2><p>Last checked {date(report.generatedAt)} with VynodeArr {report.applicationVersion}.</p></div><div className="validation-totals"><span><strong>{report.summary.healthy}</strong>Healthy</span><span><strong>{report.summary.warning}</strong>Review</span><span><strong>{report.summary.failed}</strong>Failed</span></div></section><div className="validation-groups">{groups.map(group=><section className="panel validation-group" key={group}><div className="panel-heading"><h2>{group}</h2><span className="badge">{report.checks.filter(check=>check.group===group).length}</span></div>{report.checks.filter(check=>check.group===group).map(check=><article className={`validation-check validation-${check.status}`} key={check.id}><span className="validation-check-icon" aria-hidden="true">{check.status==='healthy'?'✓':check.status==='warning'?'!':'×'}</span><div><div className="validation-check-heading"><strong>{check.title}</strong><span className={`badge ${check.status==='healthy'?'green':check.status==='warning'?'warm':'danger'}`}>{statusLabel[check.status]}</span></div><p>{check.message}</p>{check.details?.length?<ul>{check.details.map(detail=><li key={detail}>{detail}</li>)}</ul>:null}</div>{check.action?.repair?<button className="secondary" disabled={Boolean(busy)} onClick={()=>void repair(check)}>{busy===check.id?'Repairing…':check.action.label}</button>:check.action?.href?<a className="secondary button-link" href={check.action.href}>{check.action.label}</a>:null}</article>)}</section>)}</div></>;
-}
-function ApplicationBackups({options}:{options:SystemMountOptions}){
-  const [mode,setMode]=useState<'create'|'restore'|null>(null),[password,setPassword]=useState(''),[confirmPassword,setConfirmPassword]=useState(''),[includeHistory,setIncludeHistory]=useState(true),[includeAudit,setIncludeAudit]=useState(true),[file,setFile]=useState<File|null>(null),[summary,setSummary]=useState<ApplicationBackupSummary|null>(null),[confirmation,setConfirmation]=useState(''),[busy,setBusy]=useState(''),[error,setError]=useState('');
-  const reset=()=>{setMode(null);setPassword('');setConfirmPassword('');setFile(null);setSummary(null);setConfirmation('');setError('');};
-  const close=()=>{if(!busy)reset();};
-  async function create(){if(password.length<12)return setError('Use at least 12 characters for the backup password.');if(password!==confirmPassword)return setError('The backup passwords do not match.');setBusy('create');setError('');try{const result=await options.request<{downloadUrl:string;filename:string}>('/api/system/application-backup',{method:'POST',body:JSON.stringify({password,includeHistory,includeAudit})}),link=document.createElement('a');link.href=result.downloadUrl;link.download=result.filename;document.body.append(link);link.click();link.remove();options.notify('Encrypted application backup created. Store the file and password separately.');reset();}catch(reason){setError(errorText(reason));}finally{setBusy('');}}
-  async function inspect(){if(!file)return setError('Choose a VynodeArr application backup.');if(password.length<12)return setError('Enter the backup password.');setBusy('inspect');setError('');try{const form=new FormData();form.append('file',file);form.append('password',password);setSummary((await options.request<{summary:ApplicationBackupSummary}>('/api/system/application-backup/inspect',{method:'POST',body:form})).summary);}catch(reason){setSummary(null);setError(errorText(reason));}finally{setBusy('');}}
-  async function restore(){if(!file||!summary)return;if(confirmation!=='RESTORE')return setError('Type RESTORE to confirm application recovery.');setBusy('restore');setError('');try{const form=new FormData();form.append('file',file);form.append('password',password);form.append('confirmation',confirmation);await options.request('/api/system/application-backup/restore',{method:'POST',body:form});options.notify('Application restored. Restart VynodeArr now to load the restored identity and credential state.','info');reset();}catch(reason){setError(errorText(reason));}finally{setBusy('');}}
-  const labels:Record<string,string>={identity:'Users and permissions',credentials:'Encrypted credentials',masterKey:'Encryption master key',notifications:'Notifications and templates',requests:'Requests and approvals',collections:'Collections',history:'Search activity',audit:'Administrator audit'};
-  return <><section className="panel application-backup-card"><div className="panel-heading"><div><span className="eyebrow">VYNODEARR APPLICATION</span><h2>Application backup</h2></div><span className="badge green">Encrypted</span></div><p>Protect users, permissions, requests, notification channels and templates, credentials, the master key, collections, and application settings in one portable archive.</p><div className="notice"><strong>Complements engine backups</strong><p>Movie and Television backups remain separate. Store this archive and its password outside the server.</p></div><div className="form-actions"><button className="primary" onClick={()=>setMode('create')}>Download application backup</button><button className="secondary" onClick={()=>setMode('restore')}>Inspect & restore</button></div></section>{mode?<div className="application-backup-backdrop"><section className="application-backup-dialog" role="dialog" aria-modal="true" aria-labelledby="application-backup-title"><header><div><span className="eyebrow">{mode==='create'?'CREATE ENCRYPTED ARCHIVE':'RECOVERY PREVIEW'}</span><h2 id="application-backup-title">{mode==='create'?'Download application backup':'Inspect application backup'}</h2></div><button className="secondary" disabled={Boolean(busy)} onClick={close}>Close</button></header><div className="application-backup-body">{mode==='create'?<><p>Choose a password required for inspection and restore. VynodeArr cannot recover it.</p><label>Backup password<input type="password" autoComplete="new-password" value={password} onChange={event=>setPassword(event.target.value)}/><small>At least 12 characters.</small></label><label>Confirm password<input type="password" autoComplete="new-password" value={confirmPassword} onChange={event=>setConfirmPassword(event.target.value)}/></label><fieldset><legend>Optional history</legend><label className="check"><input type="checkbox" checked={includeHistory} onChange={event=>setIncludeHistory(event.target.checked)}/> Include Search Activity</label><label className="check"><input type="checkbox" checked={includeAudit} onChange={event=>setIncludeAudit(event.target.checked)}/> Include administrator audit history</label></fieldset></>:<><label>Backup file<input type="file" accept=".vynodearr-backup" onChange={event=>{setFile(event.target.files?.[0]||null);setSummary(null);}}/></label><label>Backup password<input type="password" value={password} onChange={event=>{setPassword(event.target.value);setSummary(null);}}/></label>{summary?<><div className="application-backup-summary"><strong>VynodeArr {summary.applicationVersion}</strong><small>Created {date(summary.createdAt)} · {summary.fileCount} protected files</small><div>{Object.entries(summary.groups).map(([key,present])=><span className={`badge ${present?'green':''}`} key={key}>{present?'✓':'—'} {labels[key]}</span>)}</div></div>{summary.warnings.map(warning=><div className="notice warning" key={warning}><strong>Review before restoring</strong><p>{warning}</p></div>)}<label>Confirmation<input value={confirmation} onChange={event=>setConfirmation(event.target.value)} placeholder="Type RESTORE"/></label><div className="notice warning"><strong>Restart required</strong><p>A safety backup is created first. Restored users and credentials load after VynodeArr restarts.</p></div></>:null}</>}</div>{error?<p className="form-error application-backup-error">{error}</p>:null}<footer><button className="secondary" disabled={Boolean(busy)} onClick={close}>Cancel</button>{mode==='create'?<button className="primary" disabled={Boolean(busy)} onClick={()=>void create()}>{busy==='create'?'Encrypting…':'Create & download'}</button>:summary?<button className="danger" disabled={Boolean(busy)||confirmation!=='RESTORE'} onClick={()=>void restore()}>{busy==='restore'?'Restoring…':'Restore application'}</button>:<button className="primary" disabled={Boolean(busy)||!file} onClick={()=>void inspect()}>{busy==='inspect'?'Inspecting…':'Inspect backup'}</button>}</footer></section></div>:null}</>;
-}
-
-function Backups({items,options,reload}:{items:SystemRecord[];options:SystemMountOptions;reload:()=>void}){
-  const inputs=useRef<Record<string,HTMLInputElement|null>>({});
-  async function restore(item:SystemRecord){if(!confirm(`Restore this ${label(item.domain)} backup? The engine will restart and its current configuration will be replaced.`))return;try{await options.request(`/api/system/backups/${item.domain}/${item.id}/restore`,{method:'POST',body:'{}'});options.notify(`${label(item.domain)} backup restored successfully.`);reload();}catch(reason){options.notify(errorText(reason),'error');}}
-  async function upload(domain:SystemDomain,file?:File){if(!file||!confirm(`Upload and restore ${label(domain)} from ${file.name}? The engine will restart and its current configuration will be replaced.`))return;const form=new FormData();form.append('file',file);try{await options.request(`/api/system/backups/${domain}/upload`,{method:'POST',body:form});options.notify(`${label(domain)} backup uploaded and restored successfully.`);reload();}catch(reason){options.notify(errorText(reason),'error');}}
-  async function create(){try{await Promise.all(domains.map(domain=>options.request(`/api/manage/${domain}/commands`,{method:'POST',body:JSON.stringify({name:'Backup'})})));options.notify('Backup commands queued.');}catch(reason){options.notify(errorText(reason),'error');}}
-  return <><ApplicationBackups options={options}/><div className="system-toolbar"><div className="notice"><strong>Keep engine copies outside the container</strong><p>Movie and Television backups protect their engine databases and remain separate from the VynodeArr application archive.</p></div><button className="primary" onClick={()=>void create()}>Create both engine backups</button></div><div className="system-domain-grid">{domains.map(domain=>{const records=items.filter(item=>item.domain===domain);return <DomainSection domain={domain} count={records.length} key={domain}><input ref={node=>{inputs.current[domain]=node;}} hidden type="file" accept=".zip,.db,.xml" onChange={event=>{void upload(domain,event.target.files?.[0]);event.target.value='';}}/><button className="secondary system-upload" onClick={()=>inputs.current[domain]?.click()}>Upload & restore</button>{records.map(item=><div className="data-row" key={`${domain}:${item.id}`}><span><strong>{label(domain)} configuration backup</strong><small>{date(item.time)} · {item.type||'manual'} · {size(item.size)}</small></span><div><a className="secondary button-link" href={`/api/system/backups/${domain}/${item.id}/download`}>Download</a><button className="secondary" onClick={()=>void restore(item)}>Restore</button></div></div>)}</DomainSection>;})}</div></>;
-}
-function Events({items}:{items:SystemRecord[]}){
-  const [level,setLevel]=useState('all'),[query,setQuery]=useState(''),filtered=useMemo(()=>items.filter(item=>(level==='all'||String(item.level||'info').toLowerCase().includes(level))&&`${item.message||''} ${item.exception||''}`.toLowerCase().includes(query.toLowerCase())),[items,level,query]);
-  return <><div className="event-toolbar"><label>Level<select value={level} onChange={event=>setLevel(event.target.value)}><option value="all">All levels</option><option value="error">Errors</option><option value="warning">Warnings</option><option value="info">Information</option></select></label><label>Find events<input type="search" value={query} onChange={event=>setQuery(event.target.value)} placeholder="Search messages"/></label></div><div className="system-domain-grid">{domains.map(domain=>{const records=filtered.filter(item=>item.domain===domain);return <DomainSection domain={domain} count={records.length} key={domain}>{records.slice(0,200).map((item,index)=><article className={`event-row event-${String(item.level||'info').toLowerCase()}`} key={`${domain}:${item.time}:${index}`}><div><strong>{item.message||item.exception||'Event'}</strong><span className="event-level">{item.level||'info'}</span></div><time>{date(item.time)}</time></article>)}</DomainSection>;})}</div></>;
-}
-
-function AuditLog({items}:{items:AuditEntry[]}){
-  const [category,setCategory]=useState('all'),[actor,setActor]=useState('all'),[query,setQuery]=useState('');
-  const actors=useMemo(()=>[...new Set(items.map(item=>item.username).filter(Boolean))].sort(),[items]);
-  const categories=useMemo(()=>[...new Set(items.map(item=>item.category||'engine').filter(Boolean))].sort(),[items]);
-  const filtered=useMemo(()=>{const needle=query.trim().toLowerCase();return items.filter(item=>(category==='all'||(item.category||'engine')===category)&&(actor==='all'||item.username===actor)&&(!needle||`${item.summary||''} ${item.action||''} ${item.target||''} ${item.resource||''} ${item.username||''}`.toLowerCase().includes(needle)));},[items,category,actor,query]);
-  const description=(item:AuditEntry)=>item.summary||`${item.method||'Changed'} ${item.domain?`${item.domain} `:''}${item.resource||'engine configuration'}${item.resourceId?` ${item.resourceId}`:''}.`;
-  return <><div className="event-toolbar audit-toolbar"><label>Category<select value={category} onChange={event=>setCategory(event.target.value)}><option value="all">All categories</option>{categories.map(value=><option value={value} key={value}>{value}</option>)}</select></label><label>Administrator<select value={actor} onChange={event=>setActor(event.target.value)}><option value="all">All administrators</option>{actors.map(value=><option value={value} key={value}>@{value}</option>)}</select></label><label>Search audit log<input type="search" value={query} onChange={event=>setQuery(event.target.value)} placeholder="Action, title, user, or setting"/></label></div><p className="audit-result-count">{filtered.length} of {items.length} entries shown</p><div className="panel audit-list">{filtered.length?filtered.map(item=><article className="audit-row" key={item.id}><div className={`audit-icon audit-${item.category||'engine'}`} aria-hidden="true">{(item.category||'engine').slice(0,1).toUpperCase()}</div><div><div className="audit-row-heading"><strong>{item.target||item.action||item.resource||'Configuration change'}</strong><span className="badge">{item.category||'engine'}</span></div><p>{description(item)}</p><small>{item.actorName||item.username} · @{item.username}{item.domain?` · ${label(item.domain)}`:''}</small></div><time>{date(item.timestamp)}</time></article>):<div className="empty compact"><h2>No matching audit entries</h2><p>Change the filters to see other administrative activity.</p></div>}</div></>;
-}
-
-function Security({status,options,reload}:{status:MasterKeyStatus;options:SystemMountOptions;reload:()=>void}){
-  const [rotating,setRotating]=useState(false);
-  async function rotate(){
-    if(!confirm('Rotate the VynodeArr master key? Saved engine and discovery credentials will be re-encrypted and will continue to work.'))return;
-    setRotating(true);
-    try{await options.request('/api/system/master-key/rotate',{method:'POST',body:'{}'});options.notify('Master key rotated and saved credentials re-encrypted.');reload();}
-    catch(reason){options.notify(errorText(reason),'error');}
-    finally{setRotating(false);}
+function Validation({
+  report,
+  options,
+  reload,
+}: {
+  report: ValidationReport;
+  options: SystemMountOptions;
+  reload: () => void;
+}) {
+  const [busy, setBusy] = useState("");
+  async function repair(check: ValidationCheck) {
+    if (!check.action?.repair) return;
+    setBusy(check.id);
+    try {
+      await options.request("/api/system/validation/repair", {
+        method: "POST",
+        body: JSON.stringify({ action: check.action.repair }),
+      });
+      options.notify(
+        `${check.title} repair completed. Validation is running again.`,
+      );
+      reload();
+    } catch (reason) {
+      options.notify(errorText(reason), "error");
+    } finally {
+      setBusy("");
+    }
   }
-  return <section className="panel"><div className="panel-heading"><div><span className="eyebrow">CREDENTIAL ENCRYPTION</span><h2>Master key</h2></div><span className={`badge ${status.managed?'green':''}`}>{status.managed?'App managed':'Environment managed'}</span></div><p>VynodeArr uses this key to encrypt saved movie-engine, television-engine, and discovery credentials. The key is never displayed in the app.</p><div className="data-row"><span><strong>{status.storage}</strong><small>{status.managed?'Generated securely and retained in persistent configuration.':'Loaded from VYNODEARR_MASTER_KEY or its secret file.'}</small></span><button className="secondary" disabled={!status.canRotate||rotating} onClick={()=>void rotate()}>{rotating?'Rotating…':'Rotate master key'}</button></div><div className="notice"><strong>{status.canRotate?'Safe credential rotation':'Managed outside VynodeArr'}</strong><p>{status.canRotate?'Rotation re-encrypts saved credentials. It does not change API keys inside either media engine.':'Update the environment variable or secret file and recreate the container to change this key.'}</p></div></section>;
+  const groups = [...new Set(report.checks.map((check) => check.group))],
+    statusLabel = {
+      healthy: "Healthy",
+      warning: "Review",
+      failed: "Action needed",
+    };
+  return (
+    <>
+      <section
+        className={`panel validation-overview validation-${report.overall}`}
+      >
+        <div>
+          <span className="eyebrow">POST-UPDATE & RECOVERY</span>
+          <h2>
+            {report.overall === "healthy"
+              ? "Installation validated"
+              : report.overall === "failed"
+                ? "Action is required"
+                : "Review recommended"}
+          </h2>
+          <p>
+            Last checked {date(report.generatedAt)} with VynodeArr{" "}
+            {report.applicationVersion}.
+          </p>
+        </div>
+        <div className="validation-totals">
+          <span>
+            <strong>{report.summary.healthy}</strong>Healthy
+          </span>
+          <span>
+            <strong>{report.summary.warning}</strong>Review
+          </span>
+          <span>
+            <strong>{report.summary.failed}</strong>Failed
+          </span>
+        </div>
+      </section>
+      <div className="validation-groups">
+        {groups.map((group) => (
+          <section className="panel validation-group" key={group}>
+            <div className="panel-heading">
+              <h2>{group}</h2>
+              <span className="badge">
+                {report.checks.filter((check) => check.group === group).length}
+              </span>
+            </div>
+            {report.checks
+              .filter((check) => check.group === group)
+              .map((check) => (
+                <article
+                  className={`validation-check validation-${check.status}`}
+                  key={check.id}
+                >
+                  <span className="validation-check-icon" aria-hidden="true">
+                    {check.status === "healthy"
+                      ? "✓"
+                      : check.status === "warning"
+                        ? "!"
+                        : "×"}
+                  </span>
+                  <div>
+                    <div className="validation-check-heading">
+                      <strong>{check.title}</strong>
+                      <span
+                        className={`badge ${check.status === "healthy" ? "green" : check.status === "warning" ? "warm" : "danger"}`}
+                      >
+                        {statusLabel[check.status]}
+                      </span>
+                    </div>
+                    <p>{check.message}</p>
+                    {check.details?.length ? (
+                      <ul>
+                        {check.details.map((detail) => (
+                          <li key={detail}>{detail}</li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </div>
+                  {check.action?.repair ? (
+                    <button
+                      className="secondary"
+                      disabled={Boolean(busy)}
+                      onClick={() => void repair(check)}
+                    >
+                      {busy === check.id ? "Repairing…" : check.action.label}
+                    </button>
+                  ) : check.action?.href ? (
+                    <a
+                      className="secondary button-link"
+                      href={check.action.href}
+                    >
+                      {check.action.label}
+                    </a>
+                  ) : null}
+                </article>
+              ))}
+          </section>
+        ))}
+      </div>
+    </>
+  );
+}
+function ApplicationBackups({ options }: { options: SystemMountOptions }) {
+  const [mode, setMode] = useState<"create" | "restore" | null>(null),
+    [password, setPassword] = useState(""),
+    [confirmPassword, setConfirmPassword] = useState(""),
+    [includeHistory, setIncludeHistory] = useState(true),
+    [includeAudit, setIncludeAudit] = useState(true),
+    [file, setFile] = useState<File | null>(null),
+    [summary, setSummary] = useState<ApplicationBackupSummary | null>(null),
+    [confirmation, setConfirmation] = useState(""),
+    [busy, setBusy] = useState(""),
+    [error, setError] = useState("");
+  const reset = () => {
+    setMode(null);
+    setPassword("");
+    setConfirmPassword("");
+    setFile(null);
+    setSummary(null);
+    setConfirmation("");
+    setError("");
+  };
+  const close = () => {
+    if (!busy) reset();
+  };
+  async function create() {
+    if (password.length < 12)
+      return setError("Use at least 12 characters for the backup password.");
+    if (password !== confirmPassword)
+      return setError("The backup passwords do not match.");
+    setBusy("create");
+    setError("");
+    try {
+      const result = await options.request<{
+          downloadUrl: string;
+          filename: string;
+        }>("/api/system/application-backup", {
+          method: "POST",
+          body: JSON.stringify({ password, includeHistory, includeAudit }),
+        }),
+        link = document.createElement("a");
+      link.href = result.downloadUrl;
+      link.download = result.filename;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      options.notify(
+        "Encrypted application backup created. Store the file and password separately.",
+      );
+      reset();
+    } catch (reason) {
+      setError(errorText(reason));
+    } finally {
+      setBusy("");
+    }
+  }
+  async function inspect() {
+    if (!file) return setError("Choose a VynodeArr application backup.");
+    if (password.length < 12) return setError("Enter the backup password.");
+    setBusy("inspect");
+    setError("");
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("password", password);
+      setSummary(
+        (
+          await options.request<{ summary: ApplicationBackupSummary }>(
+            "/api/system/application-backup/inspect",
+            { method: "POST", body: form },
+          )
+        ).summary,
+      );
+    } catch (reason) {
+      setSummary(null);
+      setError(errorText(reason));
+    } finally {
+      setBusy("");
+    }
+  }
+  async function restore() {
+    if (!file || !summary) return;
+    if (confirmation !== "RESTORE")
+      return setError("Type RESTORE to confirm application recovery.");
+    setBusy("restore");
+    setError("");
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("password", password);
+      form.append("confirmation", confirmation);
+      await options.request("/api/system/application-backup/restore", {
+        method: "POST",
+        body: form,
+      });
+      options.notify(
+        "Application restored. Restart VynodeArr now to load the restored identity and credential state.",
+        "info",
+      );
+      reset();
+    } catch (reason) {
+      setError(errorText(reason));
+    } finally {
+      setBusy("");
+    }
+  }
+  const labels: Record<string, string> = {
+    identity: "Users and permissions",
+    credentials: "Encrypted credentials",
+    masterKey: "Encryption master key",
+    notifications: "Notifications and templates",
+    requests: "Requests and approvals",
+    collections: "Collections",
+    history: "Search activity",
+    audit: "Administrator audit",
+  };
+  return (
+    <>
+      <section className="panel application-backup-card">
+        <div className="panel-heading">
+          <div>
+            <span className="eyebrow">VYNODEARR APPLICATION</span>
+            <h2>Application backup</h2>
+          </div>
+          <span className="badge green">Encrypted</span>
+        </div>
+        <p>
+          Protect users, permissions, requests, notification channels and
+          templates, credentials, the master key, collections, and application
+          settings in one portable archive.
+        </p>
+        <div className="notice">
+          <strong>Complements engine backups</strong>
+          <p>
+            Movie and Television backups remain separate. Store this archive and
+            its password outside the server.
+          </p>
+        </div>
+        <div className="form-actions">
+          <button className="primary" onClick={() => setMode("create")}>
+            Download application backup
+          </button>
+          <button className="secondary" onClick={() => setMode("restore")}>
+            Inspect & restore
+          </button>
+        </div>
+      </section>
+      {mode ? (
+        <div className="application-backup-backdrop">
+          <section
+            className="application-backup-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="application-backup-title"
+          >
+            <header>
+              <div>
+                <span className="eyebrow">
+                  {mode === "create"
+                    ? "CREATE ENCRYPTED ARCHIVE"
+                    : "RECOVERY PREVIEW"}
+                </span>
+                <h2 id="application-backup-title">
+                  {mode === "create"
+                    ? "Download application backup"
+                    : "Inspect application backup"}
+                </h2>
+              </div>
+              <button
+                className="secondary"
+                disabled={Boolean(busy)}
+                onClick={close}
+              >
+                Close
+              </button>
+            </header>
+            <div className="application-backup-body">
+              {mode === "create" ? (
+                <>
+                  <p>
+                    Choose a password required for inspection and restore.
+                    VynodeArr cannot recover it.
+                  </p>
+                  <label>
+                    Backup password
+                    <input
+                      type="password"
+                      autoComplete="new-password"
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                    />
+                    <small>At least 12 characters.</small>
+                  </label>
+                  <label>
+                    Confirm password
+                    <input
+                      type="password"
+                      autoComplete="new-password"
+                      value={confirmPassword}
+                      onChange={(event) =>
+                        setConfirmPassword(event.target.value)
+                      }
+                    />
+                  </label>
+                  <fieldset>
+                    <legend>Optional history</legend>
+                    <label className="check">
+                      <input
+                        type="checkbox"
+                        checked={includeHistory}
+                        onChange={(event) =>
+                          setIncludeHistory(event.target.checked)
+                        }
+                      />{" "}
+                      Include Search Activity
+                    </label>
+                    <label className="check">
+                      <input
+                        type="checkbox"
+                        checked={includeAudit}
+                        onChange={(event) =>
+                          setIncludeAudit(event.target.checked)
+                        }
+                      />{" "}
+                      Include administrator audit history
+                    </label>
+                  </fieldset>
+                </>
+              ) : (
+                <>
+                  <label>
+                    Backup file
+                    <input
+                      type="file"
+                      accept=".vynodearr-backup"
+                      onChange={(event) => {
+                        setFile(event.target.files?.[0] || null);
+                        setSummary(null);
+                      }}
+                    />
+                  </label>
+                  <label>
+                    Backup password
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(event) => {
+                        setPassword(event.target.value);
+                        setSummary(null);
+                      }}
+                    />
+                  </label>
+                  {summary ? (
+                    <>
+                      <div className="application-backup-summary">
+                        <strong>VynodeArr {summary.applicationVersion}</strong>
+                        <small>
+                          Created {date(summary.createdAt)} ·{" "}
+                          {summary.fileCount} protected files
+                        </small>
+                        <div>
+                          {Object.entries(summary.groups).map(
+                            ([key, present]) => (
+                              <span
+                                className={`badge ${present ? "green" : ""}`}
+                                key={key}
+                              >
+                                {present ? "✓" : "—"} {labels[key]}
+                              </span>
+                            ),
+                          )}
+                        </div>
+                      </div>
+                      {summary.warnings.map((warning) => (
+                        <div className="notice warning" key={warning}>
+                          <strong>Review before restoring</strong>
+                          <p>{warning}</p>
+                        </div>
+                      ))}
+                      <label>
+                        Confirmation
+                        <input
+                          value={confirmation}
+                          onChange={(event) =>
+                            setConfirmation(event.target.value)
+                          }
+                          placeholder="Type RESTORE"
+                        />
+                      </label>
+                      <div className="notice warning">
+                        <strong>Restart required</strong>
+                        <p>
+                          A safety backup is created first. Restored users and
+                          credentials load after VynodeArr restarts.
+                        </p>
+                      </div>
+                    </>
+                  ) : null}
+                </>
+              )}
+            </div>
+            {error ? (
+              <p className="form-error application-backup-error">{error}</p>
+            ) : null}
+            <footer>
+              <button
+                className="secondary"
+                disabled={Boolean(busy)}
+                onClick={close}
+              >
+                Cancel
+              </button>
+              {mode === "create" ? (
+                <button
+                  className="primary"
+                  disabled={Boolean(busy)}
+                  onClick={() => void create()}
+                >
+                  {busy === "create" ? "Encrypting…" : "Create & download"}
+                </button>
+              ) : summary ? (
+                <button
+                  className="danger"
+                  disabled={Boolean(busy) || confirmation !== "RESTORE"}
+                  onClick={() => void restore()}
+                >
+                  {busy === "restore" ? "Restoring…" : "Restore application"}
+                </button>
+              ) : (
+                <button
+                  className="primary"
+                  disabled={Boolean(busy) || !file}
+                  onClick={() => void inspect()}
+                >
+                  {busy === "inspect" ? "Inspecting…" : "Inspect backup"}
+                </button>
+              )}
+            </footer>
+          </section>
+        </div>
+      ) : null}
+    </>
+  );
 }
 
-function Updates({application,catalog,options}:{application:ApplicationUpdate;catalog:EngineUpdateCatalog|null;options:SystemMountOptions}){
-  const [review,setReview]=useState<EngineUpdateReview|null>(null),[plan,setPlan]=useState<EngineCandidatePlan|null>(null),[busy,setBusy]=useState<SystemDomain|'candidate'|null>(null),[error,setError]=useState('');
-  async function inspect(domain:SystemDomain){setBusy(domain);setError('');try{setReview(await options.request<EngineUpdateReview>('/api/system/engine-updates/review',{method:'POST',body:JSON.stringify({domain})}));}catch(reason){setError(errorText(reason));}finally{setBusy(null);}}
-  async function prepare(){if(!confirm('Prepare exact GitHub workflow inputs for a pinned candidate container? Fresh engine backups from the last 24 hours are required.'))return;setBusy('candidate');setError('');try{setPlan(await options.request<EngineCandidatePlan>('/api/system/engine-updates/candidate-plan',{method:'POST',body:JSON.stringify({confirmation:'PREPARE CANDIDATE'})}));options.notify('Candidate workflow plan prepared. Review every input before running it.');}catch(reason){setError(errorText(reason));}finally{setBusy(null);}}
-  const updateAvailable=Boolean(catalog?.engines.some(engine=>engine.updateAvailable));
-  return <div className="system-domain-grid"><section className="panel"><div className="application-update"><div><span className="eyebrow">VYNODEARR APPLICATION</span><h2>Version {application.installedVersion}</h2><p className="muted">{application.channel} · {application.mechanism}</p></div><span className="badge green">Installed</span></div><div className="notice"><strong>VynodeArr updates</strong><p>{application.message}</p><a className="secondary button-link" href={application.repository} target="_blank" rel="noreferrer">View releases</a></div></section><section className="panel"><div className="panel-heading"><div><span className="eyebrow">ENGINE UPDATE CENTER</span><h2>Review upstream releases</h2></div><span className="badge">Candidate only</span></div><p>VynodeArr checks each engine's official upstream release before a candidate container is built. It never replaces running engine files in place.</p>{catalog?catalog.engines.map(engine=><div className="data-row" key={engine.domain}><span><strong>{engine.name}</strong><small>{engine.unavailable?engine.message:`Bundled ${engine.installedVersion} · Latest ${engine.latestVersion}`}</small></span><div>{engine.updateAvailable?<span className="badge">Update found</span>:!engine.unavailable?<span className="badge green">Current</span>:null}<button className="secondary" disabled={engine.unavailable||busy!==null} onClick={()=>void inspect(engine.domain)}>{busy===engine.domain?'Reviewing…':'Review update'}</button></div></div>):<div className="notice warning"><strong>Release discovery unavailable</strong><p>The application update information remains available. Refresh after the server and browser are on the same VynodeArr version.</p></div>}{error?<p className="form-error">{error}</p>:null}{review?<div className={`notice ${review.outcome==='blocked'?'warning':''}`}><strong>{review.candidate.name} review: {review.outcome}</strong><p>{review.nextAction}</p>{review.checks.map(check=><p key={check.id}><span className={`badge ${check.status==='passed'?'green':''}`}>{check.status}</span> {check.title}: {check.message}</p>)}{review.issueDraft?<a className="secondary button-link" href={review.issueDraft.url} target="_blank" rel="noreferrer">Prepare GitHub issue</a>:null}</div>:null}<div className="notice"><strong>Controlled candidate workflow</strong><p>Preparation re-runs both reviews and requires fresh engine backups. GitHub then verifies the app, builds pinned binaries, smoke-tests the complete container, and publishes only an isolated candidate tag.</p><button className="primary" disabled={!updateAvailable||busy!==null} onClick={()=>void prepare()}>{busy==='candidate'?'Preparing…':updateAvailable?'Prepare candidate':'Engines are current'}</button></div>{plan?<div className="notice"><strong>Candidate plan ready</strong><p>Rollback image: <code>{plan.rollbackImage}</code></p><p>Candidate tag: <code>{plan.candidateTag}</code></p>{Object.entries(plan.workflowInputs).map(([key,value])=><p key={key}><strong>{key}</strong>: <code>{value}</code></p>)}<ol>{plan.instructions.map(item=><li key={item}>{item}</li>)}</ol><a className="primary button-link" href={plan.workflowUrl} target="_blank" rel="noreferrer">Open candidate workflow</a></div>:null}</section></div>;
+function Backups({
+  items,
+  options,
+  reload,
+}: {
+  items: SystemRecord[];
+  options: SystemMountOptions;
+  reload: () => void;
+}) {
+  const inputs = useRef<Record<string, HTMLInputElement | null>>({});
+  async function restore(item: SystemRecord) {
+    if (
+      !confirm(
+        `Restore this ${label(item.domain)} backup? The engine will restart and its current configuration will be replaced.`,
+      )
+    )
+      return;
+    try {
+      await options.request(
+        `/api/system/backups/${item.domain}/${item.id}/restore`,
+        { method: "POST", body: "{}" },
+      );
+      options.notify(`${label(item.domain)} backup restored successfully.`);
+      reload();
+    } catch (reason) {
+      options.notify(errorText(reason), "error");
+    }
+  }
+  async function upload(domain: SystemDomain, file?: File) {
+    if (
+      !file ||
+      !confirm(
+        `Upload and restore ${label(domain)} from ${file.name}? The engine will restart and its current configuration will be replaced.`,
+      )
+    )
+      return;
+    const form = new FormData();
+    form.append("file", file);
+    try {
+      await options.request(`/api/system/backups/${domain}/upload`, {
+        method: "POST",
+        body: form,
+      });
+      options.notify(
+        `${label(domain)} backup uploaded and restored successfully.`,
+      );
+      reload();
+    } catch (reason) {
+      options.notify(errorText(reason), "error");
+    }
+  }
+  async function create() {
+    try {
+      await Promise.all(
+        domains.map((domain) =>
+          options.request(`/api/manage/${domain}/commands`, {
+            method: "POST",
+            body: JSON.stringify({ name: "Backup" }),
+          }),
+        ),
+      );
+      options.notify("Backup commands queued.");
+    } catch (reason) {
+      options.notify(errorText(reason), "error");
+    }
+  }
+  return (
+    <>
+      <ApplicationBackups options={options} />
+      <div className="system-toolbar">
+        <div className="notice">
+          <strong>Keep engine copies outside the container</strong>
+          <p>
+            Movie and Television backups protect their engine databases and
+            remain separate from the VynodeArr application archive.
+          </p>
+        </div>
+        <button className="primary" onClick={() => void create()}>
+          Create both engine backups
+        </button>
+      </div>
+      <div className="system-domain-grid">
+        {domains.map((domain) => {
+          const records = items.filter((item) => item.domain === domain);
+          return (
+            <DomainSection domain={domain} count={records.length} key={domain}>
+              <input
+                ref={(node) => {
+                  inputs.current[domain] = node;
+                }}
+                hidden
+                type="file"
+                accept=".zip,.db,.xml"
+                onChange={(event) => {
+                  void upload(domain, event.target.files?.[0]);
+                  event.target.value = "";
+                }}
+              />
+              <button
+                className="secondary system-upload"
+                onClick={() => inputs.current[domain]?.click()}
+              >
+                Upload & restore
+              </button>
+              {records.map((item) => (
+                <div className="data-row" key={`${domain}:${item.id}`}>
+                  <span>
+                    <strong>{label(domain)} configuration backup</strong>
+                    <small>
+                      {date(item.time)} · {item.type || "manual"} ·{" "}
+                      {size(item.size)}
+                    </small>
+                  </span>
+                  <div>
+                    <a
+                      className="secondary button-link"
+                      href={`/api/system/backups/${domain}/${item.id}/download`}
+                    >
+                      Download
+                    </a>
+                    <button
+                      className="secondary"
+                      onClick={() => void restore(item)}
+                    >
+                      Restore
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </DomainSection>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+function Events({ items }: { items: SystemRecord[] }) {
+  const [level, setLevel] = useState("all"),
+    [query, setQuery] = useState(""),
+    filtered = useMemo(
+      () =>
+        items.filter(
+          (item) =>
+            (level === "all" ||
+              String(item.level || "info")
+                .toLowerCase()
+                .includes(level)) &&
+            `${item.message || ""} ${item.exception || ""}`
+              .toLowerCase()
+              .includes(query.toLowerCase()),
+        ),
+      [items, level, query],
+    );
+  return (
+    <>
+      <div className="event-toolbar">
+        <label>
+          Level
+          <select
+            value={level}
+            onChange={(event) => setLevel(event.target.value)}
+          >
+            <option value="all">All levels</option>
+            <option value="error">Errors</option>
+            <option value="warning">Warnings</option>
+            <option value="info">Information</option>
+          </select>
+        </label>
+        <label>
+          Find events
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search messages"
+          />
+        </label>
+      </div>
+      <div className="system-domain-grid">
+        {domains.map((domain) => {
+          const records = filtered.filter((item) => item.domain === domain);
+          return (
+            <DomainSection domain={domain} count={records.length} key={domain}>
+              {records.slice(0, 200).map((item, index) => (
+                <article
+                  className={`event-row event-${String(item.level || "info").toLowerCase()}`}
+                  key={`${domain}:${item.time}:${index}`}
+                >
+                  <div>
+                    <strong>{item.message || item.exception || "Event"}</strong>
+                    <span className="event-level">{item.level || "info"}</span>
+                  </div>
+                  <time>{date(item.time)}</time>
+                </article>
+              ))}
+            </DomainSection>
+          );
+        })}
+      </div>
+    </>
+  );
 }
 
-export function SystemView({options}:{options:SystemMountOptions}){
-  const [view,setView]=useState<SystemView>('status'),[loading,setLoading]=useState(true),[error,setError]=useState(''),[records,setRecords]=useState<SystemRecord[]>([]),[auditEntries,setAuditEntries]=useState<AuditEntry[]>([]),[disks,setDisks]=useState<Record<SystemDomain,DiskSpace[]>>({movie:[],tv:[]}),[update,setUpdate]=useState<ApplicationUpdate|null>(null),[engineUpdates,setEngineUpdates]=useState<EngineUpdateCatalog|null>(null),[masterKey,setMasterKey]=useState<MasterKeyStatus|null>(null),[validation,setValidation]=useState<ValidationReport|null>(null);
-  const load=useCallback(async()=>{setLoading(true);try{if(view==='status'){const values=await Promise.all(domains.map(async domain=>({domain,value:await options.request<{result:DiskSpace[]}>(`/api/manage/${domain}/diskSpace`)})));setDisks(Object.fromEntries(values.map(item=>[item.domain,item.value.result])) as Record<SystemDomain,DiskSpace[]>);}else if(view==='validation')setValidation(await options.request<ValidationReport>('/api/system/validation'));else if(view==='updates'){setUpdate(await options.request<ApplicationUpdate>('/api/system/application-update'));setEngineUpdates(await options.request<EngineUpdateCatalog>('/api/system/engine-updates').catch(()=>null));}else if(view==='security')setMasterKey(await options.request<MasterKeyStatus>('/api/system/master-key'));else if(view==='audit')setAuditEntries((await options.request<{items:AuditEntry[]}>('/api/manage/audit')).items||[]);else{const values=await Promise.all(domains.map(async domain=>({domain,value:await options.request<{result:SystemRecord[]|{records:SystemRecord[]}}>(`/api/manage/${domain}/${view}?page=1&pageSize=200&sortKey=time&sortDirection=descending`)})));setRecords(values.flatMap(({domain,value})=>(Array.isArray(value.result)?value.result:value.result?.records||[]).map(item=>({...item,domain}))));}setError('');}catch(reason){setError(errorText(reason));}finally{setLoading(false);}},[options,view]);
-  useEffect(()=>{void load();},[load]);
-  async function sync(){try{await options.request('/api/system/sync',{method:'POST'});options.notify('Synchronization completed.');setView('status');await load();}catch(reason){options.notify(errorText(reason),'error');}}
-  async function run(item:SystemRecord){try{await options.request(`/api/manage/${item.domain}/commands`,{method:'POST',body:JSON.stringify({name:item.taskName})});options.notify(`${label(item.domain)} task queued.`);}catch(reason){options.notify(errorText(reason),'error');}}
-  return <div className="react-system"><div className="hero"><div><span className="eyebrow">SYSTEM</span><h1>System</h1><p className="lede">Storage, validation, scheduled tasks, backups, updates, security, engine events, and administrator activity.</p></div><button className="primary" disabled={loading} onClick={()=>view==='validation'?void load():void sync()}>{view==='validation'?'Run validation':'Synchronize now'}</button></div><div className="settings-tabs system-tabs">{(['status','validation','tasks','backups','updates','security','events','audit'] as SystemView[]).map(item=><button className={view===item?'wanted-tab active':'wanted-tab'} onClick={()=>setView(item)} key={item}>{item}</button>)}</div>{loading?<div className="panel skeleton">Loading system information…</div>:error?<div className="panel error-state"><h2>System information unavailable</h2><p>{error}</p><button className="secondary" onClick={()=>void load()}>Try again</button></div>:view==='status'?<Status disks={disks}/>:view==='validation'&&validation?<Validation report={validation} options={options} reload={()=>void load()}/>:view==='tasks'?<Tasks items={records} run={item=>void run(item)}/>:view==='backups'?<Backups items={records} options={options} reload={()=>void load()}/>:view==='events'?<Events items={records}/>:view==='audit'?<AuditLog items={auditEntries}/>:view==='security'&&masterKey?<Security status={masterKey} options={options} reload={()=>void load()}/>:update?<Updates application={update} catalog={engineUpdates} options={options}/>:null}</div>;
+function AuditLog({ items }: { items: AuditEntry[] }) {
+  const [category, setCategory] = useState("all"),
+    [actor, setActor] = useState("all"),
+    [query, setQuery] = useState("");
+  const actors = useMemo(
+    () =>
+      [...new Set(items.map((item) => item.username).filter(Boolean))].sort(),
+    [items],
+  );
+  const categories = useMemo(
+    () =>
+      [
+        ...new Set(
+          items.map((item) => item.category || "engine").filter(Boolean),
+        ),
+      ].sort(),
+    [items],
+  );
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return items.filter(
+      (item) =>
+        (category === "all" || (item.category || "engine") === category) &&
+        (actor === "all" || item.username === actor) &&
+        (!needle ||
+          `${item.summary || ""} ${item.action || ""} ${item.target || ""} ${item.resource || ""} ${item.username || ""}`
+            .toLowerCase()
+            .includes(needle)),
+    );
+  }, [items, category, actor, query]);
+  const description = (item: AuditEntry) =>
+    item.summary ||
+    `${item.method || "Changed"} ${item.domain ? `${item.domain} ` : ""}${item.resource || "engine configuration"}${item.resourceId ? ` ${item.resourceId}` : ""}.`;
+  return (
+    <>
+      <div className="event-toolbar audit-toolbar">
+        <label>
+          Category
+          <select
+            value={category}
+            onChange={(event) => setCategory(event.target.value)}
+          >
+            <option value="all">All categories</option>
+            {categories.map((value) => (
+              <option value={value} key={value}>
+                {value}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Administrator
+          <select
+            value={actor}
+            onChange={(event) => setActor(event.target.value)}
+          >
+            <option value="all">All administrators</option>
+            {actors.map((value) => (
+              <option value={value} key={value}>
+                @{value}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Search audit log
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Action, title, user, or setting"
+          />
+        </label>
+      </div>
+      <p className="audit-result-count">
+        {filtered.length} of {items.length} entries shown
+      </p>
+      <div className="panel audit-list">
+        {filtered.length ? (
+          filtered.map((item) => (
+            <article className="audit-row" key={item.id}>
+              <div
+                className={`audit-icon audit-${item.category || "engine"}`}
+                aria-hidden="true"
+              >
+                {(item.category || "engine").slice(0, 1).toUpperCase()}
+              </div>
+              <div>
+                <div className="audit-row-heading">
+                  <strong>
+                    {item.target ||
+                      item.action ||
+                      item.resource ||
+                      "Configuration change"}
+                  </strong>
+                  <span className="badge">{item.category || "engine"}</span>
+                </div>
+                <p>{description(item)}</p>
+                <small>
+                  {item.actorName || item.username} · @{item.username}
+                  {item.domain ? ` · ${label(item.domain)}` : ""}
+                </small>
+              </div>
+              <time>{date(item.timestamp)}</time>
+            </article>
+          ))
+        ) : (
+          <div className="empty compact">
+            <h2>No matching audit entries</h2>
+            <p>Change the filters to see other administrative activity.</p>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+function Security({
+  status,
+  options,
+  reload,
+}: {
+  status: MasterKeyStatus;
+  options: SystemMountOptions;
+  reload: () => void;
+}) {
+  const [rotating, setRotating] = useState(false);
+  async function rotate() {
+    if (
+      !confirm(
+        "Rotate the VynodeArr master key? Saved engine and discovery credentials will be re-encrypted and will continue to work.",
+      )
+    )
+      return;
+    setRotating(true);
+    try {
+      await options.request("/api/system/master-key/rotate", {
+        method: "POST",
+        body: "{}",
+      });
+      options.notify("Master key rotated and saved credentials re-encrypted.");
+      reload();
+    } catch (reason) {
+      options.notify(errorText(reason), "error");
+    } finally {
+      setRotating(false);
+    }
+  }
+  return (
+    <section className="panel">
+      <div className="panel-heading">
+        <div>
+          <span className="eyebrow">CREDENTIAL ENCRYPTION</span>
+          <h2>Master key</h2>
+        </div>
+        <span className={`badge ${status.managed ? "green" : ""}`}>
+          {status.managed ? "App managed" : "Environment managed"}
+        </span>
+      </div>
+      <p>
+        VynodeArr uses this key to encrypt saved movie-engine,
+        television-engine, and discovery credentials. The key is never displayed
+        in the app.
+      </p>
+      <div className="data-row">
+        <span>
+          <strong>{status.storage}</strong>
+          <small>
+            {status.managed
+              ? "Generated securely and retained in persistent configuration."
+              : "Loaded from VYNODEARR_MASTER_KEY or its secret file."}
+          </small>
+        </span>
+        <button
+          className="secondary"
+          disabled={!status.canRotate || rotating}
+          onClick={() => void rotate()}
+        >
+          {rotating ? "Rotating…" : "Rotate master key"}
+        </button>
+      </div>
+      <div className="notice">
+        <strong>
+          {status.canRotate
+            ? "Safe credential rotation"
+            : "Managed outside VynodeArr"}
+        </strong>
+        <p>
+          {status.canRotate
+            ? "Rotation re-encrypts saved credentials. It does not change API keys inside either media engine."
+            : "Update the environment variable or secret file and recreate the container to change this key."}
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function Performance({
+  report,
+  options,
+  reload,
+}: {
+  report: PerformanceReport;
+  options: SystemMountOptions;
+  reload: () => void;
+}) {
+  const [settings, setSettings] = useState<PerformanceSettings>(
+      report.settings,
+    ),
+    [busy, setBusy] = useState(false),
+    [recovery, setRecovery] = useState("");
+  useEffect(() => setSettings(report.settings), [report]);
+  const mib = (value = 0) => `${(value / 1048576).toFixed(0)} MB`,
+    field = (
+      key: keyof PerformanceSettings,
+      label: string,
+      min: number,
+      max: number,
+    ) => (
+      <label>
+        {label}
+        <input
+          type="number"
+          min={min}
+          max={max}
+          value={Number(settings[key] || 0)}
+          onChange={(event) =>
+            setSettings((current) => ({
+              ...current,
+              [key]: Number(event.target.value),
+            }))
+          }
+        />
+      </label>
+    );
+  async function save() {
+    setBusy(true);
+    try {
+      await options.request("/api/system/performance/settings", {
+        method: "PUT",
+        body: JSON.stringify(settings),
+      });
+      options.notify("Resource controls updated.");
+      reload();
+    } catch (reason) {
+      options.notify(errorText(reason), "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function recover(domain: SystemDomain, action: "retry" | "rebuild") {
+    if (action === "rebuild" && !confirm(`Rebuild the ${domain === "movie" ? "Movies" : "Television"} catalog from its engine? The current catalog remains available unless a complete engine response succeeds.`)) return;
+    setRecovery(`${domain}:${action}`);
+    try {
+      await options.request("/api/system/catalog/recovery", { method: "POST", body: JSON.stringify({ domain, action }) });
+      options.notify(action === "rebuild" ? "Catalog rebuilt and verified." : "Failed work retried.");
+      reload();
+    } catch (reason) {
+      options.notify(errorText(reason), "error");
+    } finally {
+      setRecovery("");
+    }
+  }
+  return (
+    <>
+      <div className="system-domain-grid performance-summary">
+        <section className="panel">
+          <span className="eyebrow">APPLICATION PROCESS</span>
+          <h2>{mib(report.process.rss)} resident memory</h2>
+          <p>
+            {mib(report.process.heapUsed)} JavaScript heap used · uptime{" "}
+            {Math.floor(report.process.uptimeSeconds / 3600)}h
+          </p>
+        </section>
+        <section className="panel">
+          <span className="eyebrow">LOCAL CATALOG</span>
+          <h2>
+            {Number(report.catalog.movie || 0) + Number(report.catalog.tv || 0)}{" "}
+            titles
+          </h2>
+          <p>
+            {report.activity?.catalogReads || 0} database reads · {report.activity?.engineReads || 0} engine reads
+          </p>
+        </section>
+        <section className="panel">
+          <span className="eyebrow">ARTWORK CACHE</span>
+          <h2>{report.artwork.memory?.items || 0} memory items</h2>
+          <p>
+            {mib(report.artwork.memory?.bytes || 0)} memory ·{" "}
+            {mib(report.artwork.disk?.bytes || 0)} indexed on disk
+          </p>
+        </section>
+      </div>
+      <section className="panel performance-controls">
+        <div className="panel-heading">
+          <div>
+            <span className="eyebrow">RESOURCE CONTROLS</span>
+            <h2>Performance limits</h2>
+          </div>
+          <button
+            className="primary"
+            disabled={busy}
+            onClick={() => void save()}
+          >
+            {busy ? "Saving…" : "Save limits"}
+          </button>
+        </div>
+        <p>
+          Bound background work so browsing remains responsive while the local
+          catalog stays current.
+        </p>
+        <div className="performance-field-grid">
+          {field("pageSize", "Library page size", 20, 250)}
+          {field("eventConcurrency", "Event workers", 1, 4)}
+          {field("artworkFetchConcurrency", "Artwork downloads", 1, 8)}
+          {field("artworkWriteConcurrency", "Artwork disk writes", 1, 4)}
+          {field(
+            "integrityIntervalMinutes",
+            "Integrity check (minutes)",
+            30,
+            1440,
+          )}
+        </div>
+      </section>
+      <div className="system-domain-grid">
+        {domains.map((domain) => {
+          const state = report.sync?.[domain], integrity = report.catalog.integrity?.[domain], open = state?.circuit?.state === "open";
+          return (
+            <section className="panel" key={domain}>
+              <div className="panel-heading">
+                <div>
+                  <span className="eyebrow">{domain === "movie" ? "MOVIE ENGINE" : "TELEVISION ENGINE"}</span>
+                  <h2>{open ? "Recovering" : state?.status || "Unknown"}</h2>
+                </div>
+                <span className={`badge ${integrity?.healthy ? "green" : ""}`}>{integrity?.healthy ? "Catalog healthy" : "Review needed"}</span>
+              </div>
+              <div className="data-row"><span><strong>Local catalog</strong><small>{integrity?.itemCount || 0} titles</small></span><span>{integrity?.lastSuccess ? new Date(integrity.lastSuccess).toLocaleString() : "Never synchronized"}</span></div>
+              <div className="data-row"><span><strong>Engine circuit</strong><small>{state?.circuit?.failures || 0} consecutive failures</small></span><span>{state?.circuit?.state || "not reported"}</span></div>
+              <div className="data-row"><span><strong>Background queue</strong><small>{state?.workQueue?.active?.label || "Idle"}</small></span><span>{state?.workQueue?.depth || 0} waiting</span></div>
+              {integrity?.issues?.length ? <div className="notice"><strong>Integrity findings</strong><p>{integrity.issues.join(" · ")}</p></div> : null}
+              {state?.safeError ? <p className="form-error">{state.safeError}</p> : null}
+              <div className="button-row">
+                <button className="secondary" disabled={Boolean(recovery)} onClick={() => void recover(domain, "retry")}>{recovery === `${domain}:retry` ? "Retrying…" : "Retry failed work"}</button>
+                <button className="secondary" disabled={Boolean(recovery)} onClick={() => void recover(domain, "rebuild")}>{recovery === `${domain}:rebuild` ? "Rebuilding…" : "Rebuild catalog"}</button>
+              </div>
+            </section>
+          );
+        })}
+      </div>
+      <section className="panel">
+        <div className="panel-heading">
+          <h2>Most expensive API routes</h2>
+          <span className="badge">{report.requests.length}</span>
+        </div>
+        {report.requests.slice(0, 15).map((item) => (
+          <div className="data-row" key={item.path}>
+            <span>
+              <strong>{item.path}</strong>
+              <small>{item.count} requests</small>
+            </span>
+            <span>
+              {item.averageMs} ms avg · {item.maxMs} ms max
+            </span>
+          </div>
+        ))}
+      </section>
+    </>
+  );
+}
+
+function Updates({
+  application,
+  catalog,
+  options,
+}: {
+  application: ApplicationUpdate;
+  catalog: EngineUpdateCatalog | null;
+  options: SystemMountOptions;
+}) {
+  const [review, setReview] = useState<EngineUpdateReview | null>(null),
+    [plan, setPlan] = useState<EngineCandidatePlan | null>(null),
+    [busy, setBusy] = useState<SystemDomain | "candidate" | null>(null),
+    [error, setError] = useState("");
+  async function inspect(domain: SystemDomain) {
+    setBusy(domain);
+    setError("");
+    try {
+      setReview(
+        await options.request<EngineUpdateReview>(
+          "/api/system/engine-updates/review",
+          { method: "POST", body: JSON.stringify({ domain }) },
+        ),
+      );
+    } catch (reason) {
+      setError(errorText(reason));
+    } finally {
+      setBusy(null);
+    }
+  }
+  async function prepare() {
+    if (
+      !confirm(
+        "Prepare exact GitHub workflow inputs for a pinned candidate container? Fresh engine backups from the last 24 hours are required.",
+      )
+    )
+      return;
+    setBusy("candidate");
+    setError("");
+    try {
+      setPlan(
+        await options.request<EngineCandidatePlan>(
+          "/api/system/engine-updates/candidate-plan",
+          {
+            method: "POST",
+            body: JSON.stringify({ confirmation: "PREPARE CANDIDATE" }),
+          },
+        ),
+      );
+      options.notify(
+        "Candidate workflow plan prepared. Review every input before running it.",
+      );
+    } catch (reason) {
+      setError(errorText(reason));
+    } finally {
+      setBusy(null);
+    }
+  }
+  const updateAvailable = Boolean(
+    catalog?.engines.some((engine) => engine.updateAvailable),
+  );
+  return (
+    <div className="system-domain-grid">
+      <section className="panel">
+        <div className="application-update">
+          <div>
+            <span className="eyebrow">VYNODEARR APPLICATION</span>
+            <h2>Version {application.installedVersion}</h2>
+            <p className="muted">
+              {application.channel} · {application.mechanism}
+            </p>
+          </div>
+          <span className="badge green">Installed</span>
+        </div>
+        <div className="notice">
+          <strong>VynodeArr updates</strong>
+          <p>{application.message}</p>
+          <a
+            className="secondary button-link"
+            href={application.repository}
+            target="_blank"
+            rel="noreferrer"
+          >
+            View releases
+          </a>
+        </div>
+      </section>
+      <section className="panel">
+        <div className="panel-heading">
+          <div>
+            <span className="eyebrow">ENGINE UPDATE CENTER</span>
+            <h2>Review upstream releases</h2>
+          </div>
+          <span className="badge">Candidate only</span>
+        </div>
+        <p>
+          VynodeArr checks each engine's official upstream release before a
+          candidate container is built. It never replaces running engine files
+          in place.
+        </p>
+        {catalog ? (
+          catalog.engines.map((engine) => (
+            <div className="data-row" key={engine.domain}>
+              <span>
+                <strong>{engine.name}</strong>
+                <small>
+                  {engine.unavailable
+                    ? engine.message
+                    : `Bundled ${engine.installedVersion} · Latest ${engine.latestVersion}`}
+                </small>
+              </span>
+              <div>
+                {engine.updateAvailable ? (
+                  <span className="badge">Update found</span>
+                ) : !engine.unavailable ? (
+                  <span className="badge green">Current</span>
+                ) : null}
+                <button
+                  className="secondary"
+                  disabled={engine.unavailable || busy !== null}
+                  onClick={() => void inspect(engine.domain)}
+                >
+                  {busy === engine.domain ? "Reviewing…" : "Review update"}
+                </button>
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="notice warning">
+            <strong>Release discovery unavailable</strong>
+            <p>
+              The application update information remains available. Refresh
+              after the server and browser are on the same VynodeArr version.
+            </p>
+          </div>
+        )}
+        {error ? <p className="form-error">{error}</p> : null}
+        {review ? (
+          <div
+            className={`notice ${review.outcome === "blocked" ? "warning" : ""}`}
+          >
+            <strong>
+              {review.candidate.name} review: {review.outcome}
+            </strong>
+            <p>{review.nextAction}</p>
+            {review.checks.map((check) => (
+              <p key={check.id}>
+                <span
+                  className={`badge ${check.status === "passed" ? "green" : ""}`}
+                >
+                  {check.status}
+                </span>{" "}
+                {check.title}: {check.message}
+              </p>
+            ))}
+            {review.issueDraft ? (
+              <a
+                className="secondary button-link"
+                href={review.issueDraft.url}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Prepare GitHub issue
+              </a>
+            ) : null}
+          </div>
+        ) : null}
+        <div className="notice">
+          <strong>Controlled candidate workflow</strong>
+          <p>
+            Preparation re-runs both reviews and requires fresh engine backups.
+            GitHub then verifies the app, builds pinned binaries, smoke-tests
+            the complete container, and publishes only an isolated candidate
+            tag.
+          </p>
+          <button
+            className="primary"
+            disabled={!updateAvailable || busy !== null}
+            onClick={() => void prepare()}
+          >
+            {busy === "candidate"
+              ? "Preparing…"
+              : updateAvailable
+                ? "Prepare candidate"
+                : "Engines are current"}
+          </button>
+        </div>
+        {plan ? (
+          <div className="notice">
+            <strong>Candidate plan ready</strong>
+            <p>
+              Rollback image: <code>{plan.rollbackImage}</code>
+            </p>
+            <p>
+              Candidate tag: <code>{plan.candidateTag}</code>
+            </p>
+            {Object.entries(plan.workflowInputs).map(([key, value]) => (
+              <p key={key}>
+                <strong>{key}</strong>: <code>{value}</code>
+              </p>
+            ))}
+            <ol>
+              {plan.instructions.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ol>
+            <a
+              className="primary button-link"
+              href={plan.workflowUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Open candidate workflow
+            </a>
+          </div>
+        ) : null}
+      </section>
+    </div>
+  );
+}
+
+export function SystemView({ options }: { options: SystemMountOptions }) {
+  const [view, setView] = useState<SystemView>("status"),
+    [loading, setLoading] = useState(true),
+    [error, setError] = useState(""),
+    [records, setRecords] = useState<SystemRecord[]>([]),
+    [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]),
+    [disks, setDisks] = useState<Record<SystemDomain, DiskSpace[]>>({
+      movie: [],
+      tv: [],
+    }),
+    [update, setUpdate] = useState<ApplicationUpdate | null>(null),
+    [engineUpdates, setEngineUpdates] = useState<EngineUpdateCatalog | null>(
+      null,
+    ),
+    [masterKey, setMasterKey] = useState<MasterKeyStatus | null>(null),
+    [validation, setValidation] = useState<ValidationReport | null>(null),
+    [performance, setPerformance] = useState<PerformanceReport | null>(null);
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      if (view === "status") {
+        const values = await Promise.all(
+          domains.map(async (domain) => ({
+            domain,
+            value: await options.request<{ result: DiskSpace[] }>(
+              `/api/manage/${domain}/diskSpace`,
+            ),
+          })),
+        );
+        setDisks(
+          Object.fromEntries(
+            values.map((item) => [item.domain, item.value.result]),
+          ) as Record<SystemDomain, DiskSpace[]>,
+        );
+      } else if (view === "performance")
+        setPerformance(
+          await options.request<PerformanceReport>("/api/system/performance"),
+        );
+      else if (view === "validation")
+        setValidation(
+          await options.request<ValidationReport>("/api/system/validation"),
+        );
+      else if (view === "updates") {
+        setUpdate(
+          await options.request<ApplicationUpdate>(
+            "/api/system/application-update",
+          ),
+        );
+        setEngineUpdates(
+          await options
+            .request<EngineUpdateCatalog>("/api/system/engine-updates")
+            .catch(() => null),
+        );
+      } else if (view === "security")
+        setMasterKey(
+          await options.request<MasterKeyStatus>("/api/system/master-key"),
+        );
+      else if (view === "audit")
+        setAuditEntries(
+          (await options.request<{ items: AuditEntry[] }>("/api/manage/audit"))
+            .items || [],
+        );
+      else {
+        const values = await Promise.all(
+          domains.map(async (domain) => ({
+            domain,
+            value: await options.request<{
+              result: SystemRecord[] | { records: SystemRecord[] };
+            }>(
+              `/api/manage/${domain}/${view}?page=1&pageSize=200&sortKey=time&sortDirection=descending`,
+            ),
+          })),
+        );
+        setRecords(
+          values.flatMap(({ domain, value }) =>
+            (Array.isArray(value.result)
+              ? value.result
+              : value.result?.records || []
+            ).map((item) => ({ ...item, domain })),
+          ),
+        );
+      }
+      setError("");
+    } catch (reason) {
+      setError(errorText(reason));
+    } finally {
+      setLoading(false);
+    }
+  }, [options, view]);
+  useEffect(() => {
+    void load();
+  }, [load]);
+  async function sync() {
+    try {
+      await options.request("/api/system/sync", { method: "POST" });
+      options.notify("Synchronization completed.");
+      setView("status");
+      await load();
+    } catch (reason) {
+      options.notify(errorText(reason), "error");
+    }
+  }
+  async function run(item: SystemRecord) {
+    try {
+      await options.request(`/api/manage/${item.domain}/commands`, {
+        method: "POST",
+        body: JSON.stringify({ name: item.taskName }),
+      });
+      options.notify(`${label(item.domain)} task queued.`);
+    } catch (reason) {
+      options.notify(errorText(reason), "error");
+    }
+  }
+  return (
+    <div className="react-system">
+      <div className="hero">
+        <div>
+          <span className="eyebrow">SYSTEM</span>
+          <h1>System</h1>
+          <p className="lede">
+            Storage, validation, performance, scheduled tasks, backups, updates, security,
+            engine events, and administrator activity.
+          </p>
+        </div>
+        <button
+          className="primary"
+          disabled={loading}
+          onClick={() => (view === "validation" || view === "performance" ? void load() : void sync())}
+          title={view === "validation" ? "Check the installation without changing settings" : view === "performance" ? "Reload current performance diagnostics" : "Refresh local catalogs and operational status from both media engines"}
+        >
+          {view === "validation" ? "Run validation" : view === "performance" ? "Refresh diagnostics" : "Refresh system data"}
+        </button>
+      </div>
+      <div className="settings-tabs system-tabs">
+        {(
+          [
+            "status",
+            "performance",
+            "validation",
+            "tasks",
+            "backups",
+            "updates",
+            "security",
+            "events",
+            "audit",
+          ] as SystemView[]
+        ).map((item) => (
+          <button
+            className={view === item ? "wanted-tab active" : "wanted-tab"}
+            onClick={() => setView(item)}
+            key={item}
+          >
+            {item}
+          </button>
+        ))}
+      </div>
+      {loading ? (
+        <div className="panel skeleton">Loading system information…</div>
+      ) : error ? (
+        <div className="panel error-state">
+          <h2>System information unavailable</h2>
+          <p>{error}</p>
+          <button className="secondary" onClick={() => void load()}>
+            Try again
+          </button>
+        </div>
+      ) : view === "status" ? (
+        <Status disks={disks} />
+      ) : view === "performance" && performance ? (
+        <Suspense fallback={<div className="panel skeleton">Loading performance diagnostics…</div>}><SystemPerformancePanel report={performance} options={options} reload={() => void load()} /></Suspense>
+      ) : view === "validation" && validation ? (
+        <Validation
+          report={validation}
+          options={options}
+          reload={() => void load()}
+        />
+      ) : view === "tasks" ? (
+        <Tasks items={records} run={(item) => void run(item)} />
+      ) : view === "backups" ? (
+        <Backups items={records} options={options} reload={() => void load()} />
+      ) : view === "events" ? (
+        <Events items={records} />
+      ) : view === "audit" ? (
+        <AuditLog items={auditEntries} />
+      ) : view === "security" && masterKey ? (
+        <Security
+          status={masterKey}
+          options={options}
+          reload={() => void load()}
+        />
+      ) : update ? (
+        <Updates
+          application={update}
+          catalog={engineUpdates}
+          options={options}
+        />
+      ) : null}
+    </div>
+  );
 }

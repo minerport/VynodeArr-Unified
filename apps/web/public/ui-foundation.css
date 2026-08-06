@@ -871,12 +871,38 @@ input[type="range"] {
   -webkit-backdrop-filter: blur(10px) saturate(1.05);
   backdrop-filter: blur(10px) saturate(1.05);
 }
+.service-settings-picker { display: none; }
 
 .nav-scrim {
   display: none;
 }
 
 @media (max-width: 760px) {
+  .service-settings-tabs {
+    display: block;
+    padding: .55rem;
+  }
+
+  .service-settings-tabs > a {
+    display: none !important;
+  }
+
+  .service-settings-tabs::after {
+    display: none;
+  }
+
+  .service-settings-picker {
+    display: grid;
+    gap: .35rem;
+    color: var(--muted);
+    font-size: .8rem;
+    font-weight: 700;
+  }
+
+  .service-settings-picker select {
+    width: 100%;
+    min-height: 44px;
+  }
   :root {
     --ui-control-height: 44px;
     --ui-control-height-compact: 44px;

@@ -1,5 +1,6 @@
 import {useCallback,useEffect,useRef,useState} from 'react';
 import type {ImportJob,ImportMonitorOptions} from './import-monitor-types';
+import {useVisibleRefresh} from './use-visible-refresh';
 
 const storageKey='vynodearr.dismissedImportJobs';
 const finished=(status:ImportJob['status'])=>status==='completed'||status==='failed'||status==='canceled';
@@ -24,7 +25,7 @@ export function ImportMonitor({options}:{options:ImportMonitorOptions}){
       }
     }catch{/* The global monitor stays quiet while the app reconnects. */}
   },[options]);
-  useEffect(()=>{void load();const timer=window.setInterval(()=>void load(),2000);return()=>window.clearInterval(timer);},[load]);
+  useVisibleRefresh(load,2000);
   const dismiss=(id:string)=>setDismissed(current=>{const next=new Set(current);next.add(id);localStorage.setItem(storageKey,JSON.stringify([...next].slice(-200)));return next;});
   const cancel=async(id:string)=>{
     try{await options.request(`/api/import-jobs/${id}`,{method:'DELETE'});await load();}

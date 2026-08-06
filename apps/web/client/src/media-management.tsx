@@ -1,6 +1,7 @@
 import {useCallback,useEffect,useMemo,useState} from 'react';
 import type {MediaManagementDomain,MediaManagementMountOptions,MediaSettingField,MediaSettings,NamingAuditJob} from './media-management-types';
 import {ServiceTabs} from './service-tabs';
+import {useVisibleRefresh} from './use-visible-refresh';
 
 const choices:Record<string,Array<[string|number,string]>>={
   colonReplacementFormat:[['delete','Delete'],['dash','Dash'],['spaceDash','Space + dash'],['spaceDashSpace','Space + dash + space'],['smart','Smart replacement']],
@@ -39,7 +40,7 @@ export function MediaManagementView({options}:{options:MediaManagementMountOptio
   const [domain,setDomain]=useState<MediaManagementDomain>('movie'),[naming,setNaming]=useState<MediaSettings>({}),[management,setManagement]=useState<MediaSettings>({}),[loading,setLoading]=useState(true),[busy,setBusy]=useState(''),[error,setError]=useState(''),[audit,setAudit]=useState<NamingAuditJob|null>(null),[auditFilter,setAuditFilter]=useState<'all'|'folder'|'file'>('all'),[auditSelected,setAuditSelected]=useState<Set<number>>(()=>new Set()),[auditStatus,setAuditStatus]=useState<Record<number,{tone:'queued'|'failed';message:string}>>({});
   const load=useCallback(async()=>{setLoading(true);setError('');try{const [nameValue,managementValue]=await Promise.all([options.request<{result:MediaSettings}>(`/api/manage/${domain}/naming`),options.request<{result:MediaSettings}>(`/api/manage/${domain}/mediaManagement`)]);setNaming(nameValue.result||{});setManagement(managementValue.result||{});}catch(reason){setError(errorText(reason));}finally{setLoading(false);}},[domain,options]);
   useEffect(()=>{void load();},[load]);
-  useEffect(()=>{if(audit?.status!=='running')return;const timer=window.setInterval(()=>{void options.request<{job:NamingAuditJob}>(`/api/media-files/naming-audit/${audit.id}`).then(value=>setAudit(value.job)).catch(reason=>{window.clearInterval(timer);options.notify(errorText(reason),'error');});},1200);return()=>window.clearInterval(timer);},[audit?.id,audit?.status,options]);
+  useVisibleRefresh(async()=>{if(audit?.status!=='running')return;try{const value=await options.request<{job:NamingAuditJob}>(`/api/media-files/naming-audit/${audit.id}`);setAudit(value.job);}catch(reason){options.notify(errorText(reason),'error');}},audit?.status==='running'?1200:null,{immediate:false});
   const save=async(resource:'naming'|'mediaManagement',value:MediaSettings)=>{setBusy(resource);try{await options.request(`/api/manage/${domain}/${resource}`,{method:'PUT',body:JSON.stringify(value)});options.notify(`${domain==='movie'?'Movie':'Television'} media management saved.`);await load();}catch(reason){options.notify(errorText(reason),'error');}finally{setBusy('');}};
   const startAudit=async()=>{setBusy('audit');setAudit(null);setAuditSelected(new Set());setAuditStatus({});try{const value=await options.request<{job:NamingAuditJob}>('/api/media-files/naming-audit',{method:'POST',body:JSON.stringify({domain})});setAudit(value.job);}catch(reason){options.notify(errorText(reason),'error');}finally{setBusy('');}};
   const shownAuditResults=useMemo(()=>audit?.results.filter(result=>auditFilter==='all'||auditFilter==='folder'&&result.folderChange||auditFilter==='file'&&result.files.length>0)||[],[audit,auditFilter]);

@@ -1,0 +1,8 @@
+.performance-summary{grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:1rem}
+.performance-summary .panel{min-width:0}
+.performance-summary h2{margin:.45rem 0}
+.performance-controls{margin-bottom:1rem}
+.performance-field-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.8rem}
+.performance-field-grid label{display:grid;gap:.45rem;min-width:0}
+.performance-field-grid input{width:100%;min-width:0}
+@media(max-width:900px){.performance-summary,.performance-field-grid{grid-template-columns:1fr}.performance-controls .panel-heading{align-items:stretch;flex-direction:column}}

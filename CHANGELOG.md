@@ -7,33 +7,195 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-## [2.0.34] - 2026-08-04
-
-### Added
-
-- Added the Engine Update Center with upstream release review, compatibility
-  validation, backup requirements, candidate builds, and issue-draft support.
-- Added the Library Action Center and unified Automation Timeline across
-  requests, searches, downloads, imports, notifications, audits, validation,
-  and Plex artwork operations.
-- Added reversible Plex poster-overlay application with exact previews,
-  external-ID matching, rollback artwork, and multi-library title selection.
-
-### Changed
-
-- Made engine activity, search history, bell history, and external
-  notifications reconcile in the background without requiring an open browser.
-- Improved Poster Overlay Studio and Action Center layouts across desktop and
-  mobile, including bounded controls, readable cards, and responsive filters.
+## [2.0.35-rc.8] - 2026-08-06
 
 ### Fixed
 
-- Bounded artwork, metadata, request, authentication, session, queue, and
-  completion caches to prevent long-running resource growth.
-- Prevented historical notifications from replaying after upgrades while
-  continuing to deliver genuinely new external notifications.
-- Canceled abandoned Radarr and Sonarr compatibility responses immediately
-  when their callers disconnect, without canceling submitted background work.
+- Kept television match-correction failures inside the title details dialog,
+  where duplicate TMDB or TVDB conflicts remain visible beside the match
+  choices instead of appearing only as a transient global notification.
+- Standardized movie and television match-correction error handling while
+  retaining the existing duplicate-library protection and current media files.
+
+### Validation
+
+- Passed the match-correction regression test, TypeScript checks, and the
+  production web build.
+
+## [2.0.35-rc.7] - 2026-08-06
+
+### Changed
+
+- Made Dashboard, Queue, requests, notifications, import monitoring, Wanted,
+  media-management jobs, and Action Center refresh only while the app is
+  visible, with an immediate catch-up when users return.
+- Grouped Service Settings into Library, Quality & automation, Connections,
+  and Application sections while retaining every existing settings route.
+- Clarified the difference between actionable Action Center records and the
+  durable, read-only Automation Timeline, including dismissal and refresh
+  behavior.
+- Renamed ambiguous refresh actions so users can distinguish catalog reads,
+  system-data refreshes, validation runs, and engine-changing operations.
+
+### Fixed
+
+- Prevented polling refreshes and settings-tab activation from shifting or
+  rebuilding the visible page, reducing desktop twitch and unnecessary engine
+  and browser work.
+- Standardized application dialogs with focus containment, Escape handling,
+  background scroll locking, and restoration of focus to the opening control.
+- Preserved stable page widths across desktop and mobile scrollbar changes and
+  prevented route content from widening the viewport.
+- Kept poster-overlay editor columns adaptive and independently usable without
+  removing any layer, condition, formatting, preview, or application control.
+- Corrected the History loading message and improved responsive notification
+  and operations navigation.
+
+### Validation
+
+- Passed all 194 automated tests, TypeScript checks, production builds, bundle
+  limits, branding checks, and deployment validation.
+- Authenticated desktop and phone-width reviews found no horizontal overflow
+  or browser runtime warnings across the primary library, activity, system,
+  and service-settings routes.
+
+## [2.0.35-rc.6] - 2026-08-05
+
+### Added
+
+- Added per-engine circuit breakers with automatic cooldown probes and visible
+  state in System Performance, preventing an unavailable engine from being
+  called continuously.
+- Added serialized, prioritized, and deduplicated catalog synchronization
+  queues so targeted title updates run ahead of queued full reconciliations.
+- Added catalog integrity diagnostics for SQLite health, invalid records,
+  duplicate external IDs, synchronization age, and persisted title counts.
+- Added administrator recovery controls to retry failed event work or rebuild
+  a Movie or Television catalog without discarding the last usable catalog
+  unless a complete replacement response succeeds.
+
+### Fixed
+
+- Kept long notification and release titles inside the mobile notification
+  panel and separated individual Mark read controls from notification text.
+- Added persistent selected and pressed feedback to the Action Center and
+  Automation Timeline controls on desktop and touch devices.
+
+## [2.0.35-rc.5] - 2026-08-05
+
+### Fixed
+
+- Restored persisted SQLite catalog synchronization timestamps after restart
+  so Validation and the Action Center recognize usable synchronized libraries.
+- Kept Movie and Television refresh responses usable when live attention
+  totals fail, falling back to catalog-derived totals instead of returning
+  `Load failed`.
+- Marked failed live reconciliations stale when a durable catalog exists and
+  clearly tell administrators that the local library remains available.
+
+## [2.0.35-rc.4] - 2026-08-05
+
+### Added
+
+- Added administrator performance counters for catalog activity and engine
+  requests, plus visible per-title freshness and guarded targeted refreshes on
+  Movie and Television detail pages.
+
+### Changed
+
+- Engine API traffic is now bounded per engine, with duplicate queue,
+  history, notification, and request-status reads sharing short-lived
+  snapshots instead of opening competing requests.
+- Filesystem reconciliation now waits for a quiet period and observes a
+  cooldown so large import bursts become one controlled catalog update.
+- Television catalog synchronization now derives attention totals from series
+  statistics instead of requesting an unbounded missing-episode result set.
+
+### Fixed
+
+- Reduced SQLite lock contention and Kestrel thread-pool starvation during
+  large-library synchronization by serializing catalog operations, limiting
+  engine concurrency, and lowering operational history pressure.
+- Kept detail-page refreshes mounted on the selected title while their targeted
+  catalog reconciliation completes.
+
+## [2.0.35-rc.3] - 2026-08-05
+
+### Added
+
+- Added a WAL-backed SQLite library catalog with indexed server-side search,
+  filters, sorting, progressive pages, alphabet offsets, and direct detail
+  lookup while keeping the media engines authoritative.
+- Added a durable, deduplicated engine-event queue and managed Radarr/Sonarr
+  webhooks for targeted add, update, import, rename, and removal reconciliation.
+- Added administrator Performance diagnostics for process memory, catalog and
+  event health, artwork queues, expensive API routes, and live resource limits.
+
+### Changed
+
+- Existing projected library data migrates automatically into SQLite, remains
+  available during engine outages, and is included in encrypted application
+  backup and restore workflows.
+- Artwork downloads and disk writes are concurrency-limited, indexed on disk,
+  reused across restarts, and invalidated only when the affected title changes.
+- Full engine reconciliation is now a configurable integrity backstop; normal
+  browsing, searching, sorting, filtering, details, and live updates read the
+  local catalog without rescanning an entire engine library.
+
+### Fixed
+
+- Prevented notification activity refreshes from restarting after every
+  response and creating a high-frequency API request loop.
+
+## [2.0.35-rc.2] - 2026-08-04
+
+### Changed
+
+- Movie and Television detail pages now request only the selected title's
+  records and reuse a short-lived, deduplicated detail cache instead of loading
+  global queue, wanted, or cutoff data.
+- Library poster grids now load progressively in 60-title batches while keeping
+  automatic loading, manual loading, filtering, sorting, and alphabet jumps.
+- Normal and composed overlay posters now share one bounded artwork path with a
+  persistent, size-limited disk cache across application restarts.
+
+### Fixed
+
+- Stopped poster hover and keyboard focus from issuing live engine detail
+  requests before a user actually opens a title.
+- Prevented passive Television library rendering from making per-series file
+  and episode metadata requests for existing overlay assignments.
+- Prevented overlay-heavy libraries from bypassing the artwork cache and
+  repeatedly downloading original posters from the movie or television engine.
+- Cached projected detail fallbacks briefly during engine interruptions so
+  repeated navigation cannot create an immediate retry storm.
+
+## [2.0.35-rc.1] - 2026-08-04
+
+### Added
+
+- Added durable projected Movie and Television catalogs so library pages load
+  the last verified engine state immediately instead of requesting the entire
+  engine library on every visit.
+- Added targeted reconciliation after adds, edits, imports, refreshes, renames,
+  and removals, plus filesystem monitoring and a six-hour integrity sweep for
+  changes made outside VynodeArr.
+- Added an administrator-only **Sync now** recovery action and visible library
+  freshness information on Movie and Television pages.
+
+### Changed
+
+- Queue enrichment now joins against the projected catalog instead of loading
+  both complete engine libraries during frequent queue polling.
+- Library update events now add, replace, or remove only affected titles and
+  request a full client refresh only after a successful integrity reconciliation.
+
+### Fixed
+
+- Preserved the last good projected catalog when an engine is temporarily
+  unavailable during filesystem or scheduled reconciliation.
+- Serialized targeted and full reconciliation so an older full snapshot cannot
+  overwrite a newer item-level update.
 
 ## [2.0.34-rc.19] - 2026-08-04
 
@@ -1246,7 +1408,9 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.34-rc.6...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.8...HEAD
+[2.0.35-rc.8]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.7...v2.0.35-rc.8
+[2.0.35-rc.7]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.6...v2.0.35-rc.7
 [2.0.34-rc.6]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.34-rc.5...v2.0.34-rc.6
 [2.0.34-rc.5]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.34-rc.4...v2.0.34-rc.5
 [2.0.34-rc.4]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.34-rc.3...v2.0.34-rc.4

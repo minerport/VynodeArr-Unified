@@ -1,6 +1,7 @@
-import { useEffect,useState } from 'react';
+import { useCallback,useState } from 'react';
 import { DashboardAnalyticsView } from './dashboard-analytics';
 import type { DashboardData,DashboardMountOptions,RecentActivityItem,RecentlyAddedItem } from './dashboard-types';
+import {useVisibleRefresh} from './use-visible-refresh';
 
 const dashboardSnapshotKey='vynodearr.dashboardSnapshot';
 
@@ -15,23 +16,17 @@ export function DashboardRoute({options}:{options:DashboardMountOptions}){
   const [data,setData]=useState<DashboardData|null>(()=>readSnapshot());
   const [error,setError]=useState('');
 
-  useEffect(()=>{
-    let active=true;
-    const load=async()=>{
-      try{
-        const value=await options.request<DashboardData>('/api/dashboard');
-        if(!active)return;
-        sessionStorage.setItem(dashboardSnapshotKey,JSON.stringify(value));
-        setData(value);
-        setError('');
-      }catch(reason){
-        if(active)setError(reason instanceof Error?reason.message:'Dashboard data is unavailable.');
-      }
-    };
-    void load();
-    const timer=window.setInterval(()=>{if(!document.hidden)void load();},15_000);
-    return()=>{active=false;window.clearInterval(timer);};
+  const load=useCallback(async()=>{
+    try{
+      const value=await options.request<DashboardData>('/api/dashboard');
+      sessionStorage.setItem(dashboardSnapshotKey,JSON.stringify(value));
+      setData(value);
+      setError('');
+    }catch(reason){
+      setError(reason instanceof Error?reason.message:'Dashboard data is unavailable.');
+    }
   },[options]);
+  useVisibleRefresh(load,15_000);
 
   if(!data&&!error)return <div className="panel skeleton react-route-loading">Loading dashboard…</div>;
   if(!data)return <div className="empty error-state"><h2>Dashboard unavailable</h2><p>{error}</p></div>;
