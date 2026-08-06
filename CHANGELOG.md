@@ -7,6 +7,21 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.35-rc.8] - 2026-08-06
+
+### Fixed
+
+- Kept television match-correction failures inside the title details dialog,
+  where duplicate TMDB or TVDB conflicts remain visible beside the match
+  choices instead of appearing only as a transient global notification.
+- Standardized movie and television match-correction error handling while
+  retaining the existing duplicate-library protection and current media files.
+
+### Validation
+
+- Passed the match-correction regression test, TypeScript checks, and the
+  production web build.
+
 ## [2.0.35-rc.7] - 2026-08-06
 
 ### Changed
@@ -1393,7 +1408,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.7...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.8...HEAD
+[2.0.35-rc.8]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.7...v2.0.35-rc.8
 [2.0.35-rc.7]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.6...v2.0.35-rc.7
 [2.0.34-rc.6]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.34-rc.5...v2.0.34-rc.6
 [2.0.34-rc.5]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.34-rc.4...v2.0.34-rc.5

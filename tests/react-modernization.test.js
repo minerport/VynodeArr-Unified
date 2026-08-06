@@ -198,6 +198,7 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.doesNotMatch(calendar,/\/api\/manage\/(?:movie|tv)\/calendar/);
   assert.match(movieDetail,/Automatic search/);
   assert.match(movieDetail,/MatchBrowser/);
+  assert.doesNotMatch(movieDetail.match(/const applyMatch=[\s\S]*?if\(loading\)/)?.[0]||'',/catch\(reason\)\{options\.notify/);
   assert.match(movieDetail,/ReleaseBrowser/);
   assert.match(movieDetail,/RenamePreview/);
   assert.match(movieDetail,/is-working/);
@@ -208,6 +209,7 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(movieDetail,/saved\.result\?\.monitored\?\?next/);
   assert.match(tvDetail,/interactive\(`seriesId=\$\{engineId\}`/);
   assert.match(tvDetail,/MatchBrowser/);
+  assert.doesNotMatch(tvDetail.match(/const applyMatch=[\s\S]*?if\(loading\)/)?.[0]||'',/catch\(reason\)\{options\.notify/);
   assert.match(tvDetail,/seasonNumber=\$\{season\.seasonNumber\}/);
   assert.match(tvDetail,/RenamePreview/);
   const renamePreview=await read('apps/web/client/src/rename-preview.tsx');
