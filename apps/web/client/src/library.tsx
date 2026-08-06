@@ -321,6 +321,11 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
       missing: number;
       cutoff: number;
     } | null>(null),
+    [summary, setSummary] = useState<{
+      total: number;
+      monitored: number;
+      covered: number;
+    } | null>(null),
     [filter, setFilter] = useState(saved.filter || "all"),
     [sort, setSort] = useState<LibrarySort>(initialSort),
     [direction, setDirection] = useState<SortDirection>(
@@ -376,6 +381,7 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
             letters?: Record<string, { offset: number; count: number }>;
           };
           attention?: { missing: number; cutoff: number };
+          summary?: { total: number; monitored: number; covered: number };
           mode?: string;
           sync?: { lastSuccess?: string | null };
         }>(`${movie ? "/api/media/movies" : "/api/media/tv"}?${parameters}`);
@@ -396,6 +402,7 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
           lastLoadedAt = Date.now();
         }
         if (active && value.attention) setAttention(value.attention);
+        if (active && value.summary) setSummary(value.summary);
         if (active && value.sync?.lastSuccess)
           setLastSyncedAt(value.sync.lastSuccess);
         if (active) setLoadError("");
@@ -428,10 +435,12 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
           removedIds?: string[];
           replaceAll?: boolean;
           attention?: { missing: number; cutoff: number };
+          summary?: { total: number; monitored: number; covered: number };
           updatedAt?: string;
         };
         if (update.domain !== (movie ? "movie" : "tv")) return;
         if (update.attention) setAttention(update.attention);
+        if (update.summary) setSummary(update.summary);
         if (update.updatedAt) setLastSyncedAt(update.updatedAt);
         if (update.replaceAll) {
           void refresh();
@@ -724,11 +733,14 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
     ),
     missing = attention?.missing ?? derivedMissing,
     cutoff = attention?.cutoff ?? derivedCutoff,
+    libraryTotal = summary?.total ?? total,
+    monitoredTotal = summary?.monitored ?? monitored.length,
     coverage = Math.round(
-      (items.filter((item) =>
-        movie ? item.hasFile : Number(item.missingEpisodes || 0) === 0,
-      ).length /
-        Math.max(items.length, 1)) *
+      ((summary?.covered ??
+        items.filter((item) =>
+          movie ? item.hasFile : Number(item.missingEpisodes || 0) === 0,
+        ).length) /
+        Math.max(libraryTotal, 1)) *
         100,
     );
   async function monitor(item: LibraryItem) {
@@ -803,6 +815,7 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
       const value = await request<{
         items?: LibraryItem[];
         attention?: { missing: number; cutoff: number };
+        summary?: { total: number; monitored: number; covered: number };
         mode?: string;
         sync?: {
           status?: string;
@@ -815,6 +828,7 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
         options.onLoaded?.(value.items, value.mode);
       }
       if (value.attention) setAttention(value.attention);
+      if (value.summary) setSummary(value.summary);
       if (value.sync?.lastSuccess) setLastSyncedAt(value.sync.lastSuccess);
       if (value.sync?.status === "stale") {
         const message = value.sync.safeError || "The media engine refresh is delayed.";
@@ -903,11 +917,11 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
       ) : null}
       <div className="summary">
         <div>
-          <strong>{items.length}</strong>
+          <strong>{libraryTotal}</strong>
           <span>Titles</span>
         </div>
         <div>
-          <strong>{monitored.length}</strong>
+          <strong>{monitoredTotal}</strong>
           <span>Monitored</span>
         </div>
         <div>

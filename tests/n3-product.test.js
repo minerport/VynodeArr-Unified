@@ -151,7 +151,7 @@ test('repeated library page reads use the projection until an administrator requ
   let fullReads=0;const movie=new MovieFixtureAdapter(),original=movie.listMovies.bind(movie);movie.listMovies=async(...args)=>{fullReads+=1;return original(...args);};movie.getAttentionSummary=async()=>{const error=new Error('Engine attention unavailable');error.safeMessage='Load failed';throw error;};
   return appSession({movie,tv:new TvFixtureAdapter()},async({base,cookie})=>{
     await fetch(`${base}/api/media/movies`,{headers:{cookie}});await fetch(`${base}/api/media/movies`,{headers:{cookie}});assert.equal(fullReads,1);
-    const refreshed=await fetch(`${base}/api/media/movies?refresh=true`,{headers:{cookie}}),value=await refreshed.json();assert.equal(refreshed.status,200);assert.equal(value.items.length,3);assert.deepEqual(value.attention,{missing:1,cutoff:1});assert.equal(fullReads,2);
+    const refreshed=await fetch(`${base}/api/media/movies?refresh=true`,{headers:{cookie}}),value=await refreshed.json();assert.equal(refreshed.status,200);assert.equal(value.items.length,3);assert.deepEqual(value.attention,{missing:1,cutoff:1});assert.deepEqual(value.summary,{total:3,monitored:3,covered:2});assert.equal(fullReads,2);
   });
 });
 test('poster overlays are opt-in, administrator-managed, and safely rendered',()=>appSession({

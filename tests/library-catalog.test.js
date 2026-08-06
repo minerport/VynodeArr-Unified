@@ -11,6 +11,7 @@ test('SQLite library catalog imports projections and supports indexed paging, re
   const store=new LibraryCatalogStore(database,{legacyPath:legacy});
   try{
     await store.initialize();assert.equal(await store.countDomain('movie'),2);
+    assert.deepEqual(await store.librarySummary('movie'),{total:2,monitored:2,covered:1});
     assert.deepEqual(await store.integrityCheck(),{ok:true,result:'ok'});
     assert.deepEqual(await store.domainIntegrity('movie'),{count:2,invalidPayloads:0,duplicateExternalIds:0,ok:true});
     await store.replaceDomain('movie',await store.domain('movie'));const synchronization=await store.synchronizationState('movie');assert.ok(synchronization.lastSuccess);assert.equal(synchronization.itemCount,2);

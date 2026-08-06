@@ -1511,10 +1511,12 @@ export function createApplication(options = {}) {
               typeof projectionStore.attentionSummary === "function"
                 ? await projectionStore.attentionSummary(event.domain)
                 : null;
+            const summary = await librarySummary(event.domain, []);
             broadcastLibraryEvent({
               domain: event.domain,
               items: item ? [item] : [],
               attention: attention,
+              summary: summary,
               updatedAt: new Date().toISOString(),
             });
           },
@@ -3208,6 +3210,18 @@ export function createApplication(options = {}) {
       return attention;
     }
   }
+  async function librarySummary(domain, items) {
+    if (typeof projectionStore.librarySummary === "function")
+      return projectionStore.librarySummary(domain);
+    const records = Array.isArray(items) ? items : [],
+      monitored = records.filter((item) => item.monitoring !== "none").length,
+      covered = records.filter((item) =>
+        domain === "movie"
+          ? Boolean(item.hasFile)
+          : Number(item.missingEpisodes || 0) === 0,
+      ).length;
+    return { total: records.length, monitored, covered };
+  }
   sync.onFullSync?.(({ domain: domain, updatedAt: updatedAt }) => {
     dashboardSnapshot = null;
     dashboardSnapshotExpires = 0;
@@ -3241,10 +3255,14 @@ export function createApplication(options = {}) {
     };
   }
   async function broadcastAuthoritativeAttention(domain) {
-    const attention = await authoritativeAttention(domain);
+    const [attention, summary] = await Promise.all([
+      authoritativeAttention(domain),
+      librarySummary(domain, []),
+    ]);
     broadcastLibraryEvent({
       domain: domain,
       attention: attention,
+      summary: summary,
       updatedAt: new Date().toISOString(),
     });
     return attention;
@@ -12631,10 +12649,12 @@ export function createApplication(options = {}) {
               : typeof projectionStore.attentionSummary === "function"
                 ? await projectionStore.attentionSummary("movie")
                 : cachedAttention("movie", rawItems),
+            summary = await librarySummary("movie", rawItems),
             items = await decoratePosterArtwork("movie", rawItems, session);
           return json(res, 200, {
             items: items,
             attention: attention,
+            summary: summary,
             mode: mode,
             sync: sync.snapshot().movie,
             ...(page
@@ -12697,10 +12717,12 @@ export function createApplication(options = {}) {
               : typeof projectionStore.attentionSummary === "function"
                 ? await projectionStore.attentionSummary("tv")
                 : cachedAttention("tv", rawItems),
+            summary = await librarySummary("tv", rawItems),
             items = await decoratePosterArtwork("tv", rawItems, session);
           return json(res, 200, {
             items: items,
             attention: attention,
+            summary: summary,
             mode: mode,
             sync: sync.snapshot().tv,
             ...(page
