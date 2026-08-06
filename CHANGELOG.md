@@ -7,6 +7,43 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.35-rc.7] - 2026-08-06
+
+### Changed
+
+- Made Dashboard, Queue, requests, notifications, import monitoring, Wanted,
+  media-management jobs, and Action Center refresh only while the app is
+  visible, with an immediate catch-up when users return.
+- Grouped Service Settings into Library, Quality & automation, Connections,
+  and Application sections while retaining every existing settings route.
+- Clarified the difference between actionable Action Center records and the
+  durable, read-only Automation Timeline, including dismissal and refresh
+  behavior.
+- Renamed ambiguous refresh actions so users can distinguish catalog reads,
+  system-data refreshes, validation runs, and engine-changing operations.
+
+### Fixed
+
+- Prevented polling refreshes and settings-tab activation from shifting or
+  rebuilding the visible page, reducing desktop twitch and unnecessary engine
+  and browser work.
+- Standardized application dialogs with focus containment, Escape handling,
+  background scroll locking, and restoration of focus to the opening control.
+- Preserved stable page widths across desktop and mobile scrollbar changes and
+  prevented route content from widening the viewport.
+- Kept poster-overlay editor columns adaptive and independently usable without
+  removing any layer, condition, formatting, preview, or application control.
+- Corrected the History loading message and improved responsive notification
+  and operations navigation.
+
+### Validation
+
+- Passed all 194 automated tests, TypeScript checks, production builds, bundle
+  limits, branding checks, and deployment validation.
+- Authenticated desktop and phone-width reviews found no horizontal overflow
+  or browser runtime warnings across the primary library, activity, system,
+  and service-settings routes.
+
 ## [2.0.35-rc.6] - 2026-08-05
 
 ### Added
@@ -1356,7 +1393,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.34-rc.6...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.7...HEAD
+[2.0.35-rc.7]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.6...v2.0.35-rc.7
 [2.0.34-rc.6]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.34-rc.5...v2.0.34-rc.6
 [2.0.34-rc.5]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.34-rc.4...v2.0.34-rc.5
 [2.0.34-rc.4]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.34-rc.3...v2.0.34-rc.4

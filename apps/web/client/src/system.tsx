@@ -1589,8 +1589,9 @@ export function SystemView({ options }: { options: SystemMountOptions }) {
           className="primary"
           disabled={loading}
           onClick={() => (view === "validation" || view === "performance" ? void load() : void sync())}
+          title={view === "validation" ? "Check the installation without changing settings" : view === "performance" ? "Reload current performance diagnostics" : "Refresh local catalogs and operational status from both media engines"}
         >
-          {view === "validation" ? "Run validation" : view === "performance" ? "Refresh diagnostics" : "Synchronize now"}
+          {view === "validation" ? "Run validation" : view === "performance" ? "Refresh diagnostics" : "Refresh system data"}
         </button>
       </div>
       <div className="settings-tabs system-tabs">

@@ -187,9 +187,9 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(queue,/TV engine/);
   assert.match(queue,/item\.domain==='movie'/);
   assert.match(queue,/\/api\/activity\/queue\/live/);
-  assert.match(queue,/setInterval/);
+  assert.match(queue,/useVisibleRefresh\(\(\)=>load\(true\),5000,\{immediate:false\}\)/);
   assert.match(queue,/requestSequence/);
-  assert.match(queue,/visibilitychange/);
+  assert.match(queue,/startupRetries/);
   assert.match(wanted,/Search all missing/);
   assert.match(wanted,/Interactive search/);
   assert.match(wanted,/SeriesSearch/);
@@ -345,8 +345,9 @@ test('Discover progressively loads and owns title details and requests through a
 });
 
 test('global import progress uses a typed React monitor with the legacy path retained as fallback',async()=>{
-  const [monitor,types,controller,poller,fallbackView,islands,legacy]=await Promise.all([
+  const [monitor,visibleRefresh,types,controller,poller,fallbackView,islands,legacy]=await Promise.all([
     read('apps/web/client/src/import-monitor.tsx'),
+    read('apps/web/client/src/use-visible-refresh.ts'),
     read('apps/web/client/src/import-monitor-types.ts'),
     read('apps/web/client/src/background-import.ts'),
     read('apps/web/client/src/import-monitor-controller.ts'),
@@ -355,7 +356,9 @@ test('global import progress uses a typed React monitor with the legacy path ret
     read('apps/web/client/src/app-shell.ts')
   ]);
   assert.match(monitor,/export function ImportMonitor/);
-  assert.match(monitor,/window\.setInterval/);
+  assert.match(monitor,/useVisibleRefresh\(load,2000\)/);
+  assert.match(visibleRefresh,/document\.visibilityState === "visible"/);
+  assert.match(visibleRefresh,/window\.setInterval/);
   assert.match(monitor,/\/api\/import-jobs/);
   assert.match(monitor,/Canceling…/);
   assert.match(types,/interface ImportMonitorOptions/);
@@ -439,6 +442,7 @@ test('storage folders and import review use a typed React route and analysis bou
   assert.match(view,/Download and library paths match/);
   assert.match(view,/setScanRoot\(root\)/);
   assert.match(view,/LibraryImportReview/);
+  assert.match(view,/ModalPortal/);
   assert.match(types,/interface RootFoldersMountOptions/);
   assert.match(types,/startImport:/);
   assert.match(islands,/mountRootFolders/);
@@ -518,6 +522,12 @@ test('React service settings routes share one complete navigation component',asy
   ]);
   for(const href of ['#service/root-folders','#service/library-health','#service/media-management','#service/profiles','#service/custom-formats','#service/guide-templates','#service/release-profiles','#service/indexers','#service/download-clients','#service/import-lists','#service/discover','#management']){
     assert.match(tabs,new RegExp(href.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
+  }
+  assert.doesNotMatch(tabs,/scrollIntoView/);
+  assert.match(tabs,/parent\.scrollTo\(\{left:Math\.max\(0,centered\),behavior:"auto"\}\)/);
+  for(const route of [routes[0],routes[4]]){
+    assert.match(route,/ModalPortal/);
+    assert.doesNotMatch(route,/createPortal/);
   }
   for(const route of routes){
     assert.match(route,/ServiceTabs/);
@@ -741,8 +751,7 @@ test('dashboard loading, caching, and refresh ownership live in typed React',asy
   assert.match(dashboard,/export function DashboardRoute/);
   assert.match(dashboard,/options\.request<DashboardData>\('\/api\/dashboard'\)/);
   assert.match(dashboard,/sessionStorage\.setItem\(dashboardSnapshotKey/);
-  assert.match(dashboard,/window\.setInterval/);
-  assert.match(dashboard,/document\.hidden/);
+  assert.match(dashboard,/useVisibleRefresh\(load,15_000\)/);
   assert.match(types,/interface DashboardMountOptions/);
   assert.match(islands,/DashboardRoute options=\{options\}/);
   assert.doesNotMatch(islands,/fetch\('\/api\/dashboard'/);
@@ -1068,8 +1077,6 @@ test('poster overlay editor provides bounded layer fields and a shape library',a
   const rail=await read('apps/web/client/src/poster-overlay-editor-rail.tsx');
   for(const shape of ['rounded','square','pill','circle','ticket','ribbon','tag','hexagon','chevron'])assert.ok(rail.includes(shape),shape);
   assert.match(rail,/overlay-layer-body input/);assert.match(rail,/min-width:0/);
-  assert.match(rail,/width:min\(1380px,calc\(100vw - 32px\)\)/);
-  assert.match(rail,/grid-template-columns:220px minmax\(0,1fr\) minmax\(280px,340px\)/);
   assert.match(rail,/overlay-preview-column>label select\{box-sizing:border-box;width:100%;min-width:0\}/);
 });
 
@@ -1079,20 +1086,21 @@ test('poster overlay editor uses three settings columns and an always-visible pr
   assert.match(conditions,/overlay-condition-rule\{display:grid;grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
   assert.match(conditions,/@media\(max-width:1000px\)\{\.overlay-condition-rule/);
   assert.match(conditions,/@media\(max-width:980px\)\{\.overlay-condition-row\{grid-row:auto\}/);
-  assert.match(layout,/grid-template-columns:220px minmax\(300px,1fr\) minmax\(340px,1\.1fr\) 340px/);
-  assert.match(layout,/grid-template-areas:"rail fields conditions preview"/);
-  assert.match(layout,/overlay-preview-column\{grid-area:preview;align-self:start;position:sticky/);
-  assert.match(layout,/overlay-editor-rail,.overlay-editor \.overlay-editor-fields,.overlay-editor \.overlay-editor-grid>\.overlay-condition-row\{box-sizing:border-box;max-height/);
-  assert.match(layout,/@media\(min-width:1351px\).*height:100%;max-height:100%;min-height:0/);
-  assert.match(layout,/max-height:100%!important;overflow-x:hidden!important;overflow-y:scroll!important/);
-  assert.match(layout,/touch-action:pan-y/);
-  assert.match(layout,/padding-bottom:48px/);
-  assert.match(layout,/scrollbar-width:auto/);
-  assert.match(layout,/overlay-editor-fields\{align-content:start\}/);
-  assert.match(layout,/overlay-editor-fields>\.overlay-layer-editor\{align-self:start;height:max-content;min-height:max-content\}/);
-  assert.match(layout,/@media\(min-width:981px\)\{\.overlay-editor\{height:calc\(100dvh - 40px\);grid-template-rows:auto minmax\(0,1fr\) auto\}/);
-  assert.match(layout,/overlay-layer-body>\.notice\{grid-column:1\/-1;display:grid/);
-  assert.match(layout,/overlay-style-variants>header\{position:static;display:grid;height:auto/);
+  assert.match(layout,/width: min\(1760px, calc\(100vw - 24px\)\)/);
+  assert.match(layout,/grid-template-columns: minmax\(230px, 250px\) minmax\(370px, 1fr\) minmax\(400px, 1\.08fr\) minmax\(340px, 380px\)/);
+  assert.match(layout,/grid-template-areas: "rail fields conditions preview"/);
+  assert.match(layout,/overlay-preview-column \{\s*grid-area: preview;\s*align-self: start;\s*position: sticky/);
+  assert.match(layout,/@media \(max-width: 1499px\)[\s\S]*"rail fields preview"[\s\S]*"conditions conditions preview"/);
+  assert.match(layout,/@media \(min-width: 1500px\)[\s\S]*height: 100%;[\s\S]*max-height: 100%/);
+  assert.match(layout,/max-height: 100% !important;[\s\S]*overflow-y: auto !important/);
+  assert.match(layout,/scrollbar-gutter: stable/);
+  assert.match(layout,/touch-action: pan-y/);
+  assert.match(layout,/padding-bottom: 48px/);
+  assert.match(layout,/scrollbar-width: auto/);
+  assert.match(layout,/overlay-editor-fields > \.overlay-layer-editor \{\s*align-self: start;\s*height: max-content;\s*min-height: max-content/);
+  assert.match(layout,/@media \(min-width: 981px\)[\s\S]*height: calc\(100dvh - 40px\);[\s\S]*grid-template-rows: auto minmax\(0, 1fr\) auto/);
+  assert.match(layout,/overlay-layer-body > \.notice \{\s*grid-column: 1 \/ -1;\s*display: grid/);
+  assert.match(layout,/overlay-style-variants > header \{\s*position: static;\s*display: grid;\s*height: auto/);
   for(const control of ['Position','Prefix','Suffix','Text color','Badge color','Horizontal position','Vertical position','Layer width','Adaptive poster contrast','Font size','Font weight','Text alignment','Capitalization','Text opacity','Shape opacity','Inner spacing','Corner radius','Remove layer'])assert.ok(editor.includes(control),control);
 });
 
@@ -1177,6 +1185,7 @@ test('Discover approval policy and administrator request history have typed post
   assert.match(types,/pending_approval/);assert.match(types,/poster/);assert.match(types,/rejectionReason/);assert.match(adminRequests,/Approve & add/);assert.match(adminRequests,/\/api\/requests/);
   assert.match(adminRequests,/type="search"/);assert.match(adminRequests,/All statuses/);assert.match(adminRequests,/Movies and television/);assert.match(adminRequests,/Decline request/);
   assert.match(adminRequests,/Mark all read/);assert.match(adminRequests,/request-mark-read/);assert.match(adminRequests,/vynodearr:notifications-changed/);assert.match(styles,/admin-request-card\.unread/);
+  assert.match(adminRequests,/ModalPortal/);
   assert.match(adminRequests,/\/api\/notifications\/review-requests/);
   assert.match(styles,/\.request-decline-dialog\{[^}]*max-height:[^}]*overflow:auto/);
   assert.match(routing,/'request-management'/);assert.match(dispatch,/requestManagement/);assert.match(shell,/showRequestManagementReact/);assert.match(islands,/mountRequestManagement/);
@@ -1196,6 +1205,9 @@ test('request notification bell has durable role-aware request updates',async()=
   assert.match(notifications,/\/api\/notifications/);assert.match(notifications,/Mark all read/);assert.match(notifications,/15_000/);
   assert.match(notifications,/hasActiveActivity/);assert.doesNotMatch(notifications,/\},\[activities,load\]\)/,'notification polling must not restart after every loaded activity array');
   assert.match(notifications,/Notification history/);assert.match(notifications,/Read and resolved notifications will remain here/);assert.match(notifications,/tab==='inbox'/);
+  assert.match(notifications,/aria-label="Notifications and activity"/);
+  assert.match(notifications,/Open Action Center/);
+  assert.match(notifications,/notification-operations-link/);
   assert.match(notifications,/notification-mark-read/);assert.match(notifications,/Mark read/);assert.match(notifications,/vynodearr:notifications-changed/);
   assert.match(notifications,/Close notification center/);assert.match(styles,/notification-panel-close/);
   assert.match(types,/approval.*approved.*rejected.*failed.*imported/);
@@ -1214,6 +1226,16 @@ test('request notification bell has durable role-aware request updates',async()=
   assert.match(server,/item\.status==='pending_approval'\|\|item\.approvedBy\|\|item\.rejectedBy/);assert.match(server,/item\.category==='request'&&item\.href===requestHref&&!item\.read/);
   assert.match(server,/\/api\/notifications\/review-requests/);
   assert.match(styles,/max-height:calc\(100dvh - 6rem\)/);assert.match(styles,/overflow:auto/);assert.match(styles,/notification-bell/);assert.match(styles,/nav-count-badge/);
+});
+
+test('activity surfaces separate actionable problems from durable history without reload flicker',async()=>{
+  const [operations,styles,notificationsCss]=await Promise.all([read('apps/web/client/src/operations-center.tsx'),read('apps/web/public/styles.css'),read('apps/web/public/notifications.css')]);
+  assert.match(operations,/useVisibleRefresh\(\(\)=>load\(false\),30_000\)/);
+  assert.match(operations,/const hydrated=useRef\(false\)/);
+  assert.match(operations,/Dismiss hides an item without deleting its history/);
+  assert.match(operations,/Opening an event does not rerun or change the original action/);
+  assert.match(styles,/\.operations-view-help/);
+  assert.match(notificationsCss,/\.notification-operations-link/);
 });
 
 test('external notification template builder is previewable and phone safe',async()=>{
@@ -1238,12 +1260,23 @@ test('administrator search activity visualizes every automatic-search entry poin
 });
 
 test('search activity reconciles in the server background and refreshes when the app returns',async()=>{
-  const [server,notifications]=await Promise.all([read('apps/api/src/app.js'),read('apps/web/client/src/notifications.tsx')]);
+  const [server,notifications,visibleRefresh]=await Promise.all([read('apps/api/src/app.js'),read('apps/web/client/src/notifications.tsx'),read('apps/web/client/src/use-visible-refresh.ts')]);
   assert.match(server,/reconcileSearchActivities\(userId,providedSnapshots=null\)/);
   assert.match(server,/activitySnapshots\.set\(domain,\{queue:engineRecords,history:engineHistory\}\)/);
   assert.match(server,/await reconcileSearchActivities\(null,activitySnapshots\)/);
-  assert.match(notifications,/visibilitychange/);
-  assert.match(notifications,/window\.addEventListener\('focus',refresh\)/);
+  assert.match(notifications,/useVisibleRefresh\(load,hasActiveActivity\?5_000:15_000\)/);
+  assert.match(visibleRefresh,/visibilitychange/);
+  assert.match(visibleRefresh,/window\.addEventListener\("focus", run\)/);
+});
+
+test('shared modal portals contain focus and restore the originating page',async()=>{
+  const [portal,movie,tv]=await Promise.all([read('apps/web/client/src/modal-portal.tsx'),read('apps/web/client/src/movie-detail.tsx'),read('apps/web/client/src/tv-detail.tsx')]);
+  assert.match(portal,/focusableSelector/);
+  assert.match(portal,/document\.body\.style\.overflow = "hidden"/);
+  assert.match(portal,/event\.key === "Escape"/);
+  assert.match(portal,/returnFocus\.current\?\.focus/);
+  assert.match(movie,/role="region"/);assert.doesNotMatch(movie,/react-movie-detail[^\n]+aria-modal/);
+  assert.match(tv,/role="region"/);assert.doesNotMatch(tv,/react-tv-detail[^\n]+aria-modal/);
 });
 
 test('download decision center explains native candidate evidence',async()=>{

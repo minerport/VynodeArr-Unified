@@ -2,6 +2,7 @@ import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import {createPortal} from 'react-dom';
 import type {DiscoverItem} from './discover-types';
 import type {MyRequestsMountOptions,RequestAllowance,RequestStatus,UserRequest} from './my-requests-types';
+import {useVisibleRefresh} from './use-visible-refresh';
 
 const statusOrder:RequestStatus[]=['pending_approval','requested','searching','downloading','imported','failed','rejected','canceled'];
 const progressOrder:RequestStatus[]=['requested','searching','downloading','imported'];
@@ -22,7 +23,7 @@ function CorrectMatch({record,options,onClose,onCorrected}:{record:UserRequest;o
 export function MyRequestsView({options}:{options:MyRequestsMountOptions}){
   const [items,setItems]=useState<UserRequest[]>([]),[allowance,setAllowance]=useState<RequestAllowance|null>(null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[filter,setFilter]=useState<RequestStatus|''>(''),[correcting,setCorrecting]=useState<UserRequest|null>(null),[busy,setBusy]=useState('');
   const load=useCallback(async(quiet=false)=>{if(!quiet)setLoading(true);try{const [value,limitValue,reviewed]=await Promise.all([options.request<{items:UserRequest[]}>('/api/requests/mine'),options.request<{allowance:RequestAllowance}>('/api/requests/allowance'),options.request<{reviewed:string[]}>('/api/notifications/review-requests',{method:'POST',body:'{}'})]);setItems(value.items||[]);setAllowance(limitValue.allowance);if(reviewed.reviewed.length)window.dispatchEvent(new Event('vynodearr:notifications-changed'));setError('');}catch(reason){setError(reason instanceof Error?reason.message:'Requests could not be loaded.');}finally{setLoading(false);}},[options]);
-  useEffect(()=>{void load();const timer=window.setInterval(()=>void load(true),10000);return()=>window.clearInterval(timer);},[load]);
+  useVisibleRefresh(()=>load(true),10000);
   const counts=useMemo(()=>Object.fromEntries(statusOrder.map(status=>[status,items.filter(item=>item.status===status).length])) as Record<RequestStatus,number>,[items]);
   const visible=filter?items.filter(item=>item.status===filter):items;
   const cancel=async(record:UserRequest)=>{if(!window.confirm(`Cancel the request for ${record.title}? It will be removed from the media engine before any files are imported.`))return;setBusy(record.id);try{await options.request(`/api/requests/mine/${record.id}`,{method:'DELETE'});options.notify('Request cancelled.');await load(true);}catch(reason){options.notify(reason instanceof Error?reason.message:'The request could not be cancelled.','error');}finally{setBusy('');}};

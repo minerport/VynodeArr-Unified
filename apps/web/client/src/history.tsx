@@ -271,7 +271,7 @@ export function HistoryView({ options }: { options: HistoryMountOptions }) {
     ["other", "Other"],
   ];
   if (loading)
-    return <div className="panel skeleton react-route-loading">Loading historyâ€¦</div>;
+    return <div className="panel skeleton react-route-loading">Loading history…</div>;
   if (loadError && !items.length)
     return <div className="empty error-state"><h2>History unavailable</h2><p>{loadError}</p></div>;
   return (

@@ -61,7 +61,7 @@ export function MovieDetailView({options}:{options:MovieDetailMountOptions}){
   if(error||!item)return <div className="empty error-state"><h2>Movie details unavailable</h2><p>{error}</p></div>;
   const facts=[['Year',item.year||'Not reported'],['Runtime',item.runtimeMinutes?`${item.runtimeMinutes} min`:'Not reported'],['Availability',item.availability||'Unknown'],['Quality',item.quality||'Not available'],['Profile',item.qualityProfile||'None'],['Collection',item.collection||'None']];
   const information=[['Genres',item.genres?.join(', ')||'Not specified'],['Studio',item.studio||'Not specified'],['Certification',item.certification||'Not rated'],['Original language',item.originalLanguage||'Not specified'],['Rating',item.rating?`${item.rating.toFixed(1)} / 10`:'Not rated'],['Library path',item.rootFolder||'Not configured'],['File status',item.hasFile?'Available on disk':'Missing'],['Digital release',item.releaseDates?.digital?new Date(item.releaseDates.digital).toLocaleDateString():'Not announced']];
-  return <div className={`react-movie-detail${enrichmentLoading?' enrichment-pending':''}`} role="dialog" aria-modal="true" aria-label={`${item.title} movie details`}>
+  return <div className={`react-movie-detail${enrichmentLoading?' enrichment-pending':''}`} role="region" aria-label={`${item.title} movie details`}>
     <div className="vynode-detail-surface">
     {item.backdrop?.url?<div className="detail-backdrop"><img src={item.backdrop.url} alt="" aria-hidden="true"/></div>:null}
     <a className="back-link" href="#movies">← Back to Movies</a>

@@ -1,5 +1,6 @@
 import { useCallback,useEffect,useMemo,useRef,useState } from 'react';
 import type { QueueItem,QueueMountOptions } from './queue-types';
+import {useVisibleRefresh} from './use-visible-refresh';
 import './react-queue.css';
 type SortKey='title'|'media'|'source'|'quality'|'size'|'progress'|'status';
 const key=(item:QueueItem)=>`${item.domain}:${item.id}`;
@@ -20,11 +21,9 @@ export function QueueView({options}:{options:QueueMountOptions}){
   useEffect(()=>{
     void load();
     const startupRetries=[window.setTimeout(()=>void load(true),1200),window.setTimeout(()=>void load(true),3500)];
-    const timer=window.setInterval(()=>void load(true),5000);
-    const resume=()=>{if(document.visibilityState==='visible')void load(true);};
-    window.addEventListener('focus',resume);document.addEventListener('visibilitychange',resume);
-    return()=>{requestSequence.current++;requestPending.current=false;startupRetries.forEach(window.clearTimeout);window.clearInterval(timer);window.removeEventListener('focus',resume);document.removeEventListener('visibilitychange',resume);};
+    return()=>{requestSequence.current++;requestPending.current=false;startupRetries.forEach(window.clearTimeout);};
   },[load]);
+  useVisibleRefresh(()=>load(true),5000,{immediate:false});
   const statuses=useMemo(()=>[...new Set(items.map(status))].sort(),[items]),sources=useMemo(()=>[...new Set(items.map(source))].sort(),[items]);
   const counts=useMemo(()=>({
     total:items.length,

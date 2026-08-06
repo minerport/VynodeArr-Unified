@@ -887,8 +887,10 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
               className="secondary"
               disabled={syncing}
               onClick={() => void synchronizeLibrary()}
+              aria-label="Refresh library catalog from the media engine"
+              title="Reads current engine records into VynodeArr without renaming files or changing monitoring"
             >
-              {syncing ? "Synchronizing…" : "Sync now"}
+              {syncing ? "Refreshing catalog…" : "Refresh library catalog"}
             </button>
           ) : null}
         </div>
