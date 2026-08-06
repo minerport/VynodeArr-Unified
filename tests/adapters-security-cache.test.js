@@ -147,6 +147,12 @@ test('engine clients bound concurrent API work to protect busy SQLite engines',a
   assert.equal(maximum,2);
   await new Promise(resolve=>server.close(resolve));
 });
+test('engine circuit breaker backs off after repeated upstream failures and can be reset',async()=>{
+  let requests=0;const server=createServer((req,res)=>{requests+=1;res.writeHead(503,{'content-type':'application/json'});res.end('{}');});await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  const client=new ReadOnlyEngineClient({enabled:true,host:'127.0.0.1',port:server.address().port,https:false,urlBase:'',apiCredential:'secret',timeoutMs:100,retries:0,tlsVerify:true,circuitFailureThreshold:2,circuitCooldownMs:60000},'Movie');
+  await assert.rejects(()=>client.get('movie'));await assert.rejects(()=>client.get('movie'));assert.equal(client.circuitSnapshot().state,'open');await assert.rejects(()=>client.get('movie'));assert.equal(requests,2);client.resetCircuit();assert.equal(client.circuitSnapshot().state,'closed');
+  await new Promise(resolve=>server.close(resolve));
+});
 test('engine mutation validation remains actionable',async()=>{
   const server=createServer((req,res)=>{res.writeHead(400,{'content-type':'application/json'});res.end(JSON.stringify([{errorMessage:"Invalid Path: 'E:/movies'"}]));});await new Promise((resolve)=>server.listen(0,'127.0.0.1',resolve));
   const client=new ReadOnlyEngineClient({enabled:true,host:'127.0.0.1',port:server.address().port,https:false,urlBase:'',apiCredential:'secret',timeoutMs:100,retries:0,tlsVerify:true},'Movie');

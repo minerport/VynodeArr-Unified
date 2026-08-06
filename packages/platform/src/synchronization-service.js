@@ -1,7 +1,9 @@
+import {PriorityWorkQueue} from './priority-work-queue.js';
+
 export class SynchronizationService {
   constructor({movie,tv,maxItems=5000,pollIntervalMs=300000,projectionStore=null}) {
     this.engines={movie,tv};this.maxItems=maxItems;this.pollIntervalMs=pollIntervalMs;this.projectionStore=projectionStore;
-    this.domainRuns=new Map();this.itemRuns=new Map();this.startupRun=null;this.operationsRun=null;this.fullSyncListeners=new Set();
+    this.domainRuns=new Map();this.itemRuns=new Map();this.workQueues={movie:new PriorityWorkQueue(),tv:new PriorityWorkQueue()};this.startupRun=null;this.operationsRun=null;this.fullSyncListeners=new Set();
     this.metrics={catalogReads:0,engineReads:0,fullReconciliations:0,targetedReconciliations:0};
     this.cache=new Map();this.state={
       movie:{status:'idle',lastSuccess:null,lastFullSync:null,lastTargetedSync:null,lastFailure:null,durationMs:null,itemCount:0,itemsUpdated:0,source:'empty'},
@@ -21,9 +23,7 @@ export class SynchronizationService {
   }
   async synchronize(domain){
     if(this.domainRuns.has(domain))return this.domainRuns.get(domain);
-    const pending=[...this.itemRuns.entries()].filter(([key])=>key.startsWith(`${domain}:`)).map(([,run])=>run);
-    if(pending.length){await Promise.allSettled(pending);if(this.domainRuns.has(domain))return this.domainRuns.get(domain);}
-    const run=this.runDomainSynchronization(domain);this.domainRuns.set(domain,run);
+    const run=this.workQueues[domain].enqueue('full',()=>this.runDomainSynchronization(domain),{priority:1,label:`${domain} full reconciliation`});this.domainRuns.set(domain,run);
     try{return await run;}finally{if(this.domainRuns.get(domain)===run)this.domainRuns.delete(domain);}
   }
   async runDomainSynchronization(domain){
@@ -65,7 +65,7 @@ export class SynchronizationService {
   async reconcileItem(domain,id) {
     const key=`${domain}:${id}`;
     if(this.itemRuns.has(key))return this.itemRuns.get(key);
-    const run=(async()=>{if(this.domainRuns.has(domain))await this.domainRuns.get(domain);return this.runItemReconciliation(domain,id);})();this.itemRuns.set(key,run);
+    const run=this.workQueues[domain].enqueue(`item:${id}`,()=>this.runItemReconciliation(domain,id),{priority:10,label:`${domain} title ${id}`});this.itemRuns.set(key,run);
     try{return await run;}finally{if(this.itemRuns.get(key)===run)this.itemRuns.delete(key);}
   }
   async runItemReconciliation(domain,id) {
@@ -99,10 +99,16 @@ export class SynchronizationService {
   async page(domain,query={}){if(typeof this.projectionStore?.queryDomain==='function'){this.metrics.catalogReads++;return this.projectionStore.queryDomain(domain,query);}const items=await this.list(domain),offset=Math.max(0,Number(query.offset)||0),limit=Math.max(1,Math.min(5000,Number(query.limit)||60));return{items:items.slice(offset,offset+limit),total:items.length,offset,limit,hasMore:offset+limit<items.length};}
   async item(domain,id){if(typeof this.projectionStore?.getDomainItem==='function'){this.metrics.catalogReads++;return this.projectionStore.getDomainItem(domain,id);}return(await this.list(domain)).find(item=>item.id===id)||null;}
   invalidate(domain){if(domain)this.cache.delete(domain);else this.cache.clear();}
-  snapshot(){const state=structuredClone(this.state);for(const domain of ['movie','tv'])state[domain].nextIntegrityCheck=this.nextIntegrityCheck||null;return {...state,metrics:{...this.metrics}};}
+  async integrity(domain){
+    const count=typeof this.projectionStore?.countDomain==='function'?await this.projectionStore.countDomain(domain):this.cache.get(domain)?.items?.length||0,state=this.state[domain],persisted=await this.projectionStore?.synchronizationState?.(domain),database=await this.projectionStore?.integrityCheck?.(),catalog=await this.projectionStore?.domainIntegrity?.(domain);
+    const issues=[];if(!count)issues.push('Catalog is empty');if(state.itemCount&&state.itemCount!==count)issues.push('Runtime and catalog title counts differ');if(!persisted?.lastSuccess&&!state.lastSuccess)issues.push('No successful synchronization timestamp is recorded');if(database&&!database.ok)issues.push('SQLite integrity check failed');if(catalog?.invalidPayloads)issues.push(`${catalog.invalidPayloads} invalid catalog records`);if(catalog?.duplicateExternalIds)issues.push(`${catalog.duplicateExternalIds} duplicate external identifiers`);
+    const result={domain,checkedAt:new Date().toISOString(),healthy:issues.length===0,issues,itemCount:count,runtimeItemCount:state.itemCount,lastSuccess:persisted?.lastSuccess||state.lastSuccess||null,catalogAgeMs:Date.parse(persisted?.lastSuccess||state.lastSuccess||0)?Date.now()-Date.parse(persisted?.lastSuccess||state.lastSuccess):null,database:database||null,catalog:catalog||null};this.lastIntegrity={...(this.lastIntegrity||{}),[domain]:result};return result;
+  }
+  resetCircuit(domain){return this.engines[domain]?.client?.resetCircuit?.()||null;}
+  snapshot(){const state=structuredClone(this.state);for(const domain of ['movie','tv']){state[domain].nextIntegrityCheck=this.nextIntegrityCheck||null;state[domain].integrity=this.lastIntegrity?.[domain]||null;state[domain].workQueue=this.workQueues[domain].snapshot();state[domain].circuit=this.engines[domain]?.client?.circuitSnapshot?.()||null;}return {...state,metrics:{...this.metrics}};}
   async startup(){
     if(this.startupRun)return this.startupRun;
-    this.startupRun=(async()=>{await this.hydrate();const result=await Promise.allSettled(['movie','tv'].map((domain)=>this.synchronize(domain)));await this.synchronizeOperations().catch(()=>{});return result;})();
+    this.startupRun=(async()=>{await this.hydrate();const result=await Promise.allSettled(['movie','tv'].map((domain)=>this.synchronize(domain)));await this.synchronizeOperations().catch(()=>{});await Promise.allSettled(['movie','tv'].map(domain=>this.integrity(domain)));return result;})();
     try{return await this.startupRun;}finally{this.startupRun=null;}
   }
   startPolling(){this.stopPolling();this.nextIntegrityCheck=new Date(Date.now()+this.pollIntervalMs).toISOString();this.timer=setInterval(()=>{this.nextIntegrityCheck=new Date(Date.now()+this.pollIntervalMs).toISOString();this.startup();},this.pollIntervalMs);this.timer.unref?.();}

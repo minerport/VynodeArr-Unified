@@ -129,13 +129,14 @@ test('composed posters reuse the same bounded artwork cache as library posters',
 test('repeated detail reads are deduplicated without refreshing the full library',()=>{
   let movieDetails=0,tvDetails=0;const movie=new MovieFixtureAdapter(),tv=new TvFixtureAdapter(),readMovie=movie.getMovie.bind(movie),readSeries=tv.getSeries.bind(tv);
   movie.getMovie=async(...args)=>{movieDetails+=1;return readMovie(...args);};tv.getSeries=async(...args)=>{tvDetails+=1;return readSeries(...args);};
-  return appSession({movie,tv},async({base,cookie})=>{
+  return appSession({movie,tv},async({base,cookie,csrf})=>{
     const first=await (await fetch(`${base}/api/media/movies/movie_orbit-city`,{headers:{cookie}})).json(),second=await (await fetch(`${base}/api/media/movies/movie_orbit-city`,{headers:{cookie}})).json();
     assert.equal(first.freshness.source,'engine');assert.equal(second.freshness.source,'cache');
     await fetch(`${base}/api/media/tv/series_afterlight`,{headers:{cookie}});await fetch(`${base}/api/media/tv/series_afterlight`,{headers:{cookie}});
     assert.equal(movieDetails,1);assert.equal(tvDetails,1);
     const refreshed=await (await fetch(`${base}/api/media/movies/movie_orbit-city?refresh=true`,{headers:{cookie}})).json();assert.equal(refreshed.freshness.source,'engine');assert.equal(movieDetails,2);
-    const performance=await (await fetch(`${base}/api/system/performance`,{headers:{cookie}})).json();assert.ok(performance.activity.engineReads>=1);assert.ok(performance.activity.targetedReconciliations>=1);assert.equal(typeof performance.activity.catalogReads,'number');
+    const performance=await (await fetch(`${base}/api/system/performance`,{headers:{cookie}})).json();assert.ok(performance.activity.engineReads>=1);assert.ok(performance.activity.targetedReconciliations>=1);assert.equal(typeof performance.activity.catalogReads,'number');assert.equal(performance.catalog.integrity.movie.healthy,true);assert.equal(performance.sync.movie.workQueue.depth,0);
+    const recovery=await fetch(`${base}/api/system/catalog/recovery`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({domain:'movie',action:'retry'})});assert.equal(recovery.status,200);assert.equal((await recovery.json()).integrity.healthy,true);
   });
 });
 test('dashboard API returns useful product metrics',()=>appSession({movie:new MovieFixtureAdapter(),tv:new TvFixtureAdapter()},async({base,cookie})=>{

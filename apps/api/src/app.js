@@ -6954,6 +6954,10 @@ export function createApplication(options = {}) {
               movie: await projectionStore.countDomain?.("movie"),
               tv: await projectionStore.countDomain?.("tv"),
               events: events || null,
+              integrity: {
+                movie: await sync.integrity?.("movie"),
+                tv: await sync.integrity?.("tv"),
+              },
             },
             artwork: {
               memory: artworkCache.stats(),
@@ -6978,6 +6982,37 @@ export function createApplication(options = {}) {
             sync: sync.snapshot(),
             settings: settings,
           });
+        }
+        if (
+          url.pathname === "/api/system/catalog/recovery" &&
+          req.method === "POST"
+        ) {
+          if (!administrator(res, session) || !requireCsrf(req, res, session))
+            return;
+          const input = await body(req),
+            domain = String(input.domain || ""),
+            action = String(input.action || "retry");
+          if (!["movie", "tv"].includes(domain))
+            return json(res, 400, { message: "Choose Movies or Television." });
+          if (!["retry", "rebuild"].includes(action))
+            return json(res, 400, { message: "Unsupported recovery action." });
+          sync.resetCircuit?.(domain);
+          const retriedEvents = action === "retry" ? await projectionStore.retryFailedEvents?.(domain) || 0 : 0;
+          if (retriedEvents) eventProcessor?.wake();
+          const items = await sync.synchronize(domain),
+            integrity = await sync.integrity?.(domain);
+          await recordAudit(session, {
+            category: "system",
+            action: `catalog.${action}`,
+            target: domain === "movie" ? "Movies catalog" : "Television catalog",
+            summary:
+              action === "rebuild"
+                ? "Rebuilt the durable catalog from the media engine."
+                : "Retried failed synchronization work.",
+            domain,
+            metadata: { itemCount: items.length, healthy: integrity?.healthy, retriedEvents },
+          });
+          return json(res, 200, { domain, action, itemCount: items.length, retriedEvents, integrity, sync: sync.snapshot()[domain] });
         }
         if (
           url.pathname === "/api/system/performance/settings" &&

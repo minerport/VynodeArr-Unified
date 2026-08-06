@@ -1,4 +1,6 @@
 import {
+  lazy,
+  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -34,6 +36,7 @@ const domains: SystemDomain[] = ["movie", "tv"],
     reason instanceof Error
       ? reason.message
       : "System information could not be loaded.";
+const SystemPerformancePanel = lazy(() => import("./system-performance-panel"));
 const date = (value?: string) =>
   value
     ? new Intl.DateTimeFormat(undefined, {
@@ -1077,7 +1080,8 @@ function Performance({
   const [settings, setSettings] = useState<PerformanceSettings>(
       report.settings,
     ),
-    [busy, setBusy] = useState(false);
+    [busy, setBusy] = useState(false),
+    [recovery, setRecovery] = useState("");
   useEffect(() => setSettings(report.settings), [report]);
   const mib = (value = 0) => `${(value / 1048576).toFixed(0)} MB`,
     field = (
@@ -1115,6 +1119,19 @@ function Performance({
       options.notify(errorText(reason), "error");
     } finally {
       setBusy(false);
+    }
+  }
+  async function recover(domain: SystemDomain, action: "retry" | "rebuild") {
+    if (action === "rebuild" && !confirm(`Rebuild the ${domain === "movie" ? "Movies" : "Television"} catalog from its engine? The current catalog remains available unless a complete engine response succeeds.`)) return;
+    setRecovery(`${domain}:${action}`);
+    try {
+      await options.request("/api/system/catalog/recovery", { method: "POST", body: JSON.stringify({ domain, action }) });
+      options.notify(action === "rebuild" ? "Catalog rebuilt and verified." : "Failed work retried.");
+      reload();
+    } catch (reason) {
+      options.notify(errorText(reason), "error");
+    } finally {
+      setRecovery("");
     }
   }
   return (
@@ -1178,6 +1195,31 @@ function Performance({
           )}
         </div>
       </section>
+      <div className="system-domain-grid">
+        {domains.map((domain) => {
+          const state = report.sync?.[domain], integrity = report.catalog.integrity?.[domain], open = state?.circuit?.state === "open";
+          return (
+            <section className="panel" key={domain}>
+              <div className="panel-heading">
+                <div>
+                  <span className="eyebrow">{domain === "movie" ? "MOVIE ENGINE" : "TELEVISION ENGINE"}</span>
+                  <h2>{open ? "Recovering" : state?.status || "Unknown"}</h2>
+                </div>
+                <span className={`badge ${integrity?.healthy ? "green" : ""}`}>{integrity?.healthy ? "Catalog healthy" : "Review needed"}</span>
+              </div>
+              <div className="data-row"><span><strong>Local catalog</strong><small>{integrity?.itemCount || 0} titles</small></span><span>{integrity?.lastSuccess ? new Date(integrity.lastSuccess).toLocaleString() : "Never synchronized"}</span></div>
+              <div className="data-row"><span><strong>Engine circuit</strong><small>{state?.circuit?.failures || 0} consecutive failures</small></span><span>{state?.circuit?.state || "not reported"}</span></div>
+              <div className="data-row"><span><strong>Background queue</strong><small>{state?.workQueue?.active?.label || "Idle"}</small></span><span>{state?.workQueue?.depth || 0} waiting</span></div>
+              {integrity?.issues?.length ? <div className="notice"><strong>Integrity findings</strong><p>{integrity.issues.join(" · ")}</p></div> : null}
+              {state?.safeError ? <p className="form-error">{state.safeError}</p> : null}
+              <div className="button-row">
+                <button className="secondary" disabled={Boolean(recovery)} onClick={() => void recover(domain, "retry")}>{recovery === `${domain}:retry` ? "Retrying…" : "Retry failed work"}</button>
+                <button className="secondary" disabled={Boolean(recovery)} onClick={() => void recover(domain, "rebuild")}>{recovery === `${domain}:rebuild` ? "Rebuilding…" : "Rebuild catalog"}</button>
+              </div>
+            </section>
+          );
+        })}
+      </div>
       <section className="panel">
         <div className="panel-heading">
           <h2>Most expensive API routes</h2>
@@ -1587,7 +1629,7 @@ export function SystemView({ options }: { options: SystemMountOptions }) {
       ) : view === "status" ? (
         <Status disks={disks} />
       ) : view === "performance" && performance ? (
-        <Performance report={performance} options={options} reload={() => void load()} />
+        <Suspense fallback={<div className="panel skeleton">Loading performance diagnostics…</div>}><SystemPerformancePanel report={performance} options={options} reload={() => void load()} /></Suspense>
       ) : view === "validation" && validation ? (
         <Validation
           report={validation}

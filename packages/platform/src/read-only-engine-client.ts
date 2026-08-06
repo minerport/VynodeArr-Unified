@@ -7,8 +7,28 @@ export class ReadOnlyEngineClient {
   domain: string;
   activeRequests = 0;
   pendingRequests: Array<()=>void> = [];
+  circuit={state:'closed',failures:0,openedAt:null as string|null,retryAt:null as string|null,lastFailure:null as string|null,probe:false};
 
   constructor(config: Record<string, any>, domain: string) { this.config=config;this.domain=domain; }
+  circuitSnapshot(){return{...this.circuit,threshold:Math.max(2,Number(this.config.circuitFailureThreshold)||3),cooldownMs:Math.max(5000,Number(this.config.circuitCooldownMs)||30000)};}
+  resetCircuit(){this.circuit={state:'closed',failures:0,openedAt:null,retryAt:null,lastFailure:null,probe:false};return this.circuitSnapshot();}
+  #beforeCircuit(){
+    if(this.circuit.state==='half-open'&&this.circuit.probe)throw engineError.unavailable(this.domain);
+    if(this.circuit.state!=='open')return;
+    if(this.circuit.retryAt&&Date.now()>=Date.parse(this.circuit.retryAt)&&!this.circuit.probe){this.circuit.state='half-open';this.circuit.probe=true;return;}
+    throw engineError.unavailable(this.domain);
+  }
+  #circuitSuccess(){this.resetCircuit();}
+  #circuitFailure(error:any){
+    if(['engine_validation_failed','engine_authentication_failed'].includes(String(error?.code||'')))return error;
+    this.circuit.probe=false;this.circuit.failures+=1;this.circuit.lastFailure=new Date().toISOString();
+    const threshold=Math.max(2,Number(this.config.circuitFailureThreshold)||3);
+    if(this.circuit.failures>=threshold||this.circuit.state==='half-open'){
+      const cooldown=Math.max(5000,Number(this.config.circuitCooldownMs)||30000)*Math.min(8,2**Math.max(0,this.circuit.failures-threshold));
+      this.circuit.state='open';this.circuit.openedAt=new Date().toISOString();this.circuit.retryAt=new Date(Date.now()+cooldown).toISOString();
+    }
+    return error;
+  }
   buildUrl(path: string,query: Record<string, unknown>={}){
     const prefix=this.config.urlBase?`/${this.config.urlBase}`:'';
     const url=new URL(`${this.config.https?'https':'http'}://${this.config.host}:${this.config.port}${prefix}/api/v3/${path.replace(/^\/+/,'')}`);
@@ -87,29 +107,33 @@ export class ReadOnlyEngineClient {
   }
   async get(path: string,query?: Record<string, unknown>): Promise<any>{
     if(!this.config.enabled)throw engineError.unavailable(this.domain);
+    this.#beforeCircuit();
     let lastError: any;
     for(let attempt=0;attempt<=this.config.retries;attempt+=1){
-      try{return await this.#request(this.buildUrl(path,query));}
+      try{const value=await this.#request(this.buildUrl(path,query));this.#circuitSuccess();return value;}
       catch(error:any){lastError=error;if(error?.code==='engine_authentication_failed')break;}
     }
+    this.#circuitFailure(lastError);
     if(lastError?.safeMessage)throw lastError;
     throw engineError.unavailable(this.domain);
   }
   async getOptional(path: string,query?: Record<string, unknown>): Promise<any>{
     if(!this.config.enabled)throw engineError.unavailable(this.domain);
+    this.#beforeCircuit();
     let lastError: any;
     for(let attempt=0;attempt<=this.config.retries;attempt+=1){
-      try{return await this.#request(this.buildUrl(path,query),{notFoundNull:true});}
+      try{const value=await this.#request(this.buildUrl(path,query),{notFoundNull:true});this.#circuitSuccess();return value;}
       catch(error:any){lastError=error;if(error?.code==='engine_authentication_failed')break;}
     }
-    if(lastError?.safeMessage)throw lastError;
+    this.#circuitFailure(lastError);if(lastError?.safeMessage)throw lastError;
     throw engineError.unavailable(this.domain);
   }
   async mutate(method: string,path: string,payload?: unknown,query?: Record<string, unknown>): Promise<any>{
     if(!this.config.enabled)throw engineError.unavailable(this.domain);
+    this.#beforeCircuit();
     const timeoutMs=Math.max(Number(this.config.timeoutMs)||0,method==='POST'&&String(path).replace(/^\/+/,'')==='release'?120_000:30_000);
-    try{return await this.#request(this.buildUrl(path,query),{method,payload,timeoutMs});}
-    catch(error:any){if(error?.safeMessage)throw error;throw engineError.unavailable(this.domain);}
+    try{const value=await this.#request(this.buildUrl(path,query),{method,payload,timeoutMs});this.#circuitSuccess();return value;}
+    catch(error:any){this.#circuitFailure(error);if(error?.safeMessage)throw error;throw engineError.unavailable(this.domain);}
   }
   post(path: string,payload?: unknown,query?: Record<string, unknown>){return this.mutate('POST',path,payload,query);}
   put(path: string,payload?: unknown,query?: Record<string, unknown>){return this.mutate('PUT',path,payload,query);}

@@ -33,6 +33,14 @@ export interface PerformanceReport {
       concurrency: number;
       queue: Record<string, number>;
     } | null;
+    integrity?: Record<SystemDomain, {
+      healthy: boolean;
+      issues: string[];
+      itemCount: number;
+      lastSuccess?: string | null;
+      catalogAgeMs?: number | null;
+      database?: { ok: boolean; result: string } | null;
+    }>;
   };
   artwork: {
     memory?: { items: number; bytes: number; evictions: number };
@@ -48,6 +56,16 @@ export interface PerformanceReport {
     fullReconciliations: number;
     targetedReconciliations: number;
   };
+  sync: Record<SystemDomain, {
+    status: string;
+    lastSuccess?: string | null;
+    lastFailure?: string | null;
+    safeError?: string | null;
+    itemCount: number;
+    nextIntegrityCheck?: string | null;
+    circuit?: { state: string; failures: number; retryAt?: string | null } | null;
+    workQueue?: { active?: { label: string } | null; depth: number };
+  }> & { metrics?: Record<string, number> };
   settings: PerformanceSettings;
 }
 

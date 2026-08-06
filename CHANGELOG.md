@@ -7,6 +7,28 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.35-rc.6] - 2026-08-05
+
+### Added
+
+- Added per-engine circuit breakers with automatic cooldown probes and visible
+  state in System Performance, preventing an unavailable engine from being
+  called continuously.
+- Added serialized, prioritized, and deduplicated catalog synchronization
+  queues so targeted title updates run ahead of queued full reconciliations.
+- Added catalog integrity diagnostics for SQLite health, invalid records,
+  duplicate external IDs, synchronization age, and persisted title counts.
+- Added administrator recovery controls to retry failed event work or rebuild
+  a Movie or Television catalog without discarding the last usable catalog
+  unless a complete replacement response succeeds.
+
+### Fixed
+
+- Kept long notification and release titles inside the mobile notification
+  panel and separated individual Mark read controls from notification text.
+- Added persistent selected and pressed feedback to the Action Center and
+  Automation Timeline controls on desktop and touch devices.
+
 ## [2.0.35-rc.5] - 2026-08-05
 
 ### Fixed
