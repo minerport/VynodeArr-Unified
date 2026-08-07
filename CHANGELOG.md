@@ -7,6 +7,21 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.35] - 2026-08-06
+
+### Fixed
+
+- Corrected Movies and Television summary cards so title, monitored, attention,
+  and coverage totals consistently represent the complete local catalog rather
+  than mixing a 60-item page with whole-library attention counts.
+- Kept complete-catalog totals current after synchronization, additions,
+  removals, and monitoring changes through the existing live update stream.
+
+### Release
+
+- Promoted the validated 2.0.35 release-candidate series to the production
+  `latest` channel for Docker, Unraid, and Windows deployments.
+
 ## [2.0.35-rc.8] - 2026-08-06
 
 ### Fixed
@@ -1408,7 +1423,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.8...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35...HEAD
+[2.0.35]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.8...v2.0.35
 [2.0.35-rc.8]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.7...v2.0.35-rc.8
 [2.0.35-rc.7]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.6...v2.0.35-rc.7
 [2.0.34-rc.6]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.34-rc.5...v2.0.34-rc.6
