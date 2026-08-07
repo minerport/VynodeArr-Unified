@@ -120,6 +120,44 @@ async function appSession(options,run){
     await run({base,cookie,csrf:result.csrf,app});
   }finally{server.closeAllConnections?.();await new Promise((resolve)=>server.close(resolve));app.sync.stopPolling();await rm(directory,{recursive:true,force:true});}
 }
+test('Reeltrack lists keep API keys server-side and match library titles only by durable external IDs',()=>{
+  const reeltrackFetch=async(input,init={})=>{
+    const url=String(input);
+    assert.equal(init.headers['X-API-Key'],'rt_live_test-key');
+    if(url.endsWith('/api/v1/lists'))return new Response(JSON.stringify({data:[{id:5,name:'My watchlist',description:'Imported from Reeltrack',kind:'custom'}]}),{status:200,headers:{'content-type':'application/json'}});
+    if(url.includes('/api/v1/lists/5/items'))return new Response(JSON.stringify({data:[
+      {mediaId:123,title:'Durable match',type:'movie',year:2026,tmdbId:1003598,source:'tmdb',externalId:'1003598',rank:1},
+      {mediaId:124,title:'Durable match',type:'movie',year:2026,tmdbId:9999999,source:'tmdb',externalId:'9999999',rank:2},
+      {mediaId:125,title:'TV match',type:'tv',year:2026,source:'tvdb',externalId:'4567',tmdbId:7654,rank:3},
+      {mediaId:126,title:'Durable match',type:'movie',year:2026,tmdbId:null,source:'plex',externalId:'1003598',rank:4},
+      {mediaId:127,title:'Durable match',type:'movie',year:2026,tmdbId:null,source:'jellyfin',externalId:'1003598',rank:5}
+    ]}),{status:200,headers:{'content-type':'application/json'}});
+    throw new Error(`Unexpected Reeltrack request: ${url}`);
+  };
+  const movie=Object.assign(new MovieFixtureAdapter(),{listMovies:async()=>[{id:'movie_durable',title:'Durable match',year:2026,tmdbId:1003598,hasFile:true}]}),
+    tv=Object.assign(new TvFixtureAdapter(),{listSeries:async()=>[{id:'series_durable',title:'TV match',year:2026,tmdbId:7654,tvdbId:4567,episodeProgress:'1 / 2'}]});
+  return appSession({movie,tv,fetcher:reeltrackFetch},async({base,cookie,csrf})=>{
+    const mutationHeaders={cookie,'content-type':'application/json','x-vynodearr-csrf':csrf};
+    const connected=await fetch(`${base}/api/reeltrack/connection`,{method:'PUT',headers:mutationHeaders,body:JSON.stringify({apiKey:'rt_live_test-key'})});
+    assert.equal(connected.status,200);
+    const status=await (await fetch(`${base}/api/reeltrack/status`,{headers:{cookie}})).json();
+    assert.deepEqual(status,{configured:true,importedCount:0,updatedAt:null});
+    assert.equal(JSON.stringify(status).includes('rt_live_test-key'),false);
+    const importedResponse=await fetch(`${base}/api/reeltrack/imported-lists`,{method:'POST',headers:mutationHeaders,body:JSON.stringify({listIds:[5]})});
+    assert.equal(importedResponse.status,200);
+    const imported=await importedResponse.json(),items=imported.items[0].items;
+    assert.equal(items[0].library.id,'movie_durable');
+    assert.equal(items[1].library,null,'an identical title must not bypass the external-ID mismatch');
+    assert.equal(items[1].canRequest,true);
+    assert.equal(items[2].library.id,'series_durable');
+    assert.equal(items[3].library,null,'a Plex identity must not be interpreted as a TMDB identity');
+    assert.equal(items[3].tmdbId,null);
+    assert.equal(items[3].canRequest,false);
+    assert.equal(items[4].library,null,'a Jellyfin identity must not be interpreted as a TMDB identity');
+    assert.equal(items[4].tmdbId,null);
+    assert.equal(items[4].canRequest,false);
+  });
+});
 test('authenticated artwork proxy caches binary responses without exposing engine URLs',()=>appSession({
   movie:Object.assign(new MovieFixtureAdapter(),{getArtwork:async()=>({body:Buffer.from('image-data'),contentType:'image/jpeg'})}),tv:new TvFixtureAdapter()
 },async({base,cookie})=>{

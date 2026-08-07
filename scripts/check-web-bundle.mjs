@@ -35,14 +35,18 @@ const performanceAllowance={systemRoute:1_500,css:600};
 // route. Keep its script and inspector-style headroom isolated rather than
 // raising the limit for every application route or shared stylesheet.
 const posterOverlayAllowance={route:4_250,css:2_500};
+// Reeltrack Lists adds one Discover-permission navigation/mount bridge. Its
+// responsive list workspace is lazy-loaded, while Vite intentionally folds the
+// route stylesheet into the shared CSS asset.
+const reeltrackAllowance={shell:600,css:6_700};
 const failures=[];
 
 if(!entry)failures.push('The React entry bundle was not produced.');
 else if(entry.bytes>limits.entry)failures.push(`React entry is ${entry.bytes} bytes (limit ${limits.entry}).`);
 if(!shell)failures.push('The TypeScript application shell bundle was not produced.');
-else if(shell.bytes>limits.shell+mobileAllowance.shell)failures.push(`Application shell is ${shell.bytes} bytes (limit ${limits.shell+mobileAllowance.shell}).`);
+else if(shell.bytes>limits.shell+mobileAllowance.shell+reeltrackAllowance.shell)failures.push(`Application shell is ${shell.bytes} bytes (limit ${limits.shell+mobileAllowance.shell+reeltrackAllowance.shell}).`);
 for(const chunk of routeChunks){const routeLimit=limits.route+(chunk.name.startsWith('system-')?performanceAllowance.systemRoute:0)+(chunk.name.startsWith('poster-overlays-')?posterOverlayAllowance.route:0);if(chunk.bytes>routeLimit)failures.push(`${chunk.name} is ${chunk.bytes} bytes (route limit ${routeLimit}).`);}
-if(stylesheet&&stylesheet.bytes>limits.css+mobileAllowance.css+performanceAllowance.css+posterOverlayAllowance.css)failures.push(`React stylesheet is ${stylesheet.bytes} bytes (limit ${limits.css+mobileAllowance.css+performanceAllowance.css+posterOverlayAllowance.css}).`);
+if(stylesheet&&stylesheet.bytes>limits.css+mobileAllowance.css+performanceAllowance.css+posterOverlayAllowance.css+reeltrackAllowance.css)failures.push(`React stylesheet is ${stylesheet.bytes} bytes (limit ${limits.css+mobileAllowance.css+performanceAllowance.css+posterOverlayAllowance.css+reeltrackAllowance.css}).`);
 
 if(failures.length){
   console.error(`Web bundle budget failed:\n- ${failures.join('\n- ')}`);

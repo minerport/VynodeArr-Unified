@@ -7,6 +7,26 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.35-rc.15] - 2026-08-07
+
+### Added
+
+- Added per-user Reeltrack integration with encrypted API-key storage, list importing and synchronization, poster-rich browsing, durable external-ID library matching, and request actions for missing titles.
+- Added an explicit Reeltrack connection workflow directly on the Lists page, including direct service and API-documentation links and secure key replacement without disconnecting first.
+
+### Changed
+
+- Treat Reeltrack's explicit `tmdbId` as the authoritative TMDB identity so Plex and Jellyfin identifiers cannot be mistaken for TMDB IDs.
+- Added responsive Lists layouts that remain usable while desktop windows and mobile viewports are resized.
+
+### Fixed
+
+- Preserved artwork and assigned overlays across the primary Movie and Television library views while retaining scrolling catalog growth.
+
+### Validation
+
+- Passed 199 automated tests, TypeScript checks, and production web and server builds.
+
 ## [2.0.35-rc.14] - 2026-08-07
 
 ### Fixed
@@ -1511,7 +1531,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.14...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.15...HEAD
+[2.0.35-rc.15]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.14...v2.0.35-rc.15
 [2.0.35-rc.14]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.13...v2.0.35-rc.14
 [2.0.35-rc.13]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.12...v2.0.35-rc.13
 [2.0.35-rc.12]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.11...v2.0.35-rc.12

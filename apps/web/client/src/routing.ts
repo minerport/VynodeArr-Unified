@@ -7,6 +7,7 @@ export const routeKeys=[
   'movies',
   'tv',
   'collections',
+  'lists',
   'add',
   'wanted',
   'movie',

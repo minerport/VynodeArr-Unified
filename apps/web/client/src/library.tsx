@@ -1107,11 +1107,11 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
           <p>Change the search or library filter.</p>
         </div>
       ) : null}
-      {limit < visible.length ? (
+      {visible.length > 0 && limit < total ? (
         <div className="library-load-more" ref={loadMoreRef}>
           <p>
             Showing {limit.toLocaleString()} of{" "}
-            {visible.length.toLocaleString()}
+            {total.toLocaleString()}
           </p>
           <button
             className="secondary"

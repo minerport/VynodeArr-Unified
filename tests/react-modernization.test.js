@@ -4,6 +4,18 @@ import test from 'node:test';
 
 const read=(path)=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
+test('Reeltrack Lists remains fluid while the viewport is resized',async()=>{
+  const [styles,view]=await Promise.all([read('apps/web/client/src/react-reeltrack-lists.css'),read('apps/web/client/src/reeltrack-lists.tsx')]);
+  assert.match(styles,/\.react-reeltrack-lists>\.reeltrack-hero\{[^}]*position:static[^}]*height:auto[^}]*min-height:0/);
+  assert.match(styles,/\.reeltrack-key-form input\{[^}]*min-width:0[^}]*width:100%/);
+  assert.match(styles,/@media\(max-width:800px\)\{[^}]*\.react-reeltrack-lists>\.reeltrack-hero\{[^}]*flex-direction:column/);
+  assert.match(styles,/@media\(max-width:480px\)\{[^}]*\.react-reeltrack-lists\{gap:\.85rem/);
+  assert.doesNotMatch(view,/Manage integrations/);
+  assert.match(view,/This is the only place in VynodeArr where your Reeltrack key is entered/);
+  assert.match(view,/Replace API key/);
+  assert.match(view,/href="https:\/\/reeltrack\.vynodehub\.com"/);
+});
+
 test('loaded Action Center records cannot widen the mobile viewport',async()=>{
   const [styles,navigation]=await Promise.all([read('apps/web/public/styles.css'),read('apps/web/client/src/navigation-lifecycle.ts')]);
   assert.match(styles,/\.operations-center > \*,[\s\S]*?\.operations-action header > div[\s\S]*?min-width: 0;[\s\S]*?max-width: 100%;/);
@@ -165,6 +177,8 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(library,/selectFromPointer/);
   assert.match(library,/scrollIntoView/);
   assert.match(library,/IntersectionObserver/);
+  assert.match(library,/visible\.length > 0 && limit < total/);
+  assert.match(library,/\{total\.toLocaleString\(\)\}/);
   assert.match(library,/setDebouncedQuery/);
   assert.match(library,/sessionStorage/);
   assert.match(library,/onPointerEnter=\{prefetch\}/);
@@ -685,7 +699,7 @@ test('hash navigation uses a typed route table without removing legacy route han
     read('apps/web/client/src/route-dispatch.ts'),
     read('apps/web/client/src/app-shell.ts')
   ]);
-  for(const route of ['dashboard','discover','movies','tv','collections','add','wanted','movie','series','queue','history','calendar','health','service','management','settings','system','engine-setup']){
+  for(const route of ['dashboard','discover','movies','tv','collections','lists','add','wanted','movie','series','queue','history','calendar','health','service','management','settings','system','engine-setup']){
     assert.match(routing,new RegExp(`'${route}'`));
   }
   assert.match(routing,/export function parseRoute/);
@@ -706,7 +720,7 @@ test('route dispatch resolves typed React destinations without changing page han
   ]);
   assert.match(dispatch,/export type RouteAction=/);
   assert.match(dispatch,/export function resolveRouteAction/);
-  for(const action of ['engineSetup','discover','library','collections','addMedia','wanted','movieDetail','tvDetail','queue','history','calendar','health','serviceSettings','management','engineManagement','account','system','dashboard']){
+  for(const action of ['engineSetup','discover','library','collections','lists','addMedia','wanted','movieDetail','tvDetail','queue','history','calendar','health','serviceSettings','management','engineManagement','account','system','dashboard']){
     assert.match(dispatch,new RegExp(`name:'${action}'`));
   }
   assert.match(dispatch,/state\.preserveLibrary&&!state\.libraryStale\[key\]/);
@@ -1312,8 +1326,7 @@ test('new poster styles require explicit media and destination choices',async()=
   assert.doesNotMatch(rail,/<option value="all">Movies & television<\/option>/);
 });
 
-test('poster library view keeps artwork in flow while alternate views use anchored fitting',async()=>{
+test('all library views anchor artwork to the complete poster surface',async()=>{
   const css=await read('apps/web/client/src/react-library.css');
-  assert.match(css,/\.view-poster \.poster>img\{position:static\}/);
-  assert.match(css,/\.view-cards \.poster img,\.view-compact \.poster img,\.view-list \.poster img\{position:absolute;inset:0\}/);
+  assert.match(css,/\.view-poster \.poster>img,\.view-cards \.poster img,\.view-compact \.poster img,\.view-list \.poster img\{position:absolute;inset:0\}/);
 });

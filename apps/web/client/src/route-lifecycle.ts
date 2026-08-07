@@ -11,6 +11,7 @@ const unmountMethods=[
   'unmountWanted',
   'unmountCalendar',
   'unmountCollections',
+  'unmountReeltrackLists',
   'unmountAddMedia',
   'unmountHealth',
   'unmountMovieDetail',
