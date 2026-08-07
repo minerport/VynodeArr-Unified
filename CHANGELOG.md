@@ -7,6 +7,24 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.35-rc.10] - 2026-08-07
+
+### Changed
+
+- Reorganized the Poster Overlay Studio layer inspector into compact Content,
+  Placement and Size, Text and Colors, Fine Position, and Typography groups.
+- Aligned related controls into responsive two-column rows while retaining
+  every existing text, icon, shape, variable, spacing, opacity, and positioning
+  capability.
+- Improved color fields, sliders, layer toggles, helper text, and the remove
+  action for faster desktop and mobile editing.
+
+### Validation
+
+- Passed 195 automated tests, TypeScript checks, production web and server
+  builds, route-specific bundle budgets, branding checks, and deployment
+  validation.
+
 ## [2.0.35-rc.9] - 2026-08-07
 
 ### Changed
@@ -1433,7 +1451,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.9...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.10...HEAD
+[2.0.35-rc.10]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.9...v2.0.35-rc.10
 [2.0.35-rc.9]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.8...v2.0.35-rc.9
 [2.0.35-rc.8]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.7...v2.0.35-rc.8
 [2.0.35-rc.7]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.6...v2.0.35-rc.7
