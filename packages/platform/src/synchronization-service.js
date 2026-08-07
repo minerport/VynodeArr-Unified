@@ -15,7 +15,7 @@ export class SynchronizationService {
     if(!this.projectionStore)return;
     if(typeof this.projectionStore.countDomain==='function'){
       await this.projectionStore.initialize?.();
-      for(const domain of ['movie','tv']){const count=await this.projectionStore.countDomain(domain),persisted=await this.projectionStore.synchronizationState?.(domain);if(count)Object.assign(this.state[domain],{status:'ready',lastSuccess:persisted?.lastSuccess||null,lastFullSync:persisted?.lastSuccess||null,itemCount:count,itemsUpdated:Number(persisted?.updated)||0,itemsRemoved:Number(persisted?.removed)||0,source:'sqlite-catalog'});}
+      for(const domain of ['movie','tv']){const count=await this.projectionStore.countDomain(domain),persisted=await this.projectionStore.synchronizationState?.(domain);if(count||persisted?.lastSuccess)Object.assign(this.state[domain],{status:'ready',lastSuccess:persisted?.lastSuccess||null,lastFullSync:persisted?.lastSuccess||null,itemCount:count,itemsUpdated:Number(persisted?.updated)||0,itemsRemoved:Number(persisted?.removed)||0,source:'sqlite-catalog'});}
       return;
     }
     const projection=await this.projectionStore.load();
@@ -103,6 +103,20 @@ export class SynchronizationService {
     const count=typeof this.projectionStore?.countDomain==='function'?await this.projectionStore.countDomain(domain):this.cache.get(domain)?.items?.length||0,state=this.state[domain],persisted=await this.projectionStore?.synchronizationState?.(domain),database=await this.projectionStore?.integrityCheck?.(),catalog=await this.projectionStore?.domainIntegrity?.(domain);
     const issues=[];if(!count)issues.push('Catalog is empty');if(state.itemCount&&state.itemCount!==count)issues.push('Runtime and catalog title counts differ');if(!persisted?.lastSuccess&&!state.lastSuccess)issues.push('No successful synchronization timestamp is recorded');if(database&&!database.ok)issues.push('SQLite integrity check failed');if(catalog?.invalidPayloads)issues.push(`${catalog.invalidPayloads} invalid catalog records`);if(catalog?.duplicateExternalIds)issues.push(`${catalog.duplicateExternalIds} duplicate external identifiers`);
     const result={domain,checkedAt:new Date().toISOString(),healthy:issues.length===0,issues,itemCount:count,runtimeItemCount:state.itemCount,lastSuccess:persisted?.lastSuccess||state.lastSuccess||null,catalogAgeMs:Date.parse(persisted?.lastSuccess||state.lastSuccess||0)?Date.now()-Date.parse(persisted?.lastSuccess||state.lastSuccess):null,database:database||null,catalog:catalog||null};this.lastIntegrity={...(this.lastIntegrity||{}),[domain]:result};return result;
+  }
+  async reconcileApplicationUpdate(version,{freshForMs=6*60*60*1000}={}){
+    if(!this.projectionStore?.applicationCatalogState||!this.projectionStore?.saveApplicationCatalogState)return{changed:false,pending:[]};
+    const current=await this.projectionStore.applicationCatalogState(),normalized=String(version||'unknown'),changed=current?.version!==normalized,pending=new Set(current?.version===normalized?current.pendingDomains||[]:[]);
+    if(changed)for(const domain of ['movie','tv']){
+      const state=this.state[domain],timestamp=Date.parse(state.lastSuccess||0),recent=timestamp&&Date.now()-timestamp<=Math.max(0,Number(freshForMs)||0);
+      if(state.itemCount>0&&!recent)pending.add(domain);
+    }
+    const base={version:normalized,previousVersion:changed?current?.version||null:current?.previousVersion||null,checkedAt:new Date().toISOString(),pendingDomains:[...pending]};
+    await this.projectionStore.saveApplicationCatalogState(base);
+    if(!pending.size)return{changed,pending:[],results:[]};
+    const domains=[...pending],results=await Promise.allSettled(domains.map(domain=>this.synchronize(domain))),remaining=domains.filter((domain,index)=>results[index].status==='rejected'||this.state[domain].status!=='ready');
+    await this.projectionStore.saveApplicationCatalogState({...base,completedAt:new Date().toISOString(),pendingDomains:remaining});
+    return{changed,pending:remaining,results};
   }
   resetCircuit(domain){return this.engines[domain]?.client?.resetCircuit?.()||null;}
   snapshot(){const state=structuredClone(this.state);for(const domain of ['movie','tv']){state[domain].nextIntegrityCheck=this.nextIntegrityCheck||null;state[domain].integrity=this.lastIntegrity?.[domain]||null;state[domain].workQueue=this.workQueues[domain].snapshot();state[domain].circuit=this.engines[domain]?.client?.circuitSnapshot?.()||null;}return {...state,metrics:{...this.metrics}};}

@@ -3991,6 +3991,12 @@ export function createApplication(options = {}) {
     sync.setPollingInterval?.(
       (resourceSettings.integrityIntervalMinutes || 360) * 6e4,
     );
+    const postUpdateCatalogMaxAgeMs = boundedInteger(
+      env.VYNODEARR_POST_UPDATE_CATALOG_MAX_AGE_MS,
+      (resourceSettings.integrityIntervalMinutes || 360) * 6e4,
+      5 * 6e4,
+      7 * 24 * 60 * 60 * 1e3,
+    );
     await masterKeyService.initialize(engineSettings);
     const storedDiscoveryCredential =
       await engineSettings.discoveryCredential();
@@ -4007,10 +4013,24 @@ export function createApplication(options = {}) {
       if (mode === "engine") {
         await sync.hydrate();
         const snapshot = sync.snapshot(),
-          catalogReady =
-            snapshot.movie.itemCount > 0 || snapshot.tv.itemCount > 0;
-        if (catalogReady) void sync.synchronizeOperations().catch(() => {});
-        else await sync.startup();
+          uninitializedDomains = ["movie", "tv"].filter(
+            (domain) => !snapshot[domain].lastSuccess,
+          );
+        if (uninitializedDomains.length)
+          await Promise.allSettled(
+            uninitializedDomains.map((domain) => sync.synchronize(domain)),
+          );
+        void sync.synchronizeOperations().catch(() => {});
+        void sync
+          .reconcileApplicationUpdate(applicationVersion, {
+            freshForMs: postUpdateCatalogMaxAgeMs,
+          })
+          .catch((error) =>
+            console.warn(
+              "Post-update catalog reconciliation deferred:",
+              redact(error?.safeMessage || error?.message || "Catalog unavailable"),
+            ),
+          );
       } else await sync.startup();
       for (const domain of ["movie", "tv"])
         void broadcastAuthoritativeAttention(domain).catch(() => {});

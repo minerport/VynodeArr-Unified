@@ -103,6 +103,14 @@ test('operational synchronization is single flight under overlapping callers',as
   assert.strictEqual(await first,await second);
   assert.equal(reads,2,'each engine queue is read once for a shared operation cycle');
 });
+test('application updates retain recent catalogs and reconcile stale catalogs once',async()=>{
+  const states={movie:{lastSuccess:new Date().toISOString()},tv:{lastSuccess:new Date(Date.now()-8*60*60*1000).toISOString()}},reads={movie:0,tv:0};let marker=null;
+  const store={initialize:async()=>{},countDomain:async domain=>1,synchronizationState:async domain=>states[domain],applicationCatalogState:async()=>marker,saveApplicationCatalogState:async value=>{marker=structuredClone(value);},replaceDomain:async(domain,items)=>{states[domain]={lastSuccess:new Date().toISOString()};return{updated:items.length,total:items.length};}};
+  const engine=domain=>({listMovies:async()=>{reads[domain]++;return[{id:'movie_1',title:'Movie'}];},listSeries:async()=>{reads[domain]++;return[{id:'series_1',title:'Series'}];}}),sync=new SynchronizationService({movie:engine('movie'),tv:engine('tv'),projectionStore:store,pollIntervalMs:999999});
+  await sync.hydrate();const first=await sync.reconcileApplicationUpdate('2.0.35',{freshForMs:6*60*60*1000});
+  assert.equal(first.changed,true);assert.deepEqual(reads,{movie:0,tv:1});assert.deepEqual(marker.pendingDomains,[]);
+  const second=await sync.reconcileApplicationUpdate('2.0.35',{freshForMs:6*60*60*1000});assert.equal(second.changed,false);assert.deepEqual(reads,{movie:0,tv:1});
+});
 
 async function appSession(options,run){
   const directory=await mkdtemp(join(tmpdir(),'vynodearr-n3-api-')),app=createApplication({...options,env:{VYNODEARR_DATA_MODE:'fixture',VYNODEARR_DATA_DIR:directory,VYNODEARR_MASTER_KEY:'test-master-key-with-32-characters',...(options.env||{})}});

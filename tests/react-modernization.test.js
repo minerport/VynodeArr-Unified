@@ -1311,3 +1311,8 @@ test('new poster styles require explicit media and destination choices',async()=
   assert.match(rail,/Choose Movies or Television/);
   assert.doesNotMatch(rail,/<option value="all">Movies & television<\/option>/);
 });
+
+test('poster library view paints artwork on the same anchored surface as alternate views',async()=>{
+  const css=await read('apps/web/client/src/react-library.css');
+  assert.match(css,/\.view-poster \.poster img,\.view-cards \.poster img,[^{]+\{position:absolute;inset:0;width:100%;height:100%\}/);
+});

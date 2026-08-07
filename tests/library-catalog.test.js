@@ -15,6 +15,7 @@ test('SQLite library catalog imports projections and supports indexed paging, re
     assert.deepEqual(await store.integrityCheck(),{ok:true,result:'ok'});
     assert.deepEqual(await store.domainIntegrity('movie'),{count:2,invalidPayloads:0,duplicateExternalIds:0,ok:true});
     await store.replaceDomain('movie',await store.domain('movie'));const synchronization=await store.synchronizationState('movie');assert.ok(synchronization.lastSuccess);assert.equal(synchronization.itemCount,2);
+    assert.equal(await store.applicationCatalogState(),null);await store.saveApplicationCatalogState({version:'2.0.35',pendingDomains:['tv']});assert.deepEqual(await store.applicationCatalogState(),{version:'2.0.35',pendingDomains:['tv']});
     const page=await store.queryDomain('movie',{limit:1,sort:'title'});assert.equal(page.items[0].title,'Alpha');assert.equal(page.total,2);assert.deepEqual(page.letters.A,{offset:0,count:1});
     await store.enqueueEvent({dedupeKey:'movie:1:changed',domain:'movie',mediaId:'movie_1',eventType:'changed'});await store.enqueueEvent({dedupeKey:'movie:1:changed',domain:'movie',mediaId:'movie_1',eventType:'changed'});assert.equal((await store.claimEvents(10)).length,1);
     await store.artworkSet('movie:movie_1:poster',{file:'one.bin',contentType:'image/jpeg',size:10,cachedAt:Date.now()});assert.equal((await store.artworkGet('movie:movie_1:poster')).file,'one.bin');assert.deepEqual(await store.artworkRemovePrefix('movie:movie_1:'),['one.bin']);

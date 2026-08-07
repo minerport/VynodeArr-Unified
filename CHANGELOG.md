@@ -7,6 +7,23 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.35-rc.13] - 2026-08-07
+
+### Changed
+
+- Retain recent durable Movie and Television catalogs across application updates instead of requiring an unnecessary full synchronization.
+- Reconcile stale catalogs once in the background after an update while allowing the application to start immediately.
+- Initialize only catalog domains that have never completed a synchronization, including valid empty libraries.
+
+### Fixed
+
+- Keep failed post-update catalog reconciliation pending so it retries after a restart rather than recording an incomplete refresh as current.
+- Restored poster artwork and VynodeArr overlays in the primary Movie and Television poster-grid view.
+
+### Validation
+
+- Passed 197 automated tests, TypeScript checks, production web and server builds, bundle budgets, branding checks, and deployment validation.
+
 ## [2.0.35-rc.12] - 2026-08-07
 
 ### Changed
@@ -1483,7 +1500,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.12...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.13...HEAD
+[2.0.35-rc.13]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.12...v2.0.35-rc.13
 [2.0.35-rc.12]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.11...v2.0.35-rc.12
 [2.0.35-rc.11]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.10...v2.0.35-rc.11
 [2.0.35-rc.10]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.9...v2.0.35-rc.10
