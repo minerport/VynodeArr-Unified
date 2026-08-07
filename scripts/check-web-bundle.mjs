@@ -38,7 +38,7 @@ const posterOverlayAllowance={route:4_250,css:2_500};
 // Reeltrack Lists adds one Discover-permission navigation/mount bridge. Its
 // responsive list workspace is lazy-loaded, while Vite intentionally folds the
 // route stylesheet into the shared CSS asset.
-const reeltrackAllowance={shell:600,css:6_700};
+const reeltrackAllowance={shell:600,css:7_500};
 const failures=[];
 
 if(!entry)failures.push('The React entry bundle was not produced.');

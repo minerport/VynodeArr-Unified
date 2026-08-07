@@ -7,6 +7,22 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.35-rc.17] - 2026-08-07
+
+### Changed
+
+- Reworked imported Reeltrack lists into a compact two-column workspace with an independently scrollable list selector, stable poster-rich title cards, aligned filters and actions, and responsive tablet and phone layouts.
+
+### Fixed
+
+- Prevented a single imported list from stretching into a page-height empty navigation card.
+- Prevented list names, metadata, filters, and title cards from widening or overflowing resized browser windows.
+- Restored Movie and Television artwork and assigned overlays across every primary library view.
+
+### Validation
+
+- Passed 199 automated tests, TypeScript checks, production builds, bundle and branding checks, and deployment validation.
+
 ## [2.0.35-rc.16] - 2026-08-07
 
 ### Fixed
@@ -1542,7 +1558,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.16...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.17...HEAD
+[2.0.35-rc.17]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.16...v2.0.35-rc.17
 [2.0.35-rc.16]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.15...v2.0.35-rc.16
 [2.0.35-rc.15]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.14...v2.0.35-rc.15
 [2.0.35-rc.14]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.13...v2.0.35-rc.14

@@ -8,7 +8,10 @@ test('Reeltrack Lists remains fluid while the viewport is resized',async()=>{
   const [styles,view]=await Promise.all([read('apps/web/client/src/react-reeltrack-lists.css'),read('apps/web/client/src/reeltrack-lists.tsx')]);
   assert.match(styles,/\.react-reeltrack-lists>\.reeltrack-hero\{[^}]*position:static[^}]*height:auto[^}]*min-height:0/);
   assert.match(styles,/\.reeltrack-key-form input\{[^}]*min-width:0[^}]*width:100%/);
-  assert.match(styles,/@media\(max-width:800px\)\{[^}]*\.react-reeltrack-lists>\.reeltrack-hero\{[^}]*flex-direction:column/);
+  assert.match(styles,/\.reeltrack-list-nav\{[^}]*display:flex[^}]*max-height:calc\(100dvh - 8rem\)[^}]*flex-direction:column[^}]*overflow-y:auto/);
+  assert.match(styles,/\.reeltrack-list-nav button\{[^}]*flex:0 0 auto[^}]*min-height:4rem/);
+  assert.match(styles,/@media\(max-width:900px\)\{[^}]*\.react-reeltrack-lists>\.reeltrack-hero\{[^}]*flex-direction:column/);
+  assert.match(styles,/@media\(max-width:900px\)\{[\s\S]*?\.reeltrack-workspace\{grid-template-columns:minmax\(0,1fr\)/);
   assert.match(styles,/@media\(max-width:480px\)\{[^}]*\.react-reeltrack-lists\{gap:\.85rem/);
   assert.doesNotMatch(view,/Manage integrations/);
   assert.match(view,/This is the only place in VynodeArr where your Reeltrack key is entered/);
@@ -1326,8 +1329,8 @@ test('new poster styles require explicit media and destination choices',async()=
   assert.doesNotMatch(rail,/<option value="all">Movies & television<\/option>/);
 });
 
-test('poster library view keeps artwork in flow while alternate views use anchored fitting',async()=>{
+test('all library views anchor artwork to the complete poster surface',async()=>{
   const css=await read('apps/web/client/src/react-library.css');
-  assert.match(css,/\.view-poster \.poster>img\{position:static\}/);
-  assert.match(css,/\.view-cards \.poster img,\.view-compact \.poster img,\.view-list \.poster img\{position:absolute;inset:0\}/);
+  assert.match(css,/\.view-poster \.poster>img,\.view-cards \.poster>img,\.view-compact \.poster>img,\.view-list \.poster>img\{position:absolute;z-index:0;inset:0;display:block;width:100%;height:100%;object-fit:cover\}/);
+  assert.doesNotMatch(css,/\.view-poster \.poster>img\{position:static\}/);
 });
