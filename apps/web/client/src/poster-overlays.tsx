@@ -636,7 +636,7 @@ export function PosterOverlaysView({
           <div className="panel skeleton">Loading Plex connection…</div>
         }
       >
-        <PlexConnectionPanel options={options} templates={templates} />
+        <PlexConnectionPanel options={options} templates={templates} variables={variables} />
       </Suspense>
       {loading ? (
         <div className="panel skeleton">Loading poster styles…</div>

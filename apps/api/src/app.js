@@ -6269,6 +6269,7 @@ export function createApplication(options = {}) {
     plexLibraryTitle: value.plexLibraryTitle,
     appliedAt: value.appliedAt,
     restoredAt: value.restoredAt || null,
+    variableValues: value.variableValues || {},
     status: value.restoredAt ? "restored" : "applied",
   });
   async function renderedPlexPoster(target, template, session) {
@@ -6347,6 +6348,11 @@ export function createApplication(options = {}) {
         .update(target.poster.body)
         .digest("hex"),
       renderedSha256: createHash("sha256").update(rendered).digest("hex"),
+      variableValues: posterVariableValues(target.item, {
+        plexAddedAt: Number.isFinite(Number(target.plex.addedAt)) && Number(target.plex.addedAt) > 0
+          ? new Date(Number(target.plex.addedAt) < 1e12 ? Number(target.plex.addedAt) * 1000 : Number(target.plex.addedAt)).toISOString()
+          : target.plex.addedAt,
+      }),
       appliedAt: new Date().toISOString(),
       restoredAt: null,
     };
@@ -10028,14 +10034,18 @@ export function createApplication(options = {}) {
                   ? plexService.matchLibrary(vynode, plexItems)
                   : plexService.match(vynode, plexItems);
             entries.push(
-              ...matches.map((item) => ({
-                ...item,
-                plexLibrary: {
-                  key: library.key,
-                  title: library.title,
-                  type: library.type,
-                },
-              })),
+              ...matches.map((item) => {
+                const source=vynode.find(value=>value.id===item.id),raw=item.plex[0]?.addedAt,numeric=Number(raw),date=Number.isFinite(numeric)&&numeric>0?new Date(numeric<1e12?numeric*1000:numeric):new Date(raw||"");
+                return{
+                  ...item,
+                  variableValues:source?posterVariableValues(source,{plexAddedAt:Number.isFinite(date.getTime())?date.toISOString():null}):{},
+                  plexLibrary: {
+                    key: library.key,
+                    title: library.title,
+                    type: library.type,
+                  },
+                };
+              }),
             );
           }
           const summary = {
@@ -10071,7 +10081,6 @@ export function createApplication(options = {}) {
             applications: (stored.applications || [])
               .slice()
               .reverse()
-              .slice(0, 100)
               .map(publicPlexPosterApplication),
           });
         }
@@ -10082,14 +10091,6 @@ export function createApplication(options = {}) {
           if (!administrator(res, session) || !requireCsrf(req, res, session))
             return;
           const input = await body(req);
-          if (String(input.confirmation || "") !== "APPLY TO PLEX")
-            return json(res, 400, {
-              error: {
-                code: "confirmation_required",
-                message:
-                  "Type APPLY TO PLEX to confirm this one-title poster upload.",
-              },
-            });
           const configuration = await posterOverlayConfiguration(),
             template = configuration.templates.find(
               (item) => item.id === String(input.templateId || ""),
@@ -10130,16 +10131,6 @@ export function createApplication(options = {}) {
                 code: "invalid_plex_targets",
                 message:
                   "Choose between 1 and 500 distinct matched Plex titles.",
-              },
-            });
-          if (
-            String(input.confirmation || "") !==
-            `APPLY ${targets.length} TO PLEX`
-          )
-            return json(res, 400, {
-              error: {
-                code: "confirmation_required",
-                message: `Type APPLY ${targets.length} TO PLEX to confirm these poster uploads.`,
               },
             });
           const configuration = await posterOverlayConfiguration(),
@@ -10197,15 +10188,7 @@ export function createApplication(options = {}) {
         if (plexPosterRestore && req.method === "POST") {
           if (!administrator(res, session) || !requireCsrf(req, res, session))
             return;
-          const input = await body(req);
-          if (String(input.confirmation || "") !== "RESTORE PLEX POSTER")
-            return json(res, 400, {
-              error: {
-                code: "confirmation_required",
-                message:
-                  "Type RESTORE PLEX POSTER to restore the captured artwork.",
-              },
-            });
+          await body(req);
           const stored = await plexPosterApplicationStore.read(),
             application = (stored.applications || []).find(
               (item) => item.id === plexPosterRestore[1],

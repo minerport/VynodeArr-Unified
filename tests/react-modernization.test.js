@@ -1148,6 +1148,14 @@ test('poster overlay library choices grow as the user scrolls',async()=>{
   assert.doesNotMatch(plex,/\.slice\(0, 500\)/);
 });
 
+test('Plex poster batches support variable filters and direct scoped restoration',async()=>{
+  const source=await read('apps/web/client/src/poster-overlays-plex.tsx'),api=await read('apps/api/src/app.js');
+  assert.match(source,/Filter titles by variables/);assert.match(source,/Select filtered/);assert.match(source,/Select entire matched library/);
+  assert.match(source,/Restore filtered/);assert.match(source,/Restore all/);assert.match(source,/targets\.slice\(index,index\+500\)/);
+  assert.doesNotMatch(source,/APPLY TO PLEX|RESTORE PLEX POSTER|confirmationText/);
+  assert.match(api,/variableValues:source\?posterVariableValues/);assert.match(api,/variableValues: posterVariableValues/);
+});
+
 test('poster overlay editor provides bounded layer fields and a shape library',async()=>{
   const rail=await read('apps/web/client/src/poster-overlay-editor-rail.tsx'),layout=await read('apps/web/client/src/poster-overlay-editor-layout.tsx');
   for(const shape of ['rounded','square','pill','circle','ticket','ribbon','tag','hexagon','chevron'])assert.ok(rail.includes(shape),shape);

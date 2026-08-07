@@ -7,6 +7,23 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.35-rc.27] - 2026-08-07
+
+### Added
+
+- Added multi-variable filters for Plex poster application and rollback history.
+- Added individual, filtered, entire-library, and full-library Plex apply and restore scopes.
+
+### Changed
+
+- Removed typed confirmation phrases from Plex poster application and restoration.
+- Stored the applied title's variable values with each rollback record for deterministic filtered restoration.
+- Used destination-specific added dates when rendering both Plex and VynodeArr overlays.
+
+### Validation
+
+- Passed 207 automated tests, TypeScript checks, production builds, bundle and branding checks, and deployment validation.
+
 ## [2.0.35-rc.26] - 2026-08-07
 
 ### Fixed

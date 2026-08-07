@@ -97,9 +97,9 @@ test('poster variables derive friendly values from library metadata',()=>{
   assert.equal(values.file_size,'15 GB');assert.equal(values.completion_percent,'100%');assert.equal(values.tags,'favorite, 4k');assert.equal(values.date_added,'Jul 30');assert.equal(values.added_ago,'3 days ago');assert.equal(values.release_age,'13 days ago');assert.equal(values.download_status,'Downloading');assert.equal(values.download_progress,'63%');assert.equal(values.download_eta,'Tomorrow');assert.equal(values.library_status,'Complete');
 });
 
-test('Plex days since added is a whole calendar-day value from Plex metadata only',()=>{
+test('days since added uses Plex metadata for Plex and library metadata for VynodeArr',()=>{
   assert.equal(posterVariableValues({addedAt:'2020-01-01T00:00:00Z'},{now:'2026-08-07T23:59:00Z',plexAddedAt:'2026-08-01T01:00:00Z'}).plex_days_since_added,6);
-  assert.equal(posterVariableValues({addedAt:'2026-08-01T00:00:00Z'},{now:'2026-08-07T12:00:00Z'}).plex_days_since_added,'');
+  assert.equal(posterVariableValues({addedAt:'2026-08-01T00:00:00Z'},{now:'2026-08-07T12:00:00Z'}).plex_days_since_added,6);
   assert.equal(posterVariableValues({},{now:'2026-08-07T12:00:00Z',plexAddedAt:'2026-08-09T00:00:00Z'}).plex_days_since_added,1);
 });
 

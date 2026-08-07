@@ -9,13 +9,29 @@ import type {
 
 const errorText = (reason: unknown) =>
   reason instanceof Error ? reason.message : "Plex operation failed.";
+type VariableFilter={variable:string;operator:string;value:string};
+const filterMatches=(values:Record<string,unknown>|undefined,filter:VariableFilter)=>{
+  if(!filter.variable)return true;
+  const actual=values?.[filter.variable],text=String(actual??"").toLowerCase(),expected=filter.value.toLowerCase(),left=Number(actual),right=Number(filter.value);
+  if(filter.operator==="truthy")return Boolean(text);
+  if(filter.operator==="falsy")return !text;
+  if(filter.operator==="equals")return text===expected;
+  if(filter.operator==="not_equals")return text!==expected;
+  if(filter.operator==="contains")return text.includes(expected);
+  if(filter.operator==="not_contains")return !text.includes(expected);
+  if(!Number.isFinite(left)||!Number.isFinite(right))return false;
+  return filter.operator==="greater_than"?left>right:filter.operator==="less_than"?left<right:filter.operator==="greater_than_or_equal"?left>=right:left<=right;
+};
+const matchesFilters=(values:Record<string,unknown>|undefined,filters:VariableFilter[])=>filters.every(filter=>filterMatches(values,filter));
 
 export function PlexConnectionPanel({
   options,
   templates,
+  variables,
 }: {
   options: PosterOverlayMountOptions;
   templates: OverlayTemplate[];
+  variables: string[];
 }) {
   const [plex, setPlex] = useState<PlexOverlayConnection | null>(null),
     [endpoint, setEndpoint] = useState(""),
@@ -28,13 +44,11 @@ export function PlexConnectionPanel({
     >("all"),
     [reviewQuery, setReviewQuery] = useState(""),
     [visibleLimit, setVisibleLimit] = useState(100),
+    [variableFilters, setVariableFilters] = useState<Array<{variable:string;operator:string;value:string}>>([]),
     [templateId, setTemplateId] = useState(""),
     [selectedTargets, setSelectedTargets] = useState<string[]>([]),
-    [confirmation, setConfirmation] = useState(""),
     [applications, setApplications] = useState<PlexPosterApplication[]>([]),
-    [historyExpanded, setHistoryExpanded] = useState(false),
-    [restoreId, setRestoreId] = useState(""),
-    [restoreConfirmation, setRestoreConfirmation] = useState("");
+    [historyExpanded, setHistoryExpanded] = useState(false);
   const load = useCallback(async () => {
     try {
       const [connection, history] = await Promise.all([
@@ -125,10 +139,6 @@ export function PlexConnectionPanel({
       selectedTargets.includes(targetKey(item)),
     ),
     selectedEntry = selectedEntries[0],
-    confirmationText =
-      selectedEntries.length === 1
-        ? "APPLY TO PLEX"
-        : `APPLY ${selectedEntries.length} TO PLEX`,
     previewUrl = (
       mode: "original" | "preview",
       item: PlexMatchReview["entries"][number],
@@ -147,7 +157,8 @@ export function PlexConnectionPanel({
         (!reviewQuery.trim() ||
           `${item.title} ${item.year || ""} ${item.plexLibrary.title} ${item.externalIds.join(" ")}`
             .toLowerCase()
-            .includes(reviewQuery.trim().toLowerCase())),
+            .includes(reviewQuery.trim().toLowerCase())) &&
+        matchesFilters(item.variableValues,variableFilters),
     ),visibleEntries=filteredEntries.slice(0,visibleLimit);
   const toggleTarget = (key: string, checked: boolean) =>
     setSelectedTargets((current) =>
@@ -173,26 +184,20 @@ export function PlexConnectionPanel({
           application: PlexPosterApplication;
         }>("/api/poster-overlays/plex/apply", {
           method: "POST",
-          body: JSON.stringify({ confirmation, templateId, ...targets[0] }),
+          body: JSON.stringify({ templateId, ...targets[0] }),
         });
         setApplications((current) => [value.application, ...current]);
         options.notify(
           `${targets[0].title} was updated in Plex. Rollback artwork is ready.`,
         );
       } else {
-        const value = await options.request<{
-          applications: PlexPosterApplication[];
-          summary: { applied: number; failed: number };
-        }>("/api/poster-overlays/plex/apply-batch", {
-          method: "POST",
-          body: JSON.stringify({ confirmation, templateId, targets }),
-        });
-        setApplications((current) => [...value.applications, ...current]);
+        const applied:PlexPosterApplication[]=[],failures:unknown[]=[];
+        for(let index=0;index<targets.length;index+=500){const value=await options.request<{applications:PlexPosterApplication[];failures:unknown[]}>("/api/poster-overlays/plex/apply-batch",{method:"POST",body:JSON.stringify({templateId,targets:targets.slice(index,index+500)})});applied.push(...value.applications);failures.push(...value.failures);}
+        setApplications((current) => [...applied, ...current]);
         options.notify(
-          `${value.summary.applied} Plex posters updated${value.summary.failed ? `; ${value.summary.failed} failed` : ""}.`,
+          `${applied.length} Plex posters updated${failures.length ? `; ${failures.length} failed` : ""}.`,
         );
       }
-      setConfirmation("");
     } catch (reason) {
       options.notify(errorText(reason), "error");
     } finally {
@@ -206,15 +211,13 @@ export function PlexConnectionPanel({
         application: PlexPosterApplication;
       }>(`/api/poster-overlays/plex/applications/${application.id}/restore`, {
         method: "POST",
-        body: JSON.stringify({ confirmation: restoreConfirmation }),
+        body: "{}",
       });
       setApplications((current) =>
         current.map((item) =>
           item.id === application.id ? value.application : item,
         ),
       );
-      setRestoreId("");
-      setRestoreConfirmation("");
       options.notify(
         `${application.title} was restored to its captured Plex poster.`,
       );
@@ -224,6 +227,17 @@ export function PlexConnectionPanel({
       setBusy(false);
     }
   };
+  const restoreMany=async(items:PlexPosterApplication[])=>{
+    if(!items.length)return;
+    setBusy(true);let restored=0;
+    try{
+      for(const application of items){
+        try{const value=await options.request<{application:PlexPosterApplication}>(`/api/poster-overlays/plex/applications/${application.id}/restore`,{method:"POST",body:"{}"});setApplications(current=>current.map(item=>item.id===application.id?value.application:item));restored++;}catch(reason){options.notify(`${application.title}: ${errorText(reason)}`,"error");}
+      }
+      options.notify(`${restored} Plex poster${restored===1?"":"s"} restored.`);
+    }finally{setBusy(false);}
+  };
+  const restorableApplications=applications.filter(item=>item.status==="applied"),filteredRestores=restorableApplications.filter(item=>matchesFilters(item.variableValues,variableFilters));
   return (
     <section
       className="panel plex-connection-panel"
@@ -392,6 +406,17 @@ export function PlexConnectionPanel({
               here.
             </small>
           </label>
+          <fieldset className="overlay-condition-builder">
+            <legend>Filter titles by variables</legend>
+            <p className="muted">All filter rules must match. Filters affect the list, Select filtered, and filtered restore.</p>
+            {variableFilters.map((filter,index)=><div className="overlay-condition-rule" key={index}>
+              <select aria-label={`Plex filter ${index+1} variable`} value={filter.variable} onChange={event=>setVariableFilters(current=>current.map((item,i)=>i===index?{...item,variable:event.target.value}:item))}><option value="">Choose variable</option>{variables.filter(item=>!['icon','custom_text'].includes(item)).map(item=><option value={item} key={item}>{item.replaceAll('_',' ')}</option>)}</select>
+              <select aria-label={`Plex filter ${index+1} operator`} value={filter.operator} onChange={event=>setVariableFilters(current=>current.map((item,i)=>i===index?{...item,operator:event.target.value}:item))}><option value="equals">equals</option><option value="not_equals">does not equal</option><option value="contains">contains</option><option value="not_contains">does not contain</option><option value="greater_than">is greater than</option><option value="less_than">is less than</option><option value="greater_than_or_equal">is at least</option><option value="less_than_or_equal">is at most</option><option value="truthy">has a value</option><option value="falsy">has no value</option></select>
+              {!['truthy','falsy'].includes(filter.operator)?<input aria-label={`Plex filter ${index+1} value`} value={filter.value} onChange={event=>setVariableFilters(current=>current.map((item,i)=>i===index?{...item,value:event.target.value}:item))}/>:null}
+              <button type="button" className="icon-button" aria-label={`Remove Plex filter ${index+1}`} onClick={()=>setVariableFilters(current=>current.filter((_,i)=>i!==index))}>Ã—</button>
+            </div>)}
+            <div className="form-actions"><button type="button" className="secondary" onClick={()=>setVariableFilters(current=>[...current,{variable:'plex_days_since_added',operator:'greater_than_or_equal',value:'1'}])}>Add variable filter</button>{variableFilters.length?<button type="button" className="text-button" onClick={()=>setVariableFilters([])}>Clear filters</button>:null}</div>
+          </fieldset>
           <div className="form-actions">
             <button
               type="button"
@@ -399,14 +424,15 @@ export function PlexConnectionPanel({
               disabled={!selectedTemplate}
               onClick={() =>
                 setSelectedTargets(
-                  review.entries
+                  filteredEntries
                     .filter(compatible)
                     .map(targetKey),
                 )
               }
             >
-              Select all matched
+              Select filtered
             </button>
+            <button type="button" className="secondary" disabled={!selectedTemplate} onClick={()=>setSelectedTargets(review.entries.filter(compatible).map(targetKey))}>Select entire matched library</button>
             <button
               type="button"
               className="secondary"
@@ -532,18 +558,10 @@ export function PlexConnectionPanel({
               <figcaption>Overlay preview</figcaption>
             </figure>
           </div>
-          <label>
-            Type <strong>{confirmationText}</strong>
-            <input
-              value={confirmation}
-              onChange={(event) => setConfirmation(event.target.value)}
-              autoComplete="off"
-            />
-          </label>
           <button
             type="button"
             className="danger"
-            disabled={busy || confirmation !== confirmationText}
+            disabled={busy || !selectedEntries.length}
             onClick={() => void apply()}
           >
             Capture rollback and apply{" "}
@@ -562,15 +580,7 @@ export function PlexConnectionPanel({
                 Applied and restored artwork with rollback status.
               </p>
             </div>
-            {applications.length > 6 ? (
-              <button
-                type="button"
-                className="secondary"
-                onClick={() => setHistoryExpanded((value) => !value)}
-              >
-                {historyExpanded ? "Show recent" : "Show all"}
-              </button>
-            ) : null}
+            <div className="form-actions"><button type="button" className="danger" disabled={busy||!filteredRestores.length} onClick={()=>void restoreMany(filteredRestores)}>Restore filtered ({filteredRestores.length})</button><button type="button" className="danger" disabled={busy||!restorableApplications.length} onClick={()=>void restoreMany(restorableApplications)}>Restore all ({restorableApplications.length})</button>{applications.length>6?<button type="button" className="secondary" onClick={()=>setHistoryExpanded(value=>!value)}>{historyExpanded?"Show recent":"Show all"}</button>:null}</div>
           </div>
           <div className="plex-history-list">
             {(historyExpanded ? applications : applications.slice(0, 6)).map(
@@ -587,44 +597,10 @@ export function PlexConnectionPanel({
                     >
                       {application.status.toUpperCase()}
                     </span>
-                    {restoreId === application.id ? (
-                      <label>
-                        Type <strong>RESTORE PLEX POSTER</strong>
-                        <input
-                          value={restoreConfirmation}
-                          onChange={(event) =>
-                            setRestoreConfirmation(event.target.value)
-                          }
-                          autoComplete="off"
-                        />
-                      </label>
-                    ) : null}
                   </div>
                   {application.status === "applied" ? (
                     <div className="form-actions">
-                      <button
-                        type="button"
-                        className="secondary"
-                        onClick={() => {
-                          setRestoreId(application.id);
-                          setRestoreConfirmation("");
-                        }}
-                      >
-                        Prepare restore
-                      </button>
-                      {restoreId === application.id ? (
-                        <button
-                          type="button"
-                          className="danger"
-                          disabled={
-                            busy ||
-                            restoreConfirmation !== "RESTORE PLEX POSTER"
-                          }
-                          onClick={() => void restore(application)}
-                        >
-                          Restore captured poster
-                        </button>
-                      ) : null}
+                      <button type="button" className="danger" disabled={busy} onClick={() => void restore(application)}>Restore captured poster</button>
                     </div>
                   ) : null}
                 </article>

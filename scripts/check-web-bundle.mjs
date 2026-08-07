@@ -35,7 +35,7 @@ const performanceAllowance={systemRoute:1_500,css:600};
 // representative missing-metadata values,
 // and selection-to-settings navigation in one administrator-only lazy route.
 // Keep its headroom isolated from every other application route.
-const posterOverlayAllowance={route:7_350,css:2_500};
+const posterOverlayAllowance={route:7_375,css:2_500};
 // Reeltrack adds one Discover-permission navigation bridge and a lazy Lists
 // workspace. Vite folds the responsive route stylesheet into shared CSS.
 const reeltrackAllowance={shell:600,css:7_500};
