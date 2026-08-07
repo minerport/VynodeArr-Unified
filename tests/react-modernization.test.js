@@ -1132,11 +1132,20 @@ test('poster overlay editor remains inside its viewport without deferred toggle 
 test('poster overlay previews retain layers with representative missing metadata values',async()=>{
   const source=await read('apps/web/client/src/poster-overlays.tsx');
   assert.match(source,/resolved\?\.trim\(\)/);
+  assert.match(source,/!String\(previewValues\[rule\.variable\] \?\? ""\)\.trim\(\)/);
   assert.match(source,/variable==="plex_days_since_added"/);
   assert.match(source,/media\?\.addedAt/);
   assert.match(source,/return "1"/);
   assert.match(source,/title:"Example title"/);
   assert.match(source,/return defaults\[variable\]\|\|variable\.replaceAll/);
+});
+
+test('poster overlay library choices grow as the user scrolls',async()=>{
+  const editor=await read('apps/web/client/src/poster-overlays.tsx'),plex=await read('apps/web/client/src/poster-overlays-plex.tsx');
+  assert.match(editor,/setPreviewLimit\(value=>Math\.min\(value\+100,editingMedia\.length\)\)/);
+  assert.match(editor,/\.slice\(0, previewLimit\)/);
+  assert.match(plex,/setVisibleLimit\(value=>Math\.min\(value\+100,filteredEntries\.length\)\)/);
+  assert.doesNotMatch(plex,/\.slice\(0, 500\)/);
 });
 
 test('poster overlay editor provides bounded layer fields and a shape library',async()=>{

@@ -25,8 +25,8 @@ test('Plex matching uses external IDs and reports ambiguity without title fallba
 });
 
 test('multi-library review is driven by Plex items instead of repeating every VynodeArr title',()=>{
-  const service=new PlexService(),vynode=[{id:'movie_a',domain:'movie',title:'Alpha',tmdbId:10},{id:'movie_b',domain:'movie',title:'Beta',tmdbId:20}],first=service.matchLibrary(vynode,[{ratingKey:'1',title:'Alpha',type:'movie',Guid:[{id:'tmdb://10'}]}]),second=service.matchLibrary(vynode,[{ratingKey:'2',title:'Other',type:'movie',Guid:[{id:'tmdb://99'}]}]);
-  assert.equal(first.length,1);assert.equal(first[0].status,'matched');assert.equal(first[0].id,'movie_a');assert.equal(second.length,1);assert.equal(second[0].status,'unmatched');assert.equal(second[0].id,'plex_2');
+  const service=new PlexService(),vynode=[{id:'movie_a',domain:'movie',title:'Alpha',tmdbId:10},{id:'movie_b',domain:'movie',title:'Beta',tmdbId:20}],first=service.matchLibrary(vynode,[{ratingKey:'1',title:'Alpha',type:'movie',addedAt:1700000000,Guid:[{id:'tmdb://10'}]}]),second=service.matchLibrary(vynode,[{ratingKey:'2',title:'Other',type:'movie',Guid:[{id:'tmdb://99'}]}]);
+  assert.equal(first.length,1);assert.equal(first[0].status,'matched');assert.equal(first[0].id,'movie_a');assert.equal(first[0].plex[0].addedAt,1700000000);assert.equal(second.length,1);assert.equal(second[0].status,'unmatched');assert.equal(second[0].id,'plex_2');
 });
 
 test('Plex library hydration retrieves omitted GUIDs and accepts legacy agent identifiers',async()=>{

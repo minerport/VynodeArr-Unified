@@ -7,6 +7,19 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.35-rc.26] - 2026-08-07
+
+### Fixed
+
+- Used VynodeArr added dates for VynodeArr styles and matched Plex added dates for Plex styles in the overlay editor.
+- Preserved Plex added timestamps in multi-library match results so editor previews and conditions calculate the correct age.
+- Replaced fixed overlay-library result caps with incremental batches that grow as users scroll.
+- Allowed Select all matched to include the complete filtered Plex library instead of only the first 500 titles.
+
+### Validation
+
+- Passed 206 automated tests, TypeScript checks, production builds, bundle and branding checks, and deployment validation.
+
 ## [2.0.35-rc.25] - 2026-08-07
 
 ### Fixed

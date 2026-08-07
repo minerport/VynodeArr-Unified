@@ -27,6 +27,7 @@ export function PlexConnectionPanel({
       "all" | "matched" | "unmatched" | "ambiguous"
     >("all"),
     [reviewQuery, setReviewQuery] = useState(""),
+    [visibleLimit, setVisibleLimit] = useState(100),
     [templateId, setTemplateId] = useState(""),
     [selectedTargets, setSelectedTargets] = useState<string[]>([]),
     [confirmation, setConfirmation] = useState(""),
@@ -55,6 +56,7 @@ export function PlexConnectionPanel({
   useEffect(() => {
     void load();
   }, [load]);
+  useEffect(()=>setVisibleLimit(100),[review,reviewFilter,reviewQuery]);
   const save = async () => {
     setBusy(true);
     try {
@@ -138,7 +140,7 @@ export function PlexConnectionPanel({
       if (mode === "preview") params.set("templateId", templateId);
       return `/api/poster-overlays/plex/${mode}/${item.domain}/${item.id}?${params}`;
     };
-  const visibleEntries = (review?.entries || [])
+  const filteredEntries = (review?.entries || [])
     .filter(
       (item) =>
         (reviewFilter === "all" || item.status === reviewFilter) &&
@@ -146,8 +148,7 @@ export function PlexConnectionPanel({
           `${item.title} ${item.year || ""} ${item.plexLibrary.title} ${item.externalIds.join(" ")}`
             .toLowerCase()
             .includes(reviewQuery.trim().toLowerCase())),
-    )
-    .slice(0, 500);
+    ),visibleEntries=filteredEntries.slice(0,visibleLimit);
   const toggleTarget = (key: string, checked: boolean) =>
     setSelectedTargets((current) =>
       checked
@@ -400,7 +401,6 @@ export function PlexConnectionPanel({
                 setSelectedTargets(
                   review.entries
                     .filter(compatible)
-                    .slice(0, 500)
                     .map(targetKey),
                 )
               }
@@ -419,10 +419,10 @@ export function PlexConnectionPanel({
               {selectedTargets.length} selected
             </span>
             <span className="muted">
-              Showing {visibleEntries.length} of {review.summary.total}
+              Showing {visibleEntries.length} of {filteredEntries.length}
             </span>
           </div>
-          <div className="plex-match-list">
+          <div className="plex-match-list" onScroll={event=>{const node=event.currentTarget;if(node.scrollTop+node.clientHeight>=node.scrollHeight-160)setVisibleLimit(value=>Math.min(value+100,filteredEntries.length));}}>
             {visibleEntries.map((item) => {
               const key = targetKey(item),
                 canApply = compatible(item),

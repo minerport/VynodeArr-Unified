@@ -152,7 +152,7 @@ const previewValue = (variable: string, media?: OverlayMedia) => {
   if(Array.isArray(value)&&value.length)return value.join(", ");
   if(value!==undefined&&value!==null&&String(value).trim())return String(value);
   if(variable==="plex_days_since_added"){
-    const added=new Date(media?.addedAt||""),now=new Date();
+    const raw=media?.plexAddedAt??media?.addedAt,numeric=Number(raw),added=Number.isFinite(numeric)&&numeric>0?new Date(numeric<1e12?numeric*1000:numeric):new Date(raw||""),now=new Date();
     if(Number.isFinite(added.getTime()))return String(Math.max(1,Math.floor((Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate())-Date.UTC(added.getUTCFullYear(),added.getUTCMonth(),added.getUTCDate()))/86400000)));
     return "1";
   }
@@ -187,7 +187,7 @@ function Preview({
       ...(layer.conditions?.rules || []),
       ...(layer.styleRules || []).flatMap((style) => style.conditions.rules),
     ])
-      if (previewValues[rule.variable] === undefined)
+      if (!String(previewValues[rule.variable] ?? "").trim())
         previewValues[rule.variable] = previewValue(rule.variable, media);
   return (
     <div
@@ -356,6 +356,9 @@ export function PosterOverlaysView({
     [media, setMedia] = useState<
       Array<OverlayMedia & { domain: "movie" | "tv" }>
     >([]),
+    [plexPreviewMedia, setPlexPreviewMedia] = useState<
+      Array<OverlayMedia & { domain: "movie" | "tv" }>
+    >([]),
     [collections, setCollections] = useState<OverlayCollection[]>([]),
     [userCollections, setUserCollections] = useState<OverlayUserCollection[]>(
       [],
@@ -365,6 +368,7 @@ export function PosterOverlaysView({
     [collapsedLayerIds, setCollapsedLayerIds] = useState<string[]>([]),
     [iconQuery, setIconQuery] = useState(""),
     [previewId, setPreviewId] = useState(""),
+    [previewLimit, setPreviewLimit] = useState(100),
     [applicationReview, setApplicationReview] = useState<{
       template: OverlayTemplate;
       payload: Record<string, unknown>;
@@ -423,6 +427,18 @@ export function PosterOverlaysView({
     void load();
   }, [load]);
   useEffect(() => {
+    let active=true;
+    if(editing?.target!=="plex"||!["movie","tv"].includes(editing.domain)){setPlexPreviewMedia([]);return()=>{active=false;};}
+    void (async()=>{
+      try{
+        const {loadPlexPreviewMedia}=await import("./poster-overlay-plex-preview");
+        const items=await loadPlexPreviewMedia(options,media,editing.domain as "movie"|"tv");
+        if(active)setPlexPreviewMedia(items);
+      }catch{if(active)setPlexPreviewMedia([]);}
+    })();
+    return()=>{active=false;};
+  },[editing?.target,editing?.domain,media,options]);
+  useEffect(() => {
     if (
       editing &&
       !editing.layers.some((layer) => layer.id === selectedLayerId)
@@ -433,6 +449,7 @@ export function PosterOverlaysView({
     if (!editing || !selectedLayerId) return;
     scrollLayerSettings(selectedLayerId);
   }, [selectedLayerId, editing?.layers.length]);
+  useEffect(()=>setPreviewLimit(100),[editing?.target,editing?.domain]);
   const selectLayer=(id:string)=>{setCollapsedLayerIds(value=>value.filter(item=>item!==id));setSelectedLayerId(id);requestAnimationFrame(()=>scrollLayerSettings(id));};
   const visible = useMemo(
     () =>
@@ -569,11 +586,11 @@ export function PosterOverlaysView({
       (layer) => layer.id === selectedLayerId,
     ),
     editingMedia = editing
-      ? media.filter((item) => item.domain === editing.domain)
+      ? (editing.target==="plex"?plexPreviewMedia:media).filter((item) => item.domain === editing.domain)
       : [],
     previewMedia =
       editingMedia.find(
-        (item) => `${item.domain}:${item.id}` === previewId,
+        (item) => (item.previewKey||`${item.domain}:${item.id}`) === previewId,
       ) || editingMedia.find((item) => item.artwork?.url),
     missingEditorChoices = editing
       ? [
@@ -1408,6 +1425,7 @@ export function PosterOverlaysView({
                     <select
                       value={previewId}
                       onChange={(event) => setPreviewId(event.target.value)}
+                      onScroll={event=>{const node=event.currentTarget;if(node.scrollTop+node.clientHeight>=node.scrollHeight-80)setPreviewLimit(value=>Math.min(value+100,editingMedia.length));}}
                     >
                       <option value="">
                         {editingMedia.length
@@ -1415,13 +1433,13 @@ export function PosterOverlaysView({
                           : "Choose Movies or Television first"}
                       </option>
                       {editingMedia
-                        .slice(0, 300)
+                        .slice(0, previewLimit)
                         .map((item) => (
                           <option
-                            value={`${item.domain}:${item.id}`}
-                            key={`${item.domain}:${item.id}`}
+                            value={item.previewKey||`${item.domain}:${item.id}`}
+                            key={item.previewKey||`${item.domain}:${item.id}`}
                           >
-                            {item.title} {item.year ? `(${item.year})` : ""}
+                            {item.previewLabel||`${item.title} ${item.year ? `(${item.year})` : ""}`}
                           </option>
                         ))}
                     </select>
