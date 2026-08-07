@@ -7,6 +7,24 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.35-rc.12] - 2026-08-07
+
+### Changed
+
+- Rebuilt Poster Overlay Studio's create/edit modal into a focused four-column desktop workspace with dedicated setup, layer controls, conditions, and an always-visible preview.
+- Added responsive three-column, two-column, and phone layouts while retaining every existing text, shape, icon, variable, condition, and formatting control.
+- New styles now begin empty and require an explicit Movies or Television choice, a VynodeArr or Plex destination, and at least one layer before saving.
+
+### Fixed
+
+- Removed conflicting legacy modal CSS that left the layer-control column underused and caused panels to overlap or collapse on mobile.
+- Made setup, layer controls, conditions, and preview flow sequentially on phones without horizontal overflow.
+- Preserved saved values and selected layers when reopening a style for editing.
+
+### Validation
+
+- Passed 195 automated tests, TypeScript checks, production web and server builds, route-specific bundle budgets, branding checks, deployment validation, and hands-on create/edit testing at desktop and phone widths.
+
 ## [2.0.35-rc.11] - 2026-08-07
 
 ### Fixed
@@ -1465,7 +1483,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.11...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.12...HEAD
+[2.0.35-rc.12]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.11...v2.0.35-rc.12
 [2.0.35-rc.11]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.10...v2.0.35-rc.11
 [2.0.35-rc.10]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.9...v2.0.35-rc.10
 [2.0.35-rc.9]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.8...v2.0.35-rc.9
