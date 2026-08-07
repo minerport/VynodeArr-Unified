@@ -1095,6 +1095,29 @@ test('poster overlay editor layers retain drag and resize pointer input',async()
   assert.match(source,/onPointerMove=/);assert.match(source,/overlay-resize-handle/);
 });
 
+test('poster overlay layer selection scrolls settings into view and new layers start centered',async()=>{
+  const source=await read('apps/web/client/src/poster-overlays.tsx');
+  assert.match(source,/scrollLayerSettings\(selectedLayerId\)/);
+  assert.match(source,/scrollIntoView\(\{behavior:"smooth",block:"start"\}\)/);
+  assert.match(source,/onLayerSelect\?\.\(layer\.id\)/);
+  assert.match(source,/requestAnimationFrame\(\(\)=>scrollLayerSettings\(id\)\)/);
+  assert.match(source,/onSelect=\{selectLayer\}/);
+  assert.match(source,/onLayerSelect=\{selectLayer\}/);
+  assert.match(source,/blankLayer\(variables\[0\]\),position:"custom" as const,x:30,y:45/);
+  assert.match(source,/width: 22,[\s\S]*?position: "custom" as const,[\s\S]*?x: 39,[\s\S]*?y: 45/);
+  assert.match(source,/height: 10,[\s\S]*?position: "custom" as const,[\s\S]*?x: 30,[\s\S]*?y: 45/);
+});
+
+test('poster overlay layer settings can minimize into a compact second-column rail',async()=>{
+  const [source,layout]=await Promise.all([read('apps/web/client/src/poster-overlays.tsx'),read('apps/web/client/src/poster-overlay-editor-layout.tsx')]);
+  assert.match(source,/layerSettingsMinimized/);
+  assert.match(source,/aria-expanded=\{!layerSettingsMinimized\}/);
+  assert.match(source,/Minimize layer settings/);
+  assert.match(source,/setLayerSettingsMinimized\(false\);setSelectedLayerId/);
+  assert.match(layout,/\.overlay-editor-grid\.layer-settings-minimized\{grid-template-columns:[^}]*58px/);
+  assert.match(layout,/\.overlay-editor-fields\.minimized>:not\(\.overlay-layer-settings-toggle\)\{display:none!important\}/);
+});
+
 test('poster overlay editor provides bounded layer fields and a shape library',async()=>{
   const rail=await read('apps/web/client/src/poster-overlay-editor-rail.tsx'),layout=await read('apps/web/client/src/poster-overlay-editor-layout.tsx');
   for(const shape of ['rounded','square','pill','circle','ticket','ribbon','tag','hexagon','chevron'])assert.ok(rail.includes(shape),shape);

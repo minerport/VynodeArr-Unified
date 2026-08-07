@@ -31,9 +31,10 @@ const mobileAllowance={shell:1_800,css:3_000};
 // route-specific allowance instead of raising every lazy-route budget.
 const performanceAllowance={systemRoute:1_500,css:600};
 // Poster Overlay Studio carries its destination-aware editor, grouped layer
-// inspector, and exact live poster preview in one administrator-only lazy
-// route. Keep its headroom isolated from every other application route.
-const posterOverlayAllowance={route:4_250,css:2_500};
+// inspector, exact live poster preview, and selection-to-settings navigation
+// in one administrator-only lazy route. Keep its headroom isolated from every
+// other application route.
+const posterOverlayAllowance={route:5_450,css:2_500};
 // Reeltrack adds one Discover-permission navigation bridge and a lazy Lists
 // workspace. Vite folds the responsive route stylesheet into shared CSS.
 const reeltrackAllowance={shell:600,css:7_500};

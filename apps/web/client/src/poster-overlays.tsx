@@ -130,6 +130,7 @@ const errorText = (reason: unknown) =>
   reason instanceof Error
     ? reason.message
     : "The request could not be completed.";
+const scrollLayerSettings=(id:string)=>document.getElementById(`overlay-layer-settings-${id}`)?.scrollIntoView({behavior:"smooth",block:"start"});
 const previewValue = (variable: string, media?: OverlayMedia) => {
   const resolved = media?.artwork?.overlayValues?.[variable];
   if (resolved !== undefined) return resolved;
@@ -157,12 +158,14 @@ function Preview({
   media,
   target,
   onLayerChange,
+  onLayerSelect,
 }: {
   template: OverlayTemplate;
   poster?: string;
   media?: OverlayMedia;
   target?: "vynode" | "plex";
   onLayerChange?: (id: string, changes: Partial<OverlayLayer>) => void;
+  onLayerSelect?: (id: string) => void;
 }) {
   const [drag, setDrag] = useState<{
     id: string;
@@ -231,6 +234,7 @@ function Preview({
               touchAction: "none",
             }}
             onPointerDown={(event) => {
+              onLayerSelect?.(layer.id);
               if (!onLayerChange) return;
               const rect = event.currentTarget.getBoundingClientRect();
               event.currentTarget.setPointerCapture(event.pointerId);
@@ -350,6 +354,7 @@ export function PosterOverlaysView({
     ),
     [editing, setEditing] = useState<OverlayTemplate | null>(null),
     [selectedLayerId, setSelectedLayerId] = useState(""),
+    [layerSettingsMinimized, setLayerSettingsMinimized] = useState(false),
     [iconQuery, setIconQuery] = useState(""),
     [previewId, setPreviewId] = useState(""),
     [applicationReview, setApplicationReview] = useState<{
@@ -416,6 +421,11 @@ export function PosterOverlaysView({
     )
       setSelectedLayerId(editing.layers[0]?.id || "");
   }, [editing, selectedLayerId]);
+  useEffect(() => {
+    if (!editing || !selectedLayerId) return;
+    scrollLayerSettings(selectedLayerId);
+  }, [selectedLayerId, editing?.layers.length]);
+  const selectLayer=(id:string)=>{setLayerSettingsMinimized(false);setSelectedLayerId(id);requestAnimationFrame(()=>scrollLayerSettings(id));};
   const visible = useMemo(
     () =>
       media
@@ -938,26 +948,26 @@ export function PosterOverlaysView({
                   Close
                 </button>
               </div>
-              <div className="overlay-editor-grid">
+              <div className={`overlay-editor-grid${layerSettingsMinimized?" layer-settings-minimized":""}`}>
                 <Suspense>
                   <EditorRail
                     editing={editing}
                     selectedId={selectedLayerId}
                     query={iconQuery}
                     onQuery={setIconQuery}
-                    onSelect={setSelectedLayerId}
+                    onSelect={selectLayer}
                     onChange={(changes) => {
                       if (changes.domain !== undefined && changes.domain !== editing.domain)
                         setPreviewId("");
                       setEditing({ ...editing, ...changes });
                     }}
                     onAddText={() => {
-                      const layer = blankLayer(variables[0]);
+                      const layer = {...blankLayer(variables[0]),position:"custom" as const,x:30,y:45};
                       setEditing({
                         ...editing,
                         layers: [...editing.layers, layer],
                       });
-                      setSelectedLayerId(layer.id);
+                      selectLayer(layer.id);
                     }}
                     onAddIcon={(name) => {
                       const layer = {
@@ -967,13 +977,16 @@ export function PosterOverlaysView({
                         label: "",
                         contentPosition: "none" as const,
                         width: 22,
+                        position: "custom" as const,
+                        x: 39,
+                        y: 45,
                         fontSize: 56,
                       };
                       setEditing({
                         ...editing,
                         layers: [...editing.layers, layer],
                       });
-                      setSelectedLayerId(layer.id);
+                      selectLayer(layer.id);
                     }}
                     onAddShape={(shape) => {
                       const layer = {
@@ -983,16 +996,20 @@ export function PosterOverlaysView({
                         shape,
                         width: 40,
                         height: 10,
+                        position: "custom" as const,
+                        x: 30,
+                        y: 45,
                       };
                       setEditing({
                         ...editing,
                         layers: [...editing.layers, layer],
                       });
-                      setSelectedLayerId(layer.id);
+                      selectLayer(layer.id);
                     }}
                   />
                 </Suspense>
-                <div className="overlay-editor-fields">
+                <div className={`overlay-editor-fields${layerSettingsMinimized?" minimized":""}`}>
+                  <button type="button" className="secondary overlay-layer-settings-toggle" aria-expanded={!layerSettingsMinimized} onClick={()=>setLayerSettingsMinimized(value=>!value)}><span>{layerSettingsMinimized?"Layer settings":"Minimize layer settings"}</span><span aria-hidden="true">{layerSettingsMinimized?"›":"‹"}</span></button>
                   {!editing.layers.length ? (
                     <div className="empty compact overlay-layer-empty">
                       <strong>No layers yet</strong>
@@ -1019,6 +1036,7 @@ export function PosterOverlaysView({
                       });
                     return (
                       <details
+                        id={`overlay-layer-settings-${layer.id}`}
                         className="overlay-layer-editor"
                         key={layer.id}
                         open
@@ -1409,6 +1427,7 @@ export function PosterOverlaysView({
                       previewMedia?.artwork?.originalUrl ||
                       previewMedia?.artwork?.url
                     }
+                    onLayerSelect={selectLayer}
                     onLayerChange={(id, changes) =>
                       setEditing({
                         ...editing,
