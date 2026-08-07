@@ -1065,6 +1065,14 @@ test('poster overlays preserve existing library card sizing',async()=>{
   assert.match(library,/view !== "poster" \? <PosterAssignmentLayers item=\{item\} \/> : null/);
 });
 
+test('alternate library views size overlays against their poster thumbnails',async()=>{
+  const css=await read('apps/web/client/src/react-library.css');
+  for(const view of ['cards','compact','list']){
+    assert.match(css,new RegExp(`\\.view-${view} \\.poster\\{[^}]*container-type:inline-size`));
+  }
+  assert.doesNotMatch(css,/\.view-poster \.poster\{[^}]*container-type:inline-size/);
+});
+
 test('poster overlay style cards stay compact on phones',async()=>{
   const source=await read('apps/web/client/src/poster-overlays.tsx');
   assert.match(source,/overlay-template-panel \.panel-heading \.badge\{align-self:flex-start\}/);

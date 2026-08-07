@@ -7,6 +7,17 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.35-rc.20] - 2026-08-07
+
+### Fixed
+
+- Rebuilt the Reeltrack list integration and Poster Overlay editor from the stable v2.0.35 codebase instead of retaining the broken RC poster-rendering changes.
+- Corrected VynodeArr overlay sizing in alternate Movie and Television card, compact, and detailed-list layouts while leaving the primary poster-grid layout unchanged.
+
+### Validation
+
+- Passed complete tests, TypeScript checks, production web build, bundle validation, and deployment validation.
+
 ## [2.0.35] - 2026-08-06
 
 ### Fixed
