@@ -133,7 +133,7 @@ const errorText = (reason: unknown) =>
 const scrollLayerSettings=(id:string)=>document.getElementById(`overlay-layer-settings-${id}`)?.scrollIntoView({behavior:"smooth",block:"start"});
 const previewValue = (variable: string, media?: OverlayMedia) => {
   const resolved = media?.artwork?.overlayValues?.[variable];
-  if (resolved?.trim()) return resolved;
+  if (resolved != null && String(resolved).trim()) return String(resolved);
   if (variable === "resolution")
     return (
       String(media?.quality || "").match(/(?:2160|1080|720|480)p?/i)?.[0] || ""
