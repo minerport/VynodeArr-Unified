@@ -7,6 +7,23 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.35-rc.29] - 2026-08-07
+
+### Changed
+
+- Condensed Plex library selection, matching controls, variable filters, and selection actions.
+- Displayed matched Plex titles in responsive two-column cards on desktop.
+- Displayed recent Plex poster changes in a responsive three-column card grid instead of full-width rows.
+
+### Fixed
+
+- Applied compact styling to the actual match-results workspace instead of the library-selection panel.
+- Corrected the malformed remove-filter icon.
+
+### Validation
+
+- Passed 208 automated tests, TypeScript checks, production builds, bundle and branding checks, and deployment validation.
+
 ## [2.0.35-rc.28] - 2026-08-07
 
 ### Changed

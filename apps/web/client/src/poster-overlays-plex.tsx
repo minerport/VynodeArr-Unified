@@ -246,6 +246,7 @@ export function PlexConnectionPanel({
       <style>{`.plex-match-toolbar{display:grid;grid-template-columns:minmax(220px,1fr) auto;gap:12px;align-items:end}.plex-match-list{display:grid;gap:8px;max-height:620px;overflow:auto;padding:2px}.plex-match-row{display:grid;grid-template-columns:44px minmax(220px,1.3fr) minmax(260px,1fr) auto;gap:16px;align-items:center;min-height:76px;padding:12px 14px;border:1px solid var(--border);border-radius:12px;background:color-mix(in srgb,var(--panel,#08111f) 88%,transparent);cursor:pointer}.plex-match-row:hover{border-color:var(--accent,#58a6ff);background:color-mix(in srgb,var(--panel,#08111f) 78%,var(--accent,#58a6ff) 8%)}.plex-match-row.is-selected{border-color:var(--accent,#58a6ff);box-shadow:inset 3px 0 0 var(--accent,#58a6ff)}.plex-match-row.is-disabled{cursor:not-allowed;opacity:.68}.plex-match-check{display:grid;place-items:center;align-self:stretch}.plex-match-check input{width:22px;height:22px;margin:0}.plex-match-title,.plex-match-details{display:grid;gap:4px;min-width:0}.plex-match-title strong{font-size:1rem;line-height:1.25}.plex-match-title small,.plex-match-details small{color:var(--muted);overflow-wrap:anywhere}.plex-match-status{justify-self:end}.plex-match-empty{padding:28px;text-align:center;border:1px dashed var(--border);border-radius:12px;color:var(--muted)}@media(max-width:760px){.plex-match-toolbar,.plex-match-row{grid-template-columns:44px minmax(0,1fr)}.plex-match-details,.plex-match-status{grid-column:2}.plex-match-row{gap:8px 12px;min-height:96px}.plex-match-status{justify-self:start}.plex-match-list{max-height:70dvh}}`}</style>
       <style>{`.plex-connection-panel{min-width:0}.plex-connection-panel .panel-heading{align-items:flex-start}.plex-connection-panel .panel-heading>div{min-width:0}.plex-server-title{overflow-wrap:anywhere}.plex-connection-panel>.overlay-scope-row>label{display:grid;gap:6px;min-width:0}.plex-connection-panel>.overlay-scope-row input{width:100%;min-width:0}.plex-library-picker{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin:12px 0}.plex-library-option{display:grid!important;grid-template-columns:auto minmax(0,1fr);gap:10px!important;align-items:center;padding:11px 12px;border:1px solid var(--border);border-radius:12px;background:color-mix(in srgb,var(--panel,#08111f) 90%,transparent);cursor:pointer}.plex-library-option:has(input:checked){border-color:var(--accent,#58a6ff);background:color-mix(in srgb,var(--panel,#08111f) 82%,var(--accent,#58a6ff) 10%)}.plex-library-option input{width:20px;height:20px;margin:0}.plex-library-option span{display:grid;min-width:0}.plex-library-option small{color:var(--muted)}.plex-history-header{display:flex;align-items:center;justify-content:space-between;gap:12px}.plex-history-header h3{margin-bottom:2px}.plex-history-list{display:grid;gap:8px;margin-top:12px}.plex-history-card{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px 16px;align-items:center;padding:12px 14px;border:1px solid var(--border);border-radius:12px;background:color-mix(in srgb,var(--panel,#08111f) 90%,transparent)}.plex-history-content{display:grid;gap:4px;min-width:0}.plex-history-content small{color:var(--muted);overflow-wrap:anywhere}.plex-history-content .badge{justify-self:start}.plex-history-card .form-actions{margin:0}@media(max-width:760px){.plex-connection-panel{padding:14px!important}.plex-connection-panel .panel-heading{display:grid!important;gap:10px}.plex-connection-panel .panel-heading .badge{justify-self:start}.plex-connection-panel .overlay-scope-row{grid-template-columns:1fr}.plex-connection-panel .form-actions{display:grid;grid-template-columns:1fr}.plex-library-picker{grid-template-columns:1fr}.plex-history-header{align-items:flex-start}.plex-history-card{grid-template-columns:1fr}.plex-history-card .form-actions{display:grid}}`}</style>
       <style>{`.plex-match-review{display:grid;gap:10px;padding:14px}.plex-match-review>.form-actions,.plex-match-review .overlay-condition-builder>.form-actions{margin-top:0;flex-wrap:wrap}.plex-match-review>.form-actions{justify-content:flex-start}.plex-match-review>label{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.plex-match-review>label select{width:min(320px,100%)}.plex-match-review>label small{flex:1 1 260px}.plex-match-review>.overlay-condition-builder{gap:8px;padding:10px 12px}.plex-match-review>.overlay-condition-builder>p{margin:0}@media(max-width:760px){.plex-match-review>label{display:grid}.plex-match-review>label select{width:100%}}`}</style>
+      <style>{`.plex-library-review{display:grid;gap:10px}.plex-library-review>p{margin:0}.plex-library-review>.plex-library-picker{margin:0}.plex-review-libraries{width:auto;justify-self:start}.plex-match-review .plex-match-toolbar{grid-template-columns:minmax(260px,1fr) auto}.plex-match-review .plex-match-toolbar label{display:grid;grid-template-columns:auto minmax(220px,1fr);align-items:center;gap:8px}.plex-match-review .plex-match-toolbar input{margin:0}.plex-match-review>.form-actions{gap:8px}.plex-match-review>.overlay-condition-builder .overlay-condition-rule{grid-template-columns:minmax(180px,1fr) minmax(150px,.7fr) minmax(120px,1fr) auto}.plex-match-list{grid-template-columns:repeat(2,minmax(0,1fr));align-content:start}.plex-match-row{grid-template-columns:34px minmax(0,1fr) auto;grid-template-rows:auto auto;gap:5px 10px;min-height:0;padding:10px}.plex-match-check{grid-row:1/3}.plex-match-details{grid-column:2/4}.plex-match-status{grid-column:3;grid-row:1}.plex-match-empty{grid-column:1/-1}.plex-history-panel{padding:14px}.plex-history-panel .plex-history-header .form-actions{margin:0;flex-wrap:wrap}.plex-history-list{grid-template-columns:repeat(3,minmax(0,1fr))}.plex-history-card{grid-template-columns:minmax(0,1fr);align-content:start;min-height:112px}.plex-history-card .form-actions{justify-content:flex-start}.plex-history-card .form-actions button{width:100%}@media(max-width:1100px){.plex-match-list,.plex-history-list{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:760px){.plex-match-review .plex-match-toolbar,.plex-match-review .plex-match-toolbar label,.plex-match-list,.plex-history-list{grid-template-columns:1fr}.plex-match-review .plex-match-toolbar strong{font-size:.85rem}.plex-match-review>.overlay-condition-builder .overlay-condition-rule{grid-template-columns:1fr}.plex-match-row{grid-template-columns:34px minmax(0,1fr) auto}.plex-history-panel .plex-history-header{display:grid}.plex-review-libraries{width:100%}}`}</style>
       <div className="panel-heading">
         <div>
           <span className="eyebrow">PLEX ARTWORK</span>
@@ -314,7 +315,7 @@ export function PlexConnectionPanel({
         ) : null}
       </div>
       {plex?.configured ? (
-        <div className="notice plex-match-review">
+        <div className="notice plex-library-review">
           <strong>Choose libraries and revalidate matches</strong>
           <p className="muted">
             Select one or more Plex libraries to compare with VynodeArr.
@@ -344,7 +345,7 @@ export function PlexConnectionPanel({
           </div>
           <button
             type="button"
-            className="secondary"
+            className="secondary plex-review-libraries"
             disabled={busy || !selectedLibraries.length}
             onClick={() => void reviewMatches()}
           >
@@ -354,7 +355,7 @@ export function PlexConnectionPanel({
         </div>
       ) : null}
       {review ? (
-        <div className="notice">
+        <div className="notice plex-match-review">
           <div className="plex-match-toolbar">
             <label>
               Find a Plex library title
@@ -414,7 +415,7 @@ export function PlexConnectionPanel({
               <select aria-label={`Plex filter ${index+1} variable`} value={filter.variable} onChange={event=>setVariableFilters(current=>current.map((item,i)=>i===index?{...item,variable:event.target.value}:item))}><option value="">Choose variable</option>{variables.filter(item=>!['icon','custom_text'].includes(item)).map(item=><option value={item} key={item}>{item.replaceAll('_',' ')}</option>)}</select>
               <select aria-label={`Plex filter ${index+1} operator`} value={filter.operator} onChange={event=>setVariableFilters(current=>current.map((item,i)=>i===index?{...item,operator:event.target.value}:item))}><option value="equals">equals</option><option value="not_equals">does not equal</option><option value="contains">contains</option><option value="not_contains">does not contain</option><option value="greater_than">is greater than</option><option value="less_than">is less than</option><option value="greater_than_or_equal">is at least</option><option value="less_than_or_equal">is at most</option><option value="truthy">has a value</option><option value="falsy">has no value</option></select>
               {!['truthy','falsy'].includes(filter.operator)?<input aria-label={`Plex filter ${index+1} value`} value={filter.value} onChange={event=>setVariableFilters(current=>current.map((item,i)=>i===index?{...item,value:event.target.value}:item))}/>:null}
-              <button type="button" className="icon-button" aria-label={`Remove Plex filter ${index+1}`} onClick={()=>setVariableFilters(current=>current.filter((_,i)=>i!==index))}>Ã—</button>
+              <button type="button" className="icon-button" aria-label={`Remove Plex filter ${index+1}`} onClick={()=>setVariableFilters(current=>current.filter((_,i)=>i!==index))}>×</button>
             </div>)}
             <div className="form-actions"><button type="button" className="secondary" onClick={()=>setVariableFilters(current=>[...current,{variable:'plex_days_since_added',operator:'greater_than_or_equal',value:'1'}])}>Add variable filter</button>{variableFilters.length?<button type="button" className="text-button" onClick={()=>setVariableFilters([])}>Clear filters</button>:null}</div>
           </fieldset>
@@ -509,7 +510,7 @@ export function PlexConnectionPanel({
         </div>
       ) : null}
       {selectedEntry && selectedTemplate ? (
-        <div className="notice">
+        <div className="notice plex-application-review">
           <h3>
             {selectedEntries.length === 1
               ? "One-title application review"
@@ -573,7 +574,7 @@ export function PlexConnectionPanel({
         </div>
       ) : null}
       {applications.length ? (
-        <div className="notice">
+        <div className="notice plex-history-panel">
           <div className="plex-history-header">
             <div>
               <h3>Recent Plex poster changes</h3>
