@@ -1,5 +1,6 @@
 const css = `
-.overlay-editor.overlay-editor{width:min(1840px,calc(100vw - 24px));height:calc(100dvh - 24px);max-height:none;grid-template-rows:auto minmax(0,1fr) auto}
+.overlay-editor-backdrop{box-sizing:border-box;padding:12px!important;overflow:hidden}
+.overlay-editor.overlay-editor{box-sizing:border-box;width:min(1840px,100%);height:100%;max-height:100%;grid-template-rows:auto minmax(0,1fr) auto}
 .overlay-editor .overlay-editor-grid{box-sizing:border-box;display:grid;grid-template-columns:minmax(250px,280px) minmax(460px,1.18fr) minmax(420px,1fr) minmax(330px,370px);grid-template-areas:"rail fields conditions preview";gap:16px;align-items:stretch;min-height:0;height:100%;padding:16px;overflow:hidden}
 .overlay-editor .overlay-editor-rail,.overlay-editor .overlay-editor-fields,.overlay-editor .overlay-editor-grid>.overlay-condition-row{box-sizing:border-box;min-width:0;width:100%;height:100%;min-height:0;max-height:none;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding:14px 12px 48px;border:1px solid color-mix(in srgb,var(--border) 78%,transparent);border-radius:14px;background:color-mix(in srgb,var(--panel) 82%,#000 18%)}
 .overlay-editor .overlay-editor-rail{grid-area:rail;position:static!important;display:grid!important;grid-template-columns:minmax(0,1fr);gap:12px;align-content:start;transform:none!important}
@@ -37,13 +38,13 @@ const css = `
 .overlay-editor .overlay-layer-body>.notice strong,.overlay-editor .overlay-layer-body>.notice small{display:block;min-width:0;line-height:1.4}
 
 @media(max-width:1499px){
- .overlay-editor.overlay-editor{width:min(1220px,calc(100vw - 24px))}
+ .overlay-editor.overlay-editor{width:min(1220px,100%)}
  .overlay-editor .overlay-editor-grid{grid-template-columns:minmax(230px,260px) minmax(430px,1fr) minmax(320px,350px);grid-template-areas:"rail fields preview" "rail conditions preview";grid-template-rows:minmax(0,1fr) minmax(280px,.72fr)}
  .overlay-editor .overlay-editor-fields{grid-row:1}
  .overlay-editor .overlay-editor-grid>.overlay-condition-row{grid-row:2}
 }
 @media(max-width:1099px){
- .overlay-editor.overlay-editor{width:min(900px,calc(100vw - 20px))}
+ .overlay-editor.overlay-editor{width:min(900px,100%)}
  .overlay-editor .overlay-editor-grid{grid-template-columns:minmax(260px,.72fr) minmax(360px,1fr);grid-template-areas:"rail preview" "fields preview" "conditions preview";grid-template-rows:auto minmax(420px,1fr) minmax(320px,.8fr);overflow-y:auto}
  .overlay-editor .overlay-editor-rail,.overlay-editor .overlay-editor-fields,.overlay-editor .overlay-editor-grid>.overlay-condition-row{height:auto;min-height:0;max-height:540px}
  .overlay-editor .overlay-preview-column{align-self:start}

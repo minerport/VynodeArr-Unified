@@ -1047,7 +1047,7 @@ export function PosterOverlaysView({
                         className={`overlay-layer-editor${layer.id===selectedLayerId?" selected":""}`}
                         key={layer.id}
                         open={!collapsedLayerIds.includes(layer.id)}
-                        onToggle={event=>setCollapsedLayerIds(current=>event.currentTarget.open?current.filter(id=>id!==layer.id):current.includes(layer.id)?current:[...current,layer.id])}
+                        onToggle={event=>{const open=event.currentTarget.open;setCollapsedLayerIds(current=>open?current.filter(id=>id!==layer.id):current.includes(layer.id)?current:[...current,layer.id])}}
                       >
                         <summary onClick={()=>setSelectedLayerId(layer.id)}>
                           <span>Layer {index + 1}</span>

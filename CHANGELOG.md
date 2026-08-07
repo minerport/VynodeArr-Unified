@@ -7,6 +7,18 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.35-rc.24] - 2026-08-07
+
+### Fixed
+
+- Prevented layer-card disclosure updates from reading a cleared React event target while editing poster overlays.
+- Bounded the Poster Overlay editor to the backdrop's available width and height instead of adding viewport dimensions to modal padding.
+- Removed page-level horizontal and vertical overflow while retaining responsive desktop, tablet, and mobile editor layouts.
+
+### Validation
+
+- Passed 204 automated tests, TypeScript checks, production builds, bundle and branding checks, and deployment validation.
+
 ## [2.0.35-rc.23] - 2026-08-07
 
 ### Fixed
@@ -1471,7 +1483,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.23...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.24...HEAD
+[2.0.35-rc.24]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.23...v2.0.35-rc.24
 [2.0.35-rc.23]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.22...v2.0.35-rc.23
 [2.0.35-rc.22]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.21...v2.0.35-rc.22
 [2.0.35-rc.21]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.20...v2.0.35-rc.21

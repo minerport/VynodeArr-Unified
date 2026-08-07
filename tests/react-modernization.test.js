@@ -1112,13 +1112,21 @@ test('poster overlay layer settings cards minimize independently inside the seco
   const [source,layout]=await Promise.all([read('apps/web/client/src/poster-overlays.tsx'),read('apps/web/client/src/poster-overlay-editor-layout.tsx')]);
   assert.match(source,/collapsedLayerIds/);
   assert.match(source,/open=\{!collapsedLayerIds\.includes\(layer\.id\)\}/);
-  assert.match(source,/onToggle=\{event=>setCollapsedLayerIds/);
+  assert.match(source,/onToggle=\{event=>\{const open=event\.currentTarget\.open;setCollapsedLayerIds\(current=>open/);
   assert.match(source,/setCollapsedLayerIds\(value=>value\.filter\(item=>item!==id\)\)/);
   assert.doesNotMatch(source,/hidden=\{layer\.id !== selectedLayerId\}/);
   assert.doesNotMatch(source,/layerSettingsMinimized|Minimize layer settings/);
   assert.match(layout,/\.overlay-layer-editor\.selected\{border-color:var\(--accent\)!important\}/);
   assert.match(layout,/\.overlay-layer-editor\[open\]>summary/);
   assert.doesNotMatch(layout,/layer-settings-minimized|overlay-editor-fields\.minimized/);
+});
+
+test('poster overlay editor remains inside its viewport without deferred toggle event access',async()=>{
+  const [source,layout]=await Promise.all([read('apps/web/client/src/poster-overlays.tsx'),read('apps/web/client/src/poster-overlay-editor-layout.tsx')]);
+  assert.match(layout,/\.overlay-editor-backdrop\{box-sizing:border-box;padding:12px!important;overflow:hidden\}/);
+  assert.match(layout,/width:min\(1840px,100%\);height:100%;max-height:100%/);
+  assert.doesNotMatch(layout,/width:min\(1840px,calc\(100vw/);
+  assert.doesNotMatch(source,/current=>event\.currentTarget\.open/);
 });
 
 test('poster overlay previews retain layers with representative missing metadata values',async()=>{
@@ -1143,7 +1151,7 @@ test('poster overlay editor uses four focused desktop columns and a sequential m
   assert.match(conditions,/overlay-condition-rule\{display:grid;grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
   assert.match(conditions,/@media\(max-width:1000px\)\{\.overlay-condition-rule/);
   assert.match(conditions,/@media\(max-width:980px\)\{\.overlay-condition-row\{grid-row:auto\}/);
-  assert.match(layout,/width:min\(1840px,calc\(100vw - 24px\)\)/);
+  assert.match(layout,/width:min\(1840px,100%\);height:100%;max-height:100%/);
   assert.match(layout,/grid-template-columns:minmax\(250px,280px\) minmax\(460px,1\.18fr\) minmax\(420px,1fr\) minmax\(330px,370px\)/);
   assert.match(layout,/grid-template-areas:"rail fields conditions preview"/);
   assert.match(layout,/overlay-preview-column\{grid-area:preview/);
