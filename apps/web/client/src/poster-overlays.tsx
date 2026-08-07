@@ -133,7 +133,7 @@ const errorText = (reason: unknown) =>
 const scrollLayerSettings=(id:string)=>document.getElementById(`overlay-layer-settings-${id}`)?.scrollIntoView({behavior:"smooth",block:"start"});
 const previewValue = (variable: string, media?: OverlayMedia) => {
   const resolved = media?.artwork?.overlayValues?.[variable];
-  if (resolved !== undefined) return resolved;
+  if (resolved?.trim()) return resolved;
   if (variable === "resolution")
     return (
       String(media?.quality || "").match(/(?:2160|1080|720|480)p?/i)?.[0] || ""
@@ -153,8 +153,8 @@ const previewValue = (variable: string, media?: OverlayMedia) => {
   if(value!==undefined&&value!==null&&String(value).trim())return String(value);
   if(variable==="plex_days_since_added"){
     const added=new Date(media?.addedAt||""),now=new Date();
-    if(Number.isFinite(added.getTime()))return String(Math.max(0,Math.floor((Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate())-Date.UTC(added.getUTCFullYear(),added.getUTCMonth(),added.getUTCDate()))/86400000)));
-    return "7";
+    if(Number.isFinite(added.getTime()))return String(Math.max(1,Math.floor((Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate())-Date.UTC(added.getUTCFullYear(),added.getUTCMonth(),added.getUTCDate()))/86400000)));
+    return "1";
   }
   const defaults:Record<string,string>={title:"Example title",year:String(new Date().getUTCFullYear()),rating:"8.0",quality:"1080p",resolution:"1080p",quality_profile:"HD",video_codec:"HEVC",audio_codec:"EAC3",audio_channels:"5.1",dynamic_range:"HDR",source:"WEB-DL",runtime:"120 min",certification:"PG-13",studio:"Example studio",network:"Example network",genres:"Drama",original_language:"English",library_status:"Available",completion_percent:"100%",file_size:"8 GB",tags:"Featured",date_added:"Today",added_ago:"7 days ago",release_date:"Today",release_age:"30 days ago",download_status:"Downloading",download_progress:"50%",download_eta:"In 1 day",series_status:"Continuing",next_episode:"Next episode in 7 days",requested_by:"Example user",request_count:"1"};
   return defaults[variable]||variable.replaceAll("_"," ").replace(/^./,letter=>letter.toUpperCase());

@@ -28,7 +28,7 @@ consistent experience and account system.
 ## Current release
 
 Version **2.0.35** is available for production use on Unraid, Windows, and
-standard Docker installations. Version **2.0.35-rc.24** is available as a
+standard Docker installations. Version **2.0.35-rc.25** is available as a
 prerelease with centered overlay-layer creation, direct layer-to-settings
 navigation, viewport-bounded independently collapsible layer cards, resilient Plex-backed
 days-since-added conditions, representative preview metadata, and inclusive

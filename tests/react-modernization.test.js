@@ -1131,9 +1131,10 @@ test('poster overlay editor remains inside its viewport without deferred toggle 
 
 test('poster overlay previews retain layers with representative missing metadata values',async()=>{
   const source=await read('apps/web/client/src/poster-overlays.tsx');
+  assert.match(source,/resolved\?\.trim\(\)/);
   assert.match(source,/variable==="plex_days_since_added"/);
   assert.match(source,/media\?\.addedAt/);
-  assert.match(source,/return "7"/);
+  assert.match(source,/return "1"/);
   assert.match(source,/title:"Example title"/);
   assert.match(source,/return defaults\[variable\]\|\|variable\.replaceAll/);
 });

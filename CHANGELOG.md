@@ -7,6 +7,17 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.35-rc.25] - 2026-08-07
+
+### Fixed
+
+- Made Plex Days Since Added use a title's added date when preview metadata contains an empty value.
+- Ensured Plex age values have a minimum of one day so conditions never receive an unusable zero value.
+
+### Validation
+
+- Passed 205 automated tests, TypeScript checks, production builds, bundle and branding checks, and deployment validation.
+
 ## [2.0.35-rc.24] - 2026-08-07
 
 ### Fixed

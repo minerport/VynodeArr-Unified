@@ -100,7 +100,7 @@ test('poster variables derive friendly values from library metadata',()=>{
 test('Plex days since added is a whole calendar-day value from Plex metadata only',()=>{
   assert.equal(posterVariableValues({addedAt:'2020-01-01T00:00:00Z'},{now:'2026-08-07T23:59:00Z',plexAddedAt:'2026-08-01T01:00:00Z'}).plex_days_since_added,6);
   assert.equal(posterVariableValues({addedAt:'2026-08-01T00:00:00Z'},{now:'2026-08-07T12:00:00Z'}).plex_days_since_added,'');
-  assert.equal(posterVariableValues({},{now:'2026-08-07T12:00:00Z',plexAddedAt:'2026-08-09T00:00:00Z'}).plex_days_since_added,0);
+  assert.equal(posterVariableValues({},{now:'2026-08-07T12:00:00Z',plexAddedAt:'2026-08-09T00:00:00Z'}).plex_days_since_added,1);
 });
 
 test('file metadata variables and television aggregation strategies are deterministic',()=>{
