@@ -7,6 +7,18 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.35-rc.21] - 2026-08-07
+
+### Added
+
+- Added a Plex-backed whole-calendar-day `Days since added` poster-overlay variable without substituting the Movie or Television engine added date.
+- Added inclusive numeric condition operators for configurable ranked ranges such as 0–7, 8–14, and 15+ days.
+- Preserved independent appearance formatting for every ranked sub-condition in the editor and final Plex artwork renderer.
+
+### Validation
+
+- Passed 200 automated tests, TypeScript checks, production builds, bundle and branding checks, and deployment validation.
+
 ## [2.0.35-rc.20] - 2026-08-07
 
 ### Fixed
@@ -1434,7 +1446,9 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.21...HEAD
+[2.0.35-rc.21]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.20...v2.0.35-rc.21
+[2.0.35-rc.20]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35...v2.0.35-rc.20
 [2.0.35]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.8...v2.0.35
 [2.0.35-rc.8]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.7...v2.0.35-rc.8
 [2.0.35-rc.7]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.6...v2.0.35-rc.7

@@ -97,6 +97,12 @@ test('poster variables derive friendly values from library metadata',()=>{
   assert.equal(values.file_size,'15 GB');assert.equal(values.completion_percent,'100%');assert.equal(values.tags,'favorite, 4k');assert.equal(values.date_added,'Jul 30');assert.equal(values.added_ago,'3 days ago');assert.equal(values.release_age,'13 days ago');assert.equal(values.download_status,'Downloading');assert.equal(values.download_progress,'63%');assert.equal(values.download_eta,'Tomorrow');assert.equal(values.library_status,'Complete');
 });
 
+test('Plex days since added is a whole calendar-day value from Plex metadata only',()=>{
+  assert.equal(posterVariableValues({addedAt:'2020-01-01T00:00:00Z'},{now:'2026-08-07T23:59:00Z',plexAddedAt:'2026-08-01T01:00:00Z'}).plex_days_since_added,6);
+  assert.equal(posterVariableValues({addedAt:'2026-08-01T00:00:00Z'},{now:'2026-08-07T12:00:00Z'}).plex_days_since_added,'');
+  assert.equal(posterVariableValues({},{now:'2026-08-07T12:00:00Z',plexAddedAt:'2026-08-09T00:00:00Z'}).plex_days_since_added,0);
+});
+
 test('file metadata variables and television aggregation strategies are deterministic',()=>{
   const files=[
     {resolution:'2160p',videoCodec:'HEVC',audioCodec:'TrueHD',audioChannels:'7.1',dynamicRange:'Dolby Vision',source:'Blu-ray',languages:['English'],subtitleLanguages:['English','Spanish'],bitrate:42000000,size:20000000000,dateAdded:'2026-08-01T00:00:00Z'},
@@ -131,6 +137,19 @@ test('conditional style variants override appearance deterministically',()=>{
   const values={resolution:'2160p',dynamic_range:'HDR10'},resolved=resolveConditionalOverlayLayer(layer,values);assert.equal(layer.styleRules[0].name,'4K HDR');assert.equal(layer.styleRules[0].rank,1);assert.equal(resolved.background,'#f59e0b');assert.equal(resolved.foreground,'#000000');assert.equal(resolved.shape,'pill');assert.equal(resolved.fontSize,54);assert.equal(resolved.fontFamily,'condensed');assert.equal(resolved.fontWeight,900);assert.equal(resolved.textAlign,'center');assert.equal(resolved.textTransform,'uppercase');assert.equal(resolved.padding,18);assert.equal(resolved.borderRadius,24);
   const svg=renderOverlaySvg({poster:Buffer.from('poster'),template:{layers:[layer]},item:{title:'Premium',fileMetadata:{resolution:'2160p',dynamicRange:'HDR10'}}}).toString();assert.match(svg,/#f59e0b/);assert.match(svg,/#000000/);
   const merged=resolveConditionalOverlayLayer({...layer,styleMode:'merge'},values);assert.equal(merged.background,'#2563eb');assert.equal(merged.foreground,'#000000');
+});
+
+test('ranked Plex age ranges use inclusive numeric boundaries',()=>{
+  const layer=sanitizeOverlayLayer({variable:'plex_days_since_added',background:'#111111',styleRules:[
+    {name:'0-7',rank:1,conditions:{join:'and',rules:[{variable:'plex_days_since_added',operator:'greater_than_or_equal',value:'0'},{variable:'plex_days_since_added',operator:'less_than_or_equal',value:'7'}]},overrides:{background:'#00ff00'}},
+    {name:'8-14',rank:2,conditions:{join:'and',rules:[{variable:'plex_days_since_added',operator:'greater_than_or_equal',value:'8'},{variable:'plex_days_since_added',operator:'less_than_or_equal',value:'14'}]},overrides:{background:'#ffff00'}},
+    {name:'15+',rank:3,conditions:{join:'and',rules:[{variable:'plex_days_since_added',operator:'greater_than_or_equal',value:'15'}]},overrides:{background:'#ff0000'}}
+  ]});
+  assert.equal(resolveConditionalOverlayLayer(layer,{plex_days_since_added:7}).background,'#00ff00');
+  assert.equal(resolveConditionalOverlayLayer(layer,{plex_days_since_added:8}).background,'#ffff00');
+  assert.equal(resolveConditionalOverlayLayer(layer,{plex_days_since_added:14}).background,'#ffff00');
+  assert.equal(resolveConditionalOverlayLayer(layer,{plex_days_since_added:15}).background,'#ff0000');
+  assert.equal(resolveConditionalOverlayLayer(layer,{plex_days_since_added:''}).background,'#111111');
 });
 
 test('request overlay variables include people, count, and oldest request date',()=>{

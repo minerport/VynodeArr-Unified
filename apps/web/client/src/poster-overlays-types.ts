@@ -46,7 +46,7 @@ export interface OverlayLayer {
     join: "and" | "or";
     rules: Array<{
       variable: string;
-      operator: "truthy" | "falsy" | "equals" | "not_equals" | "contains" | "not_contains" | "greater_than" | "less_than";
+      operator: "truthy" | "falsy" | "equals" | "not_equals" | "contains" | "not_contains" | "greater_than" | "less_than" | "greater_than_or_equal" | "less_than_or_equal";
       value: string;
     }>;
   };

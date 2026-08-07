@@ -9,7 +9,7 @@ type Rule = Group["rules"][number];
 type StyleRule = OverlayLayer["styleRules"][number];
 type Overrides = StyleRule["overrides"];
 type LayerChange = Partial<OverlayLayer> | ((layer:OverlayLayer)=>Partial<OverlayLayer>);
-const operators: Array<[Rule["operator"], string]> = [["truthy","has a value"],["falsy","has no value"],["equals","equals"],["not_equals","does not equal"],["contains","contains"],["not_contains","does not contain"],["greater_than","is greater than"],["less_than","is less than"]];
+const operators: Array<[Rule["operator"], string]> = [["truthy","has a value"],["falsy","has no value"],["equals","equals"],["not_equals","does not equal"],["contains","contains"],["not_contains","does not contain"],["greater_than","is greater than"],["less_than","is less than"],["greater_than_or_equal","is at least (inclusive)"],["less_than_or_equal","is at most (inclusive)"]];
 const shapes: OverlayLayer["shape"][] = ["rounded","square","pill","circle","ticket","ribbon","tag","hexagon","chevron"];
 
 function Rules({value,variables,onChange}:{value:Group;variables:string[];onChange:(value:Group)=>void}) {
@@ -19,7 +19,7 @@ function Rules({value,variables,onChange}:{value:Group;variables:string[];onChan
     {value.rules.map((rule,index)=><div className="overlay-condition-rule" key={index}>
       <select aria-label={`Condition ${index+1} variable`} value={rule.variable} onChange={event=>update(index,{variable:event.target.value})}>{variables.filter(item=>item!=="icon"&&item!=="custom_text").map(item=><option value={item} key={item}>{item.replaceAll("_"," ")}</option>)}</select>
       <select aria-label={`Condition ${index+1} operator`} value={rule.operator} onChange={event=>update(index,{operator:event.target.value as Rule["operator"]})}>{operators.map(([id,label])=><option value={id} key={id}>{label}</option>)}</select>
-      {!['truthy','falsy'].includes(rule.operator)?<input aria-label={`Condition ${index+1} value`} value={rule.value} placeholder="Value" onChange={event=>update(index,{value:event.target.value})}/>:null}
+      {!['truthy','falsy'].includes(rule.operator)?<input aria-label={`Condition ${index+1} value`} type={['greater_than','less_than','greater_than_or_equal','less_than_or_equal'].includes(rule.operator)?'number':'text'} value={rule.value} placeholder={rule.variable==='plex_days_since_added'?'Whole days':'Value'} onChange={event=>update(index,{value:event.target.value})}/>:null}
       {value.rules.length>1?<button type="button" className="icon-button" aria-label={`Remove condition ${index+1}`} onClick={()=>onChange({...value,rules:value.rules.filter((_,i)=>i!==index)})}>×</button>:null}
     </div>)}
     <button type="button" className="secondary" disabled={value.rules.length>=8} onClick={()=>onChange({...value,rules:[...value.rules,{variable:value.rules[0]?.variable||"title",operator:"truthy",value:""}]})}>Add condition</button>

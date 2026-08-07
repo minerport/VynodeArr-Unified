@@ -6282,7 +6282,7 @@ export function createApplication(options = {}) {
         poster: Buffer.alloc(0),
         template: template,
         item: item,
-        context: context,
+        context: { ...context, plexAddedAt: target.plex.addedAt ? new Date(Number(target.plex.addedAt) * 1000).toISOString() : null },
         includePoster: false,
       }),
       sharp = (await import("sharp")).default;
