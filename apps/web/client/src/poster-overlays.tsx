@@ -149,7 +149,15 @@ const previewValue = (variable: string, media?: OverlayMedia) => {
       ? "Cutoff unmet"
       : "At cutoff";
   const value = (media as unknown as Record<string, unknown>)?.[variable];
-  return Array.isArray(value) ? value.join(", ") : String(value ?? "");
+  if(Array.isArray(value)&&value.length)return value.join(", ");
+  if(value!==undefined&&value!==null&&String(value).trim())return String(value);
+  if(variable==="plex_days_since_added"){
+    const added=new Date(media?.addedAt||""),now=new Date();
+    if(Number.isFinite(added.getTime()))return String(Math.max(0,Math.floor((Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate())-Date.UTC(added.getUTCFullYear(),added.getUTCMonth(),added.getUTCDate()))/86400000)));
+    return "7";
+  }
+  const defaults:Record<string,string>={title:"Example title",year:String(new Date().getUTCFullYear()),rating:"8.0",quality:"1080p",resolution:"1080p",quality_profile:"HD",video_codec:"HEVC",audio_codec:"EAC3",audio_channels:"5.1",dynamic_range:"HDR",source:"WEB-DL",runtime:"120 min",certification:"PG-13",studio:"Example studio",network:"Example network",genres:"Drama",original_language:"English",library_status:"Available",completion_percent:"100%",file_size:"8 GB",tags:"Featured",date_added:"Today",added_ago:"7 days ago",release_date:"Today",release_age:"30 days ago",download_status:"Downloading",download_progress:"50%",download_eta:"In 1 day",series_status:"Continuing",next_episode:"Next episode in 7 days",requested_by:"Example user",request_count:"1"};
+  return defaults[variable]||variable.replaceAll("_"," ").replace(/^./,letter=>letter.toUpperCase());
 };
 
 function Preview({
@@ -354,7 +362,7 @@ export function PosterOverlaysView({
     ),
     [editing, setEditing] = useState<OverlayTemplate | null>(null),
     [selectedLayerId, setSelectedLayerId] = useState(""),
-    [layerSettingsMinimized, setLayerSettingsMinimized] = useState(false),
+    [collapsedLayerIds, setCollapsedLayerIds] = useState<string[]>([]),
     [iconQuery, setIconQuery] = useState(""),
     [previewId, setPreviewId] = useState(""),
     [applicationReview, setApplicationReview] = useState<{
@@ -425,7 +433,7 @@ export function PosterOverlaysView({
     if (!editing || !selectedLayerId) return;
     scrollLayerSettings(selectedLayerId);
   }, [selectedLayerId, editing?.layers.length]);
-  const selectLayer=(id:string)=>{setLayerSettingsMinimized(false);setSelectedLayerId(id);requestAnimationFrame(()=>scrollLayerSettings(id));};
+  const selectLayer=(id:string)=>{setCollapsedLayerIds(value=>value.filter(item=>item!==id));setSelectedLayerId(id);requestAnimationFrame(()=>scrollLayerSettings(id));};
   const visible = useMemo(
     () =>
       media
@@ -948,7 +956,7 @@ export function PosterOverlaysView({
                   Close
                 </button>
               </div>
-              <div className={`overlay-editor-grid${layerSettingsMinimized?" layer-settings-minimized":""}`}>
+              <div className="overlay-editor-grid">
                 <Suspense>
                   <EditorRail
                     editing={editing}
@@ -1008,8 +1016,7 @@ export function PosterOverlaysView({
                     }}
                   />
                 </Suspense>
-                <div className={`overlay-editor-fields${layerSettingsMinimized?" minimized":""}`}>
-                  <button type="button" className="secondary overlay-layer-settings-toggle" aria-expanded={!layerSettingsMinimized} onClick={()=>setLayerSettingsMinimized(value=>!value)}><span>{layerSettingsMinimized?"Layer settings":"Minimize layer settings"}</span><span aria-hidden="true">{layerSettingsMinimized?"›":"‹"}</span></button>
+                <div className="overlay-editor-fields">
                   {!editing.layers.length ? (
                     <div className="empty compact overlay-layer-empty">
                       <strong>No layers yet</strong>
@@ -1037,12 +1044,12 @@ export function PosterOverlaysView({
                     return (
                       <details
                         id={`overlay-layer-settings-${layer.id}`}
-                        className="overlay-layer-editor"
+                        className={`overlay-layer-editor${layer.id===selectedLayerId?" selected":""}`}
                         key={layer.id}
-                        open
-                        hidden={layer.id !== selectedLayerId}
+                        open={!collapsedLayerIds.includes(layer.id)}
+                        onToggle={event=>setCollapsedLayerIds(current=>event.currentTarget.open?current.filter(id=>id!==layer.id):current.includes(layer.id)?current:[...current,layer.id])}
                       >
-                        <summary>
+                        <summary onClick={()=>setSelectedLayerId(layer.id)}>
                           <span>Layer {index + 1}</span>
                           <small>
                             {layer.variable.replaceAll("_", " ")}

@@ -1108,14 +1108,26 @@ test('poster overlay layer selection scrolls settings into view and new layers s
   assert.match(source,/height: 10,[\s\S]*?position: "custom" as const,[\s\S]*?x: 30,[\s\S]*?y: 45/);
 });
 
-test('poster overlay layer settings can minimize into a compact second-column rail',async()=>{
+test('poster overlay layer settings cards minimize independently inside the second column',async()=>{
   const [source,layout]=await Promise.all([read('apps/web/client/src/poster-overlays.tsx'),read('apps/web/client/src/poster-overlay-editor-layout.tsx')]);
-  assert.match(source,/layerSettingsMinimized/);
-  assert.match(source,/aria-expanded=\{!layerSettingsMinimized\}/);
-  assert.match(source,/Minimize layer settings/);
-  assert.match(source,/setLayerSettingsMinimized\(false\);setSelectedLayerId/);
-  assert.match(layout,/\.overlay-editor-grid\.layer-settings-minimized\{grid-template-columns:[^}]*58px/);
-  assert.match(layout,/\.overlay-editor-fields\.minimized>:not\(\.overlay-layer-settings-toggle\)\{display:none!important\}/);
+  assert.match(source,/collapsedLayerIds/);
+  assert.match(source,/open=\{!collapsedLayerIds\.includes\(layer\.id\)\}/);
+  assert.match(source,/onToggle=\{event=>setCollapsedLayerIds/);
+  assert.match(source,/setCollapsedLayerIds\(value=>value\.filter\(item=>item!==id\)\)/);
+  assert.doesNotMatch(source,/hidden=\{layer\.id !== selectedLayerId\}/);
+  assert.doesNotMatch(source,/layerSettingsMinimized|Minimize layer settings/);
+  assert.match(layout,/\.overlay-layer-editor\.selected\{border-color:var\(--accent\)!important\}/);
+  assert.match(layout,/\.overlay-layer-editor\[open\]>summary/);
+  assert.doesNotMatch(layout,/layer-settings-minimized|overlay-editor-fields\.minimized/);
+});
+
+test('poster overlay previews retain layers with representative missing metadata values',async()=>{
+  const source=await read('apps/web/client/src/poster-overlays.tsx');
+  assert.match(source,/variable==="plex_days_since_added"/);
+  assert.match(source,/media\?\.addedAt/);
+  assert.match(source,/return "7"/);
+  assert.match(source,/title:"Example title"/);
+  assert.match(source,/return defaults\[variable\]\|\|variable\.replaceAll/);
 });
 
 test('poster overlay editor provides bounded layer fields and a shape library',async()=>{

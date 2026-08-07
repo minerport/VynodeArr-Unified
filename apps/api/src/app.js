@@ -6272,6 +6272,7 @@ export function createApplication(options = {}) {
     status: value.restoredAt ? "restored" : "applied",
   });
   async function renderedPlexPoster(target, template, session) {
+    const rawPlexAddedAt=target.plex.addedAt,numericPlexAddedAt=Number(rawPlexAddedAt),plexAddedDate=Number.isFinite(numericPlexAddedAt)&&numericPlexAddedAt>0?new Date(numericPlexAddedAt<(1e12)?numericPlexAddedAt*1000:numericPlexAddedAt):new Date(rawPlexAddedAt||'');
     const { item: item, context: context } = await overlayRenderContext(
         target.domain,
         target.item,
@@ -6282,7 +6283,7 @@ export function createApplication(options = {}) {
         poster: Buffer.alloc(0),
         template: template,
         item: item,
-        context: { ...context, plexAddedAt: target.plex.addedAt ? new Date(Number(target.plex.addedAt) * 1000).toISOString() : null },
+        context: { ...context, plexAddedAt: Number.isFinite(plexAddedDate.getTime()) ? plexAddedDate.toISOString() : null },
         includePoster: false,
       }),
       sharp = (await import("sharp")).default;

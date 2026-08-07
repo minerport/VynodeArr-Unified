@@ -33,6 +33,11 @@ test('Plex library hydration retrieves omitted GUIDs and accepts legacy agent id
   const calls=[],service=new PlexService({fetchImpl:async url=>{calls.push(url);if(url.includes('/library/sections/1/all'))return new Response(JSON.stringify({MediaContainer:{Metadata:[{ratingKey:'10',title:'Modern',year:2024,addedAt:1786057200,guid:'plex://movie/modern'},{ratingKey:'11',title:'Legacy',year:2009,guid:'com.plexapp.agents.themoviedb://34653?lang=en'}]}}));if(url.includes('/library/metadata/10'))return new Response(JSON.stringify({MediaContainer:{Metadata:[{ratingKey:'10',title:'Modern',Guid:[{id:'tmdb://32562'},{id:'imdb://tt1517451'}]}]}}));throw new Error(`Unexpected URL ${url}`);}}),items=await service.libraryItems('http://plex.local:32400','token',{key:'1',type:'movie'}),result=service.match([{id:'movie_a',domain:'movie',title:'Modern',tmdbId:32562},{id:'movie_b',domain:'movie',title:'Legacy',tmdbId:34653}],items);assert.equal(result[0].status,'matched');assert.equal(result[0].plex[0].addedAt,1786057200);assert.equal(result[1].status,'matched');assert.equal(calls.length,2);assert.match(calls[1],/library\/metadata\/10\?includeGuids=1/);
 });
 
+test('Plex library metadata retains numeric and ISO added timestamps',async()=>{
+  const service=new PlexService({fetchImpl:async()=>new Response(JSON.stringify({MediaContainer:{Metadata:[{ratingKey:'1',title:'Numeric',addedAt:1786057200,Guid:[{id:'tmdb://1'}]},{ratingKey:'2',title:'ISO',addedAt:'2026-08-01T12:00:00Z',Guid:[{id:'tmdb://2'}]}]}}))}),items=await service.libraryItems('http://plex.local:32400','token',{key:'1',type:'movie'});
+  assert.equal(items[0].addedAt,1786057200);assert.equal(items[1].addedAt,'2026-08-01T12:00:00.000Z');
+});
+
 test('Plex artwork proxy accepts bounded image responses and rejects arbitrary paths',async()=>{
   const service=new PlexService({fetchImpl:async()=>new Response(Buffer.from('poster-bytes'),{headers:{'content-type':'image/jpeg'}})}),artwork=await service.artwork('http://plex.local:32400','token','/library/metadata/12/thumb/34');assert.equal(artwork.contentType,'image/jpeg');assert.equal(artwork.body.toString(),'poster-bytes');await assert.rejects(service.artwork('http://plex.local:32400','token','/system/accounts'),/path is invalid/);
 });

@@ -7,6 +7,19 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.35-rc.23] - 2026-08-07
+
+### Fixed
+
+- Replaced the whole-column Layer Settings minimizer with independently collapsible settings cards for every overlay layer.
+- Expanded and focused the selected layer card when adding a layer or selecting it from the build rail or poster preview.
+- Preserved Plex added timestamps supplied as Unix seconds, Unix milliseconds, or ISO dates so days-since-added rules render reliably.
+- Kept editor preview layers visible with representative metadata values when the selected title lacks the configured variable.
+
+### Validation
+
+- Passed 203 automated tests, TypeScript checks, production builds, bundle and branding checks, and deployment validation.
+
 ## [2.0.35-rc.22] - 2026-08-07
 
 ### Improved
@@ -1458,7 +1471,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.22...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.23...HEAD
+[2.0.35-rc.23]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.22...v2.0.35-rc.23
 [2.0.35-rc.22]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.21...v2.0.35-rc.22
 [2.0.35-rc.21]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.20...v2.0.35-rc.21
 [2.0.35-rc.20]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35...v2.0.35-rc.20

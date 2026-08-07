@@ -16,9 +16,10 @@ const itemExternalIds=item=>{
   const values=[];for(const [field,prefix]of [['tmdbId','tmdb'],['tvdbId','tvdb'],['imdbId','imdb']])if(item?.[field])values.push(`${prefix}:${String(item[field]).toLowerCase()}`);
   for(const value of [item?.guid,...(item?.guids||item?.Guid||[])]){const id=externalId(value?.id||value);if(id)values.push(id);}return[...new Set(values)];
 };
+const plexAddedAt=value=>{const raw=value?.addedAt??xmlAttribute(value,'addedAt'),numeric=Number(raw);if(Number.isFinite(numeric)&&numeric>0)return numeric;const date=new Date(raw||'');return Number.isFinite(date.getTime())?date.toISOString():null;};
 const plexMetadata=(response,libraryType)=>{
   const metadataValue=response.value?.MediaContainer?.Metadata,metadata=response.type==='json'?(Array.isArray(metadataValue)?metadataValue:metadataValue?[metadataValue]:[]):[...String(response.value).matchAll(/<(?:Video|Directory)\b[^>]*(?:\/>|>[\s\S]*?<\/(?:Video|Directory)>)/gi)].map(match=>match[0]);
-  return metadata.map(item=>({ratingKey:String(item.ratingKey??xmlAttribute(item,'ratingKey')),title:decodeXml(item.title??xmlAttribute(item,'title')),year:Number(item.year??xmlAttribute(item,'year'))||null,type:String((item.type??xmlAttribute(item,'type'))||libraryType),thumb:String(item.thumb??xmlAttribute(item,'thumb')),addedAt:Number(item.addedAt??xmlAttribute(item,'addedAt'))||null,guid:String(item.guid??xmlAttribute(item,'guid')),guids:item.Guid||[...String(item).matchAll(/<Guid\b[^>]*id="([^"]+)"[^>]*\/>/gi)].map(match=>({id:decodeXml(match[1])}))})).filter(item=>item.ratingKey);
+  return metadata.map(item=>({ratingKey:String(item.ratingKey??xmlAttribute(item,'ratingKey')),title:decodeXml(item.title??xmlAttribute(item,'title')),year:Number(item.year??xmlAttribute(item,'year'))||null,type:String((item.type??xmlAttribute(item,'type'))||libraryType),thumb:String(item.thumb??xmlAttribute(item,'thumb')),addedAt:plexAddedAt(item),guid:String(item.guid??xmlAttribute(item,'guid')),guids:item.Guid||[...String(item).matchAll(/<Guid\b[^>]*id="([^"]+)"[^>]*\/>/gi)].map(match=>({id:decodeXml(match[1])}))})).filter(item=>item.ratingKey);
 };
 
 export class PlexService{

@@ -1,18 +1,15 @@
 const css = `
 .overlay-editor.overlay-editor{width:min(1840px,calc(100vw - 24px));height:calc(100dvh - 24px);max-height:none;grid-template-rows:auto minmax(0,1fr) auto}
 .overlay-editor .overlay-editor-grid{box-sizing:border-box;display:grid;grid-template-columns:minmax(250px,280px) minmax(460px,1.18fr) minmax(420px,1fr) minmax(330px,370px);grid-template-areas:"rail fields conditions preview";gap:16px;align-items:stretch;min-height:0;height:100%;padding:16px;overflow:hidden}
-.overlay-editor .overlay-editor-grid.layer-settings-minimized{grid-template-columns:minmax(250px,280px) 58px minmax(420px,1.18fr) minmax(330px,370px)}
 .overlay-editor .overlay-editor-rail,.overlay-editor .overlay-editor-fields,.overlay-editor .overlay-editor-grid>.overlay-condition-row{box-sizing:border-box;min-width:0;width:100%;height:100%;min-height:0;max-height:none;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding:14px 12px 48px;border:1px solid color-mix(in srgb,var(--border) 78%,transparent);border-radius:14px;background:color-mix(in srgb,var(--panel) 82%,#000 18%)}
 .overlay-editor .overlay-editor-rail{grid-area:rail;position:static!important;display:grid!important;grid-template-columns:minmax(0,1fr);gap:12px;align-content:start;transform:none!important}
 .overlay-editor .overlay-editor-fields{grid-area:fields;display:block!important}
-.overlay-editor .overlay-layer-settings-toggle{display:flex;width:100%;align-items:center;justify-content:space-between;gap:8px;margin:0 0 12px;padding:8px;white-space:nowrap}
-.overlay-editor .overlay-editor-fields.minimized{padding:10px 8px;overflow:hidden}
-.overlay-editor .overlay-editor-fields.minimized>:not(.overlay-layer-settings-toggle){display:none!important}
-.overlay-editor .overlay-editor-fields.minimized .overlay-layer-settings-toggle{height:100%;margin:0;padding:6px;writing-mode:vertical-rl;transform:rotate(180deg)}
 .overlay-editor .overlay-editor-grid>.overlay-condition-row{grid-area:conditions;grid-column:auto;grid-row:auto;position:static;align-content:start}
-.overlay-editor .overlay-layer-editor{box-sizing:border-box;display:block!important;width:100%!important;max-width:none!important;margin:0;border:0!important;overflow:visible}
-.overlay-editor .overlay-layer-editor>summary{display:none!important}
-.overlay-editor .overlay-layer-body{box-sizing:border-box;display:grid!important;width:100%!important;max-width:none!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:0}
+.overlay-editor .overlay-layer-editor{box-sizing:border-box;display:block!important;width:100%!important;max-width:none!important;margin:0 0 10px;border:1px solid var(--border)!important;border-radius:10px;overflow:hidden}
+.overlay-editor .overlay-layer-editor.selected{border-color:var(--accent)!important}
+.overlay-editor .overlay-layer-editor>summary{display:flex!important;padding:10px 12px!important;border:0!important}
+.overlay-editor .overlay-layer-editor[open]>summary{border-bottom:1px solid var(--border)!important}
+.overlay-editor .overlay-layer-body{box-sizing:border-box;display:grid!important;width:100%!important;max-width:none!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:12px}
 .overlay-editor .overlay-layer-body>*{min-width:0;max-width:none}
 .overlay-editor .overlay-layer-body>.overlay-control-group,.overlay-editor .overlay-layer-body>.overlay-control-group-heading,.overlay-editor .overlay-layer-body>.overlay-layer-toggle,.overlay-editor .overlay-layer-body>.overlay-remove-layer{grid-column:1/-1;width:100%}
 .overlay-editor .overlay-control-group{display:grid;gap:12px;min-width:0}
@@ -42,10 +39,7 @@ const css = `
 @media(max-width:1499px){
  .overlay-editor.overlay-editor{width:min(1220px,calc(100vw - 24px))}
  .overlay-editor .overlay-editor-grid{grid-template-columns:minmax(230px,260px) minmax(430px,1fr) minmax(320px,350px);grid-template-areas:"rail fields preview" "rail conditions preview";grid-template-rows:minmax(0,1fr) minmax(280px,.72fr)}
- .overlay-editor .overlay-editor-grid.layer-settings-minimized{grid-template-columns:minmax(230px,260px) minmax(430px,1fr) minmax(320px,350px);grid-template-rows:auto minmax(280px,1fr)}
  .overlay-editor .overlay-editor-fields{grid-row:1}
- .overlay-editor .overlay-editor-fields.minimized{height:auto;padding:8px 10px}
- .overlay-editor .overlay-editor-fields.minimized .overlay-layer-settings-toggle{height:auto;margin:0;writing-mode:horizontal-tb;transform:none}
  .overlay-editor .overlay-editor-grid>.overlay-condition-row{grid-row:2}
 }
 @media(max-width:1099px){
