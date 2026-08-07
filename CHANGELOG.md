@@ -7,6 +7,17 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.35-rc.16] - 2026-08-07
+
+### Fixed
+
+- Restored artwork and assigned overlays in the primary Movie and Television poster-grid view after RC.15 positioned its base images outside normal card layout flow.
+- Kept the existing anchored artwork behavior in information-card, compact, and detailed-list views.
+
+### Validation
+
+- Passed 199 automated tests, TypeScript checks, production builds, bundle and branding checks, and deployment validation.
+
 ## [2.0.35-rc.15] - 2026-08-07
 
 ### Added
@@ -1531,7 +1542,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.15...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.16...HEAD
+[2.0.35-rc.16]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.15...v2.0.35-rc.16
 [2.0.35-rc.15]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.14...v2.0.35-rc.15
 [2.0.35-rc.14]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.13...v2.0.35-rc.14
 [2.0.35-rc.13]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.12...v2.0.35-rc.13

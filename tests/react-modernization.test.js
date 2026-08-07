@@ -1326,7 +1326,8 @@ test('new poster styles require explicit media and destination choices',async()=
   assert.doesNotMatch(rail,/<option value="all">Movies & television<\/option>/);
 });
 
-test('all library views anchor artwork to the complete poster surface',async()=>{
+test('poster library view keeps artwork in flow while alternate views use anchored fitting',async()=>{
   const css=await read('apps/web/client/src/react-library.css');
-  assert.match(css,/\.view-poster \.poster>img,\.view-cards \.poster img,\.view-compact \.poster img,\.view-list \.poster img\{position:absolute;inset:0\}/);
+  assert.match(css,/\.view-poster \.poster>img\{position:static\}/);
+  assert.match(css,/\.view-cards \.poster img,\.view-compact \.poster img,\.view-list \.poster img\{position:absolute;inset:0\}/);
 });
