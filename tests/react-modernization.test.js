@@ -1162,7 +1162,8 @@ test('Plex poster batches support variable filters and direct scoped restoration
   const source=await read('apps/web/client/src/poster-overlays-plex.tsx'),api=await read('apps/api/src/app.js');
   assert.match(source,/Filter titles by variables/);assert.match(source,/Select filtered/);assert.match(source,/Select entire matched library/);
   assert.match(source,/notice plex-match-review/);assert.match(source,/notice plex-library-review/);assert.match(source,/notice plex-history-panel/);assert.match(source,/overlay-condition-builder>p\{margin:0\}/);
-  assert.match(source,/plex-match-list\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);assert.match(source,/plex-history-list\{grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
+  assert.match(source,/plex-match-group-items\{display:grid;grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);assert.match(source,/plex-history-list\{grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
+  assert.match(source,/\['matched','Matched'/);assert.match(source,/\['unmatched','Not matched'/);assert.doesNotMatch(source,/className="plex-match-details"/);
   assert.match(source,/Restore filtered/);assert.match(source,/Restore all/);assert.match(source,/targets\.slice\(index,index\+500\)/);
   assert.doesNotMatch(source,/APPLY TO PLEX|RESTORE PLEX POSTER|confirmationText/);
   assert.match(api,/variableValues:source\?posterVariableValues/);assert.match(api,/variableValues: posterVariableValues/);

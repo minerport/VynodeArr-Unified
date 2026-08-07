@@ -7,6 +7,22 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.35-rc.30] - 2026-08-07
+
+### Changed
+
+- Grouped Plex match results into Matched and Not matched sections.
+- Reduced every match result to its checkbox, title, year, and match status.
+- Displayed grouped titles in compact responsive columns.
+
+### Fixed
+
+- Removed the old multi-line match metadata layout that caused title rows to overlap.
+
+### Validation
+
+- Passed 208 automated tests, TypeScript checks, production builds, bundle and branding checks, and deployment validation.
+
 ## [2.0.35-rc.29] - 2026-08-07
 
 ### Changed
