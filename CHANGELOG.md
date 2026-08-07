@@ -7,6 +7,17 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.35-rc.18] - 2026-08-07
+
+### Fixed
+
+- Restored visible artwork in the primary Movie and Television libraries by preventing browser-native lazy loading from deferring posters inside VynodeArr's nested catalog scroller.
+- Retained bounded catalog paging and infinite scrolling so the fix does not load an entire large library at once.
+
+### Validation
+
+- Passed 199 automated tests, TypeScript checks, production builds, bundle and branding checks, and deployment validation.
+
 ## [2.0.35-rc.17] - 2026-08-07
 
 ### Changed
@@ -1558,7 +1569,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.17...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.18...HEAD
+[2.0.35-rc.18]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.17...v2.0.35-rc.18
 [2.0.35-rc.17]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.16...v2.0.35-rc.17
 [2.0.35-rc.16]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.15...v2.0.35-rc.16
 [2.0.35-rc.15]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.14...v2.0.35-rc.15

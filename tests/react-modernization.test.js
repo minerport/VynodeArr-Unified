@@ -1330,7 +1330,9 @@ test('new poster styles require explicit media and destination choices',async()=
 });
 
 test('all library views anchor artwork to the complete poster surface',async()=>{
-  const css=await read('apps/web/client/src/react-library.css');
+  const [css,library]=await Promise.all([read('apps/web/client/src/react-library.css'),read('apps/web/client/src/library.tsx')]);
   assert.match(css,/\.view-poster \.poster>img,\.view-cards \.poster>img,\.view-compact \.poster>img,\.view-list \.poster>img\{position:absolute;z-index:0;inset:0;display:block;width:100%;height:100%;object-fit:cover\}/);
   assert.doesNotMatch(css,/\.view-poster \.poster>img\{position:static\}/);
+  assert.match(library,/loading="eager"/);
+  assert.doesNotMatch(library,/loading=\{priority \? "eager" : "lazy"\}/);
 });

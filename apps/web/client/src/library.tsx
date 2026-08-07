@@ -193,7 +193,10 @@ function LibraryCard({
           <img
             src={item.artwork.url}
             alt=""
-            loading={priority ? "eager" : "lazy"}
+            // The catalog already limits and incrementally appends rendered items.
+            // Native lazy loading misclassifies posters inside VynodeArr's nested
+            // scroll layout as off-screen and Edge replaces them with placeholders.
+            loading="eager"
             fetchPriority={priority ? "high" : "auto"}
             decoding="async"
           />
