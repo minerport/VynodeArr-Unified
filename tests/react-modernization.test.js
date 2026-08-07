@@ -177,6 +177,8 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(library,/selectFromPointer/);
   assert.match(library,/scrollIntoView/);
   assert.match(library,/IntersectionObserver/);
+  assert.match(library,/limit < total/);
+  assert.match(library,/setLoadingPage\(true\)/);
   assert.match(library,/setDebouncedQuery/);
   assert.match(library,/sessionStorage/);
   assert.match(library,/onPointerEnter=\{prefetch\}/);

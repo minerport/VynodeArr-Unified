@@ -7,6 +7,20 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.35-rc.31] - 2026-08-07
+
+### Fixed
+
+- Removed stale library entries after correcting a movie or television match.
+- Moved corrected matches and their existing files to the canonical folder calculated by the media engine.
+- Restored the original match safely when a corrected match or folder move cannot be completed.
+- Loaded additional Movies and Television library pages automatically as users scroll beyond the first result set.
+- Prevented overlapping library pagination requests while retaining a manual Load more fallback.
+
+### Validation
+
+- Passed 208 automated tests and web TypeScript checks.
+
 ## [2.0.35-rc.30] - 2026-08-07
 
 ### Changed

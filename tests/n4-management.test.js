@@ -88,6 +88,7 @@ test('native interaction workflows replace an upstream-shaped generic shell',asy
   assert.match(releaseBrowser,/Grab anyway/);
   assert.doesNotMatch(releaseBrowser,/grabbing!==null\|\|!isAccepted/);
   for(const workflow of ['/api/media-match','rematchMedia','addImportExclusion:false','addImportListExclusion:false','The original match was restored when possible',"already in the ${domain==='movie'?'Movies':'Television'} library",'Fix match'])assert.ok(script.includes(workflow)||apiSource.includes(workflow),workflow);
+  for(const workflow of ['correctedFolder','correctedPath','query: { moveFiles: true }','oldPublicId !== newPublicId','sync.reconcileItem(domain, oldPublicId)'])assert.ok(apiSource.includes(workflow),'fixed matches must move files to the corrected engine path and remove the prior catalog projection: '+workflow);
   for(const workflow of ['quality-range-track','data-control="range"','qualityDefinitionLimits','data-dirty="true"','Save limits to engine',"`/api/manage/${domain.value}/qualityDefinitions/${payload.id}`","method:'PUT'"])assert.ok(script.includes(workflow),workflow);
   for(const workflow of ['liveQueue','includeMovie:true','includeSeries:true','includeEpisode:true','trackedDownloadState','clientStatus','clientFilename','/api/activity/queue/live'])assert.ok(apiSource.includes(workflow));
   assert.match(queueSource,/if\(requestPending\.current\)return/);

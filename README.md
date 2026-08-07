@@ -28,9 +28,9 @@ consistent experience and account system.
 ## Current release
 
 Version **2.0.35** is available for production use on Unraid, Windows, and
-standard Docker installations. Version **2.0.35-rc.30** is available as a
-prerelease with simplified Plex matching grouped into compact Matched and Not
-matched title lists. The production release includes a durable local Movie and Television catalog, targeted
+standard Docker installations. Version **2.0.35-rc.31** is available as a
+prerelease with corrected match cleanup, canonical file relocation, and reliable
+infinite scrolling through complete Movie and Television libraries. The production release includes a durable local Movie and Television catalog, targeted
 event-driven updates, server-side paging, performance controls, and persistent
 artwork caching that reduce engine CPU and network load while preserving
 current library information and poster overlays. Persisted synchronization

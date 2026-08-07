@@ -2730,7 +2730,40 @@ export function createApplication(options = {}) {
       result = await management.execute(domain, "library", "POST", {
         payload: replacement,
       });
+      const folderResult = await management.execute(
+          domain,
+          "libraryFolder",
+          "GET",
+          { id: Number(result.id) },
+        ),
+        correctedFolder = String(folderResult?.folder || "").trim(),
+        correctedPath = correctedFolder
+          ? joinMediaPath(rootFolderPath, correctedFolder)
+          : "";
+      if (
+        correctedPath &&
+        normalizeMediaPath(correctedPath) !== normalizeMediaPath(result.path)
+      )
+        result = await management.execute(domain, "library", "PUT", {
+          id: Number(result.id),
+          query: { moveFiles: true },
+          payload: {
+            ...result,
+            path: correctedPath,
+            rootFolderPath: rootFolderPath,
+          },
+        });
     } catch (error) {
+      if (Number.isFinite(Number(result?.id)))
+        await management
+          .execute(domain, "library", "DELETE", {
+            id: Number(result.id),
+            query:
+              domain === "movie"
+                ? { deleteFiles: false, addImportExclusion: false }
+                : { deleteFiles: false, addImportListExclusion: false },
+          })
+          .catch(() => {});
       await management
         .execute(domain, "library", "POST", { payload: rollback })
         .catch(() => {});
@@ -2748,10 +2781,11 @@ export function createApplication(options = {}) {
         },
       })
       .catch(() => {});
-    await sync.reconcileItem(
-      domain,
-      `${domain === "movie" ? "movie" : "series"}_${Number(result.id)}`,
-    );
+    const oldPublicId = `${domain === "movie" ? "movie" : "series"}_${mediaId}`,
+      newPublicId = `${domain === "movie" ? "movie" : "series"}_${Number(result.id)}`;
+    if (oldPublicId !== newPublicId)
+      await sync.reconcileItem(domain, oldPublicId);
+    await sync.reconcileItem(domain, newPublicId);
     return {
       domain: domain,
       id: Number(result.id),
