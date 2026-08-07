@@ -7,6 +7,18 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.35-rc.19] - 2026-08-07
+
+### Fixed
+
+- Corrected the primary Movie and Television poster paint order after confirming artwork responses reached the browser but remained hidden beneath card presentation layers.
+- Added a resilient poster-background rendering path while retaining the accessible image, live VynodeArr overlays, gradients, badges, titles, and every library view.
+- Removed the unused poster container boundary without changing catalog paging or infinite scrolling.
+
+### Validation
+
+- Passed 199 automated tests, TypeScript checks, production builds, bundle and branding checks, and deployment validation.
+
 ## [2.0.35-rc.18] - 2026-08-07
 
 ### Fixed
@@ -1569,7 +1581,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.18...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.19...HEAD
+[2.0.35-rc.19]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.18...v2.0.35-rc.19
 [2.0.35-rc.18]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.17...v2.0.35-rc.18
 [2.0.35-rc.17]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.16...v2.0.35-rc.17
 [2.0.35-rc.16]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.15...v2.0.35-rc.16

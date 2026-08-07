@@ -1067,9 +1067,9 @@ test('poster overlays preserve existing library card sizing',async()=>{
   const library=await read('apps/web/client/src/library.tsx');
   const styles=await read('apps/web/client/src/react-library.css');
   assert.match(library,/card react-library-card \$\{view\}/);
-  assert.match(library,/<a className="poster" href=\{href\}>[\s\S]*?<PosterAssignmentLayers item=\{item\} \/>[\s\S]*?<\/a>/);
+  assert.match(library,/<a[\s\S]*?className="poster"[\s\S]*?href=\{href\}[\s\S]*?<PosterAssignmentLayers item=\{item\} \/>[\s\S]*?<\/a>/);
   assert.doesNotMatch(library,/view (?:===|!==) "poster" \? <PosterAssignmentLayers/);
-  assert.match(styles,/\.react-library-card>\.poster\{container-type:inline-size\}/);
+  assert.match(styles,/\.react-library-card>\.poster\{background:center\/cover\}/);
   assert.doesNotMatch(styles,/\.react-library-card\{[^}]*container-type/);
 });
 
@@ -1329,9 +1329,12 @@ test('new poster styles require explicit media and destination choices',async()=
   assert.doesNotMatch(rail,/<option value="all">Movies & television<\/option>/);
 });
 
-test('all library views anchor artwork to the complete poster surface',async()=>{
+test('all library views anchor and visibly paint artwork across card effects',async()=>{
   const [css,library]=await Promise.all([read('apps/web/client/src/react-library.css'),read('apps/web/client/src/library.tsx')]);
-  assert.match(css,/\.view-poster \.poster>img,\.view-cards \.poster>img,\.view-compact \.poster>img,\.view-list \.poster>img\{position:absolute;z-index:0;inset:0;display:block;width:100%;height:100%;object-fit:cover\}/);
+  assert.match(css,/\.react-library-card>\.poster>img\{position:absolute;z-index:1;inset:0;width:100%;height:100%;object-fit:cover;opacity:1\}/);
+  assert.match(css,/\.react-library-card>\.poster:after\{z-index:2\}/);
+  assert.match(css,/\.react-library-card>\.react-poster-title\{z-index:4\}/);
+  assert.match(library,/style=\{item\.artwork\?\.url\?\{backgroundImage:`url\(\$\{JSON\.stringify\(item\.artwork\.url\)\}\)`\}:undefined\}/);
   assert.doesNotMatch(css,/\.view-poster \.poster>img\{position:static\}/);
   assert.match(library,/loading="eager"/);
   assert.doesNotMatch(library,/loading=\{priority \? "eager" : "lazy"\}/);

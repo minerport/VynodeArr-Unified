@@ -188,7 +188,11 @@ function LibraryCard({
       onPointerEnter={prefetch}
       onFocus={prefetch}
     >
-      <a className="poster" href={href}>
+      <a
+        className="poster"
+        href={href}
+        style={item.artwork?.url?{backgroundImage:`url(${JSON.stringify(item.artwork.url)})`}:undefined}
+      >
         {item.artwork?.url ? (
           <img
             src={item.artwork.url}
