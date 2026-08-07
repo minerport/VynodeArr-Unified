@@ -7,6 +7,17 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.35-rc.14] - 2026-08-07
+
+### Fixed
+
+- Restored artwork and assigned VynodeArr overlays in the primary Movie and Television poster-grid view by keeping its base image in the poster's normal layout flow.
+- Preserved the existing poster-card dimensions and the anchored image behavior used by card, compact, and list views.
+
+### Validation
+
+- Passed 197 automated tests, TypeScript checks, production web and server builds, bundle budgets, branding checks, and deployment validation.
+
 ## [2.0.35-rc.13] - 2026-08-07
 
 ### Changed
@@ -1500,7 +1511,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.13...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.14...HEAD
+[2.0.35-rc.14]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.13...v2.0.35-rc.14
 [2.0.35-rc.13]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.12...v2.0.35-rc.13
 [2.0.35-rc.12]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.11...v2.0.35-rc.12
 [2.0.35-rc.11]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.10...v2.0.35-rc.11
