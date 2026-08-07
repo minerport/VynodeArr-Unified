@@ -1090,8 +1090,8 @@ test('poster overlay creation stays available beside the style list',async()=>{
 
 test('poster overlay editor layers retain drag and resize pointer input',async()=>{
   const source=await read('apps/web/client/src/poster-overlays.tsx');
-  const preview=await read('apps/web/client/src/poster-overlay-library-preview.tsx');
-  assert.match(preview,/\.overlay-preview \.poster-overlay-layer\{pointer-events:auto!important\}/);
+  const styles=await read('apps/web/client/src/poster-overlays-runtime.css');
+  assert.match(styles,/\.overlay-preview \.poster-overlay-layer\{pointer-events:auto!important\}/);
   assert.match(source,/onPointerMove=/);assert.match(source,/overlay-resize-handle/);
 });
 
@@ -1142,15 +1142,26 @@ test('poster overlay previews retain layers with representative missing metadata
 
 test('poster overlay library choices grow as the user scrolls',async()=>{
   const editor=await read('apps/web/client/src/poster-overlays.tsx'),plex=await read('apps/web/client/src/poster-overlays-plex.tsx');
+  assert.match(editor,/setMediaLimit\(value=>Math\.min\(value\+100,filteredMedia\.length\)\)/);
+  assert.match(editor,/visible=filteredMedia\.slice\(0,mediaLimit\)/);
+  assert.doesNotMatch(editor,/\.slice\(0, 200\)/);
   assert.match(editor,/setPreviewLimit\(value=>Math\.min\(value\+100,editingMedia\.length\)\)/);
   assert.match(editor,/\.slice\(0, previewLimit\)/);
   assert.match(plex,/setVisibleLimit\(value=>Math\.min\(value\+100,filteredEntries\.length\)\)/);
   assert.doesNotMatch(plex,/\.slice\(0, 500\)/);
 });
 
+test('poster overlay styling loads once instead of being injected by every preview',async()=>{
+  const [editor,preview,rail,review,css]=await Promise.all([read('apps/web/client/src/poster-overlays.tsx'),read('apps/web/client/src/poster-overlay-library-preview.tsx'),read('apps/web/client/src/poster-overlay-editor-rail.tsx'),read('apps/web/client/src/poster-overlay-application-review.tsx'),read('apps/web/client/src/poster-overlays-runtime.css')]);
+  assert.match(editor,/import "\.\/poster-overlays-runtime\.css"/);
+  for(const source of [preview,rail,review])assert.doesNotMatch(source,/<style>/);
+  assert.match(css,/\.overlay-library-chrome/);assert.match(css,/\.overlay-layer-list/);assert.match(css,/\.overlay-application-preview/);
+});
+
 test('Plex poster batches support variable filters and direct scoped restoration',async()=>{
   const source=await read('apps/web/client/src/poster-overlays-plex.tsx'),api=await read('apps/api/src/app.js');
   assert.match(source,/Filter titles by variables/);assert.match(source,/Select filtered/);assert.match(source,/Select entire matched library/);
+  assert.match(source,/plex-match-review/);assert.match(source,/overlay-condition-builder>p\{margin:0\}/);
   assert.match(source,/Restore filtered/);assert.match(source,/Restore all/);assert.match(source,/targets\.slice\(index,index\+500\)/);
   assert.doesNotMatch(source,/APPLY TO PLEX|RESTORE PLEX POSTER|confirmationText/);
   assert.match(api,/variableValues:source\?posterVariableValues/);assert.match(api,/variableValues: posterVariableValues/);

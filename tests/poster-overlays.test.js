@@ -3,13 +3,14 @@ import assert from 'node:assert/strict';
 import {aggregateOverlayFileMetadata,assignmentMatches,posterVariableValues,renderOverlaySvg,resolveConditionalOverlayLayer,resolveOverlayTemplate,sanitizeOverlayAssignment,sanitizeOverlayLayer,sanitizeOverlayTemplate} from '../packages/platform/src/poster-overlay-service.js';
 
 test('poster overlay inputs are bounded and unsafe SVG content is escaped',()=>{
-  const template=sanitizeOverlayTemplate({name:'<script>alert(1)</script>',domain:'movie',plexBadges:{monitored:true,availability:'yes'},layers:[{variable:'title',position:'custom',x:-12,y:500,width:9,fontSize:999,fontFamily:'serif',fontWeight:900,textAlign:'center',textOpacity:2,backgroundOpacity:-1,padding:99,borderRadius:99,foreground:'red',background:'#123456',prefix:'<',suffix:'>'}]});
+  const template=sanitizeOverlayTemplate({name:'<script>alert(1)</script>',domain:'movie',plexBadges:{monitored:true,availability:'yes'},layers:[{variable:'title',position:'custom',x:-12,y:500,width:9,fontSize:999,fontFamily:'serif',fontWeight:900,textAlign:'center',textOpacity:2,backgroundOpacity:-1,padding:99,borderRadius:99,foreground:'red',background:'#123456',prefix:'  <',suffix:'>  '}]});
   const layer=template.layers[0];
   assert.equal(layer.fontSize,96);assert.equal(layer.foreground,'#ffffff');assert.equal(layer.x,0);assert.equal(layer.y,96);assert.equal(layer.width,15);assert.equal(layer.textOpacity,1);assert.equal(layer.backgroundOpacity,0);assert.equal(layer.padding,30);assert.equal(layer.borderRadius,50);
   assert.deepEqual(template.plexBadges,{monitored:true,availability:false,cutoff:false,rating:false});
   assert.equal(template.target,'plex');
+  assert.equal(layer.prefix,'  <');assert.equal(layer.suffix,'>  ');
   const svg=renderOverlaySvg({poster:Buffer.from('image'),template,item:{id:'movie_1',title:'<script>alert(2)</script>'}}).toString();
-  assert.doesNotMatch(svg,/<script>/);assert.match(svg,/&lt;script&gt;/);assert.match(svg,/data:image\/jpeg;base64/);assert.match(svg,/font-family="Georgia, Times New Roman, serif"/);assert.match(svg,/font-weight="900"/);assert.match(svg,/text-anchor="middle"/);assert.match(svg,/fill-opacity="0"/);
+  assert.doesNotMatch(svg,/<script>/);assert.match(svg,/&lt;script&gt;/);assert.match(svg,/data:image\/jpeg;base64/);assert.match(svg,/font-family="Georgia, Times New Roman, serif"/);assert.match(svg,/font-weight="900"/);assert.match(svg,/text-anchor="middle"/);assert.match(svg,/xml:space="preserve"/);assert.match(svg,/  &lt;/);assert.match(svg,/&gt;  /);assert.match(svg,/fill-opacity="0"/);
 });
 
 test('poster destinations persist and Plex styles do not resolve in the VynodeArr library',()=>{

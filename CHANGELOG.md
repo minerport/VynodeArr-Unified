@@ -7,6 +7,22 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.35-rc.28] - 2026-08-07
+
+### Changed
+
+- Preserved leading and trailing spaces in layer prefixes, suffixes, and conditional formatting overrides.
+- Condensed Plex match controls after library synchronization.
+- Consolidated repeated overlay preview, editor, badge, and review styles into one route stylesheet to prevent layout shifts during large-list rerenders.
+
+### Fixed
+
+- Replaced the remaining 200-title VynodeArr overlay picker cap with incremental loading through the complete filtered library.
+
+### Validation
+
+- Passed 208 automated tests, TypeScript checks, production builds, bundle and branding checks, and deployment validation.
+
 ## [2.0.35-rc.27] - 2026-08-07
 
 ### Added

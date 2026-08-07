@@ -15,8 +15,6 @@ const shapes: Array<[OverlayLayer["shape"], string, CSSProperties]> = [
   ["chevron", "Chevron", { clipPath: "polygon(0 0,88% 0,100% 50%,88% 100%,0 100%,12% 50%)" }],
 ];
 
-const css = `.overlay-layer-list{display:grid;gap:6px}.overlay-layer-list button{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:7px;align-items:center;width:100%;padding:8px;text-align:left}.overlay-layer-list button.active{border-color:var(--accent);background:rgba(72,95,190,.22)}.overlay-layer-list strong,.overlay-layer-list small{min-width:0}.overlay-layer-list strong{overflow:hidden;text-overflow:ellipsis}.overlay-layer-list small{color:var(--muted)}.overlay-icon-library{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.overlay-icon-library button{display:grid;gap:3px;min-width:0;padding:7px 3px;place-items:center}.overlay-icon-library svg{width:20px}.overlay-icon-library span{max-width:100%;overflow:hidden;font-size:.58rem;text-overflow:ellipsis}.overlay-shape-library{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.overlay-shape-library button{display:grid;gap:5px;min-width:0;padding:6px;place-items:center}.overlay-shape-library button.active{border-color:var(--accent)}.overlay-shape-swatch{display:block;width:34px;height:18px;background:linear-gradient(135deg,var(--accent),#31d6c7)}.overlay-shape-library small{font-size:.58rem}@media(max-width:980px){.overlay-icon-library{grid-template-columns:repeat(6,minmax(0,1fr))}}@media(max-width:600px){.overlay-icon-library{grid-template-columns:repeat(4,minmax(0,1fr))}}`;
-
 type Props = {
   editing: OverlayTemplate;
   selectedId: string;
@@ -33,7 +31,6 @@ export default function EditorRail({ editing, selectedId, query, onQuery, onSele
   const icons = posterIcons.filter(([, label]) => !query || label.toLowerCase().includes(query.toLowerCase()));
   return (
     <aside className="overlay-editor-rail">
-      <style>{css}</style>
       <div className="overlay-setup-heading">
         <span className="eyebrow">1 · SETUP</span>
         <small className="muted">Name the style and choose one media library.</small>

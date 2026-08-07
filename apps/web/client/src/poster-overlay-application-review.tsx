@@ -3,7 +3,6 @@ import type { OverlayMedia, OverlayTemplate } from "./poster-overlays-types";
 import { LibraryChrome } from "./poster-overlay-library-preview";
 import { OverlayLayerView, overlayLayerVisible, resolveConditionalLayer } from "./poster-overlay-layer";
 import { PosterLayerContent } from "./poster-overlay-icons";
-const previewStyles = `.overlay-application-preview{position:relative;width:min(240px,100%);aspect-ratio:2/3;overflow:hidden;border:1px solid var(--border);border-radius:14px;background:center/cover}.overlay-application-preview>span{position:absolute;z-index:3;overflow:hidden;padding:4px 6px;line-height:1.1;white-space:nowrap}.overlay-review-preview{display:grid;justify-items:center;gap:8px}`;
 const valueFor = (
   layer: OverlayTemplate["layers"][number],
   item: OverlayMedia,
@@ -146,7 +145,6 @@ export default function ApplicationReview({
               </div>
             </div>
             <div className="panel overlay-review-preview">
-              <style>{previewStyles}</style>
               <span className="eyebrow">SCOPE</span>
               <h3>{label}</h3>
               <small className="muted">

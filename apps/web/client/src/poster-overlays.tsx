@@ -27,6 +27,7 @@ import {
 } from "./poster-overlay-layer";
 import { PosterLayerContent } from "./poster-overlay-icons";
 import "./poster-overlay-inspector.css";
+import "./poster-overlays-runtime.css";
 const styles = `.poster-overlay-route{display:grid;gap:20px}.overlay-studio-grid{display:grid;grid-template-columns:minmax(320px,.8fr) minmax(420px,1.2fr);gap:20px}.overlay-template-list{display:grid;gap:14px}.overlay-template-card{display:grid;grid-template-columns:92px 1fr;gap:14px;align-items:center;padding:12px;border:1px solid var(--border);border-radius:14px}.overlay-template-card small,.overlay-media-picker small{display:block;color:var(--muted)}.overlay-preview{position:relative;width:min(100%,300px);aspect-ratio:2/3;overflow:hidden;border:1px solid var(--border);border-radius:14px;background:linear-gradient(145deg,#24324b,#07101d 62%,#02060d) center/cover;box-shadow:inset 0 -100px 80px -70px #000}.overlay-preview-layer{font-weight:800}.overlay-scope-row,.overlay-layer-editor{display:grid;grid-template-columns:1fr 1fr;gap:10px}.overlay-media-picker{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;max-height:360px;overflow:auto}.overlay-media-picker label{display:grid;grid-template-columns:auto 38px 1fr;gap:8px;align-items:center;padding:8px;border:1px solid var(--border);border-radius:10px}.overlay-media-picker img{width:38px;aspect-ratio:2/3;object-fit:cover}.overlay-editor-backdrop{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:20px;background:#000c}.overlay-editor{display:grid;grid-template-rows:auto minmax(0,1fr) auto;width:min(1100px,100%);max-height:calc(100dvh - 40px);overflow:hidden;border:1px solid var(--border);border-radius:18px;background:var(--panel,#08111f)}.overlay-editor-grid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:20px;overflow:auto;padding:20px}.overlay-editor-fields{display:grid;gap:12px}.overlay-layer-editor{padding:12px;border:1px solid var(--border);border-radius:12px}.overlay-preview-column{display:grid;align-content:start;justify-items:center;gap:10px;position:sticky;top:0}.overlay-editor-footer{display:flex;justify-content:flex-end;gap:10px;padding:16px 20px;border-top:1px solid var(--border)}@media(max-width:800px){.overlay-studio-grid,.overlay-scope-row,.overlay-media-picker,.overlay-editor-grid,.overlay-layer-editor{grid-template-columns:1fr}.overlay-editor-backdrop{padding:0}.overlay-editor{width:100%;height:100dvh;max-height:none;border:0;border-radius:0}.overlay-editor-grid{padding:14px}.overlay-preview-column{position:static;order:-1}.overlay-preview-column .overlay-preview{width:180px}.poster-overlay-route .hero>.primary{width:100%}}`;
 const layoutStyles = `.poster-overlay-route{min-width:0}.poster-overlay-route .hero{min-width:0}.poster-overlay-route .hero h1{font-size:clamp(2rem,5vw,4rem);overflow-wrap:anywhere}.poster-overlay-route>.settings-tabs{display:flex;flex-wrap:nowrap;gap:8px;overflow-x:auto;overscroll-behavior-inline:contain;scrollbar-width:thin;padding:8px}.poster-overlay-route>.settings-tabs a{flex:0 0 auto;min-width:max-content;padding:10px 14px}.overlay-template-card{grid-template-columns:76px minmax(0,1fr);min-width:0}.overlay-template-card>.overlay-preview{width:76px}.overlay-template-content{min-width:0;display:grid;gap:8px;align-content:center}.overlay-template-content>strong,.overlay-template-content>small{overflow-wrap:anywhere}.overlay-template-content .form-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.overlay-template-content button{width:100%;min-width:0;padding-inline:7px}.overlay-assignment-panel label,.overlay-editor label{display:grid;gap:6px;min-width:0}.overlay-scope-row{align-items:end}.overlay-apply-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.overlay-apply-list button{width:100%;white-space:normal}.overlay-editor-backdrop{z-index:10000}.overlay-editor>.panel-heading{display:flex;flex-direction:row!important;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px}.overlay-editor>.panel-heading>div{flex:1;min-width:0}.overlay-editor>.panel-heading button{width:auto;flex:0 0 auto}.overlay-layer-editor{display:block;padding:0;overflow:hidden}.overlay-layer-editor>summary{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px;cursor:pointer;font-weight:800;list-style:none}.overlay-layer-editor>summary::-webkit-details-marker{display:none}.overlay-layer-editor>summary small{color:var(--muted);font-weight:500}.overlay-layer-editor[open]>summary{border-bottom:1px solid var(--border)}.overlay-layer-body{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:12px}.overlay-layer-body>.danger{align-self:end}.overlay-layer-toggle{align-content:center}@media(max-width:800px){.poster-overlay-route{gap:14px}.poster-overlay-route>.settings-tabs{margin-inline:0}.poster-overlay-route>.panel,.poster-overlay-route .overlay-studio-grid>.panel{padding:14px}.overlay-studio-grid{grid-template-columns:1fr}.overlay-template-list{gap:10px}}@media(max-width:600px){.poster-overlay-route .hero{gap:12px}.poster-overlay-route .hero>.primary{min-height:48px}.poster-overlay-route>.settings-tabs a{padding:9px 12px}.overlay-template-card{grid-template-columns:72px minmax(0,1fr);align-items:start;padding:10px}.overlay-template-card>.overlay-preview{width:72px;grid-row:1/span 2}.overlay-template-content .form-actions{grid-template-columns:repeat(2,minmax(0,1fr))}.overlay-template-content .form-actions .danger{grid-column:1/-1}.overlay-apply-list,.overlay-layer-body{grid-template-columns:1fr}.overlay-editor>.panel-heading{padding:12px 14px}}`;
 const responsiveLayoutStyles = `.poster-overlay-route{min-width:0}.poster-overlay-route .hero h1{font-size:clamp(2rem,5vw,4rem);overflow-wrap:anywhere}.poster-overlay-route>.settings-tabs{display:flex;flex-wrap:nowrap;gap:8px;overflow-x:auto;padding:8px}.poster-overlay-route>.settings-tabs a{flex:0 0 auto;min-width:max-content;padding:10px 14px}.overlay-new-action{display:flex;align-items:center;gap:8px}.overlay-template-card{grid-template-columns:76px minmax(0,1fr);min-width:0}.overlay-template-card>.overlay-preview{width:76px}.overlay-template-content{min-width:0}.overlay-template-content .form-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.overlay-template-content button{width:100%;min-width:0}@media(max-width:800px){.poster-overlay-route{gap:14px}.poster-overlay-route>.panel{padding:14px}.overlay-studio-grid{grid-template-columns:1fr}.overlay-template-list{gap:10px}}@media(max-width:600px){.poster-overlay-route>.settings-tabs a{padding:9px 12px}.overlay-template-panel>.panel-heading{align-items:stretch}.overlay-template-panel .panel-heading .badge{align-self:flex-start}.overlay-new-action{display:grid;grid-template-columns:auto 1fr;width:100%}.overlay-new-action button{min-height:44px}.overlay-template-card{grid-template-columns:64px minmax(0,1fr);align-items:center;gap:10px;padding:10px}.overlay-template-card>.overlay-preview{width:64px}.overlay-template-content{display:grid;gap:5px}.overlay-template-content .form-actions{grid-template-columns:repeat(3,minmax(0,1fr));position:static;margin:3px 0 0;padding:0;border:0;background:none;backdrop-filter:none}.overlay-template-content button{min-height:44px;padding:6px 3px;font-size:.78rem}}`;
@@ -377,6 +378,7 @@ export function PosterOverlaysView({
     } | null>(null),
     [loading, setLoading] = useState(true),
     [query, setQuery] = useState(""),
+    [mediaLimit, setMediaLimit] = useState(100),
     [selected, setSelected] = useState<string[]>([]),
     [scope, setScope] = useState<
       "all" | "items" | "collection" | "user-collection" | "rules"
@@ -451,7 +453,8 @@ export function PosterOverlaysView({
   }, [selectedLayerId, editing?.layers.length]);
   useEffect(()=>setPreviewLimit(100),[editing?.target,editing?.domain]);
   const selectLayer=(id:string)=>{setCollapsedLayerIds(value=>value.filter(item=>item!==id));setSelectedLayerId(id);requestAnimationFrame(()=>scrollLayerSettings(id));};
-  const visible = useMemo(
+  useEffect(()=>setMediaLimit(100),[domain,query,scope]);
+  const filteredMedia = useMemo(
     () =>
       media
         .filter(
@@ -461,10 +464,9 @@ export function PosterOverlaysView({
               `${item.title} ${item.year || ""}`
                 .toLowerCase()
                 .includes(query.toLowerCase())),
-        )
-        .slice(0, 200),
+        ),
     [media, domain, query],
-  );
+  ),visible=filteredMedia.slice(0,mediaLimit);
   const saveTemplate = async () => {
     if (!editing) return;
     if (
@@ -770,7 +772,7 @@ export function PosterOverlaysView({
                     placeholder="Search title or year"
                   />
                 </label>
-                <div className="overlay-media-picker">
+                <div className="overlay-media-picker" onScroll={event=>{const node=event.currentTarget;if(node.scrollTop+node.clientHeight>=node.scrollHeight-80)setMediaLimit(value=>Math.min(value+100,filteredMedia.length));}}>
                   {visible.map((item) => (
                     <label key={`${item.domain}:${item.id}`}>
                       <input
