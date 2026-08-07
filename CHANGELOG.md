@@ -7,6 +7,31 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.35-rc.9] - 2026-08-07
+
+### Changed
+
+- Reworked new Poster Overlay Studio drafts so administrators explicitly choose
+  Movies or Television and VynodeArr or Plex before saving.
+- New poster styles now begin without an implicit title layer, with clearer
+  setup, design, empty-state, and save guidance.
+- Limited preview artwork to the chosen media library so movie styles use movie
+  posters and television styles use television posters.
+
+### Fixed
+
+- Kept custom overlays inside the poster artwork boundary across every movie
+  and television grid, list, and detail-card layout.
+- Corrected overlay-relative sizing so text and shapes scale against the poster
+  rather than the surrounding wide library card.
+- Preserved existing saved and legacy combined-library styles while preventing
+  incomplete new drafts from being submitted.
+
+### Validation
+
+- Passed 195 automated tests, TypeScript checks, production web and server
+  builds, bundle budgets, branding checks, and deployment validation.
+
 ## [2.0.35-rc.8] - 2026-08-06
 
 ### Fixed
@@ -1408,7 +1433,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.8...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.9...HEAD
+[2.0.35-rc.9]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.8...v2.0.35-rc.9
 [2.0.35-rc.8]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.7...v2.0.35-rc.8
 [2.0.35-rc.7]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.6...v2.0.35-rc.7
 [2.0.34-rc.6]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.34-rc.5...v2.0.34-rc.6

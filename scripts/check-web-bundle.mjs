@@ -30,13 +30,17 @@ const mobileAllowance={shell:1_800,css:3_000};
 // live resource controls. Keep that intentional surface under a narrow,
 // route-specific allowance instead of raising every lazy-route budget.
 const performanceAllowance={systemRoute:1_500,css:600};
+// Poster Overlay Studio carries its destination-aware editor and exact live
+// poster preview in one administrator-only lazy route. Keep its extra headroom
+// isolated rather than raising the limit for every application route.
+const posterOverlayAllowance=1_750;
 const failures=[];
 
 if(!entry)failures.push('The React entry bundle was not produced.');
 else if(entry.bytes>limits.entry)failures.push(`React entry is ${entry.bytes} bytes (limit ${limits.entry}).`);
 if(!shell)failures.push('The TypeScript application shell bundle was not produced.');
 else if(shell.bytes>limits.shell+mobileAllowance.shell)failures.push(`Application shell is ${shell.bytes} bytes (limit ${limits.shell+mobileAllowance.shell}).`);
-for(const chunk of routeChunks){const routeLimit=limits.route+(chunk.name.startsWith('system-')?performanceAllowance.systemRoute:0);if(chunk.bytes>routeLimit)failures.push(`${chunk.name} is ${chunk.bytes} bytes (route limit ${routeLimit}).`);}
+for(const chunk of routeChunks){const routeLimit=limits.route+(chunk.name.startsWith('system-')?performanceAllowance.systemRoute:0)+(chunk.name.startsWith('poster-overlays-')?posterOverlayAllowance:0);if(chunk.bytes>routeLimit)failures.push(`${chunk.name} is ${chunk.bytes} bytes (route limit ${routeLimit}).`);}
 if(stylesheet&&stylesheet.bytes>limits.css+mobileAllowance.css+performanceAllowance.css)failures.push(`React stylesheet is ${stylesheet.bytes} bytes (limit ${limits.css+mobileAllowance.css+performanceAllowance.css}).`);
 
 if(failures.length){

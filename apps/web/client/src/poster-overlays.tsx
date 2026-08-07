@@ -113,11 +113,11 @@ const blankLayer = (variable = "title"): OverlayLayer => ({
 const blankTemplate = (): OverlayTemplate => ({
   id: "",
   name: "New poster style",
-  domain: "all",
-  target: "vynode",
+  domain: "" as OverlayDomain,
+  target: "" as "vynode",
   enabled: true,
   tvFileAggregation: "most_common",
-  layers: [blankLayer("title")],
+  layers: [],
   plexBadges: {
     monitored: false,
     availability: false,
@@ -431,6 +431,15 @@ export function PosterOverlaysView({
   );
   const saveTemplate = async () => {
     if (!editing) return;
+    if (
+      !editing.name.trim() ||
+      !["movie", "tv"].includes(editing.domain) ||
+      !["vynode", "plex"].includes(editing.target) ||
+      !editing.layers.length
+    ) {
+      options.notify("Choose Movies or Television, choose a destination, and add a layer before saving.", "error");
+      return;
+    }
     setBusy(true);
     try {
       const path = editing.id
@@ -540,6 +549,20 @@ export function PosterOverlaysView({
   const selectedLayer = editing?.layers.find(
       (layer) => layer.id === selectedLayerId,
     ),
+    editingMedia = editing
+      ? media.filter((item) => item.domain === editing.domain)
+      : [],
+    previewMedia =
+      editingMedia.find(
+        (item) => `${item.domain}:${item.id}` === previewId,
+      ) || editingMedia.find((item) => item.artwork?.url),
+    missingEditorChoices = editing
+      ? [
+          !["movie", "tv"].includes(editing.domain) ? "Movies or Television" : "",
+          !["vynode", "plex"].includes(editing.target) ? "VynodeArr or Plex" : "",
+          !editing.layers.length ? "at least one layer" : "",
+        ].filter(Boolean)
+      : [],
     updateSelectedLayer = (
       changes:
         | Partial<OverlayLayer>
@@ -922,9 +945,11 @@ export function PosterOverlaysView({
                     query={iconQuery}
                     onQuery={setIconQuery}
                     onSelect={setSelectedLayerId}
-                    onChange={(changes) =>
-                      setEditing({ ...editing, ...changes })
-                    }
+                    onChange={(changes) => {
+                      if (changes.domain !== undefined && changes.domain !== editing.domain)
+                        setPreviewId("");
+                      setEditing({ ...editing, ...changes });
+                    }}
                     onAddText={() => {
                       const layer = blankLayer(variables[0]);
                       setEditing({
@@ -967,6 +992,12 @@ export function PosterOverlaysView({
                   />
                 </Suspense>
                 <div className="overlay-editor-fields">
+                  {!editing.layers.length ? (
+                    <div className="empty compact overlay-layer-empty">
+                      <strong>No layers yet</strong>
+                      <p>Add text, a shape, or a media icon from the first column.</p>
+                    </div>
+                  ) : null}
                   {editing.target === "plex" ? (
                     <Suspense>
                       <PlexBadgeChoices
@@ -1307,7 +1338,8 @@ export function PosterOverlaysView({
                 </div>
                 <div className="overlay-preview-column">
                   <p className="overlay-preview-hint">
-                    Drag to move. Use the blue handle to resize.
+                    Choose where this style will be used, then build against a
+                    real matching poster.
                   </p>
                   <label>
                     Destination
@@ -1320,6 +1352,7 @@ export function PosterOverlaysView({
                         })
                       }
                     >
+                      <option value="" disabled>Choose a destination</option>
                       <option value="vynode">VynodeArr</option>
                       <option value="plex">Plex</option>
                     </select>
@@ -1330,13 +1363,12 @@ export function PosterOverlaysView({
                       value={previewId}
                       onChange={(event) => setPreviewId(event.target.value)}
                     >
-                      <option value="">First available poster</option>
-                      {media
-                        .filter(
-                          (item) =>
-                            editing.domain === "all" ||
-                            item.domain === editing.domain,
-                        )
+                      <option value="">
+                        {editingMedia.length
+                          ? "First available poster"
+                          : "Choose Movies or Television first"}
+                      </option>
+                      {editingMedia
                         .slice(0, 300)
                         .map((item) => (
                           <option
@@ -1350,23 +1382,11 @@ export function PosterOverlaysView({
                   </label>
                   <Preview
                     template={editing}
-                    target={editing.target}
-                    media={
-                      media.find(
-                        (item) => `${item.domain}:${item.id}` === previewId,
-                      ) || media.find((item) => item.artwork?.url)
-                    }
+                    target={editing.target || undefined}
+                    media={previewMedia}
                     poster={
-                      (
-                        media.find(
-                          (item) => `${item.domain}:${item.id}` === previewId,
-                        ) || media.find((item) => item.artwork?.url)
-                      )?.artwork?.originalUrl ||
-                      (
-                        media.find(
-                          (item) => `${item.domain}:${item.id}` === previewId,
-                        ) || media.find((item) => item.artwork?.url)
-                      )?.artwork?.url
+                      previewMedia?.artwork?.originalUrl ||
+                      previewMedia?.artwork?.url
                     }
                     onLayerChange={(id, changes) =>
                       setEditing({
@@ -1395,13 +1415,20 @@ export function PosterOverlaysView({
                 ) : null}
               </div>
               <div className="overlay-editor-footer">
+                {missingEditorChoices.length ? (
+                  <p className="overlay-save-guidance" role="status">
+                    To save, choose {missingEditorChoices.join(", ")}.
+                  </p>
+                ) : null}
                 <button className="secondary" onClick={() => setEditing(null)}>
                   Cancel
                 </button>
                 <button
                   className="primary"
                   disabled={
-                    busy || !editing.name.trim() || !editing.layers.length
+                    busy ||
+                    !editing.name.trim() ||
+                    missingEditorChoices.length > 0
                   }
                   onClick={() => void saveTemplate()}
                 >

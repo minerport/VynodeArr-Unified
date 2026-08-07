@@ -1048,9 +1048,12 @@ test('presentation style remains separate from color theme',async()=>{
 
 test('poster overlays preserve existing library card sizing',async()=>{
   const library=await read('apps/web/client/src/library.tsx');
+  const styles=await read('apps/web/client/src/react-library.css');
   assert.match(library,/card react-library-card \$\{view\}/);
-  assert.match(library,/view === "poster" \? <PosterAssignmentLayers item=\{item\} \/> : null/);
-  assert.match(library,/view !== "poster" \? <PosterAssignmentLayers item=\{item\} \/> : null/);
+  assert.match(library,/<a className="poster" href=\{href\}>[\s\S]*?<PosterAssignmentLayers item=\{item\} \/>[\s\S]*?<\/a>/);
+  assert.doesNotMatch(library,/view (?:===|!==) "poster" \? <PosterAssignmentLayers/);
+  assert.match(styles,/\.react-library-card>\.poster\{container-type:inline-size\}/);
+  assert.doesNotMatch(styles,/\.react-library-card\{[^}]*container-type/);
 });
 
 test('poster overlay style cards stay compact on phones',async()=>{
@@ -1299,4 +1302,16 @@ test('administrator audit coverage includes security, jobs, exports, collections
     'guide_template.rejected','request.submitted','request.canceled','request.match_corrected'
   ])assert.match(server,new RegExp(action.replaceAll('.','\\.')),action);
   assert.doesNotMatch(server,/recordAudit\(session,\{[^}]+(?:apiCredential|password|currentPassword|newPassword):/);
+});
+
+test('new poster styles require explicit media and destination choices',async()=>{
+  const [studio,rail]=await Promise.all([read('apps/web/client/src/poster-overlays.tsx'),read('apps/web/client/src/poster-overlay-editor-rail.tsx')]);
+  assert.match(studio,/domain: "" as OverlayDomain/);
+  assert.match(studio,/target: "" as "vynode"/);
+  assert.match(studio,/layers: \[\]/);
+  assert.match(studio,/Choose a destination/);
+  assert.match(studio,/missingEditorChoices\.length > 0/);
+  assert.match(studio,/item\.domain === editing\.domain/);
+  assert.match(rail,/Choose Movies or Television/);
+  assert.doesNotMatch(rail,/<option value="all">Movies & television<\/option>/);
 });

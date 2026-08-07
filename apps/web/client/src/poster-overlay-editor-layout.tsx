@@ -113,6 +113,11 @@ const css = `
 `;
 
 const refinements = `
+.overlay-editor .overlay-setup-heading{display:grid;gap:3px;padding:0 0 12px;border-bottom:1px solid var(--border)}
+.overlay-editor .overlay-layer-list-empty,.overlay-editor .overlay-layer-empty p{margin:0;line-height:1.45}
+.overlay-editor .overlay-layer-empty{align-self:start;padding:24px;text-align:center}
+.overlay-editor .overlay-editor-footer{align-items:center}
+.overlay-editor .overlay-save-guidance{min-width:0;margin:0 auto 0 0;color:var(--muted);font-size:.82rem;overflow-wrap:anywhere}
 .overlay-editor .overlay-layer-body > .notice {
   grid-column: 1 / -1;
   display: grid;

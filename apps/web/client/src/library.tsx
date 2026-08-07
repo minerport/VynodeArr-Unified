@@ -200,9 +200,8 @@ function LibraryCard({
         ) : (
           <span className="art-fallback">{movie ? "M" : "TV"}</span>
         )}
-        {view !== "poster" ? <PosterAssignmentLayers item={item} /> : null}
+        <PosterAssignmentLayers item={item} />
       </a>
-      {view === "poster" ? <PosterAssignmentLayers item={item} /> : null}
       {view === "poster" ? (
         <div className="react-poster-title">
           <LibraryStatusBadges item={item} movie={movie} />
