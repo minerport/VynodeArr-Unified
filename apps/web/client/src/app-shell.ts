@@ -25,6 +25,7 @@ const setupView=document.querySelector('#setup-view'),authView=document.querySel
 const notificationHost=document.querySelector('#notification-root');let notificationsMounted=false;
 void import('./modal-scroll-restoration').then(({installModalScrollRestoration})=>installModalScrollRestoration(window,document));
 document.querySelector('nav a[href="#movies"]')?.insertAdjacentHTML('afterend','<a href="#collections">Collections</a>');
+document.querySelector('nav a[href="#collections"]')?.insertAdjacentHTML('afterend','<a href="#lists">Lists</a>');
 const nav=[...document.querySelectorAll('nav a')],state=createAppState();
 const notify=createNotifier(toast);
 const api=createApiClient({
@@ -44,7 +45,7 @@ function startBackgroundImport(domain,items){return queueBackgroundImport({domai
 async function mapWithConcurrency(items,limit,worker){const results=new Array(items.length),queue={next:0};await Promise.all(Array.from({length:Math.min(limit,items.length)},async()=>{while(queue.next<items.length){const index=queue.next++;results[index]=await worker(items[index],index);}}));return results;}
 function applyUser(user){
   applyUserPresentation(state,user,{accountName:document.querySelector('#account-name'),accountRole:document.querySelector('#account-role'),avatar:document.querySelector('#avatar'),documentElement:document.documentElement});
-  const accessByHash={dashboard:'dashboard',discover:'discover',requests:'discover',movies:'movies',tv:'tv',calendar:'calendar'};
+  const accessByHash={dashboard:'dashboard',discover:'discover',requests:'discover',lists:'discover',movies:'movies',tv:'tv',calendar:'calendar'};
   for(const link of nav){
     const key=link.getAttribute('href')?.replace(/^#/,'').split('/')[0]||'';
     link.hidden=user.role!=='administrator'&&!(key==='settings'||accessByHash[key]&&hasPageAccess(user,accessByHash[key]));
@@ -156,6 +157,7 @@ function closeDetailFromBackdrop(host,hash){let backdropPress=false;host.onpoint
 async function showMovieDetailReact(publicId){if(!window.VynodeArrReact?.mountMovieDetail)return showDetail('movie',publicId);if(!document.querySelector('#movies-react'))await showMedia('movies');const host=createModalRouteHost('movie-detail-react','vynode-detail-modal-host');closeDetailFromBackdrop(host,'#movies');window.VynodeArrReact.mountMovieDetail(host,{publicId,administrator:state.user?.role==='administrator',request:api,notify});}
 async function showTvDetailReact(publicId){if(!window.VynodeArrReact?.mountTvDetail)return showDetail('series',publicId);if(!document.querySelector('#tv-react'))await showMedia('tv');const host=createModalRouteHost('tv-detail-react','vynode-detail-modal-host');closeDetailFromBackdrop(host,'#tv');window.VynodeArrReact.mountTvDetail(host,{publicId,administrator:state.user?.role==='administrator',request:api,notify});}
 function showCollectionsReact(){if(!window.VynodeArrReact?.mountCollections)return showCollectionsV2();const host=createRouteHost(content,'collections-react');window.VynodeArrReact.mountCollections(host,{administrator:state.user?.role==='administrator',request:api,notify});}
+function showReeltrackListsReact(){if(!window.VynodeArrReact?.mountReeltrackLists)return;const host=createRouteHost(content,'reeltrack-lists-react');window.VynodeArrReact.mountReeltrackLists(host,{administrator:state.user?.role==='administrator',request:api,notify});}
 function showAddMediaReact(){if(!window.VynodeArrReact?.mountAddMedia)return showAddMedia();const host=createRouteHost(content,'add-media-react');window.VynodeArrReact.mountAddMedia(host,{request:api,notify,onAdded:domain=>{location.hash=domain==='movie'?'#movies':'#tv';}});}
 function setupTvDetailBulk(engineId,item){
   const panel=content.querySelector('.season-panel');if(!panel)return;const selectedSeasons=new Set(),selectedEpisodes=new Set(),bar=document.createElement('div');bar.className='tv-bulk-toolbar';bar.innerHTML='<strong class="tv-bulk-count">0 selected</strong><button class="secondary bulk-monitor" disabled>Monitor</button><button class="secondary bulk-unmonitor" disabled>Unmonitor</button><button class="primary bulk-search" disabled>Automatic search</button><button class="text-button bulk-clear">Clear</button>';panel.querySelector('h2').after(bar);
@@ -774,6 +776,7 @@ async function route(){
     case'operations':return showOperationsReact();
     case'library':return showMedia(action.kind);
     case'collections':return showCollectionsReact();
+    case'lists':return showReeltrackListsReact();
     case'addMedia':return showAddMediaReact();
     case'wanted':return showWantedReact();
     case'movieDetail':return showMovieDetailReact(action.id);

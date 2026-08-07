@@ -50,6 +50,9 @@ export class EngineSettingsService {
   async plexCredential(){return await this.vault.get('plex')||'';}
   async savePlexCredential(credential){const value=String(credential||'').trim();if(!value)throw new Error('Plex access token is required');await this.vault.replace('plex',value);}
   async removePlexCredential(){await this.vault.remove('plex');}
+  async reeltrackCredential(userId){return await this.vault.get(`reeltrack:${userId}`)||'';}
+  async saveReeltrackCredential(userId,credential){const value=String(credential||'').trim();if(!value)throw new Error('Reeltrack API key is required');await this.vault.replace(`reeltrack:${userId}`,value);}
+  async removeReeltrackCredential(userId){await this.vault.remove(`reeltrack:${userId}`);}
   async notificationCredential(id){return await this.vault.get(`notification:${id}`)||'';}
   async saveNotificationCredential(id,credential){const value=String(credential||'').trim();if(!value)throw new Error('Notification credential is required');await this.vault.replace(`notification:${id}`,value);}
   async removeNotificationCredential(id){await this.vault.remove(`notification:${id}`);}

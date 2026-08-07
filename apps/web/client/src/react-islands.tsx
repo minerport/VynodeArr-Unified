@@ -11,6 +11,7 @@ import type { TvDetailMountOptions } from './tv-detail-types';
 import type { DiscoverMountOptions } from './discover-types';
 import type { MyRequestsMountOptions } from './my-requests-types';
 import type { CollectionsMountOptions } from './collection-types';
+import type { ReeltrackListsMountOptions } from './reeltrack-lists-types';
 import type { AddMediaMountOptions } from './add-media-types';
 import type { HealthMountOptions } from './health-types';
 import type { AccountMountOptions } from './account-types';
@@ -32,7 +33,7 @@ import type { PosterOverlayMountOptions } from './poster-overlays-types';
 import type { OperationsMountOptions } from './operations-types';
 import { RouteErrorBoundary } from './error-boundary';
 
-let dashboardRoot:Root|null=null,dashboardElement:HTMLElement|null=null,fullDashboardRoot:Root|null=null,libraryRoot:Root|null=null,historyRoot:Root|null=null,queueRoot:Root|null=null,wantedRoot:Root|null=null,calendarRoot:Root|null=null,movieDetailRoot:Root|null=null,tvDetailRoot:Root|null=null,discoverRoot:Root|null=null,requestsRoot:Root|null=null,requestManagementRoot:Root|null=null,operationsRoot:Root|null=null,collectionsRoot:Root|null=null,addMediaRoot:Root|null=null,healthRoot:Root|null=null,accountRoot:Root|null=null,systemRoot:Root|null=null,selectionRulesRoot:Root|null=null,importMonitorRoot:Root|null=null,managementRoot:Root|null=null,mediaManagementRoot:Root|null=null,libraryHealthRoot:Root|null=null,posterOverlaysRoot:Root|null=null,rootFoldersRoot:Root|null=null,providerSettingsRoot:Root|null=null,guideTemplatesRoot:Root|null=null,engineManagementRoot:Root|null=null,discoverSettingsRoot:Root|null=null,qualityProfilesRoot:Root|null=null,engineSetupRoot:Root|null=null,setupAuthRoot:Root|null=null,signInAuthRoot:Root|null=null,notificationsRoot:Root|null=null;
+let dashboardRoot:Root|null=null,dashboardElement:HTMLElement|null=null,fullDashboardRoot:Root|null=null,libraryRoot:Root|null=null,historyRoot:Root|null=null,queueRoot:Root|null=null,wantedRoot:Root|null=null,calendarRoot:Root|null=null,movieDetailRoot:Root|null=null,tvDetailRoot:Root|null=null,discoverRoot:Root|null=null,requestsRoot:Root|null=null,requestManagementRoot:Root|null=null,operationsRoot:Root|null=null,collectionsRoot:Root|null=null,reeltrackListsRoot:Root|null=null,addMediaRoot:Root|null=null,healthRoot:Root|null=null,accountRoot:Root|null=null,systemRoot:Root|null=null,selectionRulesRoot:Root|null=null,importMonitorRoot:Root|null=null,managementRoot:Root|null=null,mediaManagementRoot:Root|null=null,libraryHealthRoot:Root|null=null,posterOverlaysRoot:Root|null=null,rootFoldersRoot:Root|null=null,providerSettingsRoot:Root|null=null,guideTemplatesRoot:Root|null=null,engineManagementRoot:Root|null=null,discoverSettingsRoot:Root|null=null,qualityProfilesRoot:Root|null=null,engineSetupRoot:Root|null=null,setupAuthRoot:Root|null=null,signInAuthRoot:Root|null=null,notificationsRoot:Root|null=null;
 const loading=(label:string)=><div className="panel skeleton react-route-loading">Loading {label}…</div>;
 
 const guarded=(children:ReactNode)=><RouteErrorBoundary>{children}</RouteErrorBoundary>;
@@ -183,6 +184,11 @@ function mountAuthentication(setupElement:HTMLElement,signInElement:HTMLElement,
   unmountAuthentication();const setupRoot=createRoot(setupElement),signInRoot=createRoot(signInElement);setupAuthRoot=setupRoot;signInAuthRoot=signInRoot;
   void import('./authentication').then(({SetupView,SignInView})=>{if(setupAuthRoot===setupRoot)setupRoot.render(guarded(<SetupView options={options}/>));if(signInAuthRoot===signInRoot)signInRoot.render(guarded(<SignInView options={options}/>));});
 }
+function unmountReeltrackLists(){reeltrackListsRoot?.unmount();reeltrackListsRoot=null;}
+function mountReeltrackLists(element:HTMLElement,options:ReeltrackListsMountOptions){
+  unmountReeltrackLists();const root=createRoot(element);reeltrackListsRoot=root;root.render(loading('Reeltrack lists'));
+  void import('./reeltrack-lists').then(({ReeltrackListsView})=>{if(reeltrackListsRoot===root)root.render(guarded(<ReeltrackListsView options={options}/>));});
+}
 function unmountLibraryHealth(){libraryHealthRoot?.unmount();libraryHealthRoot=null;}
 function mountLibraryHealth(element:HTMLElement,options:MediaManagementMountOptions){
   unmountLibraryHealth();const root=createRoot(element);libraryHealthRoot=root;root.render(loading('library health'));
@@ -198,7 +204,7 @@ function mountNotifications(element:HTMLElement,options:NotificationMountOptions
   void import('./notifications').then(({Notifications})=>{if(notificationsRoot===root)root.render(guarded(<Notifications options={options}/>));});
 }
 const routeImports:Record<string,()=>Promise<unknown>>={
-  dashboard:()=>import('./dashboard'),discover:()=>import('./discover'),requests:()=>import('./my-requests'),'request-management':()=>import('./request-management'),operations:()=>import('./operations-center'),collections:()=>import('./collections'),add:()=>import('./add-media'),movies:()=>import('./library'),tv:()=>import('./library'),
+  dashboard:()=>import('./dashboard'),discover:()=>import('./discover'),requests:()=>import('./my-requests'),'request-management':()=>import('./request-management'),operations:()=>import('./operations-center'),collections:()=>import('./collections'),lists:()=>import('./reeltrack-lists'),add:()=>import('./add-media'),movies:()=>import('./library'),tv:()=>import('./library'),
   queue:()=>import('./queue'),history:()=>import('./history'),wanted:()=>import('./wanted'),calendar:()=>import('./calendar'),health:()=>import('./health'),
   movie:()=>import('./movie-detail'),series:()=>import('./tv-detail'),settings:()=>Promise.all([import('./account'),import('./engine-management'),import('./engine-setup')]),system:()=>import('./system'),service:()=>Promise.all([import('./selection-rules'),import('./media-management'),import('./library-health'),import('./poster-overlays'),import('./root-folders'),import('./provider-settings'),import('./guide-templates'),import('./discover-settings'),import('./quality-profiles')]),management:()=>import('./management'),
 };
@@ -220,6 +226,7 @@ declare global {
     mountTvDetail:(element:HTMLElement,options:TvDetailMountOptions)=>void;unmountTvDetail:()=>void;
     mountDiscover:(element:HTMLElement,options:DiscoverMountOptions)=>void;unmountDiscover:()=>void;
     mountCollections:(element:HTMLElement,options:CollectionsMountOptions)=>void;unmountCollections:()=>void;
+    mountReeltrackLists:(element:HTMLElement,options:ReeltrackListsMountOptions)=>void;unmountReeltrackLists:()=>void;
     mountAddMedia:(element:HTMLElement,options:AddMediaMountOptions)=>void;unmountAddMedia:()=>void;
     mountHealth:(element:HTMLElement,options:HealthMountOptions)=>void;unmountHealth:()=>void;
     mountAccount:(element:HTMLElement,options:AccountMountOptions)=>void;unmountAccount:()=>void;
@@ -242,4 +249,4 @@ declare global {
     preloadRoute:(route:string)=>void;
   }}
 }
-window.VynodeArrReact={mountDashboard,unmountDashboard,mountDashboardAnalytics,unmountDashboardAnalytics,mountLibrary,unmountLibrary,mountHistory,unmountHistory,mountQueue,unmountQueue,mountRequests,unmountRequests,mountRequestManagement,unmountRequestManagement,mountOperations,unmountOperations,mountWanted,unmountWanted,mountCalendar,unmountCalendar,mountMovieDetail,unmountMovieDetail,mountTvDetail,unmountTvDetail,mountDiscover,unmountDiscover,mountCollections,unmountCollections,mountAddMedia,unmountAddMedia,mountHealth,unmountHealth,mountAccount,unmountAccount,mountSystem,unmountSystem,mountSelectionRules,unmountSelectionRules,mountImportMonitor,unmountImportMonitor,mountManagement,unmountManagement,mountMediaManagement,unmountMediaManagement,mountLibraryHealth,unmountLibraryHealth,mountPosterOverlays,unmountPosterOverlays,mountRootFolders,unmountRootFolders,mountProviderSettings,unmountProviderSettings,mountGuideTemplates,unmountGuideTemplates,mountEngineManagement,unmountEngineManagement,mountDiscoverSettings,unmountDiscoverSettings,mountQualityProfiles,unmountQualityProfiles,mountEngineSetup,unmountEngineSetup,mountAuthentication,unmountAuthentication,mountNotifications,preloadRoute};
+window.VynodeArrReact={mountDashboard,unmountDashboard,mountDashboardAnalytics,unmountDashboardAnalytics,mountLibrary,unmountLibrary,mountHistory,unmountHistory,mountQueue,unmountQueue,mountRequests,unmountRequests,mountRequestManagement,unmountRequestManagement,mountOperations,unmountOperations,mountWanted,unmountWanted,mountCalendar,unmountCalendar,mountMovieDetail,unmountMovieDetail,mountTvDetail,unmountTvDetail,mountDiscover,unmountDiscover,mountCollections,unmountCollections,mountReeltrackLists,unmountReeltrackLists,mountAddMedia,unmountAddMedia,mountHealth,unmountHealth,mountAccount,unmountAccount,mountSystem,unmountSystem,mountSelectionRules,unmountSelectionRules,mountImportMonitor,unmountImportMonitor,mountManagement,unmountManagement,mountMediaManagement,unmountMediaManagement,mountLibraryHealth,unmountLibraryHealth,mountPosterOverlays,unmountPosterOverlays,mountRootFolders,unmountRootFolders,mountProviderSettings,unmountProviderSettings,mountGuideTemplates,unmountGuideTemplates,mountEngineManagement,unmountEngineManagement,mountDiscoverSettings,unmountDiscoverSettings,mountQualityProfiles,unmountQualityProfiles,mountEngineSetup,unmountEngineSetup,mountAuthentication,unmountAuthentication,mountNotifications,preloadRoute};

@@ -4,6 +4,18 @@ import test from 'node:test';
 
 const read=(path)=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
+test('Reeltrack Lists remains fluid while the viewport is resized',async()=>{
+  const [styles,view]=await Promise.all([read('apps/web/client/src/react-reeltrack-lists.css'),read('apps/web/client/src/reeltrack-lists.tsx')]);
+  assert.match(styles,/\.react-reeltrack-lists>\.reeltrack-hero\{[^}]*position:static[^}]*height:auto[^}]*min-height:0/);
+  assert.match(styles,/\.reeltrack-key-form input\{[^}]*min-width:0[^}]*width:100%/);
+  assert.match(styles,/\.reeltrack-list-nav\{[^}]*display:flex[^}]*max-height:calc\(100dvh - 8rem\)[^}]*flex-direction:column[^}]*overflow-y:auto/);
+  assert.match(styles,/@media\(max-width:900px\)\{[\s\S]*?\.reeltrack-workspace\{grid-template-columns:minmax\(0,1fr\)/);
+  assert.match(styles,/@media\(max-width:480px\)\{[^}]*\.react-reeltrack-lists\{gap:\.85rem/);
+  assert.doesNotMatch(view,/Manage integrations/);
+  assert.match(view,/This is the only place in VynodeArr where your Reeltrack key is entered/);
+  assert.match(view,/Replace API key/);
+});
+
 test('loaded Action Center records cannot widen the mobile viewport',async()=>{
   const [styles,navigation]=await Promise.all([read('apps/web/public/styles.css'),read('apps/web/client/src/navigation-lifecycle.ts')]);
   assert.match(styles,/\.operations-center > \*,[\s\S]*?\.operations-action header > div[\s\S]*?min-width: 0;[\s\S]*?max-width: 100%;/);
@@ -1076,33 +1088,28 @@ test('poster overlay editor layers retain drag and resize pointer input',async()
 });
 
 test('poster overlay editor provides bounded layer fields and a shape library',async()=>{
-  const rail=await read('apps/web/client/src/poster-overlay-editor-rail.tsx');
+  const rail=await read('apps/web/client/src/poster-overlay-editor-rail.tsx'),layout=await read('apps/web/client/src/poster-overlay-editor-layout.tsx');
   for(const shape of ['rounded','square','pill','circle','ticket','ribbon','tag','hexagon','chevron'])assert.ok(rail.includes(shape),shape);
-  assert.match(rail,/overlay-layer-body input/);assert.match(rail,/min-width:0/);
-  assert.match(rail,/overlay-preview-column>label select\{box-sizing:border-box;width:100%;min-width:0\}/);
+  assert.match(layout,/overlay-layer-body input/);assert.match(layout,/min-width:0/);
+  assert.match(layout,/overlay-preview-column>label select\{box-sizing:border-box;width:100%;min-width:0\}/);
 });
 
-test('poster overlay editor uses three settings columns and an always-visible preview',async()=>{
+test('poster overlay editor uses four focused desktop columns and a sequential mobile workflow',async()=>{
   const conditions=await read('apps/web/client/src/poster-overlay-conditions.tsx'),layout=await read('apps/web/client/src/poster-overlay-editor-layout.tsx'),editor=await read('apps/web/client/src/poster-overlays.tsx');
   assert.match(conditions,/overlay-condition-row\{grid-column:1\/-1;grid-row:2;width:100%/);
   assert.match(conditions,/overlay-condition-rule\{display:grid;grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
   assert.match(conditions,/@media\(max-width:1000px\)\{\.overlay-condition-rule/);
   assert.match(conditions,/@media\(max-width:980px\)\{\.overlay-condition-row\{grid-row:auto\}/);
-  assert.match(layout,/width: min\(1760px, calc\(100vw - 24px\)\)/);
-  assert.match(layout,/grid-template-columns: minmax\(230px, 250px\) minmax\(370px, 1fr\) minmax\(400px, 1\.08fr\) minmax\(340px, 380px\)/);
-  assert.match(layout,/grid-template-areas: "rail fields conditions preview"/);
-  assert.match(layout,/overlay-preview-column \{\s*grid-area: preview;\s*align-self: start;\s*position: sticky/);
-  assert.match(layout,/@media \(max-width: 1499px\)[\s\S]*"rail fields preview"[\s\S]*"conditions conditions preview"/);
-  assert.match(layout,/@media \(min-width: 1500px\)[\s\S]*height: 100%;[\s\S]*max-height: 100%/);
-  assert.match(layout,/max-height: 100% !important;[\s\S]*overflow-y: auto !important/);
-  assert.match(layout,/scrollbar-gutter: stable/);
-  assert.match(layout,/touch-action: pan-y/);
-  assert.match(layout,/padding-bottom: 48px/);
-  assert.match(layout,/scrollbar-width: auto/);
-  assert.match(layout,/overlay-editor-fields > \.overlay-layer-editor \{\s*align-self: start;\s*height: max-content;\s*min-height: max-content/);
-  assert.match(layout,/@media \(min-width: 981px\)[\s\S]*height: calc\(100dvh - 40px\);[\s\S]*grid-template-rows: auto minmax\(0, 1fr\) auto/);
-  assert.match(layout,/overlay-layer-body > \.notice \{\s*grid-column: 1 \/ -1;\s*display: grid/);
-  assert.match(layout,/overlay-style-variants > header \{\s*position: static;\s*display: grid;\s*height: auto/);
+  assert.match(layout,/width:min\(1840px,calc\(100vw - 24px\)\)/);
+  assert.match(layout,/grid-template-columns:minmax\(250px,280px\) minmax\(460px,1\.18fr\) minmax\(420px,1fr\) minmax\(330px,370px\)/);
+  assert.match(layout,/grid-template-areas:"rail fields conditions preview"/);
+  assert.match(layout,/overlay-preview-column\{grid-area:preview/);
+  assert.match(layout,/@media\(max-width:1499px\)[\s\S]*"rail fields preview" "rail conditions preview"/);
+  assert.match(layout,/scrollbar-gutter:stable/);
+  assert.match(layout,/padding:14px 12px 48px/);
+  assert.match(layout,/@media\(max-width:980px\)[\s\S]*grid-template-areas:"rail" "fields" "conditions" "preview"/);
+  assert.match(layout,/overlay-layer-body>\.notice\{grid-column:1\/-1;display:grid/);
+  assert.match(layout,/overlay-style-variants>header\{position:static;display:grid/);
   for(const control of ['Position','Prefix','Suffix','Text color','Badge color','Horizontal position','Vertical position','Layer width','Adaptive poster contrast','Font size','Font weight','Text alignment','Capitalization','Text opacity','Shape opacity','Inner spacing','Corner radius','Remove layer'])assert.ok(editor.includes(control),control);
 });
 
@@ -1299,4 +1306,16 @@ test('administrator audit coverage includes security, jobs, exports, collections
     'guide_template.rejected','request.submitted','request.canceled','request.match_corrected'
   ])assert.match(server,new RegExp(action.replaceAll('.','\\.')),action);
   assert.doesNotMatch(server,/recordAudit\(session,\{[^}]+(?:apiCredential|password|currentPassword|newPassword):/);
+});
+
+test('new poster styles require explicit media and destination choices',async()=>{
+  const [studio,rail]=await Promise.all([read('apps/web/client/src/poster-overlays.tsx'),read('apps/web/client/src/poster-overlay-editor-rail.tsx')]);
+  assert.match(studio,/domain: "" as OverlayDomain/);
+  assert.match(studio,/target: "" as "vynode"/);
+  assert.match(studio,/layers: \[\]/);
+  assert.match(studio,/Choose a destination/);
+  assert.match(studio,/missingEditorChoices\.length > 0/);
+  assert.match(studio,/item\.domain === editing\.domain/);
+  assert.match(rail,/Choose Movies or Television/);
+  assert.doesNotMatch(rail,/<option value="all">Movies & television<\/option>/);
 });

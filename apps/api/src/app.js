@@ -480,6 +480,12 @@ export function createApplication(options = {}) {
       version: 1,
       collections: [],
     });
+  const reeltrackListStore =
+    options.reeltrackListStore ||
+    new JsonStore(join(dataDir, "reeltrack-lists.json"), {
+      version: 1,
+      users: {},
+    });
   const posterOverlayStore =
     options.posterOverlayStore ||
     new JsonStore(join(dataDir, "poster-overlays.json"), {
@@ -607,6 +613,7 @@ export function createApplication(options = {}) {
     "credentials.enc",
     "master-key",
     "collections.json",
+    "reeltrack-lists.json",
     "poster-overlays.json",
     "plex-settings.json",
     "plex-poster-applications.json",
@@ -1151,6 +1158,152 @@ export function createApplication(options = {}) {
       return entry;
     });
     return entry;
+  }
+  const reeltrackBaseUrl = "https://reeltrack.vynodehub.com";
+  async function reeltrackRequest(path, apiKey) {
+    const controller = new AbortController(),
+      timeout = setTimeout(() => controller.abort(), 1e4);
+    try {
+      const response = await (options.fetcher || globalThis.fetch)(
+        `${reeltrackBaseUrl}${path}`,
+        {
+          headers: { "X-API-Key": apiKey, Accept: "application/json" },
+          signal: controller.signal,
+        },
+      );
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403)
+          throw new Error("Reeltrack rejected this API key.");
+        throw new Error(
+          `Reeltrack could not complete this request (${response.status}).`,
+        );
+      }
+      const payload = await response.json();
+      return payload?.data ?? payload;
+    } catch (error) {
+      if (error?.name === "AbortError")
+        throw new Error("Reeltrack took too long to respond.");
+      throw error;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+  const reeltrackArray = (value) =>
+    Array.isArray(value)
+      ? value
+      : Array.isArray(value?.items)
+        ? value.items
+        : Array.isArray(value?.lists)
+          ? value.lists
+          : [];
+  async function reeltrackAvailableLists(apiKey) {
+    return reeltrackArray(await reeltrackRequest("/api/v1/lists", apiKey));
+  }
+  async function reeltrackListItems(apiKey, listId) {
+    return reeltrackArray(
+      await reeltrackRequest(
+        `/api/v1/lists/${encodeURIComponent(listId)}/items?limit=500`,
+        apiKey,
+      ),
+    );
+  }
+  async function reeltrackSnapshotForUser(userId) {
+    const stored = await reeltrackListStore.read();
+    return (
+      stored.users?.[userId] || {
+        importedLists: [],
+        updatedAt: null,
+      }
+    );
+  }
+  async function saveReeltrackSnapshot(userId, snapshot) {
+    await reeltrackListStore.update((current) => {
+      current.version = 1;
+      current.users = current.users || {};
+      current.users[userId] = snapshot;
+      return snapshot;
+    });
+  }
+  async function matchedReeltrackLists(session, lists) {
+    const [movies, television] = await Promise.all([
+        sync.list("movie"),
+        sync.list("tv"),
+      ]),
+      identity = new Map();
+    for (const [domain, items] of [
+      ["movie", movies],
+      ["tv", television],
+    ])
+      for (const item of items) {
+        if (item.tmdbId)
+          identity.set(`${domain}:tmdb:${String(item.tmdbId)}`, item);
+        if (domain === "tv" && item.tvdbId)
+          identity.set(`${domain}:tvdb:${String(item.tvdbId)}`, item);
+        if (item.imdbId)
+          identity.set(
+            `${domain}:imdb:${String(item.imdbId).toLowerCase()}`,
+            item,
+          );
+      }
+    return lists.map((list) => ({
+      ...list,
+      items: (list.items || []).map((sourceItem) => {
+        const domain =
+            String(sourceItem.type || "").toLowerCase() === "tv" ||
+            String(sourceItem.type || "").toLowerCase() === "series"
+              ? "tv"
+              : "movie",
+          source = String(sourceItem.source || "").toLowerCase(),
+          externalId = String(
+            sourceItem.externalId ||
+              (source === "tvdb" ? sourceItem.tvdbId : "") ||
+              (source === "imdb" ? sourceItem.imdbId : ""),
+          ).trim(),
+          explicitTmdbId = Number(sourceItem.tmdbId) || null,
+          match =
+            (explicitTmdbId
+              ? identity.get(`${domain}:tmdb:${explicitTmdbId}`)
+              : null) ||
+            (source && source !== "tmdb" && externalId
+              ? identity.get(
+                  `${domain}:${source}:${source === "imdb" ? externalId.toLowerCase() : externalId}`,
+                )
+              : null),
+          canView =
+            session.user.role === "administrator" ||
+            session.user.permissions?.[domain === "movie" ? "movies" : "tv"] ===
+              true,
+          tmdbId = explicitTmdbId;
+        return {
+          ...sourceItem,
+          domain,
+          source,
+          externalId,
+          tmdbId: Number.isInteger(tmdbId) && tmdbId > 0 ? tmdbId : null,
+          library: match
+            ? {
+                id: match.id,
+                title: match.title,
+                status:
+                  domain === "movie"
+                    ? match.hasFile || Number(match.sizeOnDisk || 0) > 0
+                      ? "available"
+                      : "pending"
+                    : Number.parseInt(match.episodeProgress || "0", 10) > 0 ||
+                        Number(match.sizeOnDisk || 0) > 0
+                      ? "available"
+                      : "pending",
+                canView,
+              }
+            : null,
+          canRequest: !match && Number.isInteger(tmdbId) && tmdbId > 0,
+          requestBlockReason:
+            match || (Number.isInteger(tmdbId) && tmdbId > 0)
+              ? null
+              : "Reeltrack did not provide a TMDB ID, so VynodeArr will not guess from the title.",
+        };
+      }),
+    }));
   }
   const operationTime = (value) =>
     String(
@@ -7462,6 +7615,213 @@ export function createApplication(options = {}) {
             path: path,
             mappings: mappings || [],
           });
+        }
+        if (url.pathname === "/api/reeltrack/status" && req.method === "GET") {
+          if (!permitted(res, session, "discover")) return;
+          const [credential, snapshot] = await Promise.all([
+            engineSettings.reeltrackCredential(session.user.id),
+            reeltrackSnapshotForUser(session.user.id),
+          ]);
+          return json(res, 200, {
+            configured: Boolean(credential),
+            importedCount: snapshot.importedLists?.length || 0,
+            updatedAt: snapshot.updatedAt || null,
+          });
+        }
+        if (url.pathname === "/api/reeltrack/test" && req.method === "POST") {
+          if (
+            !permitted(res, session, "discover") ||
+            !requireCsrf(req, res, session)
+          )
+            return;
+          const input = await body(req),
+            apiKey = String(input.apiKey || "").trim();
+          if (!apiKey) throw new Error("Enter a Reeltrack API key.");
+          const lists = await reeltrackAvailableLists(apiKey);
+          return json(res, 200, { valid: true, listCount: lists.length });
+        }
+        if (
+          url.pathname === "/api/reeltrack/connection" &&
+          req.method === "PUT"
+        ) {
+          if (
+            !permitted(res, session, "discover") ||
+            !requireCsrf(req, res, session)
+          )
+            return;
+          const input = await body(req),
+            apiKey = String(input.apiKey || "").trim();
+          if (!apiKey) throw new Error("Enter a Reeltrack API key.");
+          const lists = await reeltrackAvailableLists(apiKey);
+          await engineSettings.saveReeltrackCredential(session.user.id, apiKey);
+          await recordAudit(session, {
+            category: "integration",
+            action: "reeltrack.connected",
+            target: "Reeltrack",
+            summary: `Connected Reeltrack with ${lists.length} available list${lists.length === 1 ? "" : "s"}.`,
+          });
+          return json(res, 200, {
+            configured: true,
+            listCount: lists.length,
+          });
+        }
+        if (
+          url.pathname === "/api/reeltrack/connection" &&
+          req.method === "DELETE"
+        ) {
+          if (
+            !permitted(res, session, "discover") ||
+            !requireCsrf(req, res, session)
+          )
+            return;
+          await engineSettings.removeReeltrackCredential(session.user.id);
+          await recordAudit(session, {
+            category: "integration",
+            action: "reeltrack.disconnected",
+            target: "Reeltrack",
+            summary: "Removed the protected Reeltrack API key. Imported snapshots were retained.",
+          });
+          return json(res, 200, { configured: false });
+        }
+        if (
+          url.pathname === "/api/reeltrack/available-lists" &&
+          req.method === "GET"
+        ) {
+          if (!permitted(res, session, "discover")) return;
+          const apiKey = await engineSettings.reeltrackCredential(
+            session.user.id,
+          );
+          if (!apiKey)
+            return json(res, 409, {
+              error: {
+                code: "reeltrack_not_connected",
+                message: "Connect Reeltrack before loading lists.",
+              },
+            });
+          const [available, snapshot] = await Promise.all([
+              reeltrackAvailableLists(apiKey),
+              reeltrackSnapshotForUser(session.user.id),
+            ]),
+            imported = new Set(
+              (snapshot.importedLists || []).map((item) => String(item.id)),
+            );
+          return json(res, 200, {
+            items: available.map((item) => ({
+              ...item,
+              imported: imported.has(String(item.id)),
+            })),
+          });
+        }
+        if (
+          url.pathname === "/api/reeltrack/imported-lists" &&
+          req.method === "GET"
+        ) {
+          if (!permitted(res, session, "discover")) return;
+          const snapshot = await reeltrackSnapshotForUser(session.user.id);
+          return json(res, 200, {
+            items: await matchedReeltrackLists(
+              session,
+              snapshot.importedLists || [],
+            ),
+            updatedAt: snapshot.updatedAt || null,
+          });
+        }
+        if (
+          url.pathname === "/api/reeltrack/imported-lists" &&
+          req.method === "POST"
+        ) {
+          if (
+            !permitted(res, session, "discover") ||
+            !requireCsrf(req, res, session)
+          )
+            return;
+          const input = await body(req),
+            selected = new Set(
+              (Array.isArray(input.listIds) ? input.listIds : []).map(String),
+            ),
+            apiKey = await engineSettings.reeltrackCredential(session.user.id);
+          if (!apiKey) throw new Error("Connect Reeltrack before importing lists.");
+          if (!selected.size) throw new Error("Choose at least one Reeltrack list.");
+          const available = await reeltrackAvailableLists(apiKey),
+            chosen = available.filter((item) => selected.has(String(item.id)));
+          if (!chosen.length) throw new Error("The selected Reeltrack lists are no longer available.");
+          const importedLists = await Promise.all(
+              chosen.map(async (list) => ({
+                ...list,
+                items: await reeltrackListItems(apiKey, list.id),
+                importedAt: new Date().toISOString(),
+              })),
+            ),
+            snapshot = {
+              importedLists,
+              updatedAt: new Date().toISOString(),
+            };
+          await saveReeltrackSnapshot(session.user.id, snapshot);
+          await recordAudit(session, {
+            category: "integration",
+            action: "reeltrack.lists_imported",
+            target: "Reeltrack lists",
+            summary: `Imported ${importedLists.length} Reeltrack list${importedLists.length === 1 ? "" : "s"}.`,
+            metadata: { listIds: [...selected] },
+          });
+          return json(res, 200, {
+            items: await matchedReeltrackLists(session, importedLists),
+            updatedAt: snapshot.updatedAt,
+          });
+        }
+        if (url.pathname === "/api/reeltrack/sync" && req.method === "POST") {
+          if (
+            !permitted(res, session, "discover") ||
+            !requireCsrf(req, res, session)
+          )
+            return;
+          const [apiKey, current] = await Promise.all([
+            engineSettings.reeltrackCredential(session.user.id),
+            reeltrackSnapshotForUser(session.user.id),
+          ]);
+          if (!apiKey) throw new Error("Connect Reeltrack before synchronizing lists.");
+          const wanted = new Set(
+              (current.importedLists || []).map((item) => String(item.id)),
+            ),
+            available = await reeltrackAvailableLists(apiKey),
+            importedLists = await Promise.all(
+              available
+                .filter((item) => wanted.has(String(item.id)))
+                .map(async (list) => ({
+                  ...list,
+                  items: await reeltrackListItems(apiKey, list.id),
+                  importedAt: new Date().toISOString(),
+                })),
+            ),
+            snapshot = {
+              importedLists,
+              updatedAt: new Date().toISOString(),
+            };
+          await saveReeltrackSnapshot(session.user.id, snapshot);
+          return json(res, 200, {
+            items: await matchedReeltrackLists(session, importedLists),
+            updatedAt: snapshot.updatedAt,
+          });
+        }
+        const reeltrackListMatch = url.pathname.match(
+          /^\/api\/reeltrack\/imported-lists\/([^/]+)$/,
+        );
+        if (reeltrackListMatch && req.method === "DELETE") {
+          if (
+            !permitted(res, session, "discover") ||
+            !requireCsrf(req, res, session)
+          )
+            return;
+          const listId = decodeURIComponent(reeltrackListMatch[1]),
+            current = await reeltrackSnapshotForUser(session.user.id),
+            snapshot = {
+              importedLists: (current.importedLists || []).filter(
+                (item) => String(item.id) !== listId,
+              ),
+              updatedAt: new Date().toISOString(),
+            };
+          await saveReeltrackSnapshot(session.user.id, snapshot);
+          return json(res, 200, { removed: true });
         }
         if (url.pathname === "/api/discover/feed" && req.method === "GET") {
           if (!permitted(res, session, "discover")) return;
