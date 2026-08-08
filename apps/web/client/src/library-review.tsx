@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ServiceTabs } from "./service-tabs";
 import { ModalPortal } from "./modal-portal";
 import { RenamePreview, type RenamePreviewRecord } from "./rename-preview";
+import type { MatchCandidate } from "./match-browser";
 import type {
   LibraryReviewMountOptions,
   MovieLibraryReview,
@@ -151,6 +152,8 @@ export function LibraryReviewView({
     [renamePreview, setRenamePreview] = useState<RenamePreviewRecord | null>(null),
     [renameBusy, setRenameBusy] = useState<"" | "preview" | "apply">(""),
     [manualTmdbId, setManualTmdbId] = useState(""),
+    [manualTmdbMatch, setManualTmdbMatch] = useState<MatchCandidate | null>(null),
+    [tmdbSearching, setTmdbSearching] = useState(false),
     [plexLimit, setPlexLimit] = useState(100),
     [vynodeLimit, setVynodeLimit] = useState(100),
     [scanLimit, setScanLimit] = useState(100),
@@ -264,6 +267,23 @@ export function LibraryReviewView({
       );
     } finally {
       setSaving(false);
+    }
+  };
+
+  const searchTmdbId = async () => {
+    const tmdbId = Number(manualTmdbId);
+    if (!Number.isInteger(tmdbId) || tmdbId < 1) return;
+    setTmdbSearching(true);
+    setManualTmdbMatch(null);
+    try {
+      const value = await options.request<{ item: MatchCandidate }>(
+        `/api/discover/details/movie/${tmdbId}`,
+      );
+      setManualTmdbMatch(value.item || null);
+    } catch (reason) {
+      options.notify(reason instanceof Error ? reason.message : "That TMDB ID was not found.", "error");
+    } finally {
+      setTmdbSearching(false);
     }
   };
 
@@ -406,22 +426,41 @@ export function LibraryReviewView({
           Use Plex TMDB ID
         </button>
         <label>
-          Or enter a TMDB ID
+          Search by TMDB ID
           <span>
             <input
               type="number"
               min="1"
               value={manualTmdbId}
-              onChange={(event) => setManualTmdbId(event.target.value)}
+              onChange={(event) => {
+                setManualTmdbId(event.target.value);
+                setManualTmdbMatch(null);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  void searchTmdbId();
+                }
+              }}
             />
             <button
               className="secondary"
-              disabled={saving || !selectedVynode || !Number(manualTmdbId)}
-              onClick={() => void applyMatch(Number(manualTmdbId) || null)}
+              type="button"
+              disabled={tmdbSearching || !Number(manualTmdbId)}
+              onClick={() => void searchTmdbId()}
             >
-              Fix match
+              {tmdbSearching ? "Searching…" : "Search"}
             </button>
           </span>
+          {manualTmdbMatch ? (
+            <span className="library-review-tmdb-result">
+              <strong>{manualTmdbMatch.title}{manualTmdbMatch.year ? ` (${manualTmdbMatch.year})` : ""}</strong>
+              <small>TMDB {manualTmdbMatch.tmdbId}</small>
+              <button className="primary" type="button" disabled={saving || !selectedVynode} onClick={() => void applyMatch(manualTmdbMatch.tmdbId)}>
+                Use this match
+              </button>
+            </span>
+          ) : null}
         </label>
       </section>
       <section className="panel library-review-folder-add">
