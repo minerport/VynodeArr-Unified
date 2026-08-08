@@ -21,7 +21,9 @@ test('Reeltrack Lists remains fluid while the viewport is resized',async()=>{
   assert.match(view,/\/api\/reeltrack\/poster\/\$\{item\.domain\}\/\$\{item\.tmdbId\}/);
   assert.match(view,/onError=\{\(\) => setFailed\(true\)\}/);
   assert.match(styles,/\.reeltrack-automation-fields\s*\{[^}]*align-items:\s*start/);
-  assert.match(styles,/\.reeltrack-item-grid article\s*\{[^}]*grid-template-columns:\s*88px[^}]*min-height:\s*154px/);
+  assert.match(styles,/\.reeltrack-item-grid\s*\{[^}]*grid-template-columns:\s*repeat\(auto-fill,\s*minmax\(min\(100%,\s*260px\),\s*1fr\)\)/);
+  assert.match(styles,/\.reeltrack-item-grid article\s*\{[^}]*grid-template-columns:\s*68px[^}]*min-height:\s*126px/);
+  assert.match(styles,/\.reeltrack-item-copy h3\s*\{[^}]*overflow-wrap:\s*anywhere[^}]*-webkit-line-clamp:\s*2/);
   assert.match(designer,/Drag to position · pull corner to resize/);assert.match(designer,/overlay-resize-handle/);assert.match(designer,/onPointerMove/);
   assert.doesNotMatch(designer,/>X \(%\)</);assert.doesNotMatch(designer,/>Y \(%\)</);
   for(const label of ['STARTER POSTERS','Solid color','Linear gradient','Radial gradient','Gradient angle','Upload custom background','Add icon','Adaptive poster contrast','Conditions','Exact rendered Plex output'])assert.ok(designer.includes(label),label);

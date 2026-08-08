@@ -7,6 +7,17 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.36-rc.18] - 2026-08-08
+
+### Changed
+
+- Condensed imported-list title cards into a denser responsive grid that uses
+  more columns on wide screens while retaining a clean single-column phone view.
+- Reduced poster, metadata, summary, and action sizing so more titles remain
+  visible without sacrificing readability.
+- Wrapped long title text across two lines and constrained summaries and file
+  metadata to prevent card content from overlapping or widening the page.
+
 ## [2.0.36-rc.17] - 2026-08-08
 
 ### Fixed
