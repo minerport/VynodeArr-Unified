@@ -7,6 +7,38 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.36-rc.2] - 2026-08-08
+
+### Changed
+
+- Created Reeltrack trailer placeholders directly in normal movie folders
+  beneath the configured movie library root instead of a separate `/trailers`
+  staging volume.
+- Defaulted and migrated Plex-visible trailer roots from `/trailers` to
+  `/movies`, while retaining support for alternate Plex path mappings.
+- Removed the dedicated trailer volume from Docker, Unraid, and Windows
+  deployment templates.
+
+### Fixed
+
+- Removed only the VynodeArr-managed trailer after real media arrives and
+  removed its movie folder only when the folder is empty, preserving every
+  real media file.
+- Identified placeholders by their exact managed trailer paths so real movie
+  files in the same library root are never mistaken for placeholders.
+- Fixed a fast automation-run race that could cache a completed reconciliation
+  and delay detection of newly arrived media.
+
+### Security
+
+- Validated the final path reported by `yt-dlp` and confined downloads and
+  cleanup to the configured movie root and managed title folder.
+
+### Validation
+
+- Passed the complete automated test, TypeScript, production build, bundle,
+  branding, and deployment verification suite.
+
 ## [2.0.36-rc.1] - 2026-08-08
 
 ### Added
@@ -1633,7 +1665,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.36-rc.1...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.36-rc.2...HEAD
+[2.0.36-rc.2]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.36-rc.1...v2.0.36-rc.2
 [2.0.36-rc.1]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.36...v2.0.36-rc.1
 [2.0.36]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35...v2.0.36
 [2.0.35-rc.24]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.23...v2.0.35-rc.24

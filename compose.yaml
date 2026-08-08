@@ -111,7 +111,7 @@ services:
       - "127.0.0.1:4310:4310"
     volumes:
       - vynodearr-data:/data
-      - trailer-staging:/trailers
+      - movie-library:/movies
       - movie-engine-config:/engine-config/movie:ro
       - tv-engine-config:/engine-config/tv:ro
     extra_hosts:
@@ -137,7 +137,6 @@ volumes:
   movie-library:
   tv-library:
   shared-downloads:
-  trailer-staging:
 
 networks:
   vynodearr-private:

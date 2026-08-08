@@ -337,14 +337,15 @@ placeholders for titles that are not yet present as real media. When a title is
 removed from Reeltrack or the real Plex item appears, VynodeArr removes its
 owned trailer folder and removes the placeholder from the managed collection.
 
-The VynodeArr container uses `/trailers` for staging. Plex must be given the
-same host directory and that directory must be included in the Plex library
-selected during Reeltrack import. If Plex sees the mount under another path,
-enter that Plex-visible path in the automation setup. Each list stores its own
-collection name, Plex library, update interval, last and next run, reconciliation
-summary, and actionable error state. New downloads are processed in bounded
-batches so large lists converge without overwhelming TMDB, YouTube, storage, or
-Plex.
+VynodeArr creates each placeholder directly beneath the configured `/movies`
+root using a normal title folder and places only the downloaded trailer inside
+it. If Plex sees the movie root under another path, enter that Plex-visible root
+in the automation setup. When real media arrives, VynodeArr removes only its
+managed trailer file and removes the title folder only when it is empty, so a
+real movie file is never deleted. Each list stores its own collection name,
+Plex library, update interval, last and next run, reconciliation summary, and
+actionable error state. New downloads are processed in bounded batches so large
+lists converge without overwhelming TMDB, YouTube, storage, or Plex.
 
 ### Personal interface presentation
 

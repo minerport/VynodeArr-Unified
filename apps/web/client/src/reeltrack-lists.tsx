@@ -56,7 +56,7 @@ export function ReeltrackListsView({
     [trailerBusy, setTrailerBusy] = useState(""),
     [automationEnabled, setAutomationEnabled] = useState(false),
     [automationLibraryKey, setAutomationLibraryKey] = useState(""),
-    [automationPlexPath, setAutomationPlexPath] = useState("/trailers"),
+    [automationPlexPath, setAutomationPlexPath] = useState("/movies"),
     [automationInterval, setAutomationInterval] = useState(60),
     [automationCollectionName, setAutomationCollectionName] = useState("");
   const selected =
@@ -100,7 +100,11 @@ export function ReeltrackListsView({
     setAutomationLibraryKey(
       selected.automation?.plexLibraryKey || trailerStatus?.libraries?.[0]?.key || "",
     );
-    setAutomationPlexPath(selected.automation?.plexTrailerPath || "/trailers");
+    setAutomationPlexPath(
+      !selected.automation?.plexTrailerPath || selected.automation.plexTrailerPath === "/trailers"
+        ? "/movies"
+        : selected.automation.plexTrailerPath,
+    );
     setAutomationInterval(selected.automation?.intervalMinutes || 60);
     setAutomationCollectionName(selected.automation?.collectionName || selected.name);
   }, [selectedId]);
@@ -523,11 +527,11 @@ export function ReeltrackListsView({
                     </select>
                   </label>
                   <label>
-                    Path Plex sees for trailers
+                    Path Plex sees for the movie root
                     <input
                       value={automationPlexPath}
                       onChange={(event) => setAutomationPlexPath(event.target.value)}
-                      placeholder="/trailers"
+                      placeholder="/movies"
                     />
                   </label>
                   <label>
@@ -652,7 +656,7 @@ export function ReeltrackListsView({
                       <input value={automationCollectionName} onChange={(event) => setAutomationCollectionName(event.target.value)} />
                     </label>
                     <label>
-                      Plex trailer path
+                      Plex movie root path
                       <input value={automationPlexPath} onChange={(event) => setAutomationPlexPath(event.target.value)} />
                     </label>
                     <label>
@@ -749,7 +753,7 @@ export function ReeltrackListsView({
                         }
                         title={
                           trailerStatus?.available
-                            ? "Download the official YouTube trailer to the staging folder"
+                            ? "Download the official YouTube trailer into its movie folder"
                             : trailerStatus?.message ||
                               "Trailer downloads are unavailable"
                         }

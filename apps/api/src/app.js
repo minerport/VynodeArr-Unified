@@ -516,7 +516,7 @@ export function createApplication(options = {}) {
     options.trailerDownloader ||
     new TrailerDownloadService({
       binary: env.VYNODEARR_YTDLP_BINARY || "yt-dlp",
-      root: env.VYNODEARR_TRAILER_DIR || "/trailers",
+      root: env.VYNODEARR_TRAILER_DIR || env.VYNODEARR_MOVIE_LIBRARY_PATH || "/movies",
     });
   const requestStore =
     options.requestStore ||
@@ -1328,10 +1328,14 @@ export function createApplication(options = {}) {
   };
   const plexPathValue = (value) =>
     String(value || "").replaceAll("\\", "/").replace(/\/+$/, "").toLowerCase();
+  const plexMovieRootValue = (value) => {
+    const path = String(value || "").trim();
+    return !path || plexPathValue(path) === "/trailers" ? "/movies" : path;
+  };
   async function runReeltrackPlexAutomation(userId, listId, { refreshProvider = true } = {}) {
     const runKey = `${userId}:${listId}`;
     if (reeltrackAutomationRuns.has(runKey)) return reeltrackAutomationRuns.get(runKey);
-    const run = (async () => {
+    const task = (async () => {
       const [apiKey, current, plexSettings, plexToken] = await Promise.all([
         engineSettings.reeltrackCredential(userId),
         reeltrackSnapshotForUser(userId),
@@ -1370,12 +1374,26 @@ export function createApplication(options = {}) {
           plexToken,
           library,
         ),
-        trailerPrefix = plexPathValue(automation.plexTrailerPath || "/trailers"),
+        trailerPrefix = plexPathValue(plexMovieRootValue(automation.plexTrailerPath)),
+        localTrailerPrefix = plexPathValue(
+          env.VYNODEARR_TRAILER_DIR || env.VYNODEARR_MOVIE_LIBRARY_PATH || "/movies",
+        ),
+        jobs = { ...(automation.jobs || {}) },
+        managedPlexPaths = new Set(
+          Object.values(jobs)
+            .map((job) => plexPathValue(job?.path))
+            .filter(Boolean)
+            .map((path) =>
+              path === localTrailerPrefix || path.startsWith(`${localTrailerPrefix}/`)
+                ? `${trailerPrefix}${path.slice(localTrailerPrefix.length)}`
+                : path,
+            ),
+        ),
         placeholders = plexItems.filter((item) =>
           (item.files || []).length > 0 &&
           (item.files || []).every((file) => {
             const path = plexPathValue(file);
-            return path === trailerPrefix || path.startsWith(`${trailerPrefix}/`);
+            return managedPlexPaths.has(path);
           }),
         ),
         realItems = plexItems.filter((item) => !placeholders.includes(item)),
@@ -1384,7 +1402,6 @@ export function createApplication(options = {}) {
             plexExternalIds(item).map((identity) => `${domain}:${identity}`),
           ),
         ),
-        jobs = { ...(automation.jobs || {}) },
         wanted = new Map();
       for (const item of providerItems) {
         const identity = reeltrackItemIdentity(item);
@@ -1442,7 +1459,13 @@ export function createApplication(options = {}) {
           (item.files || []).length > 0 &&
           (item.files || []).every((file) => {
             const path = plexPathValue(file);
-            return path === trailerPrefix || path.startsWith(`${trailerPrefix}/`);
+            return managedPlexPaths.has(path) || Object.values(jobs).some((job) => {
+              const localPath = plexPathValue(job?.path),
+                plexPath = localPath === localTrailerPrefix || localPath.startsWith(`${localTrailerPrefix}/`)
+                  ? `${trailerPrefix}${localPath.slice(localTrailerPrefix.length)}`
+                  : localPath;
+              return path === plexPath;
+            });
           }),
         ),
         placeholderKeys = refreshedPlaceholders
@@ -1518,7 +1541,16 @@ export function createApplication(options = {}) {
         await saveReeltrackSnapshot(userId, current);
       }
       throw error;
-    }).finally(() => reeltrackAutomationRuns.delete(runKey));
+    });
+    let run;
+    run = (async () => {
+      try {
+        return await task;
+      } finally {
+        if (reeltrackAutomationRuns.get(runKey) === run)
+          reeltrackAutomationRuns.delete(runKey);
+      }
+    })();
     reeltrackAutomationRuns.set(runKey, run);
     return run;
   }
@@ -7974,7 +8006,7 @@ export function createApplication(options = {}) {
             action: "reeltrack.trailer_downloaded",
             target: trailer.title,
             domain: domain,
-            summary: `Downloaded a Reeltrack trailer to the configured trailer staging root.`,
+            summary: `Downloaded a Reeltrack trailer into its managed movie folder.`,
             metadata: { listId: listId, tmdbId: tmdbId, path: trailer.path },
           });
           return json(res, 201, { trailer: trailer });
@@ -8136,8 +8168,7 @@ export function createApplication(options = {}) {
                       enabled: true,
                       downloadTrailers: true,
                       plexLibraryKey: String(automationInput.plexLibraryKey),
-                      plexTrailerPath:
-                        String(automationInput.plexTrailerPath || "/trailers").trim() || "/trailers",
+                      plexTrailerPath: plexMovieRootValue(automationInput.plexTrailerPath),
                       collectionName: String(list.name || "Reeltrack").trim().slice(0, 120),
                       intervalMinutes: Math.max(
                         15,
@@ -8253,7 +8284,7 @@ export function createApplication(options = {}) {
             enabled,
             downloadTrailers: input.downloadTrailers !== false,
             plexLibraryKey: String(input.plexLibraryKey || ""),
-            plexTrailerPath: String(input.plexTrailerPath || "/trailers").trim() || "/trailers",
+            plexTrailerPath: plexMovieRootValue(input.plexTrailerPath),
             collectionName:
               String(input.collectionName || current.importedLists[index].name || "Reeltrack").trim().slice(0, 120),
             intervalMinutes: Math.max(15, Math.min(1440, Number(input.intervalMinutes) || 60)),
