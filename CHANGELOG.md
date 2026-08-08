@@ -7,6 +7,25 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.36-rc.4] - 2026-08-08
+
+### Fixed
+
+- Refreshed and polled Plex whenever managed trailer files remain, allowing a
+  later automation run to recover when the initial Plex scan had not finished.
+- Waited up to 30 seconds for all expected managed placeholders before creating
+  or replacing the list collection.
+- Replaced silent collection omission with an actionable error that reports
+  the indexed and expected trailer counts, target library, and Plex-visible
+  library path.
+- Preserved the intended collection state when Plex has not indexed every
+  managed trailer instead of replacing it with an empty collection.
+
+### Validation
+
+- Passed all 215 automated tests plus TypeScript, production build, bundle,
+  branding, and deployment validation.
+
 ## [2.0.36-rc.3] - 2026-08-08
 
 ### Added
@@ -1700,7 +1719,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.36-rc.3...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.36-rc.4...HEAD
+[2.0.36-rc.4]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.36-rc.3...v2.0.36-rc.4
 [2.0.36-rc.3]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.36-rc.2...v2.0.36-rc.3
 [2.0.36-rc.2]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.36-rc.1...v2.0.36-rc.2
 [2.0.36-rc.1]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.36...v2.0.36-rc.1

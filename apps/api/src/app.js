@@ -1584,7 +1584,10 @@ export function createApplication(options = {}) {
           };
         }
       }
-      if (downloaded || removed)
+      const managedDomainDownloads = Object.values(jobs).filter(
+        (job) => job?.path && (job?.domain === "tv" ? "tv" : "movie") === domain,
+      ).length;
+      if (downloaded || removed || managedDomainDownloads)
         await plexService.refreshLibrary(
           plexSettings.endpoint,
           plexToken,
@@ -1604,8 +1607,8 @@ export function createApplication(options = {}) {
           ),
         managedDownloadCount = Object.values(jobs).filter((job) => job?.path && (job?.domain === "tv" ? "tv" : "movie") === domain).length;
       let refreshedItems = plexItems;
-      if (downloaded || removed) {
-        for (let scanAttempt = 0; scanAttempt < 7; scanAttempt += 1) {
+      if (downloaded || removed || managedDomainDownloads) {
+        for (let scanAttempt = 0; scanAttempt < 11; scanAttempt += 1) {
           refreshedItems = await plexService.libraryItems(
             plexSettings.endpoint,
             plexToken,
@@ -1617,10 +1620,10 @@ export function createApplication(options = {}) {
           if (
             [...currentManagedPlexPaths()].filter((path) => indexedPaths.has(path)).length >=
               managedDownloadCount ||
-            scanAttempt === 6
+            scanAttempt === 10
           )
             break;
-          await new Promise((resolve) => setTimeout(resolve, 2000));
+          await new Promise((resolve) => setTimeout(resolve, 3000));
         }
       }
       const refreshedPlaceholders = refreshedItems.filter((item) =>
@@ -1645,7 +1648,14 @@ export function createApplication(options = {}) {
             );
           })
           .map((item) => item.ratingKey),
-        collection = await plexService.syncCollection(
+        expectedPlaceholderCount = [...wanted.keys()].filter(
+          (key) => !realIds.has(key) && Boolean(jobs[key]?.path),
+        ).length;
+      if (placeholderKeys.length < expectedPlaceholderCount)
+        throw new Error(
+          `Plex indexed ${placeholderKeys.length} of ${expectedPlaceholderCount} managed ${domain === "tv" ? "television" : "movie"} trailers in ${library.title}. Verify that ${libraryLocation} is the selected library's container path, then run the automation again.`,
+        );
+      const collection = await plexService.syncCollection(
           plexSettings.endpoint,
           plexToken,
           {
