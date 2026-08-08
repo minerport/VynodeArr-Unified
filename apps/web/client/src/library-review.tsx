@@ -148,6 +148,9 @@ export function LibraryReviewView({
     [selectedVynode, setSelectedVynode] =
       useState<VynodeReviewMovie | null>(null),
     [selectedFolder, setSelectedFolder] = useState<FolderScanMovie | null>(null),
+    [folderMatchTerm, setFolderMatchTerm] = useState(""),
+    [folderMatch, setFolderMatch] = useState<MatchCandidate | null>(null),
+    [folderSearching, setFolderSearching] = useState(false),
     [qualityProfileId, setQualityProfileId] = useState(0),
     [renamePreview, setRenamePreview] = useState<RenamePreviewRecord | null>(null),
     [renameBusy, setRenameBusy] = useState<"" | "preview" | "apply">(""),
@@ -177,6 +180,8 @@ export function LibraryReviewView({
       setSelectedPlex(null);
       setSelectedVynode(null);
       setSelectedFolder(null);
+      setFolderMatch(null);
+      setFolderMatchTerm("");
       setQualityProfileId((current) =>
         value.profiles.some((profile) => profile.id === current)
           ? current
@@ -295,17 +300,17 @@ export function LibraryReviewView({
   };
 
   const addScannedFolder = async () => {
-    if (!selectedFolder || !selectedPlex?.tmdbId || !qualityProfileId) return;
-    if (!window.confirm(`Add ${selectedPlex.title} to VynodeArr using the existing folder ${selectedFolder.path}?`)) return;
+    if (!selectedFolder || (!folderMatch && !selectedPlex?.tmdbId) || !qualityProfileId) return;
     setSaving(true);
     try {
-      const lookup = await options.request<{ result: Array<Record<string, unknown>> }>(
-        `/api/manage/movie/lookup?term=${encodeURIComponent(`tmdb:${selectedPlex.tmdbId}`)}`,
-      );
-      const movie = (lookup.result || []).find(
-        (item) => Number(item.tmdbId) === selectedPlex.tmdbId,
-      );
-      if (!movie) throw new Error("VynodeArr could not find that Plex TMDB title.");
+      let movie: Record<string, unknown> | MatchCandidate | undefined = folderMatch || undefined;
+      if (!movie && selectedPlex?.tmdbId) {
+        const lookup = await options.request<{ result: Array<Record<string, unknown>> }>(`/api/manage/movie/lookup?term=${encodeURIComponent(`tmdb:${selectedPlex.tmdbId}`)}`);
+        movie = (lookup.result || []).find((item) => Number(item.tmdbId) === selectedPlex.tmdbId);
+      }
+      if (!movie) throw new Error("Choose a TMDB or IMDb match for this folder.");
+      const movieTitle = String(movie.title || selectedFolder.name);
+      if (!window.confirm(`Add ${movieTitle} to VynodeArr using the existing folder ${selectedFolder.path}?`)) return;
       await options.request("/api/manage/movie/library", {
         method: "POST",
         body: JSON.stringify({
@@ -318,13 +323,27 @@ export function LibraryReviewView({
           addOptions: { searchForMovie: false },
         }),
       });
-      options.notify(`${selectedPlex.title} added from the existing movie folder.`);
+      options.notify(`${movieTitle} added from the existing movie folder.`);
       await load(selectedLibraries);
     } catch (reason) {
       options.notify(reason instanceof Error ? reason.message : "The scanned folder was not added.", "error");
     } finally {
       setSaving(false);
     }
+  };
+
+  const searchFolderMatch = async () => {
+    const value = folderMatchTerm.trim(), isImdb = /^tt\d+$/i.test(value), isTmdb = /^\d+$/.test(value);
+    if (!selectedFolder || (!isImdb && !isTmdb)) return;
+    setFolderSearching(true); setFolderMatch(null);
+    try {
+      const term = isImdb ? `imdb:${value.toLowerCase()}` : `tmdb:${value}`;
+      const lookup = await options.request<{ result: MatchCandidate[] }>(`/api/manage/movie/lookup?term=${encodeURIComponent(term)}`), expected = value.toLowerCase();
+      const match = (lookup.result || []).find((item) => isImdb ? String(item.imdbId || "").toLowerCase() === expected : Number(item.tmdbId) === Number(value));
+      if (!match) throw new Error(`The movie engine could not find that ${isImdb ? "IMDb" : "TMDB"} ID.`);
+      setFolderMatch(match);
+    } catch (reason) { options.notify(reason instanceof Error ? reason.message : "The movie match could not be found.", "error"); }
+    finally { setFolderSearching(false); }
   };
 
   const openRenamePreview = async () => {
@@ -473,13 +492,14 @@ export function LibraryReviewView({
       </section>
       <section className="panel library-review-folder-add">
         <div>
-          <span className="eyebrow">ADD AN UNMATCHED MOVIE FOLDER</span>
-          <strong>{selectedFolder?.name || "Select an unmatched folder"}</strong>
-          <small>{selectedFolder?.path || "Then select its Plex title to use the Plex TMDB ID."}</small>
+          <span className="eyebrow">ADD A MOVIE FOLDER</span>
+          <strong>{selectedFolder?.name || "Select any movie folder"}</strong>
+          <small>{selectedFolder?.path || "Then search by TMDB or IMDb ID, or select its Plex title."}</small>
         </div>
         <div>
-          <strong>Plex title</strong>
-          <small>{selectedPlex ? `${selectedPlex.title}${selectedPlex.tmdbId ? ` · TMDB ${selectedPlex.tmdbId}` : " · No TMDB ID"}` : "Select a Plex movie"}</small>
+          <strong>Movie match</strong>
+          <small>{folderMatch ? `${folderMatch.title}${folderMatch.year ? ` (${folderMatch.year})` : ""}${folderMatch.imdbId ? ` · IMDb ${folderMatch.imdbId}` : folderMatch.tmdbId ? ` · TMDB ${folderMatch.tmdbId}` : ""}` : selectedPlex ? `${selectedPlex.title}${selectedPlex.tmdbId ? ` · TMDB ${selectedPlex.tmdbId}` : " · No TMDB ID"}` : "Search an ID or select a Plex movie"}</small>
+          <span className="library-review-folder-search"><input type="text" value={folderMatchTerm} placeholder="TMDB ID or tt IMDb ID" aria-label="Search folder match by TMDB or IMDb ID" onChange={(event)=>{setFolderMatchTerm(event.target.value);setFolderMatch(null);}} onKeyDown={(event)=>{if(event.key==="Enter"){event.preventDefault();void searchFolderMatch();}}}/><button className="secondary" type="button" disabled={folderSearching || !selectedFolder || (!/^tt\d+$/i.test(folderMatchTerm.trim()) && !/^\d+$/.test(folderMatchTerm.trim()))} onClick={()=>void searchFolderMatch()}>{folderSearching ? "Searching…" : "Search"}</button></span>
         </div>
         <label>
           Quality profile
@@ -487,7 +507,7 @@ export function LibraryReviewView({
             {review?.profiles.map((profile) => <option value={profile.id} key={profile.id}>{profile.name}</option>)}
           </select>
         </label>
-        <button className="primary" type="button" disabled={saving || !selectedFolder || !selectedPlex?.tmdbId || !qualityProfileId} onClick={() => void addScannedFolder()}>
+        <button className="primary" type="button" disabled={saving || !selectedFolder || (!folderMatch && !selectedPlex?.tmdbId) || !qualityProfileId} onClick={() => void addScannedFolder()}>
           Add existing folder to VynodeArr
         </button>
       </section>
@@ -625,7 +645,7 @@ export function LibraryReviewView({
                 item={item}
                 key={item.path}
                 selected={selectedFolder?.path === item.path}
-                onSelect={() => item.status === "unmatched" && setSelectedFolder(item)}
+                onSelect={() => { setSelectedFolder(item); setFolderMatch(null); setFolderMatchTerm(""); }}
                 plexMatch={plexTitleKeys.has(comparisonTitleKey(item.name, true))}
               />
             ))}

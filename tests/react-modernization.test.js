@@ -486,6 +486,10 @@ test('storage folders and import review use a typed React route and analysis bou
   assert.match(review,/Select all shown/);
   assert.match(review,/Possible mismatches/);
   assert.match(review,/Find match/);
+  assert.match(review,/importLookupTerm/);
+  assert.match(review,/imdb:\$\{value\.toLowerCase\(\)\}/);
+  assert.match(review,/tmdb:\$\{value\}/);
+  assert.match(review,/Search by title, TMDB ID, or IMDb ID/);
   assert.match(review,/Already imported match/);
   assert.match(review,/options\.startImport\(domain,items\)/);
   assert.match(review,/Possible duplicate/);
@@ -1421,7 +1425,7 @@ test('movie library review keeps Plex and VynodeArr lists independent while allo
     read('apps/web/client/src/service-settings-routing.ts'),
     read('apps/web/client/src/react-islands.tsx')
   ]);
-  for(const value of ['Compare every movie location','plexItems.slice','vynodeItems.slice','scanItems.slice','filePaths.join','item.filePath','Use Plex TMDB ID','Search by TMDB or IMDb ID','/api/manage/movie/lookup?term=','imdb:${imdbId}','/api/discover/details/movie/${tmdbId}','Use this match','/api/media-match','MOVIE FOLDERS','matched','unmatched','lettersOnly','filenameMatchesTitle','filename-mismatch','ADD AN UNMATCHED MOVIE FOLDER','Add existing folder to VynodeArr','tmdb:${selectedPlex.tmdbId}','searchForMovie: false','Title match','Already in VynodeArr as','comparisonTitleKey','ComparisonBadge','VynodeArr','Folder','No match','RenamePreview','/api/media-files/rename?domain=movie','Rename & organize','Naming-standard changes queued','plex-missing','No Plex match','Filename mismatch','hasFilenameMismatch'])assert.ok(review.includes(value),value);
+  for(const value of ['Compare every movie location','plexItems.slice','vynodeItems.slice','scanItems.slice','filePaths.join','item.filePath','Use Plex TMDB ID','Search by TMDB or IMDb ID','/api/manage/movie/lookup?term=','imdb:${imdbId}','/api/discover/details/movie/${tmdbId}','Use this match','/api/media-match','MOVIE FOLDERS','matched','unmatched','lettersOnly','filenameMatchesTitle','filename-mismatch','ADD A MOVIE FOLDER','Select any movie folder','searchFolderMatch','Search folder match by TMDB or IMDb ID','Add existing folder to VynodeArr','tmdb:${selectedPlex.tmdbId}','searchForMovie: false','Title match','Already in VynodeArr as','comparisonTitleKey','ComparisonBadge','VynodeArr','Folder','No match','RenamePreview','/api/media-files/rename?domain=movie','Rename & organize','Naming-standard changes queued','plex-missing','No Plex match','Filename mismatch','hasFilenameMismatch'])assert.ok(review.includes(value),value);
   for(const value of ['/api/library-review/movies','plexExternalIds','movieFile?.path','libraryTitle','filePaths','rootFolders','unmappedFolders','scanByPath','rawProfiles','rootFolderPath','reviewTitleKey','vynodeByTitle','matchType: titleMatch ? "title"'])assert.ok(server.includes(value),value);
   assert.match(types,/PlexReviewMovie/);assert.match(types,/VynodeReviewMovie/);assert.match(types,/FolderScanMovie/);assert.match(styles,/grid-template-columns:repeat\(3/);assert.match(mismatchStyles,/filename-mismatch/);assert.match(mismatchStyles,/header\{position:static/);assert.match(mismatchStyles,/title-comparison\.matched/);assert.match(mismatchStyles,/title-comparison\.missing/);
   assert.match(tabs,/Library Review/);assert.match(routing,/libraryReview/);assert.match(islands,/mountLibraryReview/);
