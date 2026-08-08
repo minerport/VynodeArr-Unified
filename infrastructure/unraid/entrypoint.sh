@@ -4,7 +4,7 @@ set -eu
 movie_config=/config/movies
 tv_config=/config/television
 app_config=/config/vynodearr
-mkdir -p "$movie_config" "$tv_config" "$app_config" /movies /tv /downloads
+mkdir -p "$movie_config" "$tv_config" "$app_config" /movies /tv /downloads /trailers
 
 random_key() {
   od -An -N16 -tx1 /dev/urandom | tr -d ' \n'

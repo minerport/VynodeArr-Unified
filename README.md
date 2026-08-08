@@ -327,6 +327,25 @@ See the [changelog](CHANGELOG.md) for the detailed list of changes.
 - Native Movie and Television Import Lists with guided provider setup, testing,
   enable/disable controls, manual synchronization, editing, and removal
 
+### Managed Reeltrack trailer collections
+
+Administrators can import Reeltrack lists and optionally turn each imported
+list into a managed Plex trailer collection. VynodeArr periodically refreshes
+the source list, downloads official YouTube trailers through `yt-dlp`, asks Plex
+to scan the selected library, and keeps the Plex collection limited to managed
+placeholders for titles that are not yet present as real media. When a title is
+removed from Reeltrack or the real Plex item appears, VynodeArr removes its
+owned trailer folder and removes the placeholder from the managed collection.
+
+The VynodeArr container uses `/trailers` for staging. Plex must be given the
+same host directory and that directory must be included in the Plex library
+selected during Reeltrack import. If Plex sees the mount under another path,
+enter that Plex-visible path in the automation setup. Each list stores its own
+collection name, Plex library, update interval, last and next run, reconciliation
+summary, and actionable error state. New downloads are processed in bounded
+batches so large lists converge without overwhelming TMDB, YouTube, storage, or
+Plex.
+
 ### Personal interface presentation
 
 - Ten color themes that remain independent from layout and surface treatment

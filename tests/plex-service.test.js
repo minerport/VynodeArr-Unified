@@ -50,3 +50,10 @@ test('Plex artwork proxy accepts bounded image responses and rejects arbitrary p
 test('Plex poster upload sends one bounded raster body to the matched metadata key',async()=>{
   let call;const service=new PlexService({fetchImpl:async(url,options)=>{call={url,options};return new Response('',{status:200});}}),poster=Buffer.from('jpeg-bytes');await service.uploadPoster('http://plex.local:32400','secret','91',poster,'image/jpeg');assert.equal(call.url,'http://plex.local:32400/library/metadata/91/posters');assert.equal(call.options.method,'POST');assert.equal(call.options.headers['x-plex-token'],'secret');assert.equal(call.options.headers['content-type'],'image/jpeg');assert.equal(call.options.body,poster);await assert.rejects(service.uploadPoster('http://plex.local:32400','secret','../91',poster,'image/jpeg'),/target is invalid/);
 });
+
+test('Plex managed collections are replaced exactly and library refresh is bounded',async()=>{
+  const calls=[],service=new PlexService({fetchImpl:async(url,options)=>{calls.push({url,method:options.method||'GET'});if(url.endsWith('/library/sections/1/collections'))return new Response(JSON.stringify({MediaContainer:{Metadata:[{ratingKey:'90',title:'Watch later'}]}}));if(url.includes('/library/collections?'))return new Response(JSON.stringify({MediaContainer:{Metadata:[{ratingKey:'91'}]}}));return new Response('',{status:200});}});
+  const result=await service.syncCollection('http://plex.local:32400','token',{libraryKey:'1',libraryType:'movie',machineIdentifier:'server-1',title:'Watch later',ratingKeys:['11','12','12']});
+  assert.equal(result.itemCount,2);assert.deepEqual(calls.map(item=>item.method),['GET','DELETE','POST']);assert.match(calls[2].url,/sectionId=1/);assert.match(decodeURIComponent(calls[2].url),/metadata\/11,12/);
+  await service.refreshLibrary('http://plex.local:32400','token','1');assert.match(calls.at(-1).url,/library\/sections\/1\/refresh$/);assert.equal(calls.at(-1).method,'GET');
+});

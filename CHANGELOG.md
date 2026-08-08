@@ -7,6 +7,39 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.36-rc.1] - 2026-08-08
+
+### Added
+
+- Added optional managed Plex trailer collections for imported Reeltrack lists.
+- Added periodic provider synchronization, Plex collection reconciliation, and
+  automatic cleanup when a real library item arrives or a title leaves its
+  source list.
+- Integrated `yt-dlp` and FFmpeg into Docker and Unraid distributions for
+  bounded official YouTube trailer downloads under the managed `/trailers`
+  storage root.
+- Added per-list Plex library, collection name, Plex-visible trailer path,
+  update interval, run status, error details, and manual run controls.
+
+### Changed
+
+- Preserved Reeltrack automation settings during manual list synchronization.
+- Limited each automation run to a configurable download batch so large lists
+  converge without overwhelming metadata providers, storage, or Plex.
+- Reconciled managed Plex collections by authoritative external IDs and treated
+  any Plex item with media outside the trailer root as real media.
+
+### Security
+
+- Restricted trailer downloads to validated HTTPS YouTube URLs, bounded the
+  downloader process, sanitized managed paths, and limited cleanup to folders
+  owned beneath the configured trailer root.
+
+### Validation
+
+- Passed 215 automated tests, server and web TypeScript checks, production
+  builds, bundle and branding checks, and deployment validation.
+
 ## [2.0.35-rc.32] - 2026-08-07
 
 ### Added
@@ -1600,7 +1633,9 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.24...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.36-rc.1...HEAD
+[2.0.36-rc.1]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.36...v2.0.36-rc.1
+[2.0.36]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35...v2.0.36
 [2.0.35-rc.24]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.23...v2.0.35-rc.24
 [2.0.35-rc.23]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.22...v2.0.35-rc.23
 [2.0.35-rc.22]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.21...v2.0.35-rc.22

@@ -127,8 +127,11 @@ test('Reeltrack lists keep API keys server-side and match library titles only by
     throw new Error(`Unexpected Reeltrack request: ${url}`);
   };
   const movie=Object.assign(new MovieFixtureAdapter(),{listMovies:async()=>[{id:'movie_durable',title:'Durable match',year:2026,tmdbId:1003598,hasFile:true}]}),
-    tv=Object.assign(new TvFixtureAdapter(),{listSeries:async()=>[{id:'series_durable',title:'TV match',year:2026,tmdbId:7654,tvdbId:4567,episodeProgress:'1 / 2'}]});
-  return appSession({movie,tv,fetcher:reeltrackFetch},async({base,cookie,csrf})=>{
+    tv=Object.assign(new TvFixtureAdapter(),{listSeries:async()=>[{id:'series_durable',title:'TV match',year:2026,tmdbId:7654,tvdbId:4567,episodeProgress:'1 / 2'}]}),
+    trailerCalls=[],collectionCalls=[],removeCalls=[],automationState={realArrived:false},trailerDownloader={status:async()=>({available:true,version:'test',root:'/trailers'}),download:async(input)=>{trailerCalls.push(input);return{...input,path:`/trailers/${input.tmdbId}/Trailer.mp4`,folder:`/trailers/${input.tmdbId}`};},remove:async job=>{removeCalls.push(job);return true;}},
+    discovery={configured:()=>false,setToken:()=>{},details:async(_domain,id)=>({title:`Trailer ${id}`,year:2026,trailer:{url:'https://youtube.com/watch?v=test'}})},
+    plexService={inspect:async()=>({endpoint:'http://plex.local:32400',server:{name:'Test Plex',machineIdentifier:'server-1'},libraries:[{key:'1',title:'Trailer Library',type:'movie',uuid:'trailers'}]}),libraryItems:async()=>{const placeholders=trailerCalls.map((item,index)=>({ratingKey:String(200+index),title:item.title||`Trailer ${item.tmdbId}`,type:'movie',files:[`/trailers/${item.tmdbId}/Trailer.mp4`],Guid:[{id:`tmdb://${item.tmdbId}`}] }));return automationState.realArrived?[...placeholders,...trailerCalls.map((item,index)=>({ratingKey:String(800+index),title:`Real ${item.tmdbId}`,type:'movie',files:[`/movies/${item.tmdbId}/Movie.mkv`],Guid:[{id:`tmdb://${item.tmdbId}`}] }))]:placeholders;},refreshLibrary:async()=>true,syncCollection:async(_endpoint,_token,input)=>{collectionCalls.push(input);return{ratingKey:'500',title:input.title,itemCount:input.ratingKeys.length};}};
+  return appSession({movie,tv,fetcher:reeltrackFetch,trailerDownloader,discovery,plexService},async({base,cookie,csrf})=>{
     const mutationHeaders={cookie,'content-type':'application/json','x-vynodearr-csrf':csrf};
     const connected=await fetch(`${base}/api/reeltrack/connection`,{method:'PUT',headers:mutationHeaders,body:JSON.stringify({apiKey:'rt_live_test-key'})});
     assert.equal(connected.status,200);
@@ -146,6 +149,12 @@ test('Reeltrack lists keep API keys server-side and match library titles only by
     assert.equal(items[3].tmdbId,null);assert.equal(items[3].canRequest,false);
     assert.equal(items[4].library,null,'a Jellyfin identity must not be interpreted as a TMDB identity');
     assert.equal(items[4].tmdbId,null);assert.equal(items[4].canRequest,false);
+    const trailerStatus=await (await fetch(`${base}/api/reeltrack/trailers/status`,{headers:{cookie}})).json();assert.equal(trailerStatus.available,true);
+    const trailerResponse=await fetch(`${base}/api/reeltrack/trailers/download`,{method:'POST',headers:mutationHeaders,body:JSON.stringify({listId:5,domain:'movie',tmdbId:9999999})});assert.equal(trailerResponse.status,201);assert.equal(trailerCalls.length,1);assert.equal(trailerCalls[0].url,'https://youtube.com/watch?v=test');
+    const plexConnection=await fetch(`${base}/api/poster-overlays/plex`,{method:'POST',headers:mutationHeaders,body:JSON.stringify({endpoint:'http://plex.local:32400',token:'plex-token'})});assert.equal(plexConnection.status,200);
+    const enabled=await fetch(`${base}/api/reeltrack/imported-lists/5/automation`,{method:'PUT',headers:mutationHeaders,body:JSON.stringify({enabled:true,plexLibraryKey:'1',plexTrailerPath:'/trailers',collectionName:'My watchlist',intervalMinutes:60})});assert.equal(enabled.status,200);
+    const automated=await fetch(`${base}/api/reeltrack/imported-lists/5/automation/run`,{method:'POST',headers:mutationHeaders}),automatedValue=await automated.json();assert.equal(automated.status,200,JSON.stringify(automatedValue));assert.equal(automatedValue.item.automation.status,'ready');assert.ok(Object.keys(automatedValue.item.automation.jobs||{}).length>=1,JSON.stringify(automatedValue.item.automation));assert.ok(collectionCalls.at(-1).ratingKeys.length>=1);assert.equal(collectionCalls.at(-1).title,'My watchlist');
+    automationState.realArrived=true;const reconciled=await fetch(`${base}/api/reeltrack/imported-lists/5/automation/run`,{method:'POST',headers:mutationHeaders});assert.equal(reconciled.status,200);assert.ok(removeCalls.length>=1);assert.equal(collectionCalls.at(-1).ratingKeys.length,0,'real Plex media removes managed placeholders from the collection');
   });
 });
 test('authenticated artwork proxy caches binary responses without exposing engine URLs',()=>appSession({

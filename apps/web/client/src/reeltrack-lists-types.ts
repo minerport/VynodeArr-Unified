@@ -21,6 +21,18 @@ export interface ReeltrackList {
   kind?:string;
   items?:ReeltrackListItem[];
   imported?:boolean;
+  automation?:{
+    enabled:boolean;
+    plexLibraryKey?:string;
+    plexTrailerPath?:string;
+    collectionName?:string;
+    intervalMinutes?:number;
+    status?:'scheduled'|'ready'|'error'|'disabled';
+    error?:string|null;
+    lastRunAt?:string|null;
+    nextRunAt?:string|null;
+    summary?:{providerTitles:number;managedTitles:number;placeholders:number;downloaded:number;removed:number;realMatches:number};
+  }|null;
 }
 export interface ReeltrackListsMountOptions {
   request:<T=unknown>(path:string,options?:RequestInit)=>Promise<T>;

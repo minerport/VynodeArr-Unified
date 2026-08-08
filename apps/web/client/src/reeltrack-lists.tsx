@@ -1,35 +1,821 @@
-import {useEffect,useMemo,useState} from 'react';
-import {DiscoverRequest} from './discover-request';
-import type {DiscoverItem} from './discover-types';
-import type {ReeltrackList,ReeltrackListItem,ReeltrackListsMountOptions} from './reeltrack-lists-types';
-import './react-reeltrack-lists.css';
+import { useEffect, useMemo, useState } from "react";
+import { DiscoverRequest } from "./discover-request";
+import type { DiscoverItem } from "./discover-types";
+import type {
+  ReeltrackList,
+  ReeltrackListItem,
+  ReeltrackListsMountOptions,
+} from "./reeltrack-lists-types";
+import "./react-reeltrack-lists.css";
 
-const message=(error:unknown)=>error instanceof Error?error.message:'VynodeArr could not complete this request.';
-const discoverItem=(item:ReeltrackListItem):DiscoverItem=>({
-  id:`reeltrack_${item.domain}_${item.tmdbId}`,tmdbId:Number(item.tmdbId),domain:item.domain,title:item.title,
-  year:item.year||null,overview:item.overview||'',rating:0,poster:item.posterUrl||null,backdrop:null,genreIds:[]
+const message = (error: unknown) =>
+  error instanceof Error
+    ? error.message
+    : "VynodeArr could not complete this request.";
+const discoverItem = (item: ReeltrackListItem): DiscoverItem => ({
+  id: `reeltrack_${item.domain}_${item.tmdbId}`,
+  tmdbId: Number(item.tmdbId),
+  domain: item.domain,
+  title: item.title,
+  year: item.year || null,
+  overview: item.overview || "",
+  rating: 0,
+  poster: item.posterUrl || null,
+  backdrop: null,
+  genreIds: [],
 });
 
-export function ReeltrackListsView({options}:{options:ReeltrackListsMountOptions}){
-  const {request,notify}=options;
-  const [configured,setConfigured]=useState(false),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[apiKey,setApiKey]=useState(''),[manageConnection,setManageConnection]=useState(false);
-  const [lists,setLists]=useState<ReeltrackList[]>([]),[available,setAvailable]=useState<ReeltrackList[]>([]),[selectedId,setSelectedId]=useState('');
-  const [showImport,setShowImport]=useState(false),[selectedRemote,setSelectedRemote]=useState<Set<string>>(new Set()),[filter,setFilter]=useState<'all'|'library'|'missing'>('all'),[query,setQuery]=useState(''),[requesting,setRequesting]=useState<ReeltrackListItem|null>(null);
-  const selected=lists.find(value=>String(value.id)===selectedId)||lists[0];
-  async function load(){setLoading(true);try{const [status,data]=await Promise.all([request<{configured:boolean}>('/api/reeltrack/status'),request<{items:ReeltrackList[]}>('/api/reeltrack/imported-lists')]);setConfigured(status.configured);setLists(data.items||[]);setSelectedId(current=>current||String(data.items?.[0]?.id||''));}catch(error){notify(message(error),'error');}finally{setLoading(false);}}
-  useEffect(()=>{void load();},[]);
-  async function connect(){if(!apiKey.trim())return;setBusy(true);try{await request('/api/reeltrack/connection',{method:'PUT',body:JSON.stringify({apiKey:apiKey.trim()})});setApiKey('');setConfigured(true);setManageConnection(false);notify('Reeltrack connected securely.');await openImport();}catch(error){notify(message(error),'error');}finally{setBusy(false);}}
-  async function disconnect(){if(!confirm('Disconnect Reeltrack? Imported snapshots will remain available.'))return;setBusy(true);try{await request('/api/reeltrack/connection',{method:'DELETE'});setConfigured(false);setShowImport(false);notify('Reeltrack disconnected.');}catch(error){notify(message(error),'error');}finally{setBusy(false);}}
-  async function openImport(){try{const value=await request<{items:ReeltrackList[]}>('/api/reeltrack/available-lists');setAvailable(value.items||[]);setSelectedRemote(new Set((value.items||[]).filter(item=>item.imported).map(item=>String(item.id))));setShowImport(true);}catch(error){notify(message(error),'error');}}
-  async function importLists(){setBusy(true);try{const value=await request<{items:ReeltrackList[]}>('/api/reeltrack/imported-lists',{method:'POST',body:JSON.stringify({listIds:[...selectedRemote]})});setLists(value.items||[]);setSelectedId(String(value.items?.[0]?.id||''));setShowImport(false);notify('Reeltrack lists imported.');}catch(error){notify(message(error),'error');}finally{setBusy(false);}}
-  async function sync(){setBusy(true);try{const value=await request<{items:ReeltrackList[]}>('/api/reeltrack/sync',{method:'POST'});setLists(value.items||[]);notify('Reeltrack lists synchronized.');}catch(error){notify(message(error),'error');}finally{setBusy(false);}}
-  async function remove(list:ReeltrackList){if(!confirm(`Remove “${list.name}” from VynodeArr? The Reeltrack list will not be deleted.`))return;try{await request(`/api/reeltrack/imported-lists/${encodeURIComponent(list.id)}`,{method:'DELETE'});setLists(current=>current.filter(item=>String(item.id)!==String(list.id)));setSelectedId('');notify('Imported list removed.');}catch(error){notify(message(error),'error');}}
-  const items=useMemo(()=>(selected?.items||[]).filter(item=>(filter==='all'||(filter==='library'?Boolean(item.library):!item.library))&&(!query.trim()||`${item.title} ${item.year||''} ${item.overview||''}`.toLowerCase().includes(query.trim().toLowerCase()))),[selected,filter,query]);
-  return <div className="react-reeltrack-lists">
-    <header className="hero reeltrack-hero"><div><span className="eyebrow">REELTRACK INTEGRATION</span><h1>Lists</h1><p className="lede">Bring your Reeltrack lists into VynodeArr, see what is already in your library, and request missing titles without unreliable title matching.</p></div><div className="reeltrack-hero-actions">{configured?<><button className="secondary" disabled={busy} onClick={()=>void sync()}>{busy?'Working…':'Sync lists'}</button><button className="primary" onClick={()=>void openImport()}>Import lists</button></>:null}</div></header>
-    {!configured||manageConnection?<section className="panel reeltrack-connect"><div><span className="eyebrow">REELTRACK CONNECTION</span><h2>{configured?'Replace your Reeltrack API key':'Connect your Reeltrack account'}</h2><p>Create or copy a personal API key in Reeltrack, then paste it here. This is the only place in VynodeArr where your Reeltrack key is entered. It is encrypted in VynodeArr’s backend and is never returned to this browser.</p><div className="reeltrack-connect-links"><a href="https://reeltrack.vynodehub.com" target="_blank" rel="noreferrer">Open Reeltrack</a><a href="https://reeltrack.vynodehub.com/api/openapi" target="_blank" rel="noreferrer">API documentation</a></div></div><div className="reeltrack-key-form"><label>{configured?'New Reeltrack API key':'Reeltrack API key'}<input type="password" value={apiKey} onChange={event=>setApiKey(event.target.value)} placeholder="rt_live_…" autoComplete="off"/></label><div className="reeltrack-key-actions">{configured?<button className="secondary" disabled={busy} onClick={()=>{setApiKey('');setManageConnection(false);}}>Cancel</button>:null}<button className="primary" disabled={busy||!apiKey.trim()} onClick={()=>void connect()}>{busy?'Validating…':configured?'Replace and validate':'Connect and validate'}</button></div></div></section>:<section className="reeltrack-connection-bar"><span><i/> Reeltrack connected</span><small>Credentials are stored securely on the server.</small><button className="text-button" disabled={busy} onClick={()=>setManageConnection(true)}>Replace API key</button><button className="text-button danger" disabled={busy} onClick={()=>void disconnect()}>Disconnect</button></section>}
-    {showImport?<section className="panel reeltrack-import"><div className="panel-heading"><div><span className="eyebrow">CHOOSE LISTS</span><h2>Import from Reeltrack</h2><p>Importing copies a view of each list into VynodeArr. It does not alter the source list.</p></div><button className="secondary" onClick={()=>setShowImport(false)}>Close</button></div><div className="reeltrack-remote-list">{available.map(list=><label key={list.id}><input type="checkbox" checked={selectedRemote.has(String(list.id))} onChange={event=>setSelectedRemote(current=>{const next=new Set(current);event.target.checked?next.add(String(list.id)):next.delete(String(list.id));return next;})}/><span><strong>{list.name}</strong><small>{list.description||`${list.kind==='smart'?'Smart':'Custom'} Reeltrack list`}</small></span>{list.imported?<em>Imported</em>:null}</label>)}</div><div className="form-actions"><button className="primary" disabled={busy||!selectedRemote.size} onClick={()=>void importLists()}>{busy?'Importing…':`Import ${selectedRemote.size} list${selectedRemote.size===1?'':'s'}`}</button></div></section>:null}
-    {loading?<div className="panel skeleton">Loading Reeltrack lists…</div>:lists.length?<div className="reeltrack-workspace"><aside className="reeltrack-list-nav"><h2>Imported lists</h2>{lists.map(list=><button className={String(list.id)===String(selected?.id)?'active':''} key={list.id} onClick={()=>setSelectedId(String(list.id))}><strong>{list.name}</strong><small>{list.items?.length||0} titles</small></button>)}</aside><main><div className="reeltrack-list-heading"><div><span className="eyebrow">{selected?.kind==='smart'?'SMART LIST':'REELTRACK LIST'}</span><h2>{selected?.name}</h2><p>{selected?.description||'Titles imported from Reeltrack.'}</p></div><button className="text-button" onClick={()=>selected&&void remove(selected)}>Remove import</button></div><div className="reeltrack-filters"><label>Find titles<input type="search" value={query} onChange={event=>setQuery(event.target.value)} placeholder="Search this list"/></label><div role="group" aria-label="Availability filter"><button className={filter==='all'?'active':''} onClick={()=>setFilter('all')}>All</button><button className={filter==='library'?'active':''} onClick={()=>setFilter('library')}>In library</button><button className={filter==='missing'?'active':''} onClick={()=>setFilter('missing')}>Missing</button></div></div><div className="reeltrack-item-grid">{items.map(item=><article key={`${item.source}:${item.externalId}`}><div className="reeltrack-poster">{item.posterUrl?<img src={item.posterUrl} alt="" loading="lazy"/>:<span>{item.domain==='movie'?'MOVIE':'TV'}</span>}<b>{item.library?'IN LIBRARY':item.canRequest?'AVAILABLE TO REQUEST':'ID NEEDED'}</b></div><div className="reeltrack-item-copy"><small>#{item.rank||'—'} · {item.domain==='movie'?'Movie':'Television'} · {item.year||'Year unknown'}</small><h3>{item.title}</h3><p>{item.overview||'No description supplied by Reeltrack.'}</p><code>{item.source}:{item.externalId}</code></div><footer>{item.library&&item.library.canView?<a className="secondary button-link" href={`#${item.domain==='movie'?'movie':'series'}/${item.library.id}`}>View in library</a>:item.library?<span className="muted">Already in library</span>:item.canRequest?<button className="primary" onClick={()=>setRequesting(item)}>Request {item.domain==='movie'?'movie':'series'}</button>:<span className="muted" title={item.requestBlockReason||''}>TMDB ID required</span>}</footer></article>)}</div>{!items.length?<div className="empty compact"><h3>No titles match this view</h3><p>Try another availability filter or search.</p></div>:null}</main></div>:configured?<div className="empty panel"><h2>No Reeltrack lists imported</h2><p>Choose Import lists to bring selected lists into this page.</p><button className="primary" onClick={()=>void openImport()}>Import lists</button></div>:null}
-    {requesting?<DiscoverRequest item={discoverItem(requesting)} options={options} onClose={()=>setRequesting(null)} onRequested={()=>{setRequesting(null);void load();}}/>:null}
-  </div>;
+export function ReeltrackListsView({
+  options,
+}: {
+  options: ReeltrackListsMountOptions;
+}) {
+  const { request, notify } = options;
+  const [configured, setConfigured] = useState(false),
+    [loading, setLoading] = useState(true),
+    [busy, setBusy] = useState(false),
+    [apiKey, setApiKey] = useState(""),
+    [manageConnection, setManageConnection] = useState(false);
+  const [lists, setLists] = useState<ReeltrackList[]>([]),
+    [available, setAvailable] = useState<ReeltrackList[]>([]),
+    [selectedId, setSelectedId] = useState("");
+  const [showImport, setShowImport] = useState(false),
+    [selectedRemote, setSelectedRemote] = useState<Set<string>>(new Set()),
+    [filter, setFilter] = useState<"all" | "library" | "missing">("all"),
+    [query, setQuery] = useState(""),
+    [requesting, setRequesting] = useState<ReeltrackListItem | null>(null);
+  const [trailerStatus, setTrailerStatus] = useState<{
+      available: boolean;
+      version?: string | null;
+      root?: string;
+      message?: string;
+      plexConfigured?: boolean;
+      plexServer?: { name?: string } | null;
+      libraries?: Array<{ key: string; title: string; type: string }>;
+    } | null>(null),
+    [trailerBusy, setTrailerBusy] = useState(""),
+    [automationEnabled, setAutomationEnabled] = useState(false),
+    [automationLibraryKey, setAutomationLibraryKey] = useState(""),
+    [automationPlexPath, setAutomationPlexPath] = useState("/trailers"),
+    [automationInterval, setAutomationInterval] = useState(60),
+    [automationCollectionName, setAutomationCollectionName] = useState("");
+  const selected =
+    lists.find((value) => String(value.id) === selectedId) || lists[0];
+  async function load() {
+    setLoading(true);
+    try {
+      const [status, data, trailer] = await Promise.all([
+        request<{ configured: boolean }>("/api/reeltrack/status"),
+        request<{ items: ReeltrackList[] }>("/api/reeltrack/imported-lists"),
+        options.administrator
+          ? request<{
+              available: boolean;
+              version?: string | null;
+              root?: string;
+              message?: string;
+              plexConfigured?: boolean;
+              plexServer?: { name?: string } | null;
+              libraries?: Array<{ key: string; title: string; type: string }>;
+            }>("/api/reeltrack/trailers/status").catch(() => null)
+          : Promise.resolve(null),
+      ]);
+      setConfigured(status.configured);
+      setLists(data.items || []);
+      setTrailerStatus(trailer);
+      if (trailer?.libraries?.length)
+        setAutomationLibraryKey((current) => current || trailer.libraries![0].key);
+      setSelectedId((current) => current || String(data.items?.[0]?.id || ""));
+    } catch (error) {
+      notify(message(error), "error");
+    } finally {
+      setLoading(false);
+    }
+  }
+  useEffect(() => {
+    void load();
+  }, []);
+  useEffect(() => {
+    if (!selected) return;
+    setAutomationEnabled(Boolean(selected.automation?.enabled));
+    setAutomationLibraryKey(
+      selected.automation?.plexLibraryKey || trailerStatus?.libraries?.[0]?.key || "",
+    );
+    setAutomationPlexPath(selected.automation?.plexTrailerPath || "/trailers");
+    setAutomationInterval(selected.automation?.intervalMinutes || 60);
+    setAutomationCollectionName(selected.automation?.collectionName || selected.name);
+  }, [selectedId]);
+  async function connect() {
+    if (!apiKey.trim()) return;
+    setBusy(true);
+    try {
+      await request("/api/reeltrack/connection", {
+        method: "PUT",
+        body: JSON.stringify({ apiKey: apiKey.trim() }),
+      });
+      setApiKey("");
+      setConfigured(true);
+      setManageConnection(false);
+      notify("Reeltrack connected securely.");
+      await openImport();
+    } catch (error) {
+      notify(message(error), "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function disconnect() {
+    if (
+      !confirm(
+        "Disconnect Reeltrack? Imported snapshots will remain available.",
+      )
+    )
+      return;
+    setBusy(true);
+    try {
+      await request("/api/reeltrack/connection", { method: "DELETE" });
+      setConfigured(false);
+      setShowImport(false);
+      notify("Reeltrack disconnected.");
+    } catch (error) {
+      notify(message(error), "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function openImport() {
+    try {
+      const value = await request<{ items: ReeltrackList[] }>(
+        "/api/reeltrack/available-lists",
+      );
+      setAvailable(value.items || []);
+      setSelectedRemote(
+        new Set(
+          (value.items || [])
+            .filter((item) => item.imported)
+            .map((item) => String(item.id)),
+        ),
+      );
+      setShowImport(true);
+    } catch (error) {
+      notify(message(error), "error");
+    }
+  }
+  async function importLists() {
+    setBusy(true);
+    try {
+      const value = await request<{ items: ReeltrackList[] }>(
+        "/api/reeltrack/imported-lists",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            listIds: [...selectedRemote],
+            automation: options.administrator
+              ? {
+                  enabled: automationEnabled,
+                  plexLibraryKey: automationLibraryKey,
+                  plexTrailerPath: automationPlexPath,
+                  intervalMinutes: automationInterval,
+                }
+              : { enabled: false },
+          }),
+        },
+      );
+      setLists(value.items || []);
+      setSelectedId(String(value.items?.[0]?.id || ""));
+      setShowImport(false);
+      notify("Reeltrack lists imported.");
+    } catch (error) {
+      notify(message(error), "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function sync() {
+    setBusy(true);
+    try {
+      const value = await request<{ items: ReeltrackList[] }>(
+        "/api/reeltrack/sync",
+        { method: "POST" },
+      );
+      setLists(value.items || []);
+      notify("Reeltrack lists synchronized.");
+    } catch (error) {
+      notify(message(error), "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function downloadTrailer(item: ReeltrackListItem) {
+    if (!selected || !item.tmdbId) return;
+    const key = `${item.domain}:${item.tmdbId}`;
+    setTrailerBusy(key);
+    try {
+      const value = await request<{ trailer: { path: string } }>(
+        "/api/reeltrack/trailers/download",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            listId: selected.id,
+            domain: item.domain,
+            tmdbId: item.tmdbId,
+          }),
+        },
+      );
+      notify(`Trailer downloaded to ${value.trailer.path}.`);
+    } catch (error) {
+      notify(message(error), "error");
+    } finally {
+      setTrailerBusy("");
+    }
+  }
+  async function saveAutomation() {
+    if (!selected) return;
+    setBusy(true);
+    try {
+      const value = await request<{ item: ReeltrackList }>(
+        `/api/reeltrack/imported-lists/${encodeURIComponent(selected.id)}/automation`,
+        {
+          method: "PUT",
+          body: JSON.stringify({
+            enabled: automationEnabled,
+            plexLibraryKey: automationLibraryKey,
+            plexTrailerPath: automationPlexPath,
+            collectionName: automationCollectionName || selected.name,
+            intervalMinutes: automationInterval,
+          }),
+        },
+      );
+      setLists((current) =>
+        current.map((item) =>
+          String(item.id) === String(value.item.id) ? value.item : item,
+        ),
+      );
+      notify(automationEnabled ? "Plex list automation enabled." : "Plex list automation disabled.");
+    } catch (error) {
+      notify(message(error), "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function runAutomation() {
+    if (!selected) return;
+    setBusy(true);
+    try {
+      const value = await request<{ item: ReeltrackList }>(
+        `/api/reeltrack/imported-lists/${encodeURIComponent(selected.id)}/automation/run`,
+        { method: "POST" },
+      );
+      setLists((current) =>
+        current.map((item) =>
+          String(item.id) === String(value.item.id) ? value.item : item,
+        ),
+      );
+      notify("Reeltrack, trailers, and the Plex collection are synchronized.");
+    } catch (error) {
+      notify(message(error), "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function remove(list: ReeltrackList) {
+    if (
+      !confirm(
+        `Remove “${list.name}” from VynodeArr? The Reeltrack list will not be deleted.`,
+      )
+    )
+      return;
+    try {
+      await request(
+        `/api/reeltrack/imported-lists/${encodeURIComponent(list.id)}`,
+        { method: "DELETE" },
+      );
+      setLists((current) =>
+        current.filter((item) => String(item.id) !== String(list.id)),
+      );
+      setSelectedId("");
+      notify("Imported list removed.");
+    } catch (error) {
+      notify(message(error), "error");
+    }
+  }
+  const items = useMemo(
+    () =>
+      (selected?.items || []).filter(
+        (item) =>
+          (filter === "all" ||
+            (filter === "library" ? Boolean(item.library) : !item.library)) &&
+          (!query.trim() ||
+            `${item.title} ${item.year || ""} ${item.overview || ""}`
+              .toLowerCase()
+              .includes(query.trim().toLowerCase())),
+      ),
+    [selected, filter, query],
+  );
+  return (
+    <div className="react-reeltrack-lists">
+      <header className="hero reeltrack-hero">
+        <div>
+          <span className="eyebrow">REELTRACK INTEGRATION</span>
+          <h1>Lists</h1>
+          <p className="lede">
+            Bring your Reeltrack lists into VynodeArr, see what is already in
+            your library, and request missing titles without unreliable title
+            matching.
+          </p>
+        </div>
+        <div className="reeltrack-hero-actions">
+          {configured ? (
+            <>
+              <button
+                className="secondary"
+                disabled={busy}
+                onClick={() => void sync()}
+              >
+                {busy ? "Working…" : "Sync lists"}
+              </button>
+              <button className="primary" onClick={() => void openImport()}>
+                Import lists
+              </button>
+            </>
+          ) : null}
+        </div>
+      </header>
+      {!configured || manageConnection ? (
+        <section className="panel reeltrack-connect">
+          <div>
+            <span className="eyebrow">REELTRACK CONNECTION</span>
+            <h2>
+              {configured
+                ? "Replace your Reeltrack API key"
+                : "Connect your Reeltrack account"}
+            </h2>
+            <p>
+              Create or copy a personal API key in Reeltrack, then paste it
+              here. This is the only place in VynodeArr where your Reeltrack key
+              is entered. It is encrypted in VynodeArr’s backend and is never
+              returned to this browser.
+            </p>
+            <div className="reeltrack-connect-links">
+              <a
+                href="https://reeltrack.vynodehub.com"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open Reeltrack
+              </a>
+              <a
+                href="https://reeltrack.vynodehub.com/api/openapi"
+                target="_blank"
+                rel="noreferrer"
+              >
+                API documentation
+              </a>
+            </div>
+          </div>
+          <div className="reeltrack-key-form">
+            <label>
+              {configured ? "New Reeltrack API key" : "Reeltrack API key"}
+              <input
+                type="password"
+                value={apiKey}
+                onChange={(event) => setApiKey(event.target.value)}
+                placeholder="rt_live_…"
+                autoComplete="off"
+              />
+            </label>
+            <div className="reeltrack-key-actions">
+              {configured ? (
+                <button
+                  className="secondary"
+                  disabled={busy}
+                  onClick={() => {
+                    setApiKey("");
+                    setManageConnection(false);
+                  }}
+                >
+                  Cancel
+                </button>
+              ) : null}
+              <button
+                className="primary"
+                disabled={busy || !apiKey.trim()}
+                onClick={() => void connect()}
+              >
+                {busy
+                  ? "Validating…"
+                  : configured
+                    ? "Replace and validate"
+                    : "Connect and validate"}
+              </button>
+            </div>
+          </div>
+        </section>
+      ) : (
+        <section className="reeltrack-connection-bar">
+          <span>
+            <i /> Reeltrack connected
+          </span>
+          <small>Credentials are stored securely on the server.</small>
+          <button
+            className="text-button"
+            disabled={busy}
+            onClick={() => setManageConnection(true)}
+          >
+            Replace API key
+          </button>
+          <button
+            className="text-button danger"
+            disabled={busy}
+            onClick={() => void disconnect()}
+          >
+            Disconnect
+          </button>
+        </section>
+      )}
+      {options.administrator && trailerStatus ? (
+        <section
+          className={`reeltrack-trailer-status ${trailerStatus.available ? "ready" : "unavailable"}`}
+        >
+          <strong>
+            {trailerStatus.available
+              ? `Trailer downloads ready · yt-dlp ${trailerStatus.version || ""}`
+              : "Trailer downloads unavailable"}
+          </strong>
+          <small>
+            {trailerStatus.available
+              ? `Staging folder: ${trailerStatus.root}`
+              : trailerStatus.message}
+          </small>
+        </section>
+      ) : null}
+      {showImport ? (
+        <section className="panel reeltrack-import">
+          <div className="panel-heading">
+            <div>
+              <span className="eyebrow">CHOOSE LISTS</span>
+              <h2>Import from Reeltrack</h2>
+              <p>
+                Importing copies a view of each list into VynodeArr. It does not
+                alter the source list.
+              </p>
+            </div>
+            <button className="secondary" onClick={() => setShowImport(false)}>
+              Close
+            </button>
+          </div>
+          <div className="reeltrack-remote-list">
+            {available.map((list) => (
+              <label key={list.id}>
+                <input
+                  type="checkbox"
+                  checked={selectedRemote.has(String(list.id))}
+                  onChange={(event) =>
+                    setSelectedRemote((current) => {
+                      const next = new Set(current);
+                      event.target.checked
+                        ? next.add(String(list.id))
+                        : next.delete(String(list.id));
+                      return next;
+                    })
+                  }
+                />
+                <span>
+                  <strong>{list.name}</strong>
+                  <small>
+                    {list.description ||
+                      `${list.kind === "smart" ? "Smart" : "Custom"} Reeltrack list`}
+                  </small>
+                </span>
+                {list.imported ? <em>Imported</em> : null}
+              </label>
+            ))}
+          </div>
+          {options.administrator ? (
+            <div className="reeltrack-automation-setup">
+              <label className="reeltrack-automation-toggle">
+                <input
+                  type="checkbox"
+                  checked={automationEnabled}
+                  onChange={(event) => setAutomationEnabled(event.target.checked)}
+                />
+                <span>
+                  <strong>Create and maintain Plex trailer collections</strong>
+                  <small>
+                    Periodically sync each selected list, download trailers for missing titles,
+                    and remove managed placeholders when the real media appears.
+                  </small>
+                </span>
+              </label>
+              {automationEnabled ? (
+                <div className="reeltrack-automation-fields">
+                  <label>
+                    Plex library
+                    <select
+                      value={automationLibraryKey}
+                      onChange={(event) => setAutomationLibraryKey(event.target.value)}
+                    >
+                      <option value="">Choose a Plex library</option>
+                      {(trailerStatus?.libraries || []).map((library) => (
+                        <option key={library.key} value={library.key}>
+                          {library.title} · {library.type === "show" ? "Television" : "Movies"}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Path Plex sees for trailers
+                    <input
+                      value={automationPlexPath}
+                      onChange={(event) => setAutomationPlexPath(event.target.value)}
+                      placeholder="/trailers"
+                    />
+                  </label>
+                  <label>
+                    Update every
+                    <select
+                      value={automationInterval}
+                      onChange={(event) => setAutomationInterval(Number(event.target.value))}
+                    >
+                      <option value={15}>15 minutes</option>
+                      <option value={30}>30 minutes</option>
+                      <option value={60}>1 hour</option>
+                      <option value={360}>6 hours</option>
+                      <option value={1440}>24 hours</option>
+                    </select>
+                  </label>
+                </div>
+              ) : null}
+              {automationEnabled && (!trailerStatus?.available || !trailerStatus?.plexConfigured) ? (
+                <p className="danger-text">
+                  {!trailerStatus?.available
+                    ? trailerStatus?.message || "yt-dlp is unavailable."
+                    : "Connect Plex in Poster Overlays before enabling automation."}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+          <div className="form-actions">
+            <button
+              className="primary"
+              disabled={
+                busy ||
+                !selectedRemote.size ||
+                (automationEnabled &&
+                  (!automationLibraryKey ||
+                    !trailerStatus?.available ||
+                    !trailerStatus?.plexConfigured))
+              }
+              onClick={() => void importLists()}
+            >
+              {busy
+                ? "Importing…"
+                : `Import ${selectedRemote.size} list${selectedRemote.size === 1 ? "" : "s"}`}
+            </button>
+          </div>
+        </section>
+      ) : null}
+      {loading ? (
+        <div className="panel skeleton">Loading Reeltrack lists…</div>
+      ) : lists.length ? (
+        <div className="reeltrack-workspace">
+          <aside className="reeltrack-list-nav">
+            <h2>Imported lists</h2>
+            {lists.map((list) => (
+              <button
+                className={
+                  String(list.id) === String(selected?.id) ? "active" : ""
+                }
+                key={list.id}
+                onClick={() => setSelectedId(String(list.id))}
+              >
+                <strong>{list.name}</strong>
+                <small>{list.items?.length || 0} titles</small>
+              </button>
+            ))}
+          </aside>
+          <main>
+            <div className="reeltrack-list-heading">
+              <div>
+                <span className="eyebrow">
+                  {selected?.kind === "smart" ? "SMART LIST" : "REELTRACK LIST"}
+                </span>
+                <h2>{selected?.name}</h2>
+                <p>
+                  {selected?.description || "Titles imported from Reeltrack."}
+                </p>
+              </div>
+              <button
+                className="text-button"
+                onClick={() => selected && void remove(selected)}
+              >
+                Remove import
+              </button>
+            </div>
+            {options.administrator ? (
+              <section className="reeltrack-list-automation">
+                <div className="reeltrack-list-automation-heading">
+                  <div>
+                    <strong>Managed Plex collection</strong>
+                    <small>
+                      {selected?.automation?.enabled
+                        ? `${selected.automation.status || "scheduled"}${selected.automation.lastRunAt ? ` · Last run ${new Date(selected.automation.lastRunAt).toLocaleString()}` : ""}`
+                        : "Not enabled for this imported list"}
+                    </small>
+                  </div>
+                  {selected?.automation?.enabled ? (
+                    <button className="secondary" disabled={busy} onClick={() => void runAutomation()}>
+                      {busy ? "Synchronizing…" : "Run now"}
+                    </button>
+                  ) : null}
+                </div>
+                <label className="reeltrack-automation-toggle">
+                  <input
+                    type="checkbox"
+                    checked={automationEnabled}
+                    onChange={(event) => setAutomationEnabled(event.target.checked)}
+                  />
+                  Automatically sync this list, trailers, and Plex
+                </label>
+                {automationEnabled ? (
+                  <div className="reeltrack-automation-fields">
+                    <label>
+                      Plex library
+                      <select value={automationLibraryKey} onChange={(event) => setAutomationLibraryKey(event.target.value)}>
+                        <option value="">Choose a library</option>
+                        {(trailerStatus?.libraries || []).map((library) => (
+                          <option key={library.key} value={library.key}>{library.title}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      Collection name
+                      <input value={automationCollectionName} onChange={(event) => setAutomationCollectionName(event.target.value)} />
+                    </label>
+                    <label>
+                      Plex trailer path
+                      <input value={automationPlexPath} onChange={(event) => setAutomationPlexPath(event.target.value)} />
+                    </label>
+                    <label>
+                      Interval
+                      <select value={automationInterval} onChange={(event) => setAutomationInterval(Number(event.target.value))}>
+                        <option value={15}>15 minutes</option><option value={30}>30 minutes</option><option value={60}>1 hour</option><option value={360}>6 hours</option><option value={1440}>24 hours</option>
+                      </select>
+                    </label>
+                  </div>
+                ) : null}
+                {selected?.automation?.error ? <p className="danger-text">{selected.automation.error}</p> : null}
+                {selected?.automation?.summary ? (
+                  <small className="reeltrack-automation-summary">
+                    {selected.automation.summary.placeholders} placeholders · {selected.automation.summary.realMatches} real matches · {selected.automation.summary.providerTitles} provider titles
+                  </small>
+                ) : null}
+                <button
+                  className="primary"
+                  disabled={busy || (automationEnabled && !automationLibraryKey)}
+                  onClick={() => void saveAutomation()}
+                >
+                  Save automation
+                </button>
+              </section>
+            ) : null}
+            <div className="reeltrack-filters">
+              <label>
+                Find titles
+                <input
+                  type="search"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search this list"
+                />
+              </label>
+              <div role="group" aria-label="Availability filter">
+                <button
+                  className={filter === "all" ? "active" : ""}
+                  onClick={() => setFilter("all")}
+                >
+                  All
+                </button>
+                <button
+                  className={filter === "library" ? "active" : ""}
+                  onClick={() => setFilter("library")}
+                >
+                  In library
+                </button>
+                <button
+                  className={filter === "missing" ? "active" : ""}
+                  onClick={() => setFilter("missing")}
+                >
+                  Missing
+                </button>
+              </div>
+            </div>
+            <div className="reeltrack-item-grid">
+              {items.map((item) => (
+                <article key={`${item.source}:${item.externalId}`}>
+                  <div className="reeltrack-poster">
+                    {item.posterUrl ? (
+                      <img src={item.posterUrl} alt="" loading="lazy" />
+                    ) : (
+                      <span>{item.domain === "movie" ? "MOVIE" : "TV"}</span>
+                    )}
+                    <b>
+                      {item.library
+                        ? "IN LIBRARY"
+                        : item.canRequest
+                          ? "AVAILABLE TO REQUEST"
+                          : "ID NEEDED"}
+                    </b>
+                  </div>
+                  <div className="reeltrack-item-copy">
+                    <small>
+                      #{item.rank || "—"} ·{" "}
+                      {item.domain === "movie" ? "Movie" : "Television"} ·{" "}
+                      {item.year || "Year unknown"}
+                    </small>
+                    <h3>{item.title}</h3>
+                    <p>
+                      {item.overview || "No description supplied by Reeltrack."}
+                    </p>
+                    <code>
+                      {item.source}:{item.externalId}
+                    </code>
+                  </div>
+                  <footer>
+                    {options.administrator && !item.library && item.tmdbId ? (
+                      <button
+                        className="secondary"
+                        disabled={
+                          !trailerStatus?.available || Boolean(trailerBusy)
+                        }
+                        title={
+                          trailerStatus?.available
+                            ? "Download the official YouTube trailer to the staging folder"
+                            : trailerStatus?.message ||
+                              "Trailer downloads are unavailable"
+                        }
+                        onClick={() => void downloadTrailer(item)}
+                      >
+                        {trailerBusy === `${item.domain}:${item.tmdbId}`
+                          ? "Downloading trailer…"
+                          : "Download trailer"}
+                      </button>
+                    ) : null}
+                    {item.library && item.library.canView ? (
+                      <a
+                        className="secondary button-link"
+                        href={`#${item.domain === "movie" ? "movie" : "series"}/${item.library.id}`}
+                      >
+                        View in library
+                      </a>
+                    ) : item.library ? (
+                      <span className="muted">Already in library</span>
+                    ) : item.canRequest ? (
+                      <button
+                        className="primary"
+                        onClick={() => setRequesting(item)}
+                      >
+                        Request {item.domain === "movie" ? "movie" : "series"}
+                      </button>
+                    ) : (
+                      <span
+                        className="muted"
+                        title={item.requestBlockReason || ""}
+                      >
+                        TMDB ID required
+                      </span>
+                    )}
+                  </footer>
+                </article>
+              ))}
+            </div>
+            {!items.length ? (
+              <div className="empty compact">
+                <h3>No titles match this view</h3>
+                <p>Try another availability filter or search.</p>
+              </div>
+            ) : null}
+          </main>
+        </div>
+      ) : configured ? (
+        <div className="empty panel">
+          <h2>No Reeltrack lists imported</h2>
+          <p>Choose Import lists to bring selected lists into this page.</p>
+          <button className="primary" onClick={() => void openImport()}>
+            Import lists
+          </button>
+        </div>
+      ) : null}
+      {requesting ? (
+        <DiscoverRequest
+          item={discoverItem(requesting)}
+          options={options}
+          onClose={() => setRequesting(null)}
+          onRequested={() => {
+            setRequesting(null);
+            void load();
+          }}
+        />
+      ) : null}
+    </div>
+  );
 }

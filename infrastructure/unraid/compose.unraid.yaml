@@ -8,6 +8,7 @@ services:
     volumes:
       - /mnt/user/appdata/vynodearr:/data
       - /mnt/user/appdata/vynodearr/secrets:/run/secrets:ro
+      - /mnt/user/media/trailers:/trailers
     environment:
       VYNODEARR_DATA_MODE: engine
       VYNODEARR_DATA_DIR: /data

@@ -16,3 +16,4 @@ services:
       - ./movies:/movies
       - ./television:/tv
       - ./downloads:/downloads
+      - ./trailers:/trailers

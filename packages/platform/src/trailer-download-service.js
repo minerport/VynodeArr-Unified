@@ -1,0 +1,17 @@
+import {spawn} from 'node:child_process';
+import {mkdir} from 'node:fs/promises';
+import {rm} from 'node:fs/promises';
+import {resolve,sep} from 'node:path';
+
+const cleanPart=(value,fallback='Trailer')=>String(value||fallback).normalize('NFKD').replace(/[<>:"/\\|?*\u0000-\u001f]/g,' ').replace(/\s+/g,' ').trim().slice(0,120)||fallback;
+const youtubeUrl=value=>{const parsed=new URL(String(value||''));if(parsed.protocol!=='https:'||!['youtube.com','www.youtube.com','youtu.be'].includes(parsed.hostname.toLowerCase()))throw new Error('Trailer downloads require a trusted YouTube URL');return parsed.toString();};
+
+export class TrailerDownloadService{
+  constructor({binary='yt-dlp',root='/trailers',spawnImpl=spawn,timeoutMs=15*60*1000}={}){this.binary=binary;this.root=resolve(root);this.spawn=spawnImpl;this.timeoutMs=timeoutMs;}
+  execute(args,{timeoutMs=this.timeoutMs}={}){return new Promise((resolvePromise,reject)=>{let stdout='',stderr='',settled=false;const child=this.spawn(this.binary,args,{stdio:['ignore','pipe','pipe'],windowsHide:true}),finish=(error,value)=>{if(settled)return;settled=true;clearTimeout(timer);error?reject(error):resolvePromise(value)};child.stdout?.on('data',chunk=>{stdout=(stdout+chunk).slice(-64_000)});child.stderr?.on('data',chunk=>{stderr=(stderr+chunk).slice(-64_000)});child.on('error',error=>finish(new Error(error.code==='ENOENT'?'yt-dlp is not installed in this VynodeArr runtime':`yt-dlp could not start: ${error.message}`)));child.on('close',code=>code===0?finish(null,{stdout:stdout.trim(),stderr:stderr.trim()}):finish(new Error(`yt-dlp failed${stderr.trim()?`: ${stderr.trim().split(/\r?\n/).at(-1)}`:''}`)));const timer=setTimeout(()=>{child.kill('SIGKILL');finish(new Error('Trailer download timed out'))},timeoutMs);});}
+  async status(){try{const result=await this.execute(['--version'],{timeoutMs:10_000});return{available:true,version:result.stdout.split(/\s+/)[0]||'unknown',root:this.root};}catch(error){return{available:false,version:null,root:this.root,message:error.message};}}
+  async download({url,title,year,domain,tmdbId}){const trustedUrl=youtubeUrl(url),safeTitle=cleanPart(title),safeYear=Number(year)>1800?` (${Number(year)})`:'',identity=Number(tmdbId)>0?` [tmdb-${Number(tmdbId)}]`:'',folder=resolve(this.root,`${safeTitle}${safeYear}${identity}`);if(folder!==this.root&&!folder.startsWith(`${this.root}${sep}`))throw new Error('Trailer destination is outside the configured staging root');await mkdir(folder,{recursive:true});const output=resolve(folder,`${safeTitle}${safeYear} - Trailer.%(ext)s`),result=await this.execute(['--no-playlist','--no-overwrites','--max-filesize','1G','--format','bv*[height<=1080]+ba/b[height<=1080]','--merge-output-format','mp4','--remux-video','mp4','--print','after_move:filepath','--output',output,trustedUrl]),path=result.stdout.split(/\r?\n/).map(value=>value.trim()).filter(Boolean).at(-1);if(!path)throw new Error('yt-dlp completed without reporting a trailer file');return{path,folder,title:safeTitle,year:Number(year)||null,domain:domain==='tv'?'tv':'movie',tmdbId:Number(tmdbId)||null,sourceUrl:trustedUrl};}
+  async remove(download){const folder=resolve(String(download?.folder||''));if(folder===this.root||!folder.startsWith(`${this.root}${sep}`))throw new Error('Trailer cleanup is outside the configured staging root');await rm(folder,{recursive:true,force:true});return true;}
+}
+
+export {cleanPart as sanitizeTrailerPathPart,youtubeUrl as sanitizeTrailerUrl};

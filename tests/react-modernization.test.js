@@ -6,13 +6,13 @@ const read=(path)=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
 test('Reeltrack Lists remains fluid while the viewport is resized',async()=>{
   const [styles,view]=await Promise.all([read('apps/web/client/src/react-reeltrack-lists.css'),read('apps/web/client/src/reeltrack-lists.tsx')]);
-  assert.match(styles,/\.react-reeltrack-lists>\.reeltrack-hero\{[^}]*position:static[^}]*height:auto[^}]*min-height:0/);
-  assert.match(styles,/\.reeltrack-key-form input\{[^}]*min-width:0[^}]*width:100%/);
-  assert.match(styles,/\.reeltrack-list-nav\{[^}]*display:flex[^}]*max-height:calc\(100dvh - 8rem\)[^}]*flex-direction:column[^}]*overflow-y:auto/);
-  assert.match(styles,/@media\(max-width:900px\)\{[\s\S]*?\.reeltrack-workspace\{grid-template-columns:minmax\(0,1fr\)/);
-  assert.match(styles,/@media\(max-width:480px\)\{[^}]*\.react-reeltrack-lists\{gap:\.85rem/);
+  assert.match(styles,/\.react-reeltrack-lists\s*>\s*\.reeltrack-hero\s*\{[^}]*position:\s*static[^}]*height:\s*auto[^}]*min-height:\s*0/);
+  assert.match(styles,/\.reeltrack-key-form input\s*\{[^}]*min-width:\s*0[^}]*width:\s*100%/);
+  assert.match(styles,/\.reeltrack-list-nav\s*\{[^}]*display:\s*flex[^}]*max-height:\s*calc\(100dvh - 8rem\)[^}]*flex-direction:\s*column[^}]*overflow-y:\s*auto/);
+  assert.match(styles,/@media\s*\(max-width:\s*900px\)\s*\{[\s\S]*?\.reeltrack-workspace\s*\{\s*grid-template-columns:\s*minmax\(0,\s*1fr\)/);
+  assert.match(styles,/@media\s*\(max-width:\s*480px\)\s*\{[^}]*\.react-reeltrack-lists\s*\{\s*gap:\s*0?\.85rem/);
   assert.doesNotMatch(view,/Manage integrations/);
-  assert.match(view,/This is the only place in VynodeArr where your Reeltrack key is entered/);
+  assert.match(view,/This is the only place in VynodeArr where your Reeltrack key\s+is entered/);
   assert.match(view,/Replace API key/);
 });
 
