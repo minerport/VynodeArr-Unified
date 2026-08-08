@@ -3,14 +3,14 @@ import test from 'node:test';
 import {PlexService,sanitizePlexEndpoint} from '../packages/platform/src/plex-service.js';
 
 test('Plex connection validates identity and discovers movie and television libraries',async()=>{
-  const calls=[],service=new PlexService({fetchImpl:async(url,options)=>{calls.push({url,token:options.headers['x-plex-token']});return url.endsWith('/identity')?new Response(JSON.stringify({MediaContainer:{machineIdentifier:'server-1',version:'1.41.0',friendlyName:'Living Room'}})):new Response(JSON.stringify({MediaContainer:{Directory:[{key:'1',title:'Movies',type:'movie',uuid:'movies-1'},{key:'2',title:'Shows',type:'show',uuid:'shows-1'},{key:'3',title:'Music',type:'artist',uuid:'music-1'}]}}));}});
+  const calls=[],service=new PlexService({fetchImpl:async(url,options)=>{calls.push({url,token:options.headers['x-plex-token']});return url.endsWith('/identity')?new Response(JSON.stringify({MediaContainer:{machineIdentifier:'server-1',version:'1.41.0',friendlyName:'Living Room'}})):new Response(JSON.stringify({MediaContainer:{Directory:[{key:'1',title:'Movies',type:'movie',uuid:'movies-1',Location:[{id:'1',path:'/plex/media/movies'}]},{key:'2',title:'Shows',type:'show',uuid:'shows-1',Location:{id:'2',path:'/plex/media/shows'}},{key:'3',title:'Music',type:'artist',uuid:'music-1'}]}}));}});
   const result=await service.inspect('http://plex.local:32400/','secret');
-  assert.equal(result.endpoint,'http://plex.local:32400');assert.equal(result.server.name,'Living Room');assert.deepEqual(result.libraries.map(item=>item.title),['Movies','Shows']);assert.deepEqual(calls.map(item=>item.token),['secret','secret']);
+  assert.equal(result.endpoint,'http://plex.local:32400');assert.equal(result.server.name,'Living Room');assert.deepEqual(result.libraries.map(item=>item.title),['Movies','Shows']);assert.deepEqual(result.libraries.map(item=>item.locations),[['/plex/media/movies'],['/plex/media/shows']]);assert.deepEqual(calls.map(item=>item.token),['secret','secret']);
 });
 
 test('Plex connection accepts XML responses and rejects unsafe endpoint credentials',async()=>{
-  const service=new PlexService({fetchImpl:async url=>new Response(url.endsWith('/identity')?'<MediaContainer machineIdentifier="abc" version="1.2.3"/>':'<MediaContainer><Directory key="5" title="TV &amp; More" type="show" uuid="tv-5"/></MediaContainer>')});
-  const result=await service.inspect('https://plex.example.test:32400','token');assert.equal(result.server.machineIdentifier,'abc');assert.equal(result.libraries[0].title,'TV & More');
+  const service=new PlexService({fetchImpl:async url=>new Response(url.endsWith('/identity')?'<MediaContainer machineIdentifier="abc" version="1.2.3"/>':'<MediaContainer><Directory key="5" title="TV &amp; More" type="show" uuid="tv-5"><Location id="1" path="/plex/TV &amp; More"/></Directory></MediaContainer>')});
+  const result=await service.inspect('https://plex.example.test:32400','token');assert.equal(result.server.machineIdentifier,'abc');assert.equal(result.libraries[0].title,'TV & More');assert.deepEqual(result.libraries[0].locations,['/plex/TV & More']);
   assert.throws(()=>sanitizePlexEndpoint('http://user:password@plex.local:32400'),/credentials/);
 });
 

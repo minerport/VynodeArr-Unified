@@ -51,12 +51,12 @@ export function ReeltrackListsView({
       message?: string;
       plexConfigured?: boolean;
       plexServer?: { name?: string } | null;
-      libraries?: Array<{ key: string; title: string; type: string }>;
+      libraries?: Array<{ key: string; title: string; type: string; locations?: string[] }>;
     } | null>(null),
     [trailerBusy, setTrailerBusy] = useState(""),
     [automationEnabled, setAutomationEnabled] = useState(false),
-    [automationLibraryKey, setAutomationLibraryKey] = useState(""),
-    [automationPlexPath, setAutomationPlexPath] = useState("/movies"),
+    [automationMovieLibraryKey, setAutomationMovieLibraryKey] = useState(""),
+    [automationTvLibraryKey, setAutomationTvLibraryKey] = useState(""),
     [automationInterval, setAutomationInterval] = useState(60),
     [automationCollectionName, setAutomationCollectionName] = useState("");
   const selected =
@@ -75,15 +75,15 @@ export function ReeltrackListsView({
               message?: string;
               plexConfigured?: boolean;
               plexServer?: { name?: string } | null;
-              libraries?: Array<{ key: string; title: string; type: string }>;
+              libraries?: Array<{ key: string; title: string; type: string; locations?: string[] }>;
             }>("/api/reeltrack/trailers/status").catch(() => null)
           : Promise.resolve(null),
       ]);
       setConfigured(status.configured);
       setLists(data.items || []);
       setTrailerStatus(trailer);
-      if (trailer?.libraries?.length)
-        setAutomationLibraryKey((current) => current || trailer.libraries![0].key);
+      setAutomationMovieLibraryKey((current) => current || trailer?.libraries?.find((item) => item.type === "movie")?.key || "");
+      setAutomationTvLibraryKey((current) => current || trailer?.libraries?.find((item) => item.type === "show")?.key || "");
       setSelectedId((current) => current || String(data.items?.[0]?.id || ""));
     } catch (error) {
       notify(message(error), "error");
@@ -97,14 +97,9 @@ export function ReeltrackListsView({
   useEffect(() => {
     if (!selected) return;
     setAutomationEnabled(Boolean(selected.automation?.enabled));
-    setAutomationLibraryKey(
-      selected.automation?.plexLibraryKey || trailerStatus?.libraries?.[0]?.key || "",
-    );
-    setAutomationPlexPath(
-      !selected.automation?.plexTrailerPath || selected.automation.plexTrailerPath === "/trailers"
-        ? "/movies"
-        : selected.automation.plexTrailerPath,
-    );
+    const legacy = trailerStatus?.libraries?.find((item) => item.key === selected.automation?.plexLibraryKey);
+    setAutomationMovieLibraryKey(selected.automation?.plexMovieLibraryKey || (legacy?.type === "movie" ? legacy.key : "") || trailerStatus?.libraries?.find((item) => item.type === "movie")?.key || "");
+    setAutomationTvLibraryKey(selected.automation?.plexTvLibraryKey || (legacy?.type === "show" ? legacy.key : "") || trailerStatus?.libraries?.find((item) => item.type === "show")?.key || "");
     setAutomationInterval(selected.automation?.intervalMinutes || 60);
     setAutomationCollectionName(selected.automation?.collectionName || selected.name);
   }, [selectedId]);
@@ -176,8 +171,8 @@ export function ReeltrackListsView({
             automation: options.administrator
               ? {
                   enabled: automationEnabled,
-                  plexLibraryKey: automationLibraryKey,
-                  plexTrailerPath: automationPlexPath,
+                  plexMovieLibraryKey: automationMovieLibraryKey,
+                  plexTvLibraryKey: automationTvLibraryKey,
                   intervalMinutes: automationInterval,
                 }
               : { enabled: false },
@@ -242,8 +237,8 @@ export function ReeltrackListsView({
           method: "PUT",
           body: JSON.stringify({
             enabled: automationEnabled,
-            plexLibraryKey: automationLibraryKey,
-            plexTrailerPath: automationPlexPath,
+            plexMovieLibraryKey: automationMovieLibraryKey,
+            plexTvLibraryKey: automationTvLibraryKey,
             collectionName: automationCollectionName || selected.name,
             intervalMinutes: automationInterval,
           }),
@@ -512,28 +507,17 @@ export function ReeltrackListsView({
               </label>
               {automationEnabled ? (
                 <div className="reeltrack-automation-fields">
-                  <label>
-                    Plex library
-                    <select
-                      value={automationLibraryKey}
-                      onChange={(event) => setAutomationLibraryKey(event.target.value)}
-                    >
-                      <option value="">Choose a Plex library</option>
-                      {(trailerStatus?.libraries || []).map((library) => (
-                        <option key={library.key} value={library.key}>
-                          {library.title} · {library.type === "show" ? "Television" : "Movies"}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    Path Plex sees for the movie root
-                    <input
-                      value={automationPlexPath}
-                      onChange={(event) => setAutomationPlexPath(event.target.value)}
-                      placeholder="/movies"
-                    />
-                  </label>
+                  {(["movie", "show"] as const).map((type) => {
+                    const value = type === "movie" ? automationMovieLibraryKey : automationTvLibraryKey;
+                    return <label key={type}>
+                      {type === "movie" ? "Movie" : "Television"} Plex library
+                      <select value={value} onChange={(event) => type === "movie" ? setAutomationMovieLibraryKey(event.target.value) : setAutomationTvLibraryKey(event.target.value)}>
+                        <option value="">Choose a {type === "movie" ? "movie" : "television"} library</option>
+                        {(trailerStatus?.libraries || []).filter((library) => library.type === type).map((library) => <option key={library.key} value={library.key}>{library.title}</option>)}
+                      </select>
+                      <small>{trailerStatus?.libraries?.find((library) => library.key === value)?.locations?.[0] || "Location supplied by Plex"}</small>
+                    </label>;
+                  })}
                   <label>
                     Update every
                     <select
@@ -565,8 +549,7 @@ export function ReeltrackListsView({
                 busy ||
                 !selectedRemote.size ||
                 (automationEnabled &&
-                  (!automationLibraryKey ||
-                    !trailerStatus?.available ||
+                  (!trailerStatus?.available ||
                     !trailerStatus?.plexConfigured))
               }
               onClick={() => void importLists()}
@@ -642,22 +625,25 @@ export function ReeltrackListsView({
                 </label>
                 {automationEnabled ? (
                   <div className="reeltrack-automation-fields">
-                    <label>
-                      Plex library
-                      <select value={automationLibraryKey} onChange={(event) => setAutomationLibraryKey(event.target.value)}>
-                        <option value="">Choose a library</option>
-                        {(trailerStatus?.libraries || []).map((library) => (
-                          <option key={library.key} value={library.key}>{library.title}</option>
-                        ))}
+                    {selected?.items?.some((item) => item.domain === "movie") ? <label>
+                      Movie Plex library
+                      <select value={automationMovieLibraryKey} onChange={(event) => setAutomationMovieLibraryKey(event.target.value)}>
+                        <option value="">Choose a movie library</option>
+                        {(trailerStatus?.libraries || []).filter((library) => library.type === "movie").map((library) => <option key={library.key} value={library.key}>{library.title}</option>)}
                       </select>
-                    </label>
+                      <small>{trailerStatus?.libraries?.find((library) => library.key === automationMovieLibraryKey)?.locations?.[0] || "Location supplied by Plex"}</small>
+                    </label> : null}
+                    {selected?.items?.some((item) => item.domain === "tv") ? <label>
+                      Television Plex library
+                      <select value={automationTvLibraryKey} onChange={(event) => setAutomationTvLibraryKey(event.target.value)}>
+                        <option value="">Choose a television library</option>
+                        {(trailerStatus?.libraries || []).filter((library) => library.type === "show").map((library) => <option key={library.key} value={library.key}>{library.title}</option>)}
+                      </select>
+                      <small>{trailerStatus?.libraries?.find((library) => library.key === automationTvLibraryKey)?.locations?.[0] || "Location supplied by Plex"}</small>
+                    </label> : null}
                     <label>
                       Collection name
                       <input value={automationCollectionName} onChange={(event) => setAutomationCollectionName(event.target.value)} />
-                    </label>
-                    <label>
-                      Plex movie root path
-                      <input value={automationPlexPath} onChange={(event) => setAutomationPlexPath(event.target.value)} />
                     </label>
                     <label>
                       Interval
@@ -670,12 +656,15 @@ export function ReeltrackListsView({
                 {selected?.automation?.error ? <p className="danger-text">{selected.automation.error}</p> : null}
                 {selected?.automation?.summary ? (
                   <small className="reeltrack-automation-summary">
-                    {selected.automation.summary.placeholders} placeholders · {selected.automation.summary.realMatches} real matches · {selected.automation.summary.providerTitles} provider titles
+                    {selected.automation.summary.placeholders} placeholders · {selected.automation.summary.realMatches} real matches · {selected.automation.summary.libraryAdded || 0} added to VynodeArr · {selected.automation.summary.libraryExisting || 0} already registered · {selected.automation.summary.libraryFailed || 0} library failures · {selected.automation.summary.failed || 0} failed trailers · {selected.automation.summary.providerTitles} provider titles
                   </small>
+                ) : null}
+                {selected?.automation?.libraryErrors?.length ? (
+                  <small className="danger-text">{selected.automation.libraryErrors.join(" · ")}</small>
                 ) : null}
                 <button
                   className="primary"
-                  disabled={busy || (automationEnabled && !automationLibraryKey)}
+                  disabled={busy || (automationEnabled && Boolean(selected?.items?.some((item) => item.domain === "movie")) && !automationMovieLibraryKey) || (automationEnabled && Boolean(selected?.items?.some((item) => item.domain === "tv")) && !automationTvLibraryKey)}
                   onClick={() => void saveAutomation()}
                 >
                   Save automation

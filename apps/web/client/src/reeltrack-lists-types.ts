@@ -24,14 +24,18 @@ export interface ReeltrackList {
   automation?:{
     enabled:boolean;
     plexLibraryKey?:string;
+    plexMovieLibraryKey?:string;
+    plexTvLibraryKey?:string;
     plexTrailerPath?:string;
+    plexLibraryLocations?:{movie?:string;tv?:string};
     collectionName?:string;
     intervalMinutes?:number;
     status?:'scheduled'|'ready'|'error'|'disabled';
     error?:string|null;
+    libraryErrors?:string[];
     lastRunAt?:string|null;
     nextRunAt?:string|null;
-    summary?:{providerTitles:number;managedTitles:number;placeholders:number;downloaded:number;removed:number;realMatches:number};
+    summary?:{providerTitles:number;managedTitles:number;placeholders:number;downloaded:number;removed:number;failed?:number;realMatches:number;libraryAdded?:number;libraryExisting?:number;libraryFailed?:number};
   }|null;
 }
 export interface ReeltrackListsMountOptions {

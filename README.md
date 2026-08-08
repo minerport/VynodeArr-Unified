@@ -28,9 +28,10 @@ consistent experience and account system.
 ## Current release
 
 Version **2.0.35** is available for production use on Unraid, Windows, and
-standard Docker installations. Version **2.0.35-rc.32** is available as a
-prerelease with side-by-side Plex and VynodeArr movie-library review, filename
-visibility, and TMDB-based match correction. The production release includes a durable local Movie and Television catalog, targeted
+standard Docker installations. Version **2.0.36-rc.3** is available as a
+prerelease with managed Reeltrack trailer collections, automatic Movie and TV
+library registration, and separate Plex Movie and Television targets for mixed
+lists. The production release includes a durable local Movie and Television catalog, targeted
 event-driven updates, server-side paging, performance controls, and persistent
 artwork caching that reduce engine CPU and network load while preserving
 current library information and poster overlays. Persisted synchronization
@@ -339,13 +340,17 @@ owned trailer folder and removes the placeholder from the managed collection.
 
 VynodeArr creates each placeholder directly beneath the configured `/movies`
 root using a normal title folder and places only the downloaded trailer inside
-it. If Plex sees the movie root under another path, enter that Plex-visible root
-in the automation setup. When real media arrives, VynodeArr removes only its
+it. VynodeArr derives the Plex-visible root from the location reported by the
+selected Plex library, including installations where Plex uses a different
+container path for the same storage. The same synchronization also registers
+every missing TMDB-backed title with the appropriate VynodeArr Movie or
+Television engine using its configured root folder and quality profile; these
+entries are monitored without forcing an immediate search. When real media arrives, VynodeArr removes only its
 managed trailer file and removes the title folder only when it is empty, so a
 real movie file is never deleted. Each list stores its own collection name,
 Plex library, update interval, last and next run, reconciliation summary, and
-actionable error state. New downloads are processed in bounded batches so large
-lists converge without overwhelming TMDB, YouTube, storage, or Plex.
+actionable error state. Each synchronization processes every missing title and
+reports any trailer failures that still need attention.
 
 ### Personal interface presentation
 

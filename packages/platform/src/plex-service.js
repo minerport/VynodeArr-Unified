@@ -47,12 +47,13 @@ export class PlexService{
       version:String(identityContainer?.version||xmlAttribute(identity.value,'version')),
     };
     if(!server.machineIdentifier)throw new Error('The endpoint did not identify itself as a Plex Media Server');
-    const directoryValue=sections.value?.MediaContainer?.Directory,directories=sections.type==='json'?(Array.isArray(directoryValue)?directoryValue:directoryValue?[directoryValue]:[]):[...String(sections.value).matchAll(/<Directory\b[^>]*\/>/gi)].map(match=>match[0]);
+    const directoryValue=sections.value?.MediaContainer?.Directory,directories=sections.type==='json'?(Array.isArray(directoryValue)?directoryValue:directoryValue?[directoryValue]:[]):[...String(sections.value).matchAll(/<Directory\b[^>]*(?:\/>|>[\s\S]*?<\/Directory>)/gi)].map(match=>match[0]);
     const libraries=directories.map(item=>({
       key:String(item.key??xmlAttribute(item,'key')),
       title:decodeXml(item.title??xmlAttribute(item,'title')),
       type:String(item.type??xmlAttribute(item,'type')),
       uuid:String(item.uuid??xmlAttribute(item,'uuid')),
+      locations:[...new Set((sections.type==='json'?(Array.isArray(item.Location)?item.Location:item.Location?[item.Location]:[]).map(location=>location?.path):[...String(item).matchAll(/<Location\b[^>]*\bpath="([^"]+)"[^>]*\/>/gi)].map(match=>decodeXml(match[1]))).filter(Boolean).map(String))],
     })).filter(item=>item.key&&['movie','show'].includes(item.type));
     return{endpoint:cleanEndpoint(endpoint),server,libraries};
   }
