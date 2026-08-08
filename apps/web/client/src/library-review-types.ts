@@ -19,6 +19,16 @@ export interface VynodeReviewMovie {
   title: string;
   year: number | null;
   tmdbId: number | null;
+  folderPath: string;
+  filePath: string;
+}
+
+export interface FolderScanMovie {
+  path: string;
+  name: string;
+  status: "matched" | "unmatched";
+  movieId: number | null;
+  tmdbId: number | null;
   filePath: string;
 }
 
@@ -26,4 +36,5 @@ export interface MovieLibraryReview {
   libraries: Array<{ key: string; title: string; type: string }>;
   plex: PlexReviewMovie[];
   vynode: VynodeReviewMovie[];
+  scan: FolderScanMovie[];
 }

@@ -9968,19 +9968,49 @@ export function createApplication(options = {}) {
                 item.type === "movie" &&
                 (!libraryFilterProvided || requested.has(String(item.key))),
             ),
-            rawVynode = await management.execute("movie", "library", "GET"),
+            [rawVynode, rawRoots] = await Promise.all([
+              management.execute("movie", "library", "GET"),
+              management.execute("movie", "rootFolders", "GET"),
+            ]),
             vynode = (Array.isArray(rawVynode) ? rawVynode : []).map((item) => ({
               id: Number(item.id),
               publicId: `movie_${Number(item.id)}`,
               title: item.title || "Untitled movie",
               year: Number(item.year) || null,
               tmdbId: Number(item.tmdbId) || null,
+              folderPath: item.path || "",
               filePath:
                 item.movieFile?.path ||
                 (item.path && item.movieFile?.relativePath
                   ? joinMediaPath(item.path, item.movieFile.relativePath)
                   : item.path || ""),
-            }));
+            })),
+            scanByPath = new Map();
+          for (const item of vynode) {
+            const path = normalizeMediaPath(item.folderPath);
+            if (path)
+              scanByPath.set(path.toLowerCase(), {
+                path,
+                name: item.title,
+                status: "matched",
+                movieId: item.id,
+                tmdbId: item.tmdbId,
+                filePath: item.filePath,
+              });
+          }
+          for (const root of Array.isArray(rawRoots) ? rawRoots : [])
+            for (const folder of root.unmappedFolders || []) {
+              const path = normalizeMediaPath(folder.path);
+              if (path && !scanByPath.has(path.toLowerCase()))
+                scanByPath.set(path.toLowerCase(), {
+                  path,
+                  name: folder.name || path.split("/").at(-1) || path,
+                  status: "unmatched",
+                  movieId: null,
+                  tmdbId: null,
+                  filePath: "",
+                });
+            }
           const plex = [];
           for (const library of libraries) {
             const items = await plexService.libraryItems(
@@ -10011,6 +10041,9 @@ export function createApplication(options = {}) {
             ),
             plex: plex.sort((a, b) => a.title.localeCompare(b.title)),
             vynode: vynode.sort((a, b) => a.title.localeCompare(b.title)),
+            scan: [...scanByPath.values()].sort((a, b) =>
+              a.name.localeCompare(b.name),
+            ),
           });
         }
         if (

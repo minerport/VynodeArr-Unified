@@ -3,13 +3,24 @@ import { ServiceTabs } from "./service-tabs";
 import type {
   LibraryReviewMountOptions,
   MovieLibraryReview,
+  FolderScanMovie,
   PlexReviewMovie,
   VynodeReviewMovie,
 } from "./library-review-types";
 import "./library-review.css";
+import "./library-review-mismatch.css";
 
 const matches = (query: string, ...values: unknown[]) =>
   !query || values.join(" ").toLowerCase().includes(query.toLowerCase());
+
+const lettersOnly = (value: string) =>
+  value.normalize("NFKD").replace(/[^a-z]/gi, "").toLowerCase();
+
+const filenameMatchesTitle = (filePath: string, title: string) => {
+  const filename = filePath.split(/[\\/]/).pop()?.replace(/\.[^.]+$/, "") || "";
+  const normalizedTitle = lettersOnly(title);
+  return !normalizedTitle || lettersOnly(filename).includes(normalizedTitle);
+};
 
 function PlexMovieRow({
   item,
@@ -20,9 +31,12 @@ function PlexMovieRow({
   selected: boolean;
   onSelect: () => void;
 }) {
+  const filenameMismatch =
+    item.filePaths.length > 0 &&
+    item.filePaths.some((filePath) => !filenameMatchesTitle(filePath, item.title));
   return (
     <button
-      className={`library-review-item${selected ? " selected" : ""}`}
+      className={`library-review-item${selected ? " selected" : ""}${filenameMismatch ? " filename-mismatch" : ""}`}
       type="button"
       onClick={onSelect}
     >
@@ -34,6 +48,7 @@ function PlexMovieRow({
         </small>
       </span>
       <code>{item.filePaths.join("\n") || "No Plex filename reported"}</code>
+      {filenameMismatch ? <small className="filename-mismatch-note">Filename does not match library title</small> : null}
     </button>
   );
 }
@@ -47,9 +62,11 @@ function VynodeMovieRow({
   selected: boolean;
   onSelect: () => void;
 }) {
+  const filenameMismatch =
+    Boolean(item.filePath) && !filenameMatchesTitle(item.filePath, item.title);
   return (
     <button
-      className={`library-review-item${selected ? " selected" : ""}`}
+      className={`library-review-item${selected ? " selected" : ""}${filenameMismatch ? " filename-mismatch" : ""}`}
       type="button"
       onClick={onSelect}
     >
@@ -61,7 +78,31 @@ function VynodeMovieRow({
         </small>
       </span>
       <code>{item.filePath || "No VynodeArr filename reported"}</code>
+      {filenameMismatch ? <small className="filename-mismatch-note">Filename does not match library title</small> : null}
     </button>
+  );
+}
+
+function FolderScanRow({ item }: { item: FolderScanMovie }) {
+  const filenameMismatch =
+    item.status === "matched" &&
+    Boolean(item.filePath) &&
+    !filenameMatchesTitle(item.filePath, item.name);
+  return (
+    <article className={`library-review-item folder-scan-item ${item.status}${filenameMismatch ? " filename-mismatch" : ""}`}>
+      <span>
+        <strong>{item.name}</strong>
+        <small>
+          <span className={`badge ${item.status === "matched" ? "green" : "warm"}`}>
+            {item.status === "matched" ? "Matched" : "Unmatched"}
+          </span>
+          {item.tmdbId ? ` TMDB ${item.tmdbId}` : ""}
+        </small>
+      </span>
+      <code>{item.path}</code>
+      {item.filePath && item.filePath !== item.path ? <code>{item.filePath}</code> : null}
+      {filenameMismatch ? <small className="filename-mismatch-note">Filename does not match library title</small> : null}
+    </article>
   );
 }
 
@@ -74,12 +115,15 @@ export function LibraryReviewView({
     [selectedLibraries, setSelectedLibraries] = useState<string[]>([]),
     [plexQuery, setPlexQuery] = useState(""),
     [vynodeQuery, setVynodeQuery] = useState(""),
+    [scanQuery, setScanQuery] = useState(""),
+    [scanFilter, setScanFilter] = useState<"all" | "matched" | "unmatched">("all"),
     [selectedPlex, setSelectedPlex] = useState<PlexReviewMovie | null>(null),
     [selectedVynode, setSelectedVynode] =
       useState<VynodeReviewMovie | null>(null),
     [manualTmdbId, setManualTmdbId] = useState(""),
     [plexLimit, setPlexLimit] = useState(100),
     [vynodeLimit, setVynodeLimit] = useState(100),
+    [scanLimit, setScanLimit] = useState(100),
     [loading, setLoading] = useState(true),
     [saving, setSaving] = useState(false),
     [error, setError] = useState("");
@@ -101,6 +145,7 @@ export function LibraryReviewView({
       setSelectedVynode(null);
       setPlexLimit(100);
       setVynodeLimit(100);
+      setScanLimit(100);
       setError("");
     } catch (reason) {
       setError(
@@ -141,6 +186,15 @@ export function LibraryReviewView({
           ),
         ),
       [review, vynodeQuery],
+    ),
+    scanItems = useMemo(
+      () =>
+        (review?.scan || []).filter(
+          (item) =>
+            (scanFilter === "all" || item.status === scanFilter) &&
+            matches(scanQuery, item.name, item.path, item.filePath, item.tmdbId),
+        ),
+      [review, scanQuery, scanFilter],
     );
 
   const applyMatch = async (tmdbId: number | null) => {
@@ -179,10 +233,10 @@ export function LibraryReviewView({
       <div className="hero">
         <div>
           <span className="eyebrow">LIBRARY REVIEW</span>
-          <h1>Plex and VynodeArr movies</h1>
+          <h1>Compare every movie location</h1>
           <p className="lede">
-            Review two independent library lists at the same time. Titles are
-            never forced into matching rows.
+            Review Plex, VynodeArr, and the movie folders on disk without
+            forcing unrelated titles into the same row.
           </p>
         </div>
         <button className="secondary" disabled={loading} onClick={() => void load()}>
@@ -215,6 +269,10 @@ export function LibraryReviewView({
       ) : null}
       {error ? <div className="notice error-state">{error}</div> : null}
       <section className="panel library-review-match-tools">
+        <div className="library-review-match-heading">
+          <span className="eyebrow">FIX A VYNODEARR MATCH</span>
+          <strong>Select one title in each library, or enter a TMDB ID.</strong>
+        </div>
         <div>
           <strong>Selected VynodeArr title</strong>
           <span>{selectedVynode?.title || "Choose a VynodeArr movie below"}</span>
@@ -324,6 +382,52 @@ export function LibraryReviewView({
                 selected={selectedVynode?.publicId === item.publicId}
                 onSelect={() => setSelectedVynode(item)}
               />
+            ))}
+          </div>
+        </section>
+        <section className="panel folder-scan-column">
+          <header>
+            <div>
+              <span className="eyebrow">MOVIE FOLDERS</span>
+              <h2>{scanItems.length.toLocaleString()} folders</h2>
+            </div>
+            <input
+              type="search"
+              placeholder="Find folder or filename"
+              value={scanQuery}
+              onChange={(event) => {
+                setScanQuery(event.target.value);
+                setScanLimit(100);
+              }}
+            />
+            <div className="library-review-filter-tabs" aria-label="Filter scanned folders">
+              {(["all", "matched", "unmatched"] as const).map((value) => (
+                <button
+                  type="button"
+                  className={scanFilter === value ? "active" : ""}
+                  key={value}
+                  onClick={() => {
+                    setScanFilter(value);
+                    setScanLimit(100);
+                  }}
+                >
+                  {value[0].toUpperCase() + value.slice(1)} {value === "all"
+                    ? review?.scan.length || 0
+                    : review?.scan.filter((item) => item.status === value).length || 0}
+                </button>
+              ))}
+            </div>
+          </header>
+          <div
+            className="library-review-list"
+            onScroll={(event) => {
+              const node = event.currentTarget;
+              if (node.scrollTop + node.clientHeight >= node.scrollHeight - 160)
+                setScanLimit((value) => Math.min(value + 100, scanItems.length));
+            }}
+          >
+            {scanItems.slice(0, scanLimit).map((item) => (
+              <FolderScanRow item={item} key={item.path} />
             ))}
           </div>
         </section>
