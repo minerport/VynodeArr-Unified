@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 export type ServiceSection =
   | "root-folders"
   | "library-health"
+  | "library-review"
   | "media-management"
   | "poster-overlays"
   | "profiles"
@@ -27,6 +28,12 @@ const tabs: Array<{ section: ServiceSection; label: string; href: string; group:
     section: "library-health",
     label: "Library Health",
     href: "#service/library-health",
+    group: "Library",
+  },
+  {
+    section: "library-review",
+    label: "Library Review",
+    href: "#service/library-review",
     group: "Library",
   },
   {

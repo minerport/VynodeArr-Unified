@@ -1403,3 +1403,19 @@ test('new poster styles require explicit media and destination choices',async()=
   assert.match(rail,/Choose Movies or Television/);
   assert.doesNotMatch(rail,/<option value="all">Movies & television<\/option>/);
 });
+
+test('movie library review keeps Plex and VynodeArr lists independent while allowing TMDB rematches',async()=>{
+  const [review,types,styles,server,tabs,routing,islands]=await Promise.all([
+    read('apps/web/client/src/library-review.tsx'),
+    read('apps/web/client/src/library-review-types.ts'),
+    read('apps/web/client/src/library-review.css'),
+    read('apps/api/src/app.js'),
+    read('apps/web/client/src/service-tabs.tsx'),
+    read('apps/web/client/src/service-settings-routing.ts'),
+    read('apps/web/client/src/react-islands.tsx')
+  ]);
+  for(const value of ['Plex and VynodeArr movies','plexItems.slice','vynodeItems.slice','filePaths.join','item.filePath','Use Plex TMDB ID','Or enter a TMDB ID','/api/media-match'])assert.ok(review.includes(value),value);
+  for(const value of ['/api/library-review/movies','plexExternalIds','movieFile?.path','libraryTitle','filePaths'])assert.ok(server.includes(value),value);
+  assert.match(types,/PlexReviewMovie/);assert.match(types,/VynodeReviewMovie/);assert.match(styles,/grid-template-columns:repeat\(2/);
+  assert.match(tabs,/Library Review/);assert.match(routing,/libraryReview/);assert.match(islands,/mountLibraryReview/);
+});

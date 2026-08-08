@@ -31,6 +31,7 @@ import { EngineManagementService } from "../../../packages/platform/src/engine-m
 import { EngineUpdateReviewService } from "../../../packages/platform/src/engine-update-review-service.js";
 import {
   PlexService,
+  plexExternalIds,
   sanitizePlexEndpoint,
 } from "../../../packages/platform/src/plex-service.js";
 import { JsonStore } from "../../../packages/platform/src/json-store.js";
@@ -9943,6 +9944,73 @@ export function createApplication(options = {}) {
           return json(res, 200, {
             ...configuration,
             variables: posterVariables,
+          });
+        }
+        if (url.pathname === "/api/library-review/movies" && req.method === "GET") {
+          if (!administrator(res, session)) return;
+          const settings = await plexSettingsStore.read(),
+            token = await engineSettings.plexCredential();
+          if (!settings.endpoint || !token)
+            return json(res, 400, {
+              error: {
+                code: "plex_not_configured",
+                message: "Connect Plex in Poster Overlays before reviewing libraries.",
+              },
+            });
+          const requested = new Set(
+              String(url.searchParams.get("libraryKeys") || "")
+                .split(",")
+                .filter(Boolean),
+            ),
+            libraryFilterProvided = url.searchParams.has("libraryKeys"),
+            libraries = (settings.libraries || []).filter(
+              (item) =>
+                item.type === "movie" &&
+                (!libraryFilterProvided || requested.has(String(item.key))),
+            ),
+            rawVynode = await management.execute("movie", "library", "GET"),
+            vynode = (Array.isArray(rawVynode) ? rawVynode : []).map((item) => ({
+              id: Number(item.id),
+              publicId: `movie_${Number(item.id)}`,
+              title: item.title || "Untitled movie",
+              year: Number(item.year) || null,
+              tmdbId: Number(item.tmdbId) || null,
+              filePath:
+                item.movieFile?.path ||
+                (item.path && item.movieFile?.relativePath
+                  ? joinMediaPath(item.path, item.movieFile.relativePath)
+                  : item.path || ""),
+            }));
+          const plex = [];
+          for (const library of libraries) {
+            const items = await plexService.libraryItems(
+              settings.endpoint,
+              token,
+              library,
+            );
+            plex.push(
+              ...items.map((item) => {
+                const tmdb = plexExternalIds(item)
+                  .find((value) => value.startsWith("tmdb:"))
+                  ?.slice(5);
+                return {
+                  ratingKey: item.ratingKey,
+                  title: item.title || "Untitled movie",
+                  year: Number(item.year) || null,
+                  tmdbId: Number(tmdb) || null,
+                  libraryKey: String(library.key),
+                  libraryTitle: library.title,
+                  filePaths: Array.isArray(item.files) ? item.files : [],
+                };
+              }),
+            );
+          }
+          return json(res, 200, {
+            libraries: (settings.libraries || []).filter(
+              (item) => item.type === "movie",
+            ),
+            plex: plex.sort((a, b) => a.title.localeCompare(b.title)),
+            vynode: vynode.sort((a, b) => a.title.localeCompare(b.title)),
           });
         }
         if (

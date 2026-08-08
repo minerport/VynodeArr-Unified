@@ -27,6 +27,7 @@ const unmountMethods=[
   'unmountManagement',
   'unmountMediaManagement',
   'unmountLibraryHealth',
+  'unmountLibraryReview',
   'unmountPosterOverlays',
   'unmountRootFolders',
   'unmountProviderSettings',

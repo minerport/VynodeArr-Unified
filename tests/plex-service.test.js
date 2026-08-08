@@ -38,6 +38,11 @@ test('Plex library metadata retains numeric and ISO added timestamps',async()=>{
   assert.equal(items[0].addedAt,1786057200);assert.equal(items[1].addedAt,'2026-08-01T12:00:00.000Z');
 });
 
+test('Plex library metadata retains every movie filename for independent library review',async()=>{
+  const service=new PlexService({fetchImpl:async()=>new Response(JSON.stringify({MediaContainer:{Metadata:[{ratingKey:'1',title:'Two files',Guid:[{id:'tmdb://1'}],Media:[{Part:[{file:'/plex/movies/Two files/part-one.mkv'},{file:'/plex/movies/Two files/part-two.mkv'}]}]}]}}))}),items=await service.libraryItems('http://plex.local:32400','token',{key:'1',type:'movie'});
+  assert.deepEqual(items[0].files,['/plex/movies/Two files/part-one.mkv','/plex/movies/Two files/part-two.mkv']);
+});
+
 test('Plex artwork proxy accepts bounded image responses and rejects arbitrary paths',async()=>{
   const service=new PlexService({fetchImpl:async()=>new Response(Buffer.from('poster-bytes'),{headers:{'content-type':'image/jpeg'}})}),artwork=await service.artwork('http://plex.local:32400','token','/library/metadata/12/thumb/34');assert.equal(artwork.contentType,'image/jpeg');assert.equal(artwork.body.toString(),'poster-bytes');await assert.rejects(service.artwork('http://plex.local:32400','token','/system/accounts'),/path is invalid/);
 });

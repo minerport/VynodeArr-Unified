@@ -7,6 +7,19 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.35-rc.32] - 2026-08-07
+
+### Added
+
+- Added a Library Review page with independent Plex and VynodeArr movie lists displayed side by side.
+- Displayed each title's movie library, TMDB ID, and filename or full media path without forcing titles into paired rows.
+- Added independent searching, scrolling, and Plex movie-library filtering.
+- Allowed administrators to correct a selected VynodeArr match using the selected Plex title's TMDB ID or a manually entered TMDB ID.
+
+### Validation
+
+- Passed 210 automated tests, TypeScript checks, production builds, bundle and branding checks, and deployment validation.
+
 ## [2.0.35-rc.31] - 2026-08-07
 
 ### Fixed
