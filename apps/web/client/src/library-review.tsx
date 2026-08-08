@@ -239,11 +239,11 @@ export function LibraryReviewView({
       [review, scanQuery, scanFilter],
     );
 
-  const applyMatch = async (tmdbId: number | null) => {
-    if (!selectedVynode || !tmdbId) return;
+  const applyMatch = async ({ tmdbId, imdbId }: { tmdbId?: number | null; imdbId?: string | null }) => {
+    if (!selectedVynode || (!tmdbId && !imdbId)) return;
     if (
       !window.confirm(
-        `Change ${selectedVynode.title} to TMDB ${tmdbId}? The media engine will update the match and organize its files.`,
+        `Change ${selectedVynode.title} to ${imdbId ? `IMDb ${imdbId}` : `TMDB ${tmdbId}`}? The media engine will update the match and organize its files.`,
       )
     )
       return;
@@ -254,7 +254,8 @@ export function LibraryReviewView({
         body: JSON.stringify({
           domain: "movie",
           mediaId: selectedVynode.id,
-          tmdbId,
+          tmdbId: tmdbId || null,
+          imdbId: imdbId || null,
         }),
       });
       options.notify("Movie match updated.");
@@ -271,15 +272,21 @@ export function LibraryReviewView({
   };
 
   const searchTmdbId = async () => {
-    const tmdbId = Number(manualTmdbId);
-    if (!Number.isInteger(tmdbId) || tmdbId < 1) return;
+    const externalId = manualTmdbId.trim(), tmdbId = Number(externalId), isImdb = /^tt\d+$/i.test(externalId);
+    if (!isImdb && (!Number.isInteger(tmdbId) || tmdbId < 1)) return;
     setTmdbSearching(true);
     setManualTmdbMatch(null);
     try {
-      const value = await options.request<{ item: MatchCandidate }>(
-        `/api/discover/details/movie/${tmdbId}`,
-      );
-      setManualTmdbMatch(value.item || null);
+      if (isImdb) {
+        const imdbId = externalId.toLowerCase(), value = await options.request<{ result: MatchCandidate[] }>(
+          `/api/manage/movie/lookup?term=${encodeURIComponent(`imdb:${imdbId}`)}`,
+        ), match = (value.result || []).find((item) => String(item.imdbId || "").toLowerCase() === imdbId);
+        setManualTmdbMatch(match ? { ...match, tmdbId: 0, imdbId } : null);
+        if (!match) options.notify("The movie engine could not find that IMDb ID.", "error");
+      } else {
+        const value = await options.request<{ item: MatchCandidate }>(`/api/discover/details/movie/${tmdbId}`);
+        setManualTmdbMatch(value.item || null);
+      }
     } catch (reason) {
       options.notify(reason instanceof Error ? reason.message : "That TMDB ID was not found.", "error");
     } finally {
@@ -421,16 +428,17 @@ export function LibraryReviewView({
         <button
           className="primary"
           disabled={saving || !selectedVynode || !selectedPlex?.tmdbId}
-          onClick={() => void applyMatch(selectedPlex?.tmdbId || null)}
+          onClick={() => void applyMatch({ tmdbId: selectedPlex?.tmdbId || null })}
         >
           Use Plex TMDB ID
         </button>
         <label>
-          Search by TMDB ID
+          Search by TMDB or IMDb ID
           <span>
             <input
-              type="number"
-              min="1"
+              type="text"
+              inputMode="text"
+              placeholder="TMDB ID or tt IMDb ID"
               value={manualTmdbId}
               onChange={(event) => {
                 setManualTmdbId(event.target.value);
@@ -446,7 +454,7 @@ export function LibraryReviewView({
             <button
               className="secondary"
               type="button"
-              disabled={tmdbSearching || !Number(manualTmdbId)}
+              disabled={tmdbSearching || (!Number(manualTmdbId) && !/^tt\d+$/i.test(manualTmdbId.trim()))}
               onClick={() => void searchTmdbId()}
             >
               {tmdbSearching ? "Searching…" : "Search"}
@@ -455,8 +463,8 @@ export function LibraryReviewView({
           {manualTmdbMatch ? (
             <span className="library-review-tmdb-result">
               <strong>{manualTmdbMatch.title}{manualTmdbMatch.year ? ` (${manualTmdbMatch.year})` : ""}</strong>
-              <small>TMDB {manualTmdbMatch.tmdbId}</small>
-              <button className="primary" type="button" disabled={saving || !selectedVynode} onClick={() => void applyMatch(manualTmdbMatch.tmdbId)}>
+              <small>{manualTmdbMatch.imdbId ? `IMDb ${manualTmdbMatch.imdbId}` : `TMDB ${manualTmdbMatch.tmdbId}`}</small>
+              <button className="primary" type="button" disabled={saving || !selectedVynode} onClick={() => void applyMatch({ tmdbId: manualTmdbMatch.tmdbId || null, imdbId: manualTmdbMatch.imdbId || null })}>
                 Use this match
               </button>
             </span>

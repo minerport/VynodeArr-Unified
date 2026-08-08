@@ -2646,44 +2646,51 @@ export function createApplication(options = {}) {
   async function rematchMedia(input) {
     const domain = String(input.domain || ""),
       mediaId = Number(input.mediaId),
-      tmdbId = Number(input.tmdbId);
+      tmdbId = Number(input.tmdbId),
+      imdbId = String(input.imdbId || "").trim().toLowerCase(),
+      hasTmdbId = Number.isInteger(tmdbId) && tmdbId > 0,
+      hasImdbId = /^tt\d+$/.test(imdbId);
     if (
       !["movie", "tv"].includes(domain) ||
       !Number.isFinite(mediaId) ||
-      !Number.isFinite(tmdbId)
+      (!hasTmdbId && !hasImdbId)
     )
-      throw new Error("Choose a valid TMDB match");
-    if (!discovery.configured())
+      throw new Error("Choose a valid TMDB or IMDb match");
+    if (hasTmdbId && !discovery.configured())
       throw new Error(
         "Add a TMDB key in Service Settings before fixing library matches.",
       );
-    const current = await management.execute(domain, "library", "GET", {
-        id: mediaId,
-      }),
-      metadata = await discovery.details(domain, tmdbId);
-    const identity = { tmdbId: tmdbId, tvdbId: metadata.tvdbId };
+    const current = await management.execute(domain, "library", "GET", { id: mediaId });
+    let metadata = null;
     let match;
-    for (const term of lookupTermsForIdentity(domain, identity)) {
+    if (hasImdbId && !hasTmdbId) {
       const matches = await management.execute(domain, "lookup", "GET", {
-        query: { term: term },
+        query: { term: `imdb:${imdbId}` },
       });
-      match = exactEngineMatch(
-        domain,
-        identity,
-        Array.isArray(matches) ? matches : [],
+      match = (Array.isArray(matches) ? matches : []).find(
+        (value) => String(value.imdbId || "").toLowerCase() === imdbId,
       );
-      if (match) break;
+      metadata = match;
+    } else {
+      metadata = await discovery.details(domain, tmdbId);
+      const identity = { tmdbId: tmdbId, tvdbId: metadata.tvdbId };
+      for (const term of lookupTermsForIdentity(domain, identity)) {
+        const matches = await management.execute(domain, "lookup", "GET", { query: { term: term } });
+        match = exactEngineMatch(domain, identity, Array.isArray(matches) ? matches : []);
+        if (match) break;
+      }
     }
     if (!match)
       throw new Error(
-        `The ${domain === "movie" ? "movie" : "television"} engine could not resolve that TMDB title. Try another match.`,
+        `The ${domain === "movie" ? "movie" : "television"} engine could not resolve that external ID. Try another match.`,
       );
     const library = await management.execute(domain, "library", "GET"),
       records = Array.isArray(library) ? library : library?.records || [],
       duplicate = records.find(
         (value) =>
           Number(value.id) !== mediaId &&
-          (Number(value.tmdbId) === tmdbId ||
+          ((hasTmdbId && Number(value.tmdbId) === tmdbId) ||
+            (hasImdbId && String(value.imdbId || "").toLowerCase() === imdbId) ||
             (metadata.tvdbId &&
               Number(value.tvdbId) === Number(metadata.tvdbId))),
       );
@@ -2791,7 +2798,8 @@ export function createApplication(options = {}) {
       domain: domain,
       id: Number(result.id),
       title: result.title || metadata.title,
-      tmdbId: tmdbId,
+      tmdbId: Number(result.tmdbId) || (hasTmdbId ? tmdbId : null),
+      imdbId: result.imdbId || (hasImdbId ? imdbId : null),
     };
   }
   async function reassignMediaFile(input) {
@@ -11585,6 +11593,7 @@ export function createApplication(options = {}) {
             metadata: {
               mediaId: input.mediaId || null,
               tmdbId: input.tmdbId || null,
+              imdbId: input.imdbId || null,
             },
           });
           return json(res, 200, { matched: true, result: result });
