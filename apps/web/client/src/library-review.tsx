@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ServiceTabs } from "./service-tabs";
+import { ModalPortal } from "./modal-portal";
+import { RenamePreview, type RenamePreviewRecord } from "./rename-preview";
 import type {
   LibraryReviewMountOptions,
   MovieLibraryReview,
@@ -22,14 +24,29 @@ const filenameMatchesTitle = (filePath: string, title: string) => {
   return !normalizedTitle || lettersOnly(filename).includes(normalizedTitle);
 };
 
+const comparisonTitleKey = (value: string, folder = false) =>
+  (folder ? value.replace(/\s*\((?:19|20)\d{2}\)\s*$/, "") : value)
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/gi, "")
+    .toLowerCase();
+
+function ComparisonBadge({ label, matched }: { label: string; matched: boolean }) {
+  return <span className={`title-comparison ${matched ? "matched" : "missing"}`}>{label}: {matched ? "Match" : "No match"}</span>;
+}
+
 function PlexMovieRow({
   item,
   selected,
   onSelect,
+  vynodeMatch,
+  folderMatch,
 }: {
   item: PlexReviewMovie;
   selected: boolean;
   onSelect: () => void;
+  vynodeMatch: boolean;
+  folderMatch: boolean;
 }) {
   const filenameMismatch =
     item.filePaths.length > 0 &&
@@ -47,6 +64,7 @@ function PlexMovieRow({
           {item.tmdbId ? ` · TMDB ${item.tmdbId}` : " · No TMDB ID"}
         </small>
       </span>
+      <span className="title-comparisons"><ComparisonBadge label="VynodeArr" matched={vynodeMatch} /><ComparisonBadge label="Folder" matched={folderMatch} /></span>
       <code>{item.filePaths.join("\n") || "No Plex filename reported"}</code>
       {filenameMismatch ? <small className="filename-mismatch-note">Filename does not match library title</small> : null}
     </button>
@@ -57,10 +75,12 @@ function VynodeMovieRow({
   item,
   selected,
   onSelect,
+  plexMatch,
 }: {
   item: VynodeReviewMovie;
   selected: boolean;
   onSelect: () => void;
+  plexMatch: boolean;
 }) {
   const filenameMismatch =
     Boolean(item.filePath) && !filenameMatchesTitle(item.filePath, item.title);
@@ -77,13 +97,14 @@ function VynodeMovieRow({
           {item.tmdbId ? ` · TMDB ${item.tmdbId}` : " · No TMDB ID"}
         </small>
       </span>
+      <span className="title-comparisons"><ComparisonBadge label="Plex" matched={plexMatch} /></span>
       <code>{item.filePath || "No VynodeArr filename reported"}</code>
       {filenameMismatch ? <small className="filename-mismatch-note">Filename does not match library title</small> : null}
     </button>
   );
 }
 
-function FolderScanRow({ item, selected, onSelect }: { item: FolderScanMovie; selected: boolean; onSelect: () => void }) {
+function FolderScanRow({ item, selected, onSelect, plexMatch }: { item: FolderScanMovie; selected: boolean; onSelect: () => void; plexMatch: boolean }) {
   const filenameMismatch =
     item.status === "matched" &&
     Boolean(item.filePath) &&
@@ -99,6 +120,7 @@ function FolderScanRow({ item, selected, onSelect }: { item: FolderScanMovie; se
           {item.tmdbId ? ` TMDB ${item.tmdbId}` : ""}
         </small>
       </span>
+      <span className="title-comparisons"><ComparisonBadge label="Plex" matched={plexMatch} /></span>
       {item.matchType === "title" ? <small>Already in VynodeArr as {item.vynodeTitle}</small> : null}
       <code>{item.path}</code>
       {item.filePath && item.filePath !== item.path ? <code>{item.filePath}</code> : null}
@@ -123,6 +145,8 @@ export function LibraryReviewView({
       useState<VynodeReviewMovie | null>(null),
     [selectedFolder, setSelectedFolder] = useState<FolderScanMovie | null>(null),
     [qualityProfileId, setQualityProfileId] = useState(0),
+    [renamePreview, setRenamePreview] = useState<RenamePreviewRecord | null>(null),
+    [renameBusy, setRenameBusy] = useState<"" | "preview" | "apply">(""),
     [manualTmdbId, setManualTmdbId] = useState(""),
     [plexLimit, setPlexLimit] = useState(100),
     [vynodeLimit, setVynodeLimit] = useState(100),
@@ -168,6 +192,10 @@ export function LibraryReviewView({
   useEffect(() => {
     void load(null);
   }, []);
+
+  const plexTitleKeys = useMemo(() => new Set((review?.plex || []).map((item) => comparisonTitleKey(item.title)).filter(Boolean)), [review]),
+    vynodeTitleKeys = useMemo(() => new Set((review?.vynode || []).map((item) => comparisonTitleKey(item.title)).filter(Boolean)), [review]),
+    folderTitleKeys = useMemo(() => new Set((review?.scan || []).map((item) => comparisonTitleKey(item.name, true)).filter(Boolean)), [review]);
 
   const plexItems = useMemo(
       () =>
@@ -270,6 +298,44 @@ export function LibraryReviewView({
     }
   };
 
+  const openRenamePreview = async () => {
+    if (!selectedVynode) return;
+    setRenameBusy("preview");
+    try {
+      const value = await options.request<{ preview: RenamePreviewRecord }>(
+        `/api/media-files/rename?domain=movie&mediaId=${selectedVynode.id}`,
+      );
+      setRenamePreview(value.preview);
+    } catch (reason) {
+      options.notify(reason instanceof Error ? reason.message : "The rename preview could not be created.", "error");
+    } finally {
+      setRenameBusy("");
+    }
+  };
+
+  const applyRename = async (selection: { moveFolder: boolean; fileIds: number[] }) => {
+    if (!selectedVynode || !renamePreview) return;
+    setRenameBusy("apply");
+    try {
+      await options.request("/api/media-files/rename", {
+        method: "POST",
+        body: JSON.stringify({
+          domain: "movie",
+          mediaId: selectedVynode.id,
+          previewId: renamePreview.previewId,
+          ...selection,
+        }),
+      });
+      options.notify(`Naming-standard changes queued for ${selectedVynode.title}.`);
+      setRenamePreview(null);
+      await load(selectedLibraries);
+    } catch (reason) {
+      options.notify(reason instanceof Error ? reason.message : "The movie was not organized.", "error");
+    } finally {
+      setRenameBusy("");
+    }
+  };
+
   return (
     <div className="library-review-route">
       <div className="hero">
@@ -318,6 +384,9 @@ export function LibraryReviewView({
         <div>
           <strong>Selected VynodeArr title</strong>
           <span>{selectedVynode?.title || "Choose a VynodeArr movie below"}</span>
+          <button className="secondary library-review-selected-action" type="button" disabled={!selectedVynode || Boolean(renameBusy)} onClick={() => void openRenamePreview()}>
+            {renameBusy === "preview" ? "Building preview…" : "Rename & organize"}
+          </button>
         </div>
         <div>
           <strong>Selected Plex TMDB match</strong>
@@ -407,6 +476,8 @@ export function LibraryReviewView({
                   selectedPlex.ratingKey === item.ratingKey
                 }
                 onSelect={() => setSelectedPlex(item)}
+                vynodeMatch={vynodeTitleKeys.has(comparisonTitleKey(item.title))}
+                folderMatch={folderTitleKeys.has(comparisonTitleKey(item.title))}
               />
             ))}
           </div>
@@ -443,6 +514,7 @@ export function LibraryReviewView({
                 item={item}
                 selected={selectedVynode?.publicId === item.publicId}
                 onSelect={() => setSelectedVynode(item)}
+                plexMatch={plexTitleKeys.has(comparisonTitleKey(item.title))}
               />
             ))}
           </div>
@@ -494,11 +566,13 @@ export function LibraryReviewView({
                 key={item.path}
                 selected={selectedFolder?.path === item.path}
                 onSelect={() => item.status === "unmatched" && setSelectedFolder(item)}
+                plexMatch={plexTitleKeys.has(comparisonTitleKey(item.name, true))}
               />
             ))}
           </div>
         </section>
       </div>
+      {renamePreview ? <ModalPortal><RenamePreview preview={renamePreview} busy={renameBusy === "apply"} onClose={() => setRenamePreview(null)} onApply={applyRename} /></ModalPortal> : null}
     </div>
   );
 }

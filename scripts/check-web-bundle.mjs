@@ -41,7 +41,7 @@ const posterOverlayAllowance={route:7_700,css:6_700};
 const reeltrackAllowance={shell:600,css:7_500};
 // Library Review adds one administrator-only mount bridge and a responsive,
 // independently loaded two-column file comparison surface.
-const libraryReviewAllowance={shell:600,css:4_100};
+const libraryReviewAllowance={shell:600,css:4_500};
 const failures=[];
 
 if(!entry)failures.push('The React entry bundle was not produced.');
