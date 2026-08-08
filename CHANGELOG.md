@@ -7,6 +7,15 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.36-rc.17] - 2026-08-08
+
+### Fixed
+
+- Enriched managed Reeltrack title overlays with TMDB metadata before every
+  render so genre-driven shapes appear on Plex placeholders.
+- Made rating, runtime, certification, studio, and network variables available
+  to list overlays even when Plex trailer placeholders omit that metadata.
+
 ## [2.0.36-rc.16] - 2026-08-08
 
 ### Fixed

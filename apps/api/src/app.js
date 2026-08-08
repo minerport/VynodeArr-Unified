@@ -1622,13 +1622,21 @@ export function createApplication(options = {}) {
           pathTmdbId = (plexItem.files || []).map((file) => String(file).match(/\[tmdb-(\d+)\]/i)?.[1]).find(Boolean),
           tmdbId = Number(identity?.split(":")[1] || pathTmdbId || 0),
           source = (list.items || []).find((value) => String(value.tmdbId || "") === String(tmdbId || "")) || {},
+          metadata = tmdbId ? await discovery.details(domain, tmdbId).catch(() => null) : null,
           original = await reeltrackOriginalArtwork({ automation, endpoint, token, machineIdentifier, ratingKey: plexItem.ratingKey, artworkPath: plexItem.thumb, domain, kind: "title" }).catch(() => null),
           poster = original?.body || await remotePosterBuffer(domain, tmdbId);
         if (!poster?.length) throw new Error("No Plex or provider poster was available");
         const
           rendered = await renderedReeltrackArtwork(template, {
+            ...(metadata || {}),
             ...source,
             ...plexItem,
+            genres: source.genres?.length ? source.genres : metadata?.genres || plexItem.genres || [],
+            rating: source.rating || metadata?.rating || plexItem.rating || null,
+            runtimeMinutes: source.runtimeMinutes || source.runtime || metadata?.runtimeMinutes || metadata?.runtime || null,
+            certification: source.certification || metadata?.certification || plexItem.certification || "",
+            studio: source.studio || metadata?.studio || plexItem.studio || "",
+            network: source.network || metadata?.network || plexItem.network || "",
             collection: list.automation?.collectionName || list.name,
             collectionName: list.automation?.collectionName || list.name,
             collectionTitleCount: ratingKeys.length,
