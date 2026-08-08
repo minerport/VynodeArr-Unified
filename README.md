@@ -27,41 +27,30 @@ consistent experience and account system.
 
 ## Current release
 
-Version **2.0.35** is available for production use on Unraid, Windows, and
-standard Docker installations. Version **2.0.35-rc.32** is available as a
-prerelease with side-by-side Plex and VynodeArr movie-library review, filename
-visibility, and TMDB-based match correction. The production release includes a durable local Movie and Television catalog, targeted
-event-driven updates, server-side paging, performance controls, and persistent
-artwork caching that reduce engine CPU and network load while preserving
-current library information and poster overlays. Persisted synchronization
-health now survives restarts, and a temporary engine or attention-summary
-failure keeps the durable catalog available instead of replacing the library
-with a generic load failure. RC.6 adds per-engine circuit breakers, prioritized
-and deduplicated synchronization queues, catalog integrity diagnostics, and
-safe administrator retry and rebuild controls that preserve the last usable
-catalog until a complete replacement is ready. Engine requests are now
-concurrency-limited and shared across operational readers, while import bursts
-are reconciled after a quiet period to reduce SQLite lock contention and engine
-thread-pool pressure on large libraries. RC.7 makes background interface
-refreshes visibility-aware, prevents polling and navigation from shifting the
-visible page, groups Service Settings without removing routes, clarifies
-Action Center and Automation Timeline behavior, and standardizes accessible
-desktop and mobile dialogs without removing any controls. It also includes the Engine
-Update Center and its backup-gated
-candidate workflow. The new administrator Library Action Center identifies operational
-issues, explains their impact, recommends a safe next action, and provides a
-unified Automation Timeline across requests, searches, downloads, queue and
-history events, notifications, audits, validation, and Plex artwork, with a
-phone-friendly filter and event layout. Its
-Poster Overlay Studio adds reusable,
-variable-aware text, shape, and media-icon layers; precise positioning and
-resizing; adaptive colors; conditional rendering; text wrapping and automatic
-fitting; exact VynodeArr previews; reversible library assignments; expanded
-movie-file metadata; season, next-episode, and latest-episode variables; and
-multi-rule AND/OR layer conditions. Conditional style variants can optionally
-change colors, shapes, icon appearance, font weight, and adaptive contrast when
-metadata matches, with independent ranked formatting and fully scrollable editor
-controls. This stable release is published as the `latest` image.
+Version **2.0.36** is the current production release for Unraid, Windows, and
+standard Docker installations and is published as the `latest` image.
+
+This release adds imported Reeltrack lists with secure server-side credentials,
+durable external-ID matching, availability filters, synchronization, and direct
+requests for missing titles. Poster Overlay Studio now provides a bounded,
+responsive layer editor with centered new layers, direct preview selection,
+independently collapsible settings, representative missing-data previews, and
+destination-correct added dates. Plex poster workflows support variable filters,
+whole-library selection, scoped application, and filtered restoration.
+
+The new administrator **Library Review** page displays Plex titles, VynodeArr
+titles, and scanned movie folders in independent, left-aligned columns. Each
+column can be searched, filtered, and scrolled through its complete result set.
+The review includes filenames, paths, TMDB identities, match and mismatch
+highlighting, TMDB/IMDb correction, Plex-assisted matching, scanned-folder
+imports, and rename-and-organize actions that use the configured naming
+standards.
+
+Version 2.0.36 also fixes incomplete library pagination, stale entries and file
+locations after match correction, folder scanning from Movie and Television
+details, malformed legacy overlay layers, oversized overlay dialogs, and
+incorrect Plex or VynodeArr added-date calculations. See
+[CHANGELOG.md](CHANGELOG.md) for the complete release summary.
 
 The administrator Validation Center checks
 engine connectivity, storage, acquisition providers, scheduled automation,

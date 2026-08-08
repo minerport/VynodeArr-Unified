@@ -7,6 +7,38 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.36] - 2026-08-08
+
+### Added
+
+- Added imported Reeltrack list views with durable external-ID library matching, missing-title requests, server-side credential storage, list synchronization, searching, and availability filters.
+- Added Plex poster-overlay workflows with variable-based filtering, whole-library selection, scoped application, filtered restoration, and rollback history.
+- Added Plex `Days since added` overlay values and inclusive numeric conditions, using Plex dates for Plex artwork and VynodeArr dates for VynodeArr artwork.
+- Added a three-column Library Review workspace for independent Plex titles, VynodeArr titles, and scanned movie folders, including filenames, paths, TMDB identities, match filters, and title/filename mismatch highlighting.
+- Added Library Review actions to repair VynodeArr matches with TMDB or IMDb identities, reuse Plex TMDB identities, add scanned folders to VynodeArr, and rename or organize selected titles using configured naming standards.
+
+### Changed
+
+- Reworked the Poster Overlay editor into a bounded responsive workspace with centered new layers, direct preview selection, automatic scrolling to the selected layer, and independently collapsible layer settings.
+- Kept shape, icon, and text layers independent so each layer can use its own variable, conditions, prefix, suffix, and representative preview value.
+- Preserved intentional leading and trailing spaces in overlay prefixes, suffixes, and conditional formatting overrides.
+- Condensed Plex matching, selection, filtering, and recent-poster history into compact responsive cards and grouped matched and unmatched results.
+- Made Plex, VynodeArr, and scanned-folder Library Review columns left aligned, independently searchable, independently scrollable, and incrementally loaded.
+
+### Fixed
+
+- Fixed overlay editor crashes caused by stale disclosure event targets, malformed legacy layer values, and oversized modal dimensions.
+- Fixed incorrect or missing Plex and VynodeArr added-date calculations and ensured preview layers remain visible with representative values when live metadata is unavailable.
+- Fixed library and overlay pickers stopping at their first result batch, including complete-library selection and scroll-triggered loading.
+- Fixed corrected matches leaving stale library entries or old file locations behind, with safe rollback when a rematch or move fails.
+- Fixed refresh-and-scan from Movie and Television details so the engine scans the selected title folder.
+- Fixed IMDb-only match correction and TMDB/IMDb searching in Root Folder scans and Library Review.
+- Fixed Plex-to-VynodeArr comparisons to recognize matching TMDB identities even when titles differ.
+
+### Validation
+
+- Passed the automated test suite, web TypeScript checks, production builds, bundle and branding checks, and deployment validation for the published release.
+
 ## [2.0.35-rc.32] - 2026-08-07
 
 ### Added
