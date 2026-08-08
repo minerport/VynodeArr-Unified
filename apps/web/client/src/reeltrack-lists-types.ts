@@ -28,6 +28,8 @@ export interface ReeltrackList {
     plexTvLibraryKey?:string;
     plexTrailerPath?:string;
     plexLibraryLocations?:{movie?:string;tv?:string};
+    movieHostRoot?:string;
+    tvHostRoot?:string;
     collectionName?:string;
     intervalMinutes?:number;
     status?:'scheduled'|'ready'|'error'|'disabled';

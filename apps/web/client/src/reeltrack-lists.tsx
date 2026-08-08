@@ -7,12 +7,14 @@ import type {
   ReeltrackListsMountOptions,
 } from "./reeltrack-lists-types";
 import "./react-reeltrack-lists.css";
+import { ModalPortal } from "./modal-portal";
 
 const message = (error: unknown) =>
   error instanceof Error
     ? error.message
     : "VynodeArr could not complete this request.";
-const mediaPath = (value?: string) => String(value || "").replaceAll("\\", "/").replace(/\/+$/, "").toLowerCase();
+const cleanFolder = (value: string) => value === "/" ? "/" : value.replaceAll("\\", "/").replace(/\/+$/, "") || "/";
+const parentFolder = (value: string) => cleanFolder(value).split("/").slice(0, -1).join("/") || "/";
 const discoverItem = (item: ReeltrackListItem): DiscoverItem => ({
   id: `reeltrack_${item.domain}_${item.tmdbId}`,
   tmdbId: Number(item.tmdbId),
@@ -54,12 +56,18 @@ export function ReeltrackListsView({
       plexServer?: { name?: string } | null;
       libraries?: Array<{ key: string; title: string; type: string; locations?: string[] }>;
       engineRoots?: { movie?: Array<{ id: string | number; path: string }>; tv?: Array<{ id: string | number; path: string }> };
+      hostRoots?: { movie?: string; tv?: string };
     } | null>(null),
     [trailerBusy, setTrailerBusy] = useState(""),
-    [rootBusy, setRootBusy] = useState(""),
     [automationEnabled, setAutomationEnabled] = useState(false),
     [automationMovieLibraryKey, setAutomationMovieLibraryKey] = useState(""),
     [automationTvLibraryKey, setAutomationTvLibraryKey] = useState(""),
+    [movieHostRoot, setMovieHostRoot] = useState("/movies"),
+    [tvHostRoot, setTvHostRoot] = useState("/tv"),
+    [hostBrowser, setHostBrowser] = useState<"movie" | "tv" | null>(null),
+    [hostBrowserPath, setHostBrowserPath] = useState("/"),
+    [hostDirectories, setHostDirectories] = useState<Array<{ name: string; path: string }>>([]),
+    [hostBrowserError, setHostBrowserError] = useState(""),
     [automationInterval, setAutomationInterval] = useState(60),
     [automationCollectionName, setAutomationCollectionName] = useState("");
   const selected =
@@ -80,6 +88,7 @@ export function ReeltrackListsView({
               plexServer?: { name?: string } | null;
               libraries?: Array<{ key: string; title: string; type: string; locations?: string[] }>;
               engineRoots?: { movie?: Array<{ id: string | number; path: string }>; tv?: Array<{ id: string | number; path: string }> };
+              hostRoots?: { movie?: string; tv?: string };
             }>("/api/reeltrack/trailers/status").catch(() => null)
           : Promise.resolve(null),
       ]);
@@ -104,9 +113,19 @@ export function ReeltrackListsView({
     const legacy = trailerStatus?.libraries?.find((item) => item.key === selected.automation?.plexLibraryKey);
     setAutomationMovieLibraryKey(selected.automation?.plexMovieLibraryKey || (legacy?.type === "movie" ? legacy.key : "") || trailerStatus?.libraries?.find((item) => item.type === "movie")?.key || "");
     setAutomationTvLibraryKey(selected.automation?.plexTvLibraryKey || (legacy?.type === "show" ? legacy.key : "") || trailerStatus?.libraries?.find((item) => item.type === "show")?.key || "");
+    setMovieHostRoot(selected.automation?.movieHostRoot || trailerStatus?.hostRoots?.movie || "/movies");
+    setTvHostRoot(selected.automation?.tvHostRoot || trailerStatus?.hostRoots?.tv || "/tv");
     setAutomationInterval(selected.automation?.intervalMinutes || 60);
     setAutomationCollectionName(selected.automation?.collectionName || selected.name);
   }, [selectedId]);
+  useEffect(() => {
+    if (!hostBrowser) return;
+    setHostBrowserError("");
+    setHostDirectories([]);
+    void request<{ directories?: Array<{ name: string; path: string }> }>(`/api/reeltrack/trailers/folders?domain=${hostBrowser}&path=${encodeURIComponent(hostBrowserPath)}`)
+      .then((value) => setHostDirectories(value.directories || []))
+      .catch((reason) => setHostBrowserError(message(reason)));
+  }, [hostBrowser, hostBrowserPath, request]);
   async function connect() {
     if (!apiKey.trim()) return;
     setBusy(true);
@@ -177,6 +196,8 @@ export function ReeltrackListsView({
                   enabled: automationEnabled,
                   plexMovieLibraryKey: automationMovieLibraryKey,
                   plexTvLibraryKey: automationTvLibraryKey,
+                  movieHostRoot,
+                  tvHostRoot,
                   intervalMinutes: automationInterval,
                 }
               : { enabled: false },
@@ -243,6 +264,8 @@ export function ReeltrackListsView({
             enabled: automationEnabled,
             plexMovieLibraryKey: automationMovieLibraryKey,
             plexTvLibraryKey: automationTvLibraryKey,
+            movieHostRoot,
+            tvHostRoot,
             collectionName: automationCollectionName || selected.name,
             intervalMinutes: automationInterval,
           }),
@@ -264,33 +287,20 @@ export function ReeltrackListsView({
     (library) => library.key === (domain === "movie" ? automationMovieLibraryKey : automationTvLibraryKey),
   );
   const rootCompatibility = (domain: "movie" | "tv") => {
-    const library = selectedPlexLibrary(domain), location = mediaPath(library?.locations?.[0]);
+    const library = selectedPlexLibrary(domain), location = selected?.automation?.plexLibraryLocations?.[domain] || library?.locations?.[0] || "",
+      hostRoot = domain === "movie" ? movieHostRoot : tvHostRoot;
     return {
       library,
-      location: library?.locations?.[0] || "",
-      compatible: Boolean(location && (trailerStatus?.engineRoots?.[domain] || []).some((root) => {
-        const rootPath = mediaPath(root.path);
-        return location === rootPath || location.startsWith(`${rootPath}/`);
-      })),
+      location,
+      hostRoot,
+      compatible: Boolean(location && hostRoot && (trailerStatus?.engineRoots?.[domain] || []).length),
     };
   };
-  async function addEngineRoot(domain: "movie" | "tv") {
-    const library = selectedPlexLibrary(domain);
-    if (!library) return;
-    setRootBusy(domain);
-    try {
-      await request("/api/reeltrack/trailers/root-folder", {
-        method: "POST",
-        body: JSON.stringify({ domain, libraryKey: library.key }),
-      });
-      notify(`${domain === "movie" ? "Movie" : "Television"} root folder added.`);
-      await load();
-    } catch (error) {
-      notify(message(error), "error");
-    } finally {
-      setRootBusy("");
-    }
-  }
+  const openHostBrowser = (domain: "movie" | "tv") => {
+    const path = domain === "movie" ? movieHostRoot : tvHostRoot;
+    setHostBrowser(domain);
+    setHostBrowserPath(cleanFolder(path || trailerStatus?.hostRoots?.[domain] || (domain === "movie" ? "/movies" : "/tv")));
+  };
   async function runAutomation() {
     if (!selected) return;
     setBusy(true);
@@ -550,8 +560,9 @@ export function ReeltrackListsView({
                         <option value="">Choose a {type === "movie" ? "movie" : "television"} library</option>
                         {(trailerStatus?.libraries || []).filter((library) => library.type === type).map((library) => <option key={library.key} value={library.key}>{library.title}</option>)}
                       </select>
-                      <small>{compatibility.location || "Location supplied by Plex"}</small>
-                    </label>{value && !compatibility.compatible ? <div className="reeltrack-root-warning"><span>Not inside an engine root folder.</span><button className="secondary" disabled={rootBusy === domain} onClick={() => void addEngineRoot(domain)}>{rootBusy === domain ? "Adding…" : `Add as ${domain === "movie" ? "Movie" : "TV"} root`}</button></div> : value ? <small className="reeltrack-root-ready">Engine root is compatible</small> : null}</div>;
+                      {value ? <small>Plex reference: {compatibility.location || "not reported"}</small> : null}
+                      {value ? <div className="storage-path-control"><input aria-label={`${domain} host folder`} readOnly value={compatibility.hostRoot}/><button className="secondary" type="button" onClick={() => openHostBrowser(domain)}>Choose host folder</button></div> : null}
+                    </label>{value && !compatibility.compatible ? <div className="reeltrack-root-warning"><span>This media engine has no configured root. Configure its own path under Storage Folders; it may differ from both paths shown above.</span><a className="button-link secondary" href="#service/root-folders">Review storage folders</a></div> : value ? <small className="reeltrack-root-ready">Plex, host, and engine paths are mapped independently</small> : null}</div>;
                   })}
                   <label>
                     Update every
@@ -666,16 +677,18 @@ export function ReeltrackListsView({
                         <option value="">Choose a movie library</option>
                         {(trailerStatus?.libraries || []).filter((library) => library.type === "movie").map((library) => <option key={library.key} value={library.key}>{library.title}</option>)}
                       </select>
-                      <small>{rootCompatibility("movie").location || "Location supplied by Plex"}</small>
-                    </label>{automationMovieLibraryKey && !rootCompatibility("movie").compatible ? <div className="reeltrack-root-warning"><span>Not inside a Movie engine root folder.</span><button className="secondary" disabled={rootBusy === "movie"} onClick={() => void addEngineRoot("movie")}>{rootBusy === "movie" ? "Adding…" : "Add as Movie root"}</button></div> : <small className="reeltrack-root-ready">Movie engine root is compatible</small>}</div> : null}
+                      <small>Plex reference: {rootCompatibility("movie").location || "not reported"}</small>
+                      <div className="storage-path-control"><input aria-label="Movie host folder" readOnly value={movieHostRoot}/><button className="secondary" type="button" onClick={() => openHostBrowser("movie")}>Choose host folder</button></div>
+                    </label>{automationMovieLibraryKey && !rootCompatibility("movie").compatible ? <div className="reeltrack-root-warning"><span>The Movie engine needs its own configured root, which may use a different path.</span><a className="button-link secondary" href="#service/root-folders">Review storage folders</a></div> : <small className="reeltrack-root-ready">Plex, host, and engine paths are mapped independently</small>}</div> : null}
                     {selected?.items?.some((item) => item.domain === "tv") ? <div className="reeltrack-plex-target"><label>
                       Television Plex library
                       <select value={automationTvLibraryKey} onChange={(event) => setAutomationTvLibraryKey(event.target.value)}>
                         <option value="">Choose a television library</option>
                         {(trailerStatus?.libraries || []).filter((library) => library.type === "show").map((library) => <option key={library.key} value={library.key}>{library.title}</option>)}
                       </select>
-                      <small>{rootCompatibility("tv").location || "Location supplied by Plex"}</small>
-                    </label>{automationTvLibraryKey && !rootCompatibility("tv").compatible ? <div className="reeltrack-root-warning"><span>Not inside a Television engine root folder.</span><button className="secondary" disabled={rootBusy === "tv"} onClick={() => void addEngineRoot("tv")}>{rootBusy === "tv" ? "Adding…" : "Add as TV root"}</button></div> : <small className="reeltrack-root-ready">Television engine root is compatible</small>}</div> : null}
+                      <small>Plex reference: {rootCompatibility("tv").location || "not reported"}</small>
+                      <div className="storage-path-control"><input aria-label="Television host folder" readOnly value={tvHostRoot}/><button className="secondary" type="button" onClick={() => openHostBrowser("tv")}>Choose host folder</button></div>
+                    </label>{automationTvLibraryKey && !rootCompatibility("tv").compatible ? <div className="reeltrack-root-warning"><span>The Television engine needs its own configured root, which may use a different path.</span><a className="button-link secondary" href="#service/root-folders">Review storage folders</a></div> : <small className="reeltrack-root-ready">Plex, host, and engine paths are mapped independently</small>}</div> : null}
                     <label>
                       Collection name
                       <input value={automationCollectionName} onChange={(event) => setAutomationCollectionName(event.target.value)} />
@@ -832,6 +845,25 @@ export function ReeltrackListsView({
             Import lists
           </button>
         </div>
+      ) : null}
+      {hostBrowser ? (
+        <ModalPortal>
+          <div className="root-folder-browser-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setHostBrowser(null); }}>
+            <section className="panel root-folder-browser" role="dialog" aria-modal="true" aria-label="Map Plex library to a host folder">
+              <div className="panel-heading">
+                <div><span className="eyebrow">MAP HOST FOLDER</span><h2>{hostBrowserPath}</h2><p className="muted">Plex reports {rootCompatibility(hostBrowser).location || "no path"}. Choose the corresponding folder visible to VynodeArr.</p></div>
+                <button className="secondary" type="button" onClick={() => setHostBrowser(null)}>Cancel</button>
+              </div>
+              <div className="folder-browser-actions">
+                <button className="secondary" type="button" disabled={cleanFolder(hostBrowserPath) === cleanFolder(trailerStatus?.hostRoots?.[hostBrowser] || (hostBrowser === "movie" ? "/movies" : "/tv"))} onClick={() => setHostBrowserPath(parentFolder(hostBrowserPath))}>← Parent</button>
+                <button className="primary" type="button" onClick={() => { hostBrowser === "movie" ? setMovieHostRoot(hostBrowserPath) : setTvHostRoot(hostBrowserPath); setHostBrowser(null); }}>Use this folder</button>
+              </div>
+              <div className="folder-browser-list">
+                {hostBrowserError ? <div className="empty error-state"><p>{hostBrowserError}</p></div> : hostDirectories.length ? hostDirectories.map((folder) => <button className="folder-row" type="button" key={folder.path} onClick={() => setHostBrowserPath(cleanFolder(folder.path))}><span className="folder-icon">▰</span><span>{folder.name}</span><small>{folder.path}</small></button>) : <div className="empty compact"><p>No subfolders here. You can still use this folder.</p></div>}
+              </div>
+            </section>
+          </div>
+        </ModalPortal>
       ) : null}
       {requesting ? (
         <DiscoverRequest

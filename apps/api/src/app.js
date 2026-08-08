@@ -1,4 +1,4 @@
-import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rename, unlink, writeFile } from "node:fs/promises";
 import { watch } from "node:fs";
 import {
   createCipheriv,
@@ -1329,6 +1329,37 @@ export function createApplication(options = {}) {
   };
   const plexPathValue = (value) =>
     String(value || "").replaceAll("\\", "/").replace(/\/+$/, "").toLowerCase();
+  const plexLibraryLocation = (library, items = []) => {
+    const reported = String(library?.locations?.[0] || "").trim().replaceAll("\\", "/").replace(/\/+$/, ""),
+      directories = (items || [])
+        .flatMap((item) => item?.files || [])
+        .map((file) => String(file || "").replaceAll("\\", "/").replace(/\/+$/, ""))
+        .filter(Boolean)
+        .map((file) => file.slice(0, file.lastIndexOf("/")))
+        .filter(Boolean);
+    if (!reported || directories.length < 2) return reported;
+    const first = directories[0].split("/"),
+      compared = directories.map((path) => path.toLowerCase().split("/"));
+    let length = first.length;
+    for (let index = 1; index < compared.length; index += 1) {
+      length = Math.min(length, compared[index].length);
+      while (length > 0 && compared[index].slice(0, length).join("/") !== compared[0].slice(0, length).join("/")) length -= 1;
+    }
+    const shared = first.slice(0, length).join("/") || "/",
+      reportedValue = plexPathValue(reported),
+      sharedValue = plexPathValue(shared);
+    return sharedValue && reportedValue.startsWith(`${sharedValue}/`) ? shared : reported;
+  };
+  const localLibraryRoot = (domain) => domain === "tv"
+    ? env.VYNODEARR_TV_LIBRARY_PATH || "/tv"
+    : env.VYNODEARR_TRAILER_DIR || env.VYNODEARR_MOVIE_LIBRARY_PATH || "/movies";
+  const mappedLibraryRoot = (domain, automation = {}) => {
+    const configured = resolve(localLibraryRoot(domain)),
+      requested = resolve(String(domain === "tv" ? automation.tvHostRoot || configured : automation.movieHostRoot || configured));
+    if (requested !== configured && !requested.startsWith(`${configured}${process.platform === "win32" ? "\\" : "/"}`))
+      throw new Error(`The mapped ${domain === "tv" ? "television" : "movie"} host folder is outside VynodeArr's configured library root.`);
+    return requested;
+  };
   const plexMovieRootValue = (value) => {
     const path = String(value || "").trim();
     return !path || plexPathValue(path) === "/trailers" ? "/movies" : path;
@@ -1357,12 +1388,14 @@ export function createApplication(options = {}) {
       const known = Array.isArray(records) ? records : records?.records || [],
         profile = (Array.isArray(profiles) ? profiles : [])[0],
         preferredPath = plexPathValue(preferredRoots[domain]),
-        root = (Array.isArray(roots) ? roots : [])
+        availableRoots = Array.isArray(roots) ? roots : [],
+        root = availableRoots
           .filter((candidate) => {
             const rootPath = plexPathValue(candidate?.path);
             return !preferredPath || preferredPath === rootPath || preferredPath.startsWith(`${rootPath}/`);
           })
-          .sort((left, right) => plexPathValue(right.path).length - plexPathValue(left.path).length)[0];
+          .sort((left, right) => plexPathValue(right.path).length - plexPathValue(left.path).length)[0]
+          || availableRoots[0];
       let domainAdded = 0;
       if (!profile || !root?.path) {
         summary.failed += candidates.length;
@@ -1505,34 +1538,27 @@ export function createApplication(options = {}) {
           movie: automation.plexMovieLibraryKey || (legacyLibrary?.type === "movie" ? legacyLibrary.key : ""),
           tv: automation.plexTvLibraryKey || (legacyLibrary?.type === "show" ? legacyLibrary.key : ""),
         },
-        targets = [...requiredDomains].map((domain) => {
+        targets = await Promise.all([...requiredDomains].map(async (domain) => {
           const expectedType = domain === "tv" ? "show" : "movie",
             library = libraries.find((item) => String(item.key) === String(selectedKeys[domain]) && item.type === expectedType);
           if (!library) throw new Error(`Choose a Plex ${domain === "tv" ? "television" : "movie"} library for this list.`);
           if (!String(library.locations?.[0] || "").trim()) throw new Error(`The selected Plex ${domain === "tv" ? "television" : "movie"} library does not report a media location. Reconnect Plex and try again.`);
-          return { domain, library, libraryLocation: String(library.locations[0]).trim() };
-        });
+          const plexItems = await plexService.libraryItems(plexSettings.endpoint, plexToken, library),
+            libraryLocation = plexLibraryLocation(library, plexItems);
+          return { domain, library, libraryLocation, localRoot: mappedLibraryRoot(domain, automation), plexItems };
+        }));
       const libraryAdds = await addReeltrackItemsToLibraries(
           providerItems,
-          Object.fromEntries(targets.map((target) => [target.domain, target.libraryLocation])),
+          Object.fromEntries(targets.map((target) => [target.domain, target.localRoot])),
         ),
         jobs = { ...(automation.jobs || {}) },
         totals = { managedTitles: 0, placeholders: 0, downloaded: 0, removed: 0, realMatches: 0 },
         collectionRatingKeys = { ...(automation.collectionRatingKeys || {}) },
         plexLibraryLocations = {};
-      for (const { domain, library, libraryLocation } of targets) {
+      for (const { domain, library, libraryLocation, localRoot, plexItems } of targets) {
         plexLibraryLocations[domain] = libraryLocation;
-        const plexItems = await plexService.libraryItems(
-          plexSettings.endpoint,
-          plexToken,
-          library,
-        ),
-        trailerPrefix = plexPathValue(libraryLocation),
-        localTrailerPrefix = plexPathValue(
-          domain === "tv"
-            ? env.VYNODEARR_TV_LIBRARY_PATH || "/tv"
-            : env.VYNODEARR_TRAILER_DIR || env.VYNODEARR_MOVIE_LIBRARY_PATH || "/movies",
-        ),
+        const trailerPrefix = plexPathValue(libraryLocation),
+        localTrailerPrefix = plexPathValue(localRoot),
         managedPlexPaths = new Set(
           Object.values(jobs)
             .filter((job) => (job?.domain === "tv" ? "tv" : "movie") === domain)
@@ -1593,6 +1619,7 @@ export function createApplication(options = {}) {
             year: metadata.year || item.year,
             domain,
             tmdbId: item.tmdbId,
+            root: localRoot,
           });
           downloaded += 1;
         } catch (error) {
@@ -8154,23 +8181,47 @@ export function createApplication(options = {}) {
           });
         }
         if (
+          url.pathname === "/api/reeltrack/trailers/folders" &&
+          req.method === "GET"
+        ) {
+          if (!administrator(res, session)) return;
+          const domain = url.searchParams.get("domain") === "tv" ? "tv" : "movie",
+            root = resolve(localLibraryRoot(domain)),
+            requested = resolve(String(url.searchParams.get("path") || root));
+          if (requested !== root && !requested.startsWith(`${root}${process.platform === "win32" ? "\\" : "/"}`))
+            throw new Error("Choose a folder inside the configured VynodeArr library root.");
+          const directories = (await readdir(requested, { withFileTypes: true }))
+            .filter((entry) => entry.isDirectory())
+            .map((entry) => ({ name: entry.name, path: join(requested, entry.name) }))
+            .sort((left, right) => left.name.localeCompare(right.name));
+          return json(res, 200, { root, path: requested, directories });
+        }
+        if (
           url.pathname === "/api/reeltrack/trailers/status" &&
           req.method === "GET"
         ) {
           if (!administrator(res, session)) return;
-          const [downloader, plexSettings, plexToken, movieRoots, tvRoots] = await Promise.all([
+          const [downloader, storedPlexSettings, plexToken, movieRoots, tvRoots] = await Promise.all([
             trailerDownloader.status(),
             plexSettingsStore.read(),
             engineSettings.plexCredential(),
             management.execute("movie", "rootFolders", "GET", {}).catch(() => []),
             management.execute("tv", "rootFolders", "GET", {}).catch(() => []),
           ]);
+          let plexSettings = storedPlexSettings;
+          if (storedPlexSettings.endpoint && plexToken)
+            try {
+              const inspection = await plexService.inspect(storedPlexSettings.endpoint, plexToken);
+              plexSettings = { version: 1, ...inspection, updatedAt: new Date().toISOString() };
+              await plexSettingsStore.write(plexSettings);
+            } catch {}
           return json(res, 200, {
             ...downloader,
             plexConfigured: Boolean(plexSettings.endpoint && plexToken),
             plexServer: plexSettings.server || null,
             libraries: plexSettings.libraries || [],
             engineRoots: { movie: movieRoots || [], tv: tvRoots || [] },
+            hostRoots: { movie: localLibraryRoot("movie"), tv: localLibraryRoot("tv") },
           });
         }
         if (
@@ -8240,6 +8291,7 @@ export function createApplication(options = {}) {
             year: metadata.year || sourceItem.year,
             domain: domain,
             tmdbId: tmdbId,
+            root: mappedLibraryRoot(domain, list.automation || {}),
           });
           await recordAudit(session, {
             category: "integration",
@@ -8403,6 +8455,8 @@ export function createApplication(options = {}) {
                   tvLibrary = (plexSettings.libraries || []).find((item) => item.type === "show" && String(item.key) === String(automationInput.plexTvLibraryKey));
                 if (automationEnabled && domains.has("movie") && !movieLibrary) throw new Error(`Choose a Plex movie library for ${list.name}.`);
                 if (automationEnabled && domains.has("tv") && !tvLibrary) throw new Error(`Choose a Plex television library for ${list.name}.`);
+                if (automationEnabled && domains.has("movie")) mappedLibraryRoot("movie", automationInput);
+                if (automationEnabled && domains.has("tv")) mappedLibraryRoot("tv", automationInput);
                 return {
                 ...list,
                 items,
@@ -8414,6 +8468,8 @@ export function createApplication(options = {}) {
                       downloadTrailers: true,
                       plexMovieLibraryKey: String(automationInput.plexMovieLibraryKey || ""),
                       plexTvLibraryKey: String(automationInput.plexTvLibraryKey || ""),
+                      movieHostRoot: String(automationInput.movieHostRoot || localLibraryRoot("movie")),
+                      tvHostRoot: String(automationInput.tvHostRoot || localLibraryRoot("tv")),
                       collectionName: String(list.name || "Reeltrack").trim().slice(0, 120),
                       intervalMinutes: Math.max(
                         15,
@@ -8526,6 +8582,8 @@ export function createApplication(options = {}) {
               throw new Error("Choose a discovered Plex movie library.");
             if (domains.has("tv") && !(settings.libraries || []).some((item) => item.type === "show" && String(item.key) === String(input.plexTvLibraryKey)))
               throw new Error("Choose a discovered Plex television library.");
+            if (domains.has("movie")) mappedLibraryRoot("movie", input);
+            if (domains.has("tv")) mappedLibraryRoot("tv", input);
           }
           current.importedLists[index].automation = {
             ...(current.importedLists[index].automation || {}),
@@ -8533,6 +8591,8 @@ export function createApplication(options = {}) {
             downloadTrailers: input.downloadTrailers !== false,
             plexMovieLibraryKey: String(input.plexMovieLibraryKey || ""),
             plexTvLibraryKey: String(input.plexTvLibraryKey || ""),
+            movieHostRoot: String(input.movieHostRoot || localLibraryRoot("movie")),
+            tvHostRoot: String(input.tvHostRoot || localLibraryRoot("tv")),
             collectionName:
               String(input.collectionName || current.importedLists[index].name || "Reeltrack").trim().slice(0, 120),
             intervalMinutes: Math.max(15, Math.min(1440, Number(input.intervalMinutes) || 60)),

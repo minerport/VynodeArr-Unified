@@ -14,6 +14,10 @@ test('Reeltrack Lists remains fluid while the viewport is resized',async()=>{
   assert.doesNotMatch(view,/Manage integrations/);
   assert.match(view,/This is the only place in VynodeArr where your Reeltrack key\s+is entered/);
   assert.match(view,/Replace API key/);
+  assert.match(view,/Choose host folder/);
+  assert.match(view,/MAP HOST FOLDER/);
+  assert.match(view,/Plex, host, and engine paths are mapped independently/);
+  assert.doesNotMatch(view,/Add as Movie root/);
 });
 
 test('loaded Action Center records cannot widen the mobile viewport',async()=>{
@@ -160,6 +164,9 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(system,/Find events/);
   assert.match(system,/storageSize/);
   assert.match(system,/TB/);
+  assert.match(system,/domainErrors/);
+  assert.match(system,/Review engine connection/);
+  assert.match(system,/values\s*\.filter\(\(item\) => item\.error\)/);
   assert.match(systemTypes,/SystemMountOptions/);
   assert.match(app,/showSystemReact/);
   assert.match(library,/Filter titles/);

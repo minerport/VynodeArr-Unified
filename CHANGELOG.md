@@ -7,6 +7,36 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.36-rc.6] - 2026-08-08
+
+### Added
+
+- Added explicit Movie and Television host-folder mapping for managed
+  Reeltrack Plex collections, with a bounded folder browser and the Plex
+  library path retained as a reference.
+
+### Changed
+
+- Treated Plex-visible paths, VynodeArr-mounted host paths, and media-engine
+  roots as independent namespaces instead of requiring their strings to match.
+- Refreshed saved Plex library metadata and derived the shared library root
+  when older metadata incorrectly pointed at an individual title folder.
+- Used each engine's own configured root when registering list titles while
+  placing managed trailers in the administrator-selected host mapping.
+
+### Fixed
+
+- Kept the System Status page usable when only one media engine is unavailable,
+  preserving healthy storage information and showing a direct connection link
+  for the failed engine.
+- Prevented Plex container paths from being registered directly as media-engine
+  roots when the services mount the same host storage under different paths.
+
+### Validation
+
+- Passed all 217 automated tests plus TypeScript, production build, bundle,
+  branding, and deployment validation.
+
 ## [2.0.36-rc.5] - 2026-08-08
 
 ### Added
