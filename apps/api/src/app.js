@@ -9968,9 +9968,10 @@ export function createApplication(options = {}) {
                 item.type === "movie" &&
                 (!libraryFilterProvided || requested.has(String(item.key))),
             ),
-            [rawVynode, rawRoots] = await Promise.all([
+            [rawVynode, rawRoots, rawProfiles] = await Promise.all([
               management.execute("movie", "library", "GET"),
               management.execute("movie", "rootFolders", "GET"),
+              management.execute("movie", "profiles", "GET"),
             ]),
             vynode = (Array.isArray(rawVynode) ? rawVynode : []).map((item) => ({
               id: Number(item.id),
@@ -9985,7 +9986,18 @@ export function createApplication(options = {}) {
                   ? joinMediaPath(item.path, item.movieFile.relativePath)
                   : item.path || ""),
             })),
-            scanByPath = new Map();
+            scanByPath = new Map(),
+            reviewTitleKey = (value) =>
+              String(value || "")
+                .normalize("NFKD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .replace(/[^a-z0-9]/gi, "")
+                .toLowerCase(),
+            vynodeByTitle = new Map();
+          for (const item of vynode) {
+            const key = reviewTitleKey(item.title);
+            if (key) vynodeByTitle.set(key, [...(vynodeByTitle.get(key) || []), item]);
+          }
           for (const item of vynode) {
             const path = normalizeMediaPath(item.folderPath);
             if (path)
@@ -9993,21 +10005,36 @@ export function createApplication(options = {}) {
                 path,
                 name: item.title,
                 status: "matched",
+                matchType: "path",
                 movieId: item.id,
                 tmdbId: item.tmdbId,
+                rootFolderPath: "",
                 filePath: item.filePath,
               });
           }
           for (const root of Array.isArray(rawRoots) ? rawRoots : [])
             for (const folder of root.unmappedFolders || []) {
-              const path = normalizeMediaPath(folder.path);
+              const path = normalizeMediaPath(folder.path),
+                name = folder.name || path.split("/").at(-1) || path,
+                yearMatch = String(name).match(/\(((?:19|20)\d{2})\)\s*$/),
+                titleName = yearMatch
+                  ? String(name).slice(0, yearMatch.index).trim()
+                  : name,
+                candidates = vynodeByTitle.get(reviewTitleKey(titleName)) || [],
+                titleMatch =
+                  candidates.find((item) =>
+                    yearMatch ? Number(item.year) === Number(yearMatch[1]) : true,
+                  ) || null;
               if (path && !scanByPath.has(path.toLowerCase()))
                 scanByPath.set(path.toLowerCase(), {
                   path,
-                  name: folder.name || path.split("/").at(-1) || path,
-                  status: "unmatched",
-                  movieId: null,
-                  tmdbId: null,
+                  name,
+                  status: titleMatch ? "matched" : "unmatched",
+                  matchType: titleMatch ? "title" : null,
+                  movieId: titleMatch?.id || null,
+                  tmdbId: titleMatch?.tmdbId || null,
+                  vynodeTitle: titleMatch?.title || "",
+                  rootFolderPath: normalizeMediaPath(root.path),
                   filePath: "",
                 });
             }
@@ -10041,6 +10068,9 @@ export function createApplication(options = {}) {
             ),
             plex: plex.sort((a, b) => a.title.localeCompare(b.title)),
             vynode: vynode.sort((a, b) => a.title.localeCompare(b.title)),
+            profiles: (Array.isArray(rawProfiles) ? rawProfiles : []).map(
+              (profile) => ({ id: Number(profile.id), name: profile.name }),
+            ),
             scan: [...scanByPath.values()].sort((a, b) =>
               a.name.localeCompare(b.name),
             ),

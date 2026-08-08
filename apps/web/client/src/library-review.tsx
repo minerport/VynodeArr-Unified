@@ -83,26 +83,27 @@ function VynodeMovieRow({
   );
 }
 
-function FolderScanRow({ item }: { item: FolderScanMovie }) {
+function FolderScanRow({ item, selected, onSelect }: { item: FolderScanMovie; selected: boolean; onSelect: () => void }) {
   const filenameMismatch =
     item.status === "matched" &&
     Boolean(item.filePath) &&
     !filenameMatchesTitle(item.filePath, item.name);
   return (
-    <article className={`library-review-item folder-scan-item ${item.status}${filenameMismatch ? " filename-mismatch" : ""}`}>
+    <button type="button" onClick={onSelect} className={`library-review-item folder-scan-item ${item.status}${selected ? " selected" : ""}${filenameMismatch ? " filename-mismatch" : ""}`}>
       <span>
         <strong>{item.name}</strong>
         <small>
           <span className={`badge ${item.status === "matched" ? "green" : "warm"}`}>
-            {item.status === "matched" ? "Matched" : "Unmatched"}
+            {item.matchType === "title" ? "Title match" : item.status === "matched" ? "Path match" : "Unmatched"}
           </span>
           {item.tmdbId ? ` TMDB ${item.tmdbId}` : ""}
         </small>
       </span>
+      {item.matchType === "title" ? <small>Already in VynodeArr as {item.vynodeTitle}</small> : null}
       <code>{item.path}</code>
       {item.filePath && item.filePath !== item.path ? <code>{item.filePath}</code> : null}
       {filenameMismatch ? <small className="filename-mismatch-note">Filename does not match library title</small> : null}
-    </article>
+    </button>
   );
 }
 
@@ -120,6 +121,8 @@ export function LibraryReviewView({
     [selectedPlex, setSelectedPlex] = useState<PlexReviewMovie | null>(null),
     [selectedVynode, setSelectedVynode] =
       useState<VynodeReviewMovie | null>(null),
+    [selectedFolder, setSelectedFolder] = useState<FolderScanMovie | null>(null),
+    [qualityProfileId, setQualityProfileId] = useState(0),
     [manualTmdbId, setManualTmdbId] = useState(""),
     [plexLimit, setPlexLimit] = useState(100),
     [vynodeLimit, setVynodeLimit] = useState(100),
@@ -143,6 +146,12 @@ export function LibraryReviewView({
         setSelectedLibraries(value.libraries.map((item) => item.key));
       setSelectedPlex(null);
       setSelectedVynode(null);
+      setSelectedFolder(null);
+      setQualityProfileId((current) =>
+        value.profiles.some((profile) => profile.id === current)
+          ? current
+          : value.profiles[0]?.id || 0,
+      );
       setPlexLimit(100);
       setVynodeLimit(100);
       setScanLimit(100);
@@ -192,7 +201,7 @@ export function LibraryReviewView({
         (review?.scan || []).filter(
           (item) =>
             (scanFilter === "all" || item.status === scanFilter) &&
-            matches(scanQuery, item.name, item.path, item.filePath, item.tmdbId),
+            matches(scanQuery, item.name, item.path, item.filePath, item.tmdbId, item.vynodeTitle),
         ),
       [review, scanQuery, scanFilter],
     );
@@ -223,6 +232,39 @@ export function LibraryReviewView({
         reason instanceof Error ? reason.message : "The match was not updated.",
         "error",
       );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const addScannedFolder = async () => {
+    if (!selectedFolder || !selectedPlex?.tmdbId || !qualityProfileId) return;
+    if (!window.confirm(`Add ${selectedPlex.title} to VynodeArr using the existing folder ${selectedFolder.path}?`)) return;
+    setSaving(true);
+    try {
+      const lookup = await options.request<{ result: Array<Record<string, unknown>> }>(
+        `/api/manage/movie/lookup?term=${encodeURIComponent(`tmdb:${selectedPlex.tmdbId}`)}`,
+      );
+      const movie = (lookup.result || []).find(
+        (item) => Number(item.tmdbId) === selectedPlex.tmdbId,
+      );
+      if (!movie) throw new Error("VynodeArr could not find that Plex TMDB title.");
+      await options.request("/api/manage/movie/library", {
+        method: "POST",
+        body: JSON.stringify({
+          ...movie,
+          path: selectedFolder.path,
+          rootFolderPath: selectedFolder.rootFolderPath,
+          qualityProfileId,
+          monitored: true,
+          minimumAvailability: "announced",
+          addOptions: { searchForMovie: false },
+        }),
+      });
+      options.notify(`${selectedPlex.title} added from the existing movie folder.`);
+      await load(selectedLibraries);
+    } catch (reason) {
+      options.notify(reason instanceof Error ? reason.message : "The scanned folder was not added.", "error");
     } finally {
       setSaving(false);
     }
@@ -310,6 +352,26 @@ export function LibraryReviewView({
             </button>
           </span>
         </label>
+      </section>
+      <section className="panel library-review-folder-add">
+        <div>
+          <span className="eyebrow">ADD AN UNMATCHED MOVIE FOLDER</span>
+          <strong>{selectedFolder?.name || "Select an unmatched folder"}</strong>
+          <small>{selectedFolder?.path || "Then select its Plex title to use the Plex TMDB ID."}</small>
+        </div>
+        <div>
+          <strong>Plex title</strong>
+          <small>{selectedPlex ? `${selectedPlex.title}${selectedPlex.tmdbId ? ` · TMDB ${selectedPlex.tmdbId}` : " · No TMDB ID"}` : "Select a Plex movie"}</small>
+        </div>
+        <label>
+          Quality profile
+          <select value={qualityProfileId} onChange={(event) => setQualityProfileId(Number(event.target.value))}>
+            {review?.profiles.map((profile) => <option value={profile.id} key={profile.id}>{profile.name}</option>)}
+          </select>
+        </label>
+        <button className="primary" type="button" disabled={saving || !selectedFolder || !selectedPlex?.tmdbId || !qualityProfileId} onClick={() => void addScannedFolder()}>
+          Add existing folder to VynodeArr
+        </button>
       </section>
       <div className="library-review-columns">
         <section className="panel">
@@ -427,7 +489,12 @@ export function LibraryReviewView({
             }}
           >
             {scanItems.slice(0, scanLimit).map((item) => (
-              <FolderScanRow item={item} key={item.path} />
+              <FolderScanRow
+                item={item}
+                key={item.path}
+                selected={selectedFolder?.path === item.path}
+                onSelect={() => item.status === "unmatched" && setSelectedFolder(item)}
+              />
             ))}
           </div>
         </section>
