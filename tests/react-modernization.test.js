@@ -27,6 +27,7 @@ test('Reeltrack Lists remains fluid while the viewport is resized',async()=>{
   for(const label of ['STARTER POSTERS','Solid color','Linear gradient','Radial gradient','Gradient angle','Upload custom background','Add icon','Adaptive poster contrast','Conditions','Exact rendered Plex output'])assert.ok(designer.includes(label),label);
   assert.match(designer,/poster-overlay-layer-identity/);assert.match(designer,/poster-overlay-conditions/);
   assert.match(designer,/Four-poster collage/);assert.match(designer,/quadPosters/);assert.match(designer,/Find a title/);
+  for(const label of ['QUICK OVERLAY PRESETS','Coming Soon','Upcoming','Trending Now','Recently Added','New Release','Leaving Soon',"Editor's Pick",'Watch Tonight'])assert.ok(designer.includes(label),label);
   assert.match(view,/overlays applied/);assert.match(view,/overlay failures/);
 });
 

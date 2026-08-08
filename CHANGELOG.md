@@ -7,6 +7,33 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.36-rc.10] - 2026-08-08
+
+### Added
+
+- Added editable quick-overlay presets for Coming Soon, Upcoming, Trending
+  Now, Recently Added, New Release, Leaving Soon, Editor's Pick, and Watch
+  Tonight.
+- Gave each preset distinct text, colors, typography, shape, and placement
+  while retaining the complete drag, resize, condition, and appearance editor.
+
+### Changed
+
+- Refreshed the selected Plex library after applying a managed-title overlay
+  batch so every changed poster becomes visible together.
+
+### Fixed
+
+- Retried transient Plex poster-upload failures per title instead of allowing
+  one temporary failure to leave the rest of a synchronized list unchanged.
+- Ensured every managed placeholder is processed independently during title
+  overlay application.
+
+### Validation
+
+- Passed all automated tests plus TypeScript, production build, bundle,
+  branding, and deployment validation.
+
 ## [2.0.36-rc.9] - 2026-08-08
 
 ### Added

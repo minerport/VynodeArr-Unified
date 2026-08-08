@@ -1595,7 +1595,18 @@ export function createApplication(options = {}) {
             collectionMediaType: domain === "tv" ? "Television" : "Movies",
             collectionLastSync: syncedAt,
           }, poster);
-        await plexService.uploadPoster(endpoint, token, plexItem.ratingKey, rendered, "image/jpeg");
+        let uploadError = null;
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+          try {
+            await plexService.uploadPoster(endpoint, token, plexItem.ratingKey, rendered, "image/jpeg");
+            uploadError = null;
+            break;
+          } catch (error) {
+            uploadError = error;
+            if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 350 * (attempt + 1)));
+          }
+        }
+        if (uploadError) throw uploadError;
         applied += 1;
       } catch (error) {
         failed += 1;
@@ -1854,6 +1865,8 @@ export function createApplication(options = {}) {
         totals.titlePosters += titleArtwork.applied;
         totals.titlePosterFailures = (totals.titlePosterFailures || 0) + titleArtwork.failed;
         totals.titlePosterErrors = [...(totals.titlePosterErrors || []), ...titleArtwork.errors].slice(0, 10);
+        if (titleArtwork.applied)
+          await plexService.refreshLibrary(plexSettings.endpoint, plexToken, library.key);
         totals.managedTitles += wanted.size;
         totals.placeholders += placeholderKeys.length;
         totals.downloaded += downloaded;
