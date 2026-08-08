@@ -26,6 +26,8 @@ test('Reeltrack Lists remains fluid while the viewport is resized',async()=>{
   assert.doesNotMatch(designer,/>X \(%\)</);assert.doesNotMatch(designer,/>Y \(%\)</);
   for(const label of ['STARTER POSTERS','Solid color','Linear gradient','Radial gradient','Gradient angle','Upload custom background','Add icon','Adaptive poster contrast','Conditions','Exact rendered Plex output'])assert.ok(designer.includes(label),label);
   assert.match(designer,/poster-overlay-layer-identity/);assert.match(designer,/poster-overlay-conditions/);
+  assert.match(designer,/Four-poster collage/);assert.match(designer,/quadPosters/);assert.match(designer,/Find a title/);
+  assert.match(view,/overlays applied/);assert.match(view,/overlay failures/);
 });
 
 test('loaded Action Center records cannot widen the mobile viewport',async()=>{

@@ -725,7 +725,7 @@ export function ReeltrackListsView({
                 {selected?.automation?.error ? <p className="danger-text">{selected.automation.error}</p> : null}
                 {selected?.automation?.summary ? (
                   <div className="reeltrack-automation-summary">
-                    <span><strong>{selected.automation.summary.providerTitles}</strong> list titles</span><span><strong>{selected.automation.summary.placeholders}</strong> Plex placeholders</span><span><strong>{selected.automation.summary.realMatches}</strong> real matches</span><span><strong>{selected.automation.summary.libraryAdded || 0}</strong> added</span><span><strong>{selected.automation.summary.libraryExisting || 0}</strong> registered</span>{selected.automation.summary.libraryFailed ? <span className="danger-text"><strong>{selected.automation.summary.libraryFailed}</strong> library failures</span> : null}{selected.automation.summary.failed ? <span className="danger-text"><strong>{selected.automation.summary.failed}</strong> trailer failures</span> : null}
+                    <span><strong>{selected.automation.summary.providerTitles}</strong> list titles</span><span><strong>{selected.automation.summary.placeholders}</strong> Plex placeholders</span><span><strong>{selected.automation.summary.realMatches}</strong> real matches</span><span><strong>{selected.automation.summary.libraryAdded || 0}</strong> added</span><span><strong>{selected.automation.summary.libraryExisting || 0}</strong> registered</span>{selected.automation.summary.titlePosters ? <span><strong>{selected.automation.summary.titlePosters}</strong> overlays applied</span> : null}{selected.automation.summary.titlePosterFailures ? <span className="danger-text" title={selected.automation.summary.titlePosterErrors?.join("\n")}><strong>{selected.automation.summary.titlePosterFailures}</strong> overlay failures</span> : null}{selected.automation.summary.libraryFailed ? <span className="danger-text"><strong>{selected.automation.summary.libraryFailed}</strong> library failures</span> : null}{selected.automation.summary.failed ? <span className="danger-text"><strong>{selected.automation.summary.failed}</strong> trailer failures</span> : null}
                   </div>
                 ) : null}
                 {selected?.automation?.libraryErrors?.length ? (
@@ -888,6 +888,7 @@ export function ReeltrackListsView({
         collectionName={automationCollectionName || selected.name}
         titleCount={selected.items?.length || 0}
         sample={selected.items?.find((item) => item.tmdbId) as { domain: "movie" | "tv"; tmdbId?: number | null; title: string; year?: number | null } | undefined}
+        samples={(selected.items || []) as Array<{ domain: "movie" | "tv"; tmdbId?: number | null; title: string; year?: number | null }>}
         request={request}
         onClose={() => setPosterDesigner(null)}
         onSave={(template) => { posterDesigner === "collection" ? setCollectionPosterTemplate(template) : setTitleOverlayTemplate(template); setPosterDesigner(null); notify("Artwork design ready. Save automation to apply it."); }}

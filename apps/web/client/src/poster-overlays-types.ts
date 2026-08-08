@@ -80,6 +80,8 @@ export interface OverlayTemplate {
     angle: number;
     backgroundAsset?: string;
     backgroundPreview?: string;
+    /** Up to four TMDB posters displayed as a 2 x 2 collection collage. */
+    quadPosters?: Array<{ domain: "movie" | "tv"; tmdbId: number; title?: string }>;
   };
   createdAt?: string;
   updatedAt?: string;

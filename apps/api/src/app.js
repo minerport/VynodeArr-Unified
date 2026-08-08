@@ -1513,6 +1513,14 @@ export function createApplication(options = {}) {
       colorB: color(canvas.colorB, "#243b65"),
       angle: Math.max(0, Math.min(360, Number(canvas.angle) || 135)),
       backgroundAsset: /^[a-f0-9-]{36}\.(?:jpe?g|png|webp)$/i.test(String(canvas.backgroundAsset || "")) ? String(canvas.backgroundAsset) : "",
+      quadPosters: (Array.isArray(canvas.quadPosters) ? canvas.quadPosters : [])
+        .map((item) => ({
+          domain: item?.domain === "tv" ? "tv" : "movie",
+          tmdbId: Number(item?.tmdbId),
+          title: String(item?.title || "").slice(0, 160),
+        }))
+        .filter((item) => Number.isInteger(item.tmdbId) && item.tmdbId > 0)
+        .slice(0, 4),
     };
     return template;
   };
@@ -1524,6 +1532,15 @@ export function createApplication(options = {}) {
     collectionMediaType: domain === "tv" ? "Television" : domain === "movie" ? "Movies" : "Movies & Television",
     collectionLastSync: syncedAt || new Date().toISOString(),
   });
+  async function remotePosterBuffer(domain, tmdbId) {
+    if (!Number.isInteger(Number(tmdbId)) || Number(tmdbId) < 1) return null;
+    const metadata = await discovery.details(domain === "tv" ? "tv" : "movie", Number(tmdbId)).catch(() => null);
+    if (!metadata?.poster) return null;
+    const response = await fetch(metadata.poster, { signal: AbortSignal.timeout(10000) }).catch(() => null);
+    if (!response?.ok || !String(response.headers.get("content-type") || "").startsWith("image/")) return null;
+    const body = Buffer.from(await response.arrayBuffer());
+    return body.length && body.length <= 20_000_000 ? body : null;
+  }
   async function renderedReeltrackArtwork(template, item, poster = null) {
     const sharp = (await import("sharp")).default,
       overlay = renderOverlaySvg({
@@ -1540,20 +1557,35 @@ export function createApplication(options = {}) {
         ? sharp(poster).rotate().resize(600, 900, { fit: "cover", position: "centre" })
         : uploaded?.length
           ? sharp(uploaded).rotate().resize(600, 900, { fit: "cover", position: "centre" })
-          : sharp(Buffer.from(gradient));
+          : sharp(Buffer.from(gradient)),
+      quadPosters = await Promise.all((canvas.quadPosters || []).map(async (entry) => {
+        const body = await remotePosterBuffer(entry.domain, entry.tmdbId);
+        return body ? sharp(body).rotate().resize(180, 270, { fit: "cover", position: "centre" }).jpeg().toBuffer() : null;
+      })),
+      quadInputs = quadPosters.filter(Boolean).map((input, index) => ({
+        input,
+        left: 108 + (index % 2) * 204,
+        top: 320 + Math.floor(index / 2) * 282,
+      }));
     return base
-      .composite([{ input: overlay, top: 0, left: 0 }])
+      .composite([...quadInputs, { input: overlay, top: 0, left: 0 }])
       .jpeg({ quality: 92, chromaSubsampling: "4:4:4" })
       .toBuffer();
   }
   async function applyReeltrackTitleArtwork({ template, endpoint, token, items, ratingKeys, list, domain, syncedAt }) {
-    if (!template?.enabled || !template.layers?.length) return 0;
-    let applied = 0;
+    if (!template?.enabled || !template.layers?.length) return { applied: 0, failed: 0, errors: [] };
+    let applied = 0, failed = 0;
+    const errors = [];
     for (const plexItem of items.filter((item) => ratingKeys.includes(String(item.ratingKey)))) {
       try {
-        const poster = await plexService.artwork(endpoint, token, plexItem.thumb || `/library/metadata/${plexItem.ratingKey}/thumb`),
-          identity = plexExternalIds(plexItem).find((value) => value.startsWith("tmdb:")),
-          source = (list.items || []).find((value) => String(value.tmdbId || "") === String(identity?.split(":")[1] || "")) || {},
+        const identity = plexExternalIds(plexItem).find((value) => value.startsWith("tmdb:")),
+          pathTmdbId = (plexItem.files || []).map((file) => String(file).match(/\[tmdb-(\d+)\]/i)?.[1]).find(Boolean),
+          tmdbId = Number(identity?.split(":")[1] || pathTmdbId || 0),
+          source = (list.items || []).find((value) => String(value.tmdbId || "") === String(tmdbId || "")) || {},
+          plexPoster = await plexService.artwork(endpoint, token, plexItem.thumb || `/library/metadata/${plexItem.ratingKey}/thumb`).then((value) => value.body).catch(() => null),
+          poster = plexPoster || await remotePosterBuffer(domain, tmdbId);
+        if (!poster?.length) throw new Error("No Plex or provider poster was available");
+        const
           rendered = await renderedReeltrackArtwork(template, {
             ...source,
             ...plexItem,
@@ -1562,12 +1594,15 @@ export function createApplication(options = {}) {
             collectionTitleCount: ratingKeys.length,
             collectionMediaType: domain === "tv" ? "Television" : "Movies",
             collectionLastSync: syncedAt,
-          }, poster.body);
+          }, poster);
         await plexService.uploadPoster(endpoint, token, plexItem.ratingKey, rendered, "image/jpeg");
         applied += 1;
-      } catch {}
+      } catch (error) {
+        failed += 1;
+        if (errors.length < 10) errors.push(`${plexItem.title || `Plex item ${plexItem.ratingKey}`}: ${error?.message || "overlay failed"}`);
+      }
     }
-    return applied;
+    return { applied, failed, errors };
   }
   async function runReeltrackPlexAutomation(userId, listId, { refreshProvider = true } = {}) {
     const runKey = `${userId}:${listId}`;
@@ -1806,7 +1841,7 @@ export function createApplication(options = {}) {
           await plexService.uploadPoster(plexSettings.endpoint, plexToken, collection.ratingKey, rendered, "image/jpeg");
           totals.collectionPosters += 1;
         }
-        totals.titlePosters += await applyReeltrackTitleArtwork({
+        const titleArtwork = await applyReeltrackTitleArtwork({
           template: titleTemplate,
           endpoint: plexSettings.endpoint,
           token: plexToken,
@@ -1816,6 +1851,9 @@ export function createApplication(options = {}) {
           domain,
           syncedAt: runStartedAt,
         });
+        totals.titlePosters += titleArtwork.applied;
+        totals.titlePosterFailures = (totals.titlePosterFailures || 0) + titleArtwork.failed;
+        totals.titlePosterErrors = [...(totals.titlePosterErrors || []), ...titleArtwork.errors].slice(0, 10);
         totals.managedTitles += wanted.size;
         totals.placeholders += placeholderKeys.length;
         totals.downloaded += downloaded;
@@ -1850,6 +1888,8 @@ export function createApplication(options = {}) {
           libraryFailed: libraryAdds.failed,
           collectionPosters: totals.collectionPosters,
           titlePosters: totals.titlePosters,
+          titlePosterFailures: totals.titlePosterFailures || 0,
+          titlePosterErrors: totals.titlePosterErrors || [],
         },
         libraryErrors: libraryAdds.errors,
       };

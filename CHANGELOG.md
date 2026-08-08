@@ -7,6 +7,35 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.36-rc.9] - 2026-08-08
+
+### Added
+
+- Added a searchable four-title selector to collection poster designs for a
+  2-by-2 mini-poster collage sourced from synchronized list titles.
+- Added visible title-overlay applied and failure totals, with bounded failure
+  details available from the automation summary.
+
+### Changed
+
+- Rendered the selected mini posters through the exact server-side Plex poster
+  pipeline as well as the interactive design preview.
+- Limited collection collages to four explicitly selected TMDB-backed titles.
+
+### Fixed
+
+- Recovered managed title identities from both Plex GUIDs and the `[tmdb-id]`
+  marker in trailer folder paths when applying individual title overlays.
+- Fell back to the title's provider artwork when Plex had not assigned usable
+  poster art to a newly indexed trailer placeholder.
+- Stopped silently discarding title-overlay errors so failed applications are
+  visible and actionable after an automation run.
+
+### Validation
+
+- Passed all 218 automated tests plus TypeScript, production build, bundle,
+  branding, and deployment validation.
+
 ## [2.0.36-rc.8] - 2026-08-08
 
 ### Added
