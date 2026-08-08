@@ -105,6 +105,13 @@ test('theatrical artwork icons render as editable overlay layers',()=>{
   }
 });
 
+test('decorative custom-text artwork does not inherit a visible placeholder label',()=>{
+  const shape=sanitizeOverlayLayer({kind:'shape',variable:'custom_text',label:'Custom text',width:40,height:10}),icon=sanitizeOverlayLayer({kind:'icon',variable:'custom_text',label:'',iconName:'filmstrip'});
+  assert.equal(shape.label,'');assert.equal(icon.label,'');
+  const svg=renderOverlaySvg({poster:Buffer.alloc(0),includePoster:false,template:{enabled:true,layers:[shape,icon]},item:{}}).toString();
+  assert.equal(svg.includes('Custom text'),false);
+});
+
 test('explicit layer heights resize text and icon artwork in exact output',()=>{
   const template=sanitizeOverlayTemplate({layers:[{kind:'text',variable:'custom_text',label:'COMING SOON',width:70,height:8},{kind:'icon',iconName:'filmstrip',variable:'custom_text',label:'',width:30,height:18}]});
   const svg=renderOverlaySvg({poster:Buffer.from('poster'),template,item:{title:'Movie'}}).toString();

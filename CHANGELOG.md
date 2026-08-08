@@ -7,6 +7,15 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.36-rc.16] - 2026-08-08
+
+### Fixed
+
+- Prevented decorative theatrical preset shapes and icons from inheriting a
+  visible `Custom text` placeholder when several artwork layers are added.
+- Removed the accidental legacy placeholder from existing non-text custom
+  artwork while preserving intentional labels and normal custom text layers.
+
 ## [2.0.36-rc.15] - 2026-08-08
 
 ### Added

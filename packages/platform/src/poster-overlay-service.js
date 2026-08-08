@@ -264,7 +264,12 @@ export function sanitizeOverlayLayer(input = {}, index = 0) {
     ].includes(input.contentPosition)
       ? input.contentPosition
       : "none",
-    label = legacyIcon ? "" : cleanText(input.label || `{${variable}}`, 80);
+    suppliedLabel = cleanText(input.label, 80),
+    label = legacyIcon
+      ? ""
+      : kind !== "text" && variable === "custom_text"
+        ? suppliedLabel === "Custom text" ? "" : suppliedLabel
+        : suppliedLabel || `{${variable}}`;
   const legacy = sanitizeCondition({ ...input.condition, variable }, variable),
     conditions =
       Array.isArray(input.conditions?.rules) && input.conditions.rules.length

@@ -197,7 +197,7 @@ const titlePresets = [
 ];
 const layer = (kind: OverlayLayer["kind"] = "text", variable = "title"): OverlayLayer => ({
   id: `layer_${overlayClientId()}`,
-  label: variable === "custom_text" ? "Custom text" : `{${variable}}`,
+  label: variable === "custom_text" ? (kind === "text" ? "Custom text" : "") : `{${variable}}`,
   variable,
   kind,
   iconName: "movie",
