@@ -78,16 +78,16 @@
 .reeltrack-automation-setup,
 .reeltrack-list-automation {
   display: grid;
-  gap: 0.75rem;
-  padding: 0.9rem;
+  gap: 0.5rem 0.75rem;
+  padding: 0.7rem 0.8rem;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--panel-strong);
 }
 .reeltrack-automation-toggle {
   display: flex;
-  gap: 0.65rem;
-  align-items: flex-start;
+  gap: 0.5rem;
+  align-items: center;
 }
 .reeltrack-automation-toggle span,
 .reeltrack-list-automation-heading > div {
@@ -101,7 +101,7 @@
 .reeltrack-automation-fields {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 0.65rem;
+  gap: 0.45rem 0.65rem;
   align-items: start;
 }
 .reeltrack-automation-fields label {
@@ -113,6 +113,20 @@
   display: grid;
   gap: 0.35rem;
   min-width: 0;
+}
+.reeltrack-plex-target > label {
+  grid-template-columns: minmax(0, 1fr) minmax(12rem, 0.9fr);
+  gap: 0.25rem 0.5rem;
+  align-items: end;
+}
+.reeltrack-plex-target > label > select,
+.reeltrack-plex-target > label > small {
+  grid-column: 1;
+}
+.reeltrack-plex-target > label > .storage-path-control {
+  grid-column: 2;
+  grid-row: 1 / 4;
+  align-self: end;
 }
 .reeltrack-root-warning {
   display: flex;
@@ -131,20 +145,52 @@
 }
 .reeltrack-list-automation {
   margin-top: 1rem;
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 .reeltrack-list-automation-heading {
   display: flex;
   justify-content: space-between;
   gap: 1rem;
   align-items: center;
+  grid-column: 1 / -1;
+}
+.reeltrack-list-automation > .reeltrack-automation-toggle,
+.reeltrack-list-automation > .reeltrack-automation-fields,
+.reeltrack-list-automation > .danger-text,
+.reeltrack-list-automation > small {
+  grid-column: 1 / -1;
 }
 .reeltrack-list-automation > .primary {
+  grid-column: 2;
+  align-self: center;
   justify-self: end;
+  min-height: 2.45rem;
+  padding: 0.45rem 0.8rem;
+}
+.reeltrack-list-automation > div[style*="repeat(auto-fit"] {
+  gap: 0.45rem !important;
+}
+.reeltrack-list-automation > div[style*="repeat(auto-fit"] > div {
+  padding: 0.4rem 0.5rem !important;
+  gap: 0.2rem 0.45rem !important;
+}
+.reeltrack-list-automation > div[style*="repeat(auto-fit"] button {
+  min-height: 2.15rem;
+  padding: 0.35rem 0.55rem;
+}
+.reeltrack-list-automation > div[style*="repeat(auto-fit"] small {
+  font-size: 0.7rem;
 }
 .reeltrack-automation-summary {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem 0.8rem;
+  gap: 0.2rem 0.65rem;
+  align-self: center;
+  font-size: 0.78rem;
+}
+.reeltrack-list-automation > p.danger-text {
+  margin: 0;
+  font-size: 0.8rem;
 }
 .reeltrack-remote-list {
   display: grid;
@@ -388,6 +434,19 @@
   }
   .reeltrack-workspace {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .reeltrack-plex-target > label {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .reeltrack-plex-target > label > .storage-path-control {
+    grid-column: 1;
+    grid-row: auto;
+  }
+  .reeltrack-list-automation {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .reeltrack-list-automation > .primary {
+    grid-column: 1;
   }
   .reeltrack-list-nav {
     position: static;

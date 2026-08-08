@@ -37,6 +37,7 @@ test('Reeltrack Lists remains fluid while the viewport is resized',async()=>{
   assert.match(designer,/for\s*\(const item of snapshots\)\s*onChange\(item\.id,\s*\{\s*position:\s*"custom"/);
   assert.match(designer,/layers:\s*\[\.\.\.current\.layers,\s*accent,\s*graphic,\s*badge\]/);
   assert.match(view,/overlays applied/);assert.match(view,/overlay failures/);
+  assert.match(view,/artwork\/\$\{kind\}\/restore/);assert.match(view,/Revert in Plex/);assert.match(view,/saved only for \$\{selected\.name\}/);
 });
 
 test('loaded Action Center records cannot widen the mobile viewport',async()=>{

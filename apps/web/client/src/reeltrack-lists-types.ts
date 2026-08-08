@@ -39,7 +39,7 @@ export interface ReeltrackList {
     libraryErrors?:string[];
     lastRunAt?:string|null;
     nextRunAt?:string|null;
-    summary?:{providerTitles:number;managedTitles:number;placeholders:number;downloaded:number;removed:number;failed?:number;realMatches:number;libraryAdded?:number;libraryExisting?:number;libraryFailed?:number;collectionPosters?:number;titlePosters?:number;titlePosterFailures?:number;titlePosterErrors?:string[]};
+    summary?:{providerTitles:number;managedTitles:number;placeholders:number;downloaded:number;removed:number;failed?:number;realMatches:number;libraryAdded?:number;libraryExisting?:number;libraryFailed?:number;collectionPosters?:number;collectionPosterFailures?:number;collectionPosterErrors?:string[];titlePosters?:number;titlePosterFailures?:number;titlePosterErrors?:string[]};
   }|null;
 }
 export interface ReeltrackListsMountOptions {

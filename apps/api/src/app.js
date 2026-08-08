@@ -1880,19 +1880,27 @@ export function createApplication(options = {}) {
         const collectionTemplate = reeltrackPosterTemplate(automation.collectionPosterTemplate, domain),
           titleTemplate = reeltrackPosterTemplate(automation.titleOverlayTemplate, domain);
         if (collection.ratingKey && collectionTemplate?.enabled && collectionTemplate.layers?.length) {
-          const originalCollection = await reeltrackOriginalArtwork({ automation, endpoint: plexSettings.endpoint, token: plexToken, machineIdentifier: plexSettings.server?.machineIdentifier || "", ratingKey: collection.ratingKey, domain, kind: "collection" });
-          const rendered = await renderedReeltrackArtwork(
-            collectionTemplate,
-            reeltrackPosterItem({
-              list,
-              domain,
-              count: placeholderKeys.length,
-              syncedAt: runStartedAt,
-              title: automation.collectionName || list.name,
-            }),
-          );
-          await plexService.uploadPoster(plexSettings.endpoint, plexToken, collection.ratingKey, rendered, "image/jpeg");
-          totals.collectionPosters += 1;
+          try {
+            // syncCollection creates a fresh Plex collection, whose generated thumbnail is
+            // commonly unavailable for several seconds. There is no prior collection poster
+            // to preserve on that new rating key, so render and upload the selected design
+            // directly instead of failing the entire artwork pass on a thumbnail HTTP 404.
+            const rendered = await renderedReeltrackArtwork(
+              collectionTemplate,
+              reeltrackPosterItem({
+                list,
+                domain,
+                count: placeholderKeys.length,
+                syncedAt: runStartedAt,
+                title: automation.collectionName || list.name,
+              }),
+            );
+            await plexService.uploadPoster(plexSettings.endpoint, plexToken, collection.ratingKey, rendered, "image/jpeg");
+            totals.collectionPosters += 1;
+          } catch (error) {
+            totals.collectionPosterFailures = (totals.collectionPosterFailures || 0) + 1;
+            totals.collectionPosterErrors = [...(totals.collectionPosterErrors || []), error?.message || "collection poster failed"].slice(0, 10);
+          }
         }
         const titleArtwork = await applyReeltrackTitleArtwork({
           template: titleTemplate,
@@ -1944,6 +1952,8 @@ export function createApplication(options = {}) {
           libraryExisting: libraryAdds.existing,
           libraryFailed: libraryAdds.failed,
           collectionPosters: totals.collectionPosters,
+          collectionPosterFailures: totals.collectionPosterFailures || 0,
+          collectionPosterErrors: totals.collectionPosterErrors || [],
           titlePosters: totals.titlePosters,
           titlePosterFailures: totals.titlePosterFailures || 0,
           titlePosterErrors: totals.titlePosterErrors || [],
@@ -8839,6 +8849,46 @@ export function createApplication(options = {}) {
         const reeltrackAutomationMatch = url.pathname.match(
           /^\/api\/reeltrack\/imported-lists\/([^/]+)\/automation(?:\/(run))?$/,
         );
+        const reeltrackArtworkRestoreMatch = url.pathname.match(
+          /^\/api\/reeltrack\/imported-lists\/([^/]+)\/artwork\/(collection|titles)\/restore$/,
+        );
+        if (reeltrackArtworkRestoreMatch && req.method === "POST") {
+          if (!administrator(res, session) || !requireCsrf(req, res, session))
+            return;
+          await body(req);
+          const listId = decodeURIComponent(reeltrackArtworkRestoreMatch[1]),
+            artwork = reeltrackArtworkRestoreMatch[2],
+            activeRun = reeltrackAutomationRuns.get(`${session.user.id}:${listId}`);
+          if (activeRun) await activeRun.catch(() => {});
+          const current = await reeltrackSnapshotForUser(session.user.id),
+            index = (current.importedLists || []).findIndex((item) => String(item.id) === listId);
+          if (index < 0) throw new Error("The imported Reeltrack list no longer exists.");
+          const list = current.importedLists[index], automation = list.automation || {},
+            [settings, token] = await Promise.all([plexSettingsStore.read(), engineSettings.plexCredential()]);
+          if (!settings.endpoint || !token) throw new Error("Reconnect Plex before restoring artwork.");
+          const kind = artwork === "collection" ? "collection" : "title", restored = [];
+          for (const domain of ["movie", "tv"])
+            restored.push(...await restoreReeltrackArtwork({ automation, endpoint: settings.endpoint, token, machineIdentifier: settings.server?.machineIdentifier || "", domain, kind }));
+          if (artwork === "collection") automation.collectionPosterTemplate = null;
+          else automation.titleOverlayTemplate = null;
+          current.importedLists[index].automation = automation;
+          current.updatedAt = new Date().toISOString();
+          await saveReeltrackSnapshot(session.user.id, current);
+          let restoredList = current.importedLists[index];
+          if (artwork === "collection" && automation.enabled)
+            restoredList = await runReeltrackPlexAutomation(session.user.id, listId, { refreshProvider: false });
+          await recordAudit(session, {
+            category: "automation",
+            action: artwork === "collection" ? "reeltrack.collection_poster_restored" : "reeltrack.title_overlays_restored",
+            target: list.name,
+            summary: `Restored ${restored.length} original Plex poster${restored.length === 1 ? "" : "s"} for this Reeltrack list.`,
+            metadata: { listId, artwork, restored },
+          });
+          return json(res, 200, {
+            restored: restored.length,
+            item: (await matchedReeltrackLists(session, [restoredList]))[0],
+          });
+        }
         if (
           reeltrackAutomationMatch &&
           req.method === "PUT" &&

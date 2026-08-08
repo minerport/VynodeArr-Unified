@@ -7,6 +7,30 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.36-rc.15] - 2026-08-08
+
+### Added
+
+- Added per-list controls to restore native Plex collection artwork or the
+  original title posters without changing artwork configured for other lists.
+- Added separate collection-poster and title-overlay success and failure
+  reporting to managed-list runs.
+
+### Changed
+
+- Condensed the managed Plex collection panel with tighter controls, inline
+  host-path mapping, compact artwork actions, and a shared summary/save row.
+- Recreate a managed collection immediately when its custom poster is
+  reverted so Plex restores native collection artwork without waiting for the
+  next scheduled synchronization.
+
+### Fixed
+
+- Prevented a newly created Plex collection's temporarily unavailable
+  thumbnail from aborting collection-poster and title-overlay application.
+- Isolated collection-poster failures so title overlays continue applying to
+  every managed placeholder in the list.
+
 ## [2.0.36-rc.14] - 2026-08-08
 
 ### Changed
