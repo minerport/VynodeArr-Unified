@@ -7,6 +7,34 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.36-rc.5] - 2026-08-08
+
+### Added
+
+- Added Movie and Television engine-root compatibility checks for selected
+  Plex libraries.
+- Added administrator actions beside incompatible Plex targets to register the
+  reported Plex location as the corresponding Movie or TV engine root folder.
+
+### Changed
+
+- Selected the most specific compatible engine root when adding Reeltrack
+  titles instead of defaulting to the engine's first root folder.
+- Condensed managed-automation status into readable counters and grouped Plex
+  target compatibility directly with each library selector.
+
+### Fixed
+
+- Detected trailer files and folders deleted outside VynodeArr, discarded their
+  stale completed-job records, and downloaded them again on the next sync.
+- Prevented titles from silently being added beneath an unrelated engine root
+  when the selected Plex library location is not configured in that engine.
+
+### Validation
+
+- Passed all 216 automated tests plus TypeScript, production build, bundle,
+  branding, and deployment validation.
+
 ## [2.0.36-rc.4] - 2026-08-08
 
 ### Fixed
@@ -1719,7 +1747,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.36-rc.4...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.36-rc.5...HEAD
+[2.0.36-rc.5]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.36-rc.4...v2.0.36-rc.5
 [2.0.36-rc.4]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.36-rc.3...v2.0.36-rc.4
 [2.0.36-rc.3]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.36-rc.2...v2.0.36-rc.3
 [2.0.36-rc.2]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.36-rc.1...v2.0.36-rc.2

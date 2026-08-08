@@ -108,6 +108,18 @@
   gap: 0.35rem;
   min-width: 0;
 }
+.reeltrack-plex-target {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+.reeltrack-root-warning {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  color: #ef9a64;
+}
 .reeltrack-automation-fields input,
 .reeltrack-automation-fields select {
   width: 100%;
@@ -126,7 +138,9 @@
   justify-self: end;
 }
 .reeltrack-automation-summary {
-  display: block;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.8rem;
 }
 .reeltrack-remote-list {
   display: grid;

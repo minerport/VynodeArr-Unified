@@ -1333,7 +1333,7 @@ export function createApplication(options = {}) {
     const path = String(value || "").trim();
     return !path || plexPathValue(path) === "/trailers" ? "/movies" : path;
   };
-  async function addReeltrackItemsToLibraries(providerItems) {
+  async function addReeltrackItemsToLibraries(providerItems, preferredRoots = {}) {
     const summary = { added: 0, existing: 0, failed: 0, errors: [] };
     for (const domain of ["movie", "tv"]) {
       const candidates = (providerItems || [])
@@ -1356,12 +1356,20 @@ export function createApplication(options = {}) {
       }
       const known = Array.isArray(records) ? records : records?.records || [],
         profile = (Array.isArray(profiles) ? profiles : [])[0],
-        root = (Array.isArray(roots) ? roots : [])[0];
+        preferredPath = plexPathValue(preferredRoots[domain]),
+        root = (Array.isArray(roots) ? roots : [])
+          .filter((candidate) => {
+            const rootPath = plexPathValue(candidate?.path);
+            return !preferredPath || preferredPath === rootPath || preferredPath.startsWith(`${rootPath}/`);
+          })
+          .sort((left, right) => plexPathValue(right.path).length - plexPathValue(left.path).length)[0];
       let domainAdded = 0;
       if (!profile || !root?.path) {
         summary.failed += candidates.length;
         summary.errors.push(
-          `${domain === "movie" ? "Movies" : "Television"}: configure a root folder and quality profile first`,
+          preferredPath
+            ? `${domain === "movie" ? "Movies" : "Television"}: add ${preferredRoots[domain]} as an engine root folder before synchronizing this Plex library`
+            : `${domain === "movie" ? "Movies" : "Television"}: configure a root folder and quality profile first`,
         );
         continue;
       }
@@ -1482,7 +1490,6 @@ export function createApplication(options = {}) {
           ? await reeltrackListItems(apiKey, listId)
           : refreshProvider ? [] : original.items || [],
         list = { ...original, ...providerList, items: providerItems },
-        libraryAdds = await addReeltrackItemsToLibraries(providerItems),
         requiredDomains = new Set([
           ...providerItems.map(reeltrackItemIdentity).filter((item) => item.tmdbId).map((item) => item.domain),
           ...Object.values(automation.jobs || {}).map((job) => job?.domain === "tv" ? "tv" : "movie"),
@@ -1504,7 +1511,11 @@ export function createApplication(options = {}) {
           if (!library) throw new Error(`Choose a Plex ${domain === "tv" ? "television" : "movie"} library for this list.`);
           if (!String(library.locations?.[0] || "").trim()) throw new Error(`The selected Plex ${domain === "tv" ? "television" : "movie"} library does not report a media location. Reconnect Plex and try again.`);
           return { domain, library, libraryLocation: String(library.locations[0]).trim() };
-        }),
+        });
+      const libraryAdds = await addReeltrackItemsToLibraries(
+          providerItems,
+          Object.fromEntries(targets.map((target) => [target.domain, target.libraryLocation])),
+        ),
         jobs = { ...(automation.jobs || {}) },
         totals = { managedTitles: 0, placeholders: 0, downloaded: 0, removed: 0, realMatches: 0 },
         collectionRatingKeys = { ...(automation.collectionRatingKeys || {}) },
@@ -1554,6 +1565,16 @@ export function createApplication(options = {}) {
       }
       let removed = 0,
         downloaded = 0;
+      if (typeof trailerDownloader.exists === "function")
+        for (const [key, job] of Object.entries(jobs))
+          if (
+            job?.path &&
+            (job?.domain === "tv" ? "tv" : "movie") === domain &&
+            !(await trailerDownloader.exists(job))
+          ) {
+            delete jobs[key];
+            removed += 1;
+          }
       for (const [key, job] of Object.entries(jobs)) {
         if ((job?.domain === "tv" ? "tv" : "movie") === domain && (!wanted.has(key) || realIds.has(key))) {
           await trailerDownloader.remove(job).catch(() => {});
@@ -8137,17 +8158,49 @@ export function createApplication(options = {}) {
           req.method === "GET"
         ) {
           if (!administrator(res, session)) return;
-          const [downloader, plexSettings, plexToken] = await Promise.all([
+          const [downloader, plexSettings, plexToken, movieRoots, tvRoots] = await Promise.all([
             trailerDownloader.status(),
             plexSettingsStore.read(),
             engineSettings.plexCredential(),
+            management.execute("movie", "rootFolders", "GET", {}).catch(() => []),
+            management.execute("tv", "rootFolders", "GET", {}).catch(() => []),
           ]);
           return json(res, 200, {
             ...downloader,
             plexConfigured: Boolean(plexSettings.endpoint && plexToken),
             plexServer: plexSettings.server || null,
             libraries: plexSettings.libraries || [],
+            engineRoots: { movie: movieRoots || [], tv: tvRoots || [] },
           });
+        }
+        if (
+          url.pathname === "/api/reeltrack/trailers/root-folder" &&
+          req.method === "POST"
+        ) {
+          if (!administrator(res, session) || !requireCsrf(req, res, session))
+            return;
+          const input = await body(req),
+            domain = input.domain === "tv" ? "tv" : "movie",
+            expectedType = domain === "tv" ? "show" : "movie",
+            settings = await plexSettingsStore.read(),
+            library = (settings.libraries || []).find(
+              (item) => item.type === expectedType && String(item.key) === String(input.libraryKey),
+            ),
+            path = String(library?.locations?.[0] || "").trim();
+          if (!library || !path)
+            throw new Error(`Choose a Plex ${domain === "tv" ? "television" : "movie"} library with a reported location.`);
+          const existing = await management.execute(domain, "rootFolders", "GET", {}),
+            present = (existing || []).find((root) => plexPathValue(root.path) === plexPathValue(path));
+          const root = present || await management.execute(domain, "rootFolders", "POST", { payload: { path } });
+          await recordAudit(session, {
+            category: "configuration",
+            action: "reeltrack.root_folder_added",
+            target: path,
+            domain,
+            summary: `${present ? "Confirmed" : "Added"} the selected Plex location as a ${domain === "tv" ? "television" : "movie"} root folder.`,
+            metadata: { libraryKey: library.key },
+          });
+          return json(res, present ? 200 : 201, { root, existing: Boolean(present) });
         }
         if (
           url.pathname === "/api/reeltrack/trailers/download" &&

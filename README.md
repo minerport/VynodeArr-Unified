@@ -28,7 +28,7 @@ consistent experience and account system.
 ## Current release
 
 Version **2.0.35** is available for production use on Unraid, Windows, and
-standard Docker installations. Version **2.0.36-rc.4** is available as a
+standard Docker installations. Version **2.0.36-rc.5** is available as a
 prerelease with managed Reeltrack trailer collections, automatic Movie and TV
 library registration, and separate Plex Movie and Television targets for mixed
 lists. The production release includes a durable local Movie and Television catalog, targeted

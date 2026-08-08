@@ -12,6 +12,7 @@ const message = (error: unknown) =>
   error instanceof Error
     ? error.message
     : "VynodeArr could not complete this request.";
+const mediaPath = (value?: string) => String(value || "").replaceAll("\\", "/").replace(/\/+$/, "").toLowerCase();
 const discoverItem = (item: ReeltrackListItem): DiscoverItem => ({
   id: `reeltrack_${item.domain}_${item.tmdbId}`,
   tmdbId: Number(item.tmdbId),
@@ -52,8 +53,10 @@ export function ReeltrackListsView({
       plexConfigured?: boolean;
       plexServer?: { name?: string } | null;
       libraries?: Array<{ key: string; title: string; type: string; locations?: string[] }>;
+      engineRoots?: { movie?: Array<{ id: string | number; path: string }>; tv?: Array<{ id: string | number; path: string }> };
     } | null>(null),
     [trailerBusy, setTrailerBusy] = useState(""),
+    [rootBusy, setRootBusy] = useState(""),
     [automationEnabled, setAutomationEnabled] = useState(false),
     [automationMovieLibraryKey, setAutomationMovieLibraryKey] = useState(""),
     [automationTvLibraryKey, setAutomationTvLibraryKey] = useState(""),
@@ -76,6 +79,7 @@ export function ReeltrackListsView({
               plexConfigured?: boolean;
               plexServer?: { name?: string } | null;
               libraries?: Array<{ key: string; title: string; type: string; locations?: string[] }>;
+              engineRoots?: { movie?: Array<{ id: string | number; path: string }>; tv?: Array<{ id: string | number; path: string }> };
             }>("/api/reeltrack/trailers/status").catch(() => null)
           : Promise.resolve(null),
       ]);
@@ -254,6 +258,37 @@ export function ReeltrackListsView({
       notify(message(error), "error");
     } finally {
       setBusy(false);
+    }
+  }
+  const selectedPlexLibrary = (domain: "movie" | "tv") => trailerStatus?.libraries?.find(
+    (library) => library.key === (domain === "movie" ? automationMovieLibraryKey : automationTvLibraryKey),
+  );
+  const rootCompatibility = (domain: "movie" | "tv") => {
+    const library = selectedPlexLibrary(domain), location = mediaPath(library?.locations?.[0]);
+    return {
+      library,
+      location: library?.locations?.[0] || "",
+      compatible: Boolean(location && (trailerStatus?.engineRoots?.[domain] || []).some((root) => {
+        const rootPath = mediaPath(root.path);
+        return location === rootPath || location.startsWith(`${rootPath}/`);
+      })),
+    };
+  };
+  async function addEngineRoot(domain: "movie" | "tv") {
+    const library = selectedPlexLibrary(domain);
+    if (!library) return;
+    setRootBusy(domain);
+    try {
+      await request("/api/reeltrack/trailers/root-folder", {
+        method: "POST",
+        body: JSON.stringify({ domain, libraryKey: library.key }),
+      });
+      notify(`${domain === "movie" ? "Movie" : "Television"} root folder added.`);
+      await load();
+    } catch (error) {
+      notify(message(error), "error");
+    } finally {
+      setRootBusy("");
     }
   }
   async function runAutomation() {
@@ -508,15 +543,15 @@ export function ReeltrackListsView({
               {automationEnabled ? (
                 <div className="reeltrack-automation-fields">
                   {(["movie", "show"] as const).map((type) => {
-                    const value = type === "movie" ? automationMovieLibraryKey : automationTvLibraryKey;
-                    return <label key={type}>
+                    const domain = type === "movie" ? "movie" : "tv", value = domain === "movie" ? automationMovieLibraryKey : automationTvLibraryKey, compatibility = rootCompatibility(domain);
+                    return <div className="reeltrack-plex-target" key={type}><label>
                       {type === "movie" ? "Movie" : "Television"} Plex library
                       <select value={value} onChange={(event) => type === "movie" ? setAutomationMovieLibraryKey(event.target.value) : setAutomationTvLibraryKey(event.target.value)}>
                         <option value="">Choose a {type === "movie" ? "movie" : "television"} library</option>
                         {(trailerStatus?.libraries || []).filter((library) => library.type === type).map((library) => <option key={library.key} value={library.key}>{library.title}</option>)}
                       </select>
-                      <small>{trailerStatus?.libraries?.find((library) => library.key === value)?.locations?.[0] || "Location supplied by Plex"}</small>
-                    </label>;
+                      <small>{compatibility.location || "Location supplied by Plex"}</small>
+                    </label>{value && !compatibility.compatible ? <div className="reeltrack-root-warning"><span>Not inside an engine root folder.</span><button className="secondary" disabled={rootBusy === domain} onClick={() => void addEngineRoot(domain)}>{rootBusy === domain ? "Adding…" : `Add as ${domain === "movie" ? "Movie" : "TV"} root`}</button></div> : value ? <small className="reeltrack-root-ready">Engine root is compatible</small> : null}</div>;
                   })}
                   <label>
                     Update every
@@ -625,22 +660,22 @@ export function ReeltrackListsView({
                 </label>
                 {automationEnabled ? (
                   <div className="reeltrack-automation-fields">
-                    {selected?.items?.some((item) => item.domain === "movie") ? <label>
+                    {selected?.items?.some((item) => item.domain === "movie") ? <div className="reeltrack-plex-target"><label>
                       Movie Plex library
                       <select value={automationMovieLibraryKey} onChange={(event) => setAutomationMovieLibraryKey(event.target.value)}>
                         <option value="">Choose a movie library</option>
                         {(trailerStatus?.libraries || []).filter((library) => library.type === "movie").map((library) => <option key={library.key} value={library.key}>{library.title}</option>)}
                       </select>
-                      <small>{trailerStatus?.libraries?.find((library) => library.key === automationMovieLibraryKey)?.locations?.[0] || "Location supplied by Plex"}</small>
-                    </label> : null}
-                    {selected?.items?.some((item) => item.domain === "tv") ? <label>
+                      <small>{rootCompatibility("movie").location || "Location supplied by Plex"}</small>
+                    </label>{automationMovieLibraryKey && !rootCompatibility("movie").compatible ? <div className="reeltrack-root-warning"><span>Not inside a Movie engine root folder.</span><button className="secondary" disabled={rootBusy === "movie"} onClick={() => void addEngineRoot("movie")}>{rootBusy === "movie" ? "Adding…" : "Add as Movie root"}</button></div> : <small className="reeltrack-root-ready">Movie engine root is compatible</small>}</div> : null}
+                    {selected?.items?.some((item) => item.domain === "tv") ? <div className="reeltrack-plex-target"><label>
                       Television Plex library
                       <select value={automationTvLibraryKey} onChange={(event) => setAutomationTvLibraryKey(event.target.value)}>
                         <option value="">Choose a television library</option>
                         {(trailerStatus?.libraries || []).filter((library) => library.type === "show").map((library) => <option key={library.key} value={library.key}>{library.title}</option>)}
                       </select>
-                      <small>{trailerStatus?.libraries?.find((library) => library.key === automationTvLibraryKey)?.locations?.[0] || "Location supplied by Plex"}</small>
-                    </label> : null}
+                      <small>{rootCompatibility("tv").location || "Location supplied by Plex"}</small>
+                    </label>{automationTvLibraryKey && !rootCompatibility("tv").compatible ? <div className="reeltrack-root-warning"><span>Not inside a Television engine root folder.</span><button className="secondary" disabled={rootBusy === "tv"} onClick={() => void addEngineRoot("tv")}>{rootBusy === "tv" ? "Adding…" : "Add as TV root"}</button></div> : <small className="reeltrack-root-ready">Television engine root is compatible</small>}</div> : null}
                     <label>
                       Collection name
                       <input value={automationCollectionName} onChange={(event) => setAutomationCollectionName(event.target.value)} />
@@ -655,9 +690,9 @@ export function ReeltrackListsView({
                 ) : null}
                 {selected?.automation?.error ? <p className="danger-text">{selected.automation.error}</p> : null}
                 {selected?.automation?.summary ? (
-                  <small className="reeltrack-automation-summary">
-                    {selected.automation.summary.placeholders} placeholders · {selected.automation.summary.realMatches} real matches · {selected.automation.summary.libraryAdded || 0} added to VynodeArr · {selected.automation.summary.libraryExisting || 0} already registered · {selected.automation.summary.libraryFailed || 0} library failures · {selected.automation.summary.failed || 0} failed trailers · {selected.automation.summary.providerTitles} provider titles
-                  </small>
+                  <div className="reeltrack-automation-summary">
+                    <span><strong>{selected.automation.summary.providerTitles}</strong> list titles</span><span><strong>{selected.automation.summary.placeholders}</strong> Plex placeholders</span><span><strong>{selected.automation.summary.realMatches}</strong> real matches</span><span><strong>{selected.automation.summary.libraryAdded || 0}</strong> added</span><span><strong>{selected.automation.summary.libraryExisting || 0}</strong> registered</span>{selected.automation.summary.libraryFailed ? <span className="danger-text"><strong>{selected.automation.summary.libraryFailed}</strong> library failures</span> : null}{selected.automation.summary.failed ? <span className="danger-text"><strong>{selected.automation.summary.failed}</strong> trailer failures</span> : null}
+                  </div>
                 ) : null}
                 {selected?.automation?.libraryErrors?.length ? (
                   <small className="danger-text">{selected.automation.libraryErrors.join(" · ")}</small>
