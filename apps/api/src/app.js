@@ -1600,9 +1600,10 @@ export function createApplication(options = {}) {
     automation.artworkOriginals[key] = { backupFile, contentType: original.contentType, sha256: createHash("sha256").update(original.body).digest("hex"), machineIdentifier, ratingKey: String(ratingKey), domain, kind, synthetic, capturedAt: new Date().toISOString() };
     return { ...original, key, captured: true };
   }
-  async function restoreReeltrackArtwork({ automation, endpoint, token, machineIdentifier, domain, kind }) {
+  async function restoreReeltrackArtwork({ automation, endpoint, token, machineIdentifier, domain, kind, exceptRatingKeys = [] }) {
     const restored = [];
-    const records = Object.values(automation.artworkOriginals || {}).filter((item, index, all) => !item.synthetic && item.machineIdentifier === machineIdentifier && item.domain === domain && item.kind === kind && all.indexOf(item) === index);
+    const retained = new Set(exceptRatingKeys.map(String)),
+      records = Object.values(automation.artworkOriginals || {}).filter((item, index, all) => !item.synthetic && item.machineIdentifier === machineIdentifier && item.domain === domain && item.kind === kind && !retained.has(String(item.ratingKey)) && all.indexOf(item) === index);
     for (const record of records) {
       if (!/^[a-f0-9-]{36}\.poster$/i.test(String(record.backupFile || ""))) continue;
       const body = await readFile(join(reeltrackArtworkBackupDir, record.backupFile)).catch(() => null);
@@ -1863,7 +1864,7 @@ export function createApplication(options = {}) {
         throw new Error(
           `Plex indexed ${placeholderKeys.length} of ${expectedPlaceholderCount} managed ${domain === "tv" ? "television" : "movie"} trailers in ${library.title}. Verify that ${libraryLocation} is the selected library's container path, then run the automation again.`,
         );
-      await restoreReeltrackArtwork({ automation, endpoint: plexSettings.endpoint, token: plexToken, machineIdentifier: plexSettings.server?.machineIdentifier || "", domain, kind: "title" });
+      await restoreReeltrackArtwork({ automation, endpoint: plexSettings.endpoint, token: plexToken, machineIdentifier: plexSettings.server?.machineIdentifier || "", domain, kind: "title", exceptRatingKeys: placeholderKeys });
       const collection = await plexService.syncCollection(
           plexSettings.endpoint,
           plexToken,
@@ -1880,7 +1881,6 @@ export function createApplication(options = {}) {
           titleTemplate = reeltrackPosterTemplate(automation.titleOverlayTemplate, domain);
         if (collection.ratingKey && collectionTemplate?.enabled && collectionTemplate.layers?.length) {
           const originalCollection = await reeltrackOriginalArtwork({ automation, endpoint: plexSettings.endpoint, token: plexToken, machineIdentifier: plexSettings.server?.machineIdentifier || "", ratingKey: collection.ratingKey, domain, kind: "collection" });
-          if (!originalCollection.captured && !originalCollection.synthetic) await plexService.uploadPoster(plexSettings.endpoint, plexToken, collection.ratingKey, originalCollection.body, originalCollection.contentType);
           const rendered = await renderedReeltrackArtwork(
             collectionTemplate,
             reeltrackPosterItem({
@@ -7087,7 +7087,6 @@ export function createApplication(options = {}) {
         ratingKey: ratingKey,
       });
     target.poster = await originalPlexPoster(target.settings, target.plex.ratingKey, target.poster);
-    if (target.poster.managed) await plexService.uploadPoster(target.settings.endpoint, target.token, target.plex.ratingKey, target.poster.body, target.poster.contentType);
     const rendered = await renderedPlexPoster(target, template, session),
       id = `plex_poster_${randomUUID()}`,
       backupFile = `${id}.poster`,

@@ -7,6 +7,22 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.36-rc.14] - 2026-08-08
+
+### Changed
+
+- Changed collection and title artwork updates to compose every revision from
+  the first captured original instead of the previously rendered poster.
+- Limited direct original-poster uploads to artwork removal and titles that
+  are no longer targeted by a managed overlay.
+
+### Fixed
+
+- Prevented Plex's asynchronous poster processing from allowing an original
+  restore upload to finish after and replace a newly rendered poster.
+- Ensured active collection-poster and title-overlay updates send Plex one
+  final composite, preventing overlays from disappearing or accumulating.
+
 ## [2.0.36-rc.13] - 2026-08-08
 
 ### Added
