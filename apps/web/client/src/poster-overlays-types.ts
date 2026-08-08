@@ -9,6 +9,8 @@ export type OverlayPosition =
   | "custom";
 export interface OverlayLayer {
   id: string;
+  /** Optional editor grouping identifier. Rendering order remains layer based. */
+  groupId?: string;
   label: string;
   variable: string;
   kind: "text" | "icon" | "shape";

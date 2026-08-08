@@ -1575,11 +1575,19 @@ export function createApplication(options = {}) {
   }
   async function reeltrackOriginalArtwork({ automation, endpoint, token, machineIdentifier, ratingKey, artworkPath, domain, kind }) {
     automation.artworkOriginals ||= {};
-    const key = `${machineIdentifier}:${ratingKey}`, existing = automation.artworkOriginals[key];
+    const key = `${machineIdentifier}:${domain}:${kind}:${ratingKey}`,
+      legacyKey = `${machineIdentifier}:${ratingKey}`,
+      legacy = automation.artworkOriginals[legacyKey],
+      existing = automation.artworkOriginals[key] || (legacy?.machineIdentifier === machineIdentifier && legacy?.domain === domain && legacy?.kind === kind ? legacy : null);
     if (existing?.backupFile && /^[a-f0-9-]{36}\.poster$/i.test(existing.backupFile)) {
-      const body = await readFile(join(reeltrackArtworkBackupDir, existing.backupFile));
-      if (createHash("sha256").update(body).digest("hex") !== existing.sha256) throw new Error("The managed artwork original failed integrity validation");
-      return { body, contentType: existing.contentType, key, captured: false, synthetic: Boolean(existing.synthetic) };
+      const body = await readFile(join(reeltrackArtworkBackupDir, existing.backupFile)).catch(() => null);
+      if (body?.length && createHash("sha256").update(body).digest("hex") === existing.sha256) {
+        automation.artworkOriginals[key] = existing;
+        if (legacy === existing) delete automation.artworkOriginals[legacyKey];
+        return { body, contentType: existing.contentType, key, captured: false, synthetic: Boolean(existing.synthetic) };
+      }
+      delete automation.artworkOriginals[key];
+      if (legacy === existing) delete automation.artworkOriginals[legacyKey];
     }
     const synthetic = typeof plexService.artwork !== "function",
       current = !synthetic
@@ -1594,7 +1602,8 @@ export function createApplication(options = {}) {
   }
   async function restoreReeltrackArtwork({ automation, endpoint, token, machineIdentifier, domain, kind }) {
     const restored = [];
-    for (const record of Object.values(automation.artworkOriginals || {}).filter((item) => !item.synthetic && item.machineIdentifier === machineIdentifier && item.domain === domain && item.kind === kind)) {
+    const records = Object.values(automation.artworkOriginals || {}).filter((item, index, all) => !item.synthetic && item.machineIdentifier === machineIdentifier && item.domain === domain && item.kind === kind && all.indexOf(item) === index);
+    for (const record of records) {
       if (!/^[a-f0-9-]{36}\.poster$/i.test(String(record.backupFile || ""))) continue;
       const body = await readFile(join(reeltrackArtworkBackupDir, record.backupFile)).catch(() => null);
       if (!body?.length || createHash("sha256").update(body).digest("hex") !== record.sha256) continue;

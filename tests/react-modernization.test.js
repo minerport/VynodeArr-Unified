@@ -29,8 +29,13 @@ test('Reeltrack Lists remains fluid while the viewport is resized',async()=>{
   assert.match(designer,/Four-poster collage/);assert.match(designer,/quadPosters/);assert.match(designer,/Find a title/);
   for(const label of ['THEATRICAL OVERLAY DESIGNS','Coming Soon','Feature Trailer','Upcoming','Trending Now','Recently Added','New Release','Leaving Soon',"Editor's Pick",'Watch Tonight','Now Showing'])assert.ok(designer.includes(label),label);
   for(const corner of ['nw','ne','sw','se'])assert.ok(artStyles.includes(`overlay-resize-${corner}`),corner);
+  assert.match(artStyles,/\.reeltrack-interactive-canvas \.poster-overlay-layer\{pointer-events:auto!important/);
+  assert.match(artStyles,/\.reeltrack-selection-box\{[^}]*z-index:20[^}]*pointer-events:none/);
+  assert.match(designer,/selectedIds\.includes\(item\.id\)/);assert.match(designer,/className="reeltrack-selection-box"/);
+  for(const label of ['Group','Ungroup','items selected'])assert.ok(designer.includes(label),label);
+  assert.match(designer,/scaleX\s*=\s*width\s*\/\s*start\.width/);assert.match(designer,/scaleY\s*=\s*height\s*\/\s*start\.height/);
   for(const control of ['Layer level','To front','Forward','Backward','To back'])assert.ok(designer.includes(control),control);
-  assert.match(designer,/changes:\s*Partial<OverlayLayer>\s*=\s*\{\s*position:\s*"custom",\s*x,\s*y,\s*width,\s*height\s*\}/);
+  assert.match(designer,/for\s*\(const item of snapshots\)\s*onChange\(item\.id,\s*\{\s*position:\s*"custom"/);
   assert.match(designer,/layers:\s*\[\.\.\.current\.layers,\s*accent,\s*graphic,\s*badge\]/);
   assert.match(view,/overlays applied/);assert.match(view,/overlay failures/);
 });

@@ -7,6 +7,31 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.36-rc.13] - 2026-08-08
+
+### Added
+
+- Added modifier-key multi-selection, persistent groups, and Group/Ungroup
+  controls to the collection-poster and title-overlay designers.
+- Added shared group bounds so selected artwork can be moved and resized
+  proportionally as one composition.
+
+### Changed
+
+- Automatically grouped the related layers created by collection and
+  theatrical presets while retaining independent layer editing.
+- Separated original-artwork backups by Plex server, media domain, artwork
+  type, and item to prevent unrelated poster records from colliding.
+
+### Fixed
+
+- Restored pointer input and visible resize handles for artwork layers that
+  inherited noninteractive poster-preview styling.
+- Recovered safely from stale or unavailable artwork backup files so a failed
+  restore cannot prevent collection posters and title overlays from applying.
+- Ensured the newly rendered JPEG remains Plex's final poster upload after an
+  original is restored during an update.
+
 ## [2.0.36-rc.12] - 2026-08-08
 
 ### Added

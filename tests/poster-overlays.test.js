@@ -112,6 +112,12 @@ test('explicit layer heights resize text and icon artwork in exact output',()=>{
   assert.match(svg,/height="162"/);
 });
 
+test('overlay groups persist as editor metadata without changing render order',()=>{
+  const template=sanitizeOverlayTemplate({layers:[{id:'layer_one',groupId:'group_badge',variable:'title'},{id:'layer_two',groupId:'group_badge',kind:'shape',variable:'custom_text'}]});
+  assert.equal(template.layers[0].groupId,'group_badge');
+  assert.equal(template.layers[1].groupId,'group_badge');
+});
+
 test('poster variables expose Reeltrack collection artwork values',()=>{
   const values=posterVariableValues({collectionName:'Weekend picks',collectionTitleCount:14,collectionMediaType:'Movies',collectionLastSync:'2026-08-08T12:00:00Z'},{now:'2026-08-08T13:00:00Z'});
   assert.equal(values.collection_name,'Weekend picks');assert.equal(values.collection_title_count,14);assert.equal(values.collection_media_type,'Movies');assert.equal(values.collection_last_sync,'Aug 8');

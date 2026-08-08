@@ -330,6 +330,7 @@ type Props = {
 export function ReeltrackPosterDesigner({ mode, template, collectionName, titleCount, sample, samples = [], request, onClose, onSave }: Props) {
   const [editing, setEditing] = useState<OverlayTemplate>(() => structuredClone(template || baseTemplate(mode))),
     [selectedId, setSelectedId] = useState(""),
+    [selectedIds, setSelectedIds] = useState<string[]>([]),
     [exact, setExact] = useState(""),
     [tab, setTab] = useState<"content" | "appearance" | "conditions">("content"),
     [uploading, setUploading] = useState(false),
@@ -360,6 +361,18 @@ export function ReeltrackPosterDesigner({ mode, template, collectionName, titleC
       layers.splice(target, 0, removed);
       return { ...current, layers };
     });
+  const selectLayer = (id: string, additive = false) => {
+    const target = editing.layers.find((item) => item.id === id),
+      related = target?.groupId ? editing.layers.filter((item) => item.groupId === target.groupId).map((item) => item.id) : [id];
+    setSelectedId(id);
+    setSelectedIds((current) => additive ? (related.every((value) => current.includes(value)) ? current.filter((value) => !related.includes(value)) : [...new Set([...current, ...related])]) : related);
+  };
+  const groupSelection = () => {
+    if (selectedIds.length < 2) return;
+    const groupId = `group_${overlayClientId()}`;
+    setEditing((current) => ({ ...current, layers: current.layers.map((item) => selectedIds.includes(item.id) ? { ...item, groupId } : item) }));
+  };
+  const ungroupSelection = () => setEditing((current) => ({ ...current, layers: current.layers.map((item) => selectedIds.includes(item.id) ? { ...item, groupId: undefined } : item) }));
   const update = (changes: Partial<OverlayLayer> | ((layer: OverlayLayer) => Partial<OverlayLayer>)) => selected && change(selected.id, changes),
     add = (kind: OverlayLayer["kind"], variable = kind === "text" ? (mode === "collection" ? "collection_name" : "title") : "custom_text") => {
       const next = layer(kind, variable);
@@ -381,10 +394,14 @@ export function ReeltrackPosterDesigner({ mode, template, collectionName, titleC
         layers: [...current.layers, next],
       }));
       setSelectedId(next.id);
+      setSelectedIds([next.id]);
     };
   const applyPreset = (preset: (typeof presets)[number]) => {
     const heading = layer("text", mode === "collection" ? "collection_name" : "title"),
       count = layer("text", mode === "collection" ? "collection_title_count" : "year");
+    const groupId = `group_${overlayClientId()}`;
+    heading.groupId = groupId;
+    count.groupId = groupId;
     heading.y = 67;
     heading.fontSize = 52;
     heading.background = preset.b;
@@ -409,11 +426,16 @@ export function ReeltrackPosterDesigner({ mode, template, collectionName, titleC
       layers: [heading, count],
     }));
     setSelectedId(heading.id);
+    setSelectedIds([heading.id, count.id]);
   };
   const applyTitlePreset = (preset: (typeof titlePresets)[number]) => {
     const accent = layer("shape", "custom_text"),
       graphic = layer("icon", "custom_text"),
       badge = layer("text", "custom_text");
+    const groupId = `group_${overlayClientId()}`;
+    accent.groupId = groupId;
+    graphic.groupId = groupId;
+    badge.groupId = groupId;
     accent.label = "";
     accent.background = preset.accent;
     accent.backgroundOpacity = 0.9;
@@ -453,6 +475,7 @@ export function ReeltrackPosterDesigner({ mode, template, collectionName, titleC
       layers: [...current.layers, accent, graphic, badge],
     }));
     setSelectedId(badge.id);
+    setSelectedIds([accent.id, graphic.id, badge.id]);
   };
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -749,7 +772,7 @@ export function ReeltrackPosterDesigner({ mode, template, collectionName, titleC
               </div>
               <div className="overlay-layer-list">
                 {editing.layers.map((item, index) => (
-                  <button className={item.id === selected?.id ? "active secondary" : "secondary"} onClick={() => setSelectedId(item.id)} key={item.id}>
+                  <button className={selectedIds.includes(item.id) ? "active secondary" : "secondary"} onClick={(event) => selectLayer(item.id, event.ctrlKey || event.metaKey || event.shiftKey)} key={item.id}>
                     <span>{index + 1}</span>
                     <strong>{item.kind === "icon" ? posterIcons.find(([id]) => id === item.iconName)?.[1] || "Icon" : item.kind === "shape" ? `${item.shape} shape` : item.variable.replaceAll("_", " ")}</strong>
                     <small>{item.enabled ? "On" : "Off"}</small>
@@ -773,6 +796,11 @@ export function ReeltrackPosterDesigner({ mode, template, collectionName, titleC
                 <>
                   <div className="layer-order-controls" aria-label="Layer level">
                     <strong>Layer level</strong>
+                    <small>{selectedIds.length > 1 ? `${selectedIds.length} items selected` : "Ctrl/Cmd-click or Shift-click to select multiple"}</small>
+                    <div>
+                      <button className="secondary" disabled={selectedIds.length < 2} onClick={groupSelection}>Group</button>
+                      <button className="secondary" disabled={!selectedIds.some((id) => editing.layers.find((item) => item.id === id)?.groupId)} onClick={ungroupSelection}>Ungroup</button>
+                    </div>
                     <div>
                       <button className="secondary" onClick={() => reorder(selected.id, "front")}>
                         To front
@@ -933,13 +961,10 @@ export function ReeltrackPosterDesigner({ mode, template, collectionName, titleC
                     className="danger"
                     style={{ width: "100%", marginTop: 12 }}
                     onClick={() =>
-                      setEditing((current) => ({
-                        ...current,
-                        layers: current.layers.filter((item) => item.id !== selected.id),
-                      }))
+                      setEditing((current) => ({ ...current, layers: current.layers.filter((item) => !selectedIds.includes(item.id)) }))
                     }
                   >
-                    Remove layer
+                    Remove {selectedIds.length > 1 ? `${selectedIds.length} layers` : "layer"}
                   </button>
                 </>
               ) : (
@@ -948,7 +973,7 @@ export function ReeltrackPosterDesigner({ mode, template, collectionName, titleC
             </main>
             <aside className="panel" style={{ padding: 12, overflow: "auto", textAlign: "center" }}>
               <strong>Drag to position · pull corner to resize</strong>
-              <InteractiveCanvas template={editing} values={values} background={background} selectedId={selected?.id || ""} onSelect={setSelectedId} onChange={change} />
+              <InteractiveCanvas template={editing} values={values} background={background} selectedIds={selectedIds} onSelect={selectLayer} onChange={change} />
               {exact ? (
                 <details style={{ marginTop: 10 }}>
                   <summary>Exact rendered Plex output</summary>
@@ -980,41 +1005,24 @@ export function ReeltrackPosterDesigner({ mode, template, collectionName, titleC
   );
 }
 
-function InteractiveCanvas({ template, values, background, selectedId, onSelect, onChange }: { template: OverlayTemplate; values: Record<string, string>; background: string; selectedId: string; onSelect: (id: string) => void; onChange: (id: string, changes: Partial<OverlayLayer>) => void }) {
-  const drag = useRef<{ id: string; dx: number; dy: number } | null>(null);
-  const beginResize = (event: ReactPointerEvent<HTMLSpanElement>, item: OverlayLayer, corner: "nw" | "ne" | "sw" | "se") => {
+function InteractiveCanvas({ template, values, background, selectedIds, onSelect, onChange }: { template: OverlayTemplate; values: Record<string, string>; background: string; selectedIds: string[]; onSelect: (id: string, additive?: boolean) => void; onChange: (id: string, changes: Partial<OverlayLayer>) => void }) {
+  const drag = useRef<{ id: string; sx: number; sy: number; poster: DOMRect; items: Array<{ id: string; x: number; y: number }>; bounds: { x: number; y: number; width: number; height: number } } | null>(null),
+    resolvedLayers = template.layers.map((item) => resolveConditionalLayer(item, values)),
+    selectedLayers = resolvedLayers.filter((item) => selectedIds.includes(item.id)),
+    boundsFor = (items: OverlayLayer[]) => {
+      const left = Math.min(...items.map((item) => item.x)), top = Math.min(...items.map((item) => item.y)), right = Math.max(...items.map((item) => item.x + item.width)), bottom = Math.max(...items.map((item) => item.y + (item.height || 8)));
+      return { x: left, y: top, width: right - left, height: bottom - top };
+    },
+    selectionBounds = selectedLayers.length ? boundsFor(selectedLayers) : null;
+  const beginResize = (event: ReactPointerEvent<HTMLSpanElement>, items: OverlayLayer[], corner: "nw" | "ne" | "sw" | "se") => {
     event.stopPropagation();
-    const element = event.currentTarget.parentElement!,
-      poster = element.parentElement!.getBoundingClientRect(),
-      box = element.getBoundingClientRect(),
-      sx = event.clientX,
-      sy = event.clientY,
-      start = {
-        x: item.x,
-        y: item.y,
-        width: item.width,
-        height: item.height || (box.height / poster.height) * 100,
-      };
+    const poster = event.currentTarget.parentElement!.parentElement!.getBoundingClientRect(), sx = event.clientX, sy = event.clientY, start = boundsFor(items), snapshots = items.map((item) => ({ ...item, height: item.height || 8 }));
     const move = (next: PointerEvent) => {
-      const dx = ((next.clientX - sx) / poster.width) * 100,
-        dy = ((next.clientY - sy) / poster.height) * 100,
-        left = corner.endsWith("w"),
-        top = corner.startsWith("n"),
-        rawWidth = Math.max(12, Math.min(left ? start.x + start.width : 100 - start.x, start.width + (left ? -dx : dx))),
-        rawHeight = Math.max(3, Math.min(top ? start.y + start.height : 100 - start.y, start.height + (top ? -dy : dy))),
-        width = rawWidth,
-        height = rawHeight,
-        x = left ? Math.max(0, start.x + start.width - width) : start.x,
-        y = top ? Math.max(0, start.y + start.height - height) : start.y,
-        changes: Partial<OverlayLayer> = { position: "custom", x, y, width, height };
-      onChange(item.id, changes);
+      const dx = ((next.clientX - sx) / poster.width) * 100, dy = ((next.clientY - sy) / poster.height) * 100, left = corner.endsWith("w"), top = corner.startsWith("n"), width = Math.max(12, Math.min(left ? start.x + start.width : 100 - start.x, start.width + (left ? -dx : dx))), height = Math.max(3, Math.min(top ? start.y + start.height : 100 - start.y, start.height + (top ? -dy : dy))), x = left ? start.x + start.width - width : start.x, y = top ? start.y + start.height - height : start.y, scaleX = width / start.width, scaleY = height / start.height;
+      for (const item of snapshots) onChange(item.id, { position: "custom", x: x + (item.x - start.x) * scaleX, y: y + (item.y - start.y) * scaleY, width: item.width * scaleX, height: item.height * scaleY });
     };
-    const up = () => {
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", up);
-    };
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", up);
+    const up = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
+    window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
   };
   const corners = ["nw", "ne", "sw", "se"] as const;
   return (
@@ -1038,39 +1046,40 @@ function InteractiveCanvas({ template, values, background, selectedId, onSelect,
           <OverlayLayerView
             key={item.id}
             layer={resolved}
-            className={`overlay-preview-layer${item.id === selectedId ? " selected" : ""}`}
+            className={`overlay-preview-layer${selectedIds.includes(item.id) ? " selected" : ""}`}
             style={{
               cursor: "grab",
               touchAction: "none",
-              outline: item.id === selectedId ? "2px solid #64d8ff" : "none",
+              outline: selectedIds.includes(item.id) ? "1px solid #64d8ff" : "none",
             }}
             onPointerDown={(event) => {
-              onSelect(item.id);
-              const rect = event.currentTarget.getBoundingClientRect();
-              drag.current = {
-                id: item.id,
-                dx: event.clientX - rect.left,
-                dy: event.clientY - rect.top,
-              };
+              const additive = event.ctrlKey || event.metaKey || event.shiftKey;
+              onSelect(item.id, additive);
+              const related = selectedIds.includes(item.id) ? selectedLayers : (item.groupId ? resolvedLayers.filter((value) => value.groupId === item.groupId) : [resolved]);
+              const poster = event.currentTarget.parentElement!.getBoundingClientRect();
+              drag.current = { id: item.id, sx: event.clientX, sy: event.clientY, poster, items: related.map((value) => ({ id: value.id, x: value.x, y: value.y })), bounds: boundsFor(related) };
               event.currentTarget.setPointerCapture(event.pointerId);
             }}
             onPointerMove={(event) => {
               if (drag.current?.id !== item.id) return;
-              const parent = event.currentTarget.parentElement?.getBoundingClientRect();
-              if (!parent) return;
-              onChange(item.id, {
-                position: "custom",
-                x: Math.max(0, Math.min(100 - resolved.width, ((event.clientX - parent.left - drag.current.dx) / parent.width) * 100)),
-                y: Math.max(0, Math.min(96, ((event.clientY - parent.top - drag.current.dy) / parent.height) * 100)),
-              });
+              const active = drag.current, rawX = ((event.clientX - active.sx) / active.poster.width) * 100, rawY = ((event.clientY - active.sy) / active.poster.height) * 100, dx = Math.max(-active.bounds.x, Math.min(100 - active.bounds.x - active.bounds.width, rawX)), dy = Math.max(-active.bounds.y, Math.min(100 - active.bounds.y - active.bounds.height, rawY));
+              for (const start of active.items) onChange(start.id, { position: "custom", x: start.x + dx, y: start.y + dy });
             }}
             onPointerUp={() => (drag.current = null)}
           >
             <PosterLayerContent layer={resolved} text={`${resolved.prefix}${value || ""}${resolved.suffix}`} />
-            {item.id === selectedId ? corners.map((corner) => <span key={corner} className={`overlay-resize-handle overlay-resize-${corner}`} aria-label={`Resize ${corner}`} onPointerDown={(event) => beginResize(event, resolved, corner)} />) : null}
           </OverlayLayerView>
         );
       })}
+      {selectionBounds && selectedLayers.length ? (
+        <span
+          className="reeltrack-selection-box"
+          data-selection-count={selectedLayers.length}
+          style={{ left: `${selectionBounds.x}%`, top: `${selectionBounds.y}%`, width: `${selectionBounds.width}%`, height: `${selectionBounds.height}%` }}
+        >
+          {corners.map((corner) => <span key={corner} className={`overlay-resize-handle overlay-resize-${corner}`} aria-label={`Resize ${corner}`} onPointerDown={(event) => beginResize(event, selectedLayers, corner)} />)}
+        </span>
+      ) : null}
     </div>
   );
 }

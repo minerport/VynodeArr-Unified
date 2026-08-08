@@ -289,6 +289,7 @@ export function sanitizeOverlayLayer(input = {}, index = 0) {
     id: /^layer_[A-Za-z0-9_-]+$/.test(String(input.id || ""))
       ? String(input.id)
       : `layer_${index}_${randomUUID()}`,
+    groupId: /^group_[A-Za-z0-9_-]+$/.test(String(input.groupId || "")) ? String(input.groupId) : undefined,
     label,
     variable,
     kind,
