@@ -9,6 +9,7 @@ import { MediaCollectionControl } from './media-collection-control';
 import './react-movie-detail.css';
 
 const errorMessage=(reason:unknown)=>reason instanceof Error?reason.message:'The operation failed.';
+const pause=(milliseconds:number)=>new Promise(resolve=>setTimeout(resolve,milliseconds));
 type LibraryMovie=Record<string,unknown>&{monitored?:boolean;qualityProfileId?:number;path?:string;rootFolderPath?:string;minimumAvailability?:string};
 type SelectOption={id:number;name?:string;path?:string};
 type BrowserEntry={name?:string;path:string};
@@ -44,7 +45,7 @@ export function MovieDetailView({options}:{options:MovieDetailMountOptions}){
     }catch(reason){options.notify(errorMessage(reason),'error');}finally{setBusy('');}
   };
   const automatic=()=>run('automatic',()=>options.request('/api/manage/movie/automaticSearch',{method:'POST',body:JSON.stringify({movieId:engineId})}),'Best available release selected.');
-  const refresh=()=>run('refresh',()=>options.request('/api/manage/movie/commands',{method:'POST',body:JSON.stringify({name:'RefreshMovie',movieIds:[engineId]})}),'Refresh and folder scan queued.');
+  const refresh=()=>run('refresh',async()=>{const queued=await options.request<{result?:{id?:number}}>('/api/manage/movie/commands',{method:'POST',body:JSON.stringify({name:'RefreshMovie',movieIds:[engineId]})}),commandId=Number(queued.result?.id);if(Number.isFinite(commandId)){for(let attempt=0;attempt<90;attempt++){await pause(1000);const value=await options.request<{result?:{status?:string;message?:string}}>(`/api/manage/movie/commands/${commandId}`),status=String(value.result?.status||'').toLowerCase();if(status==='completed')break;if(['failed','aborted','cancelled'].includes(status))throw new Error(value.result?.message||'Movie refresh and scan failed.');if(attempt===89)throw new Error('Movie refresh is still running. Try Update details shortly.');}}else await pause(3000);await load(true);},'Movie refresh and folder scan completed.');
   const refreshDetails=()=>run('details',()=>load(true),'Movie details updated from the engine.');
   const rename=async()=>{setBusy('rename-preview');try{const value=await options.request<{preview:RenamePreviewRecord}>(`/api/media-files/rename?domain=movie&mediaId=${engineId}`);setRenamePreview(value.preview);}catch(reason){options.notify(errorMessage(reason),'error');}finally{setBusy('');}};
   const applyRename=(selection:{moveFolder:boolean;fileIds:number[]})=>run('rename-apply',async()=>{await options.request('/api/media-files/rename',{method:'POST',body:JSON.stringify({domain:'movie',mediaId:engineId,previewId:renamePreview?.previewId,...selection})});setRenamePreview(null);},`Selected organization changes queued for ${item?.title}.`,true);
@@ -72,7 +73,7 @@ export function MovieDetailView({options}:{options:MovieDetailMountOptions}){
       <button className={`secondary${busy==='monitor'?' is-working':''}`} disabled={Boolean(busy)} onClick={()=>void monitor()}>{busy==='monitor'?'Updating…':item.monitoring==='none'?'Monitor':'Unmonitor'}</button>
       <button className={`secondary${busy==='rename-preview'?' is-working':''}`} disabled={Boolean(busy)} onClick={()=>void rename()}>{busy==='rename-preview'?'Building preview…':'Rename & organize'}</button>
       <button className="secondary" disabled={Boolean(busy)} onClick={()=>void browseFiles()}>Change file</button>
-      <button className={`secondary${busy==='refresh'?' is-working':''}`} disabled={Boolean(busy)} onClick={()=>void refresh()}>{busy==='refresh'?'Queuing scan…':'Refresh & scan'}</button>
+      <button className={`secondary${busy==='refresh'?' is-working':''}`} disabled={Boolean(busy)} onClick={()=>void refresh()}>{busy==='refresh'?'Refreshing & scanning…':'Refresh & scan'}</button>
       <button className={`secondary${busy==='edit'?' is-working':''}`} disabled={Boolean(busy)} onClick={()=>void edit()}>{busy==='edit'?'Loading…':'Edit'}</button>
       <button className="secondary" disabled={Boolean(busy)} onClick={()=>setFixingMatch(true)}>Fix match</button>
       <button className={`danger${busy==='delete'?' is-working':''}`} disabled={Boolean(busy)} onClick={()=>void remove()}>{busy==='delete'?'Removing…':'Delete'}</button>

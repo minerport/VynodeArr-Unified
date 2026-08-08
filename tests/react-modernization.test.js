@@ -243,6 +243,12 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(foundation,/\.vynode-nested-modal-layer/);
   assert.match(foundation,/max-height:\s*calc\(100dvh - 2rem\)/);
   assert.match(movieDetail,/Rename & organize/);
+  assert.match(movieDetail,/Movie refresh and folder scan completed/);
+  assert.match(movieDetail,/commands\/\$\{commandId\}/);
+  assert.match(movieDetail,/Refreshing & scanning/);
+  assert.match(tvDetail,/Series refresh and folder scan completed/);
+  assert.match(tvDetail,/commands\/\$\{commandId\}/);
+  assert.match(tvDetail,/onClick=\{\(\)=>void refresh\(\)\}/);
   assert.match(collections,/export function CollectionsView/);
   assert.match(collections,/CollectionBuilder/);
   assert.match(collections,/includedMovieIds/);
