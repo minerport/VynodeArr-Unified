@@ -5,7 +5,7 @@ import test from 'node:test';
 const read=(path)=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
 test('Reeltrack Lists remains fluid while the viewport is resized',async()=>{
-  const [styles,view,designer]=await Promise.all([read('apps/web/client/src/react-reeltrack-lists.css'),read('apps/web/client/src/reeltrack-lists.tsx'),read('apps/web/client/src/reeltrack-poster-designer.tsx')]);
+  const [styles,view,designer,artStyles]=await Promise.all([read('apps/web/client/src/react-reeltrack-lists.css'),read('apps/web/client/src/reeltrack-lists.tsx'),read('apps/web/client/src/reeltrack-poster-designer.tsx'),read('apps/web/client/src/reeltrack-poster-designer.css')]);
   assert.match(styles,/\.react-reeltrack-lists\s*>\s*\.reeltrack-hero\s*\{[^}]*position:\s*static[^}]*height:\s*auto[^}]*min-height:\s*0/);
   assert.match(styles,/\.reeltrack-key-form input\s*\{[^}]*min-width:\s*0[^}]*width:\s*100%/);
   assert.match(styles,/\.reeltrack-list-nav\s*\{[^}]*display:\s*flex[^}]*max-height:\s*calc\(100dvh - 8rem\)[^}]*flex-direction:\s*column[^}]*overflow-y:\s*auto/);
@@ -27,7 +27,8 @@ test('Reeltrack Lists remains fluid while the viewport is resized',async()=>{
   for(const label of ['STARTER POSTERS','Solid color','Linear gradient','Radial gradient','Gradient angle','Upload custom background','Add icon','Adaptive poster contrast','Conditions','Exact rendered Plex output'])assert.ok(designer.includes(label),label);
   assert.match(designer,/poster-overlay-layer-identity/);assert.match(designer,/poster-overlay-conditions/);
   assert.match(designer,/Four-poster collage/);assert.match(designer,/quadPosters/);assert.match(designer,/Find a title/);
-  for(const label of ['QUICK OVERLAY PRESETS','Coming Soon','Upcoming','Trending Now','Recently Added','New Release','Leaving Soon',"Editor's Pick",'Watch Tonight'])assert.ok(designer.includes(label),label);
+  for(const label of ['THEATRICAL OVERLAY DESIGNS','Coming Soon','Feature Trailer','Upcoming','Trending Now','Recently Added','New Release','Leaving Soon',"Editor's Pick",'Watch Tonight','Now Showing'])assert.ok(designer.includes(label),label);
+  for(const corner of ['nw','ne','sw','se'])assert.ok(artStyles.includes(`overlay-resize-${corner}`),corner);
   assert.match(view,/overlays applied/);assert.match(view,/overlay failures/);
 });
 

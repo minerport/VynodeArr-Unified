@@ -8,7 +8,9 @@
 .overlay-editor .overlay-content-controls>.overlay-control-group-heading{margin:0;padding:0 0 10px}
 .overlay-editor .overlay-control-group-heading strong{font-size:1rem}
 .overlay-editor .overlay-control-group-heading small{line-height:1.4}
-.overlay-editor .overlay-layer-body label{align-content:start}
+.overlay-editor .overlay-layer-body label{display:grid;align-content:start;gap:6px;min-width:0;padding:10px;border:1px solid color-mix(in srgb,var(--border) 70%,transparent);border-radius:10px;background:color-mix(in srgb,var(--panel) 58%,transparent)}
+.overlay-editor .overlay-layer-body label>input:not([type=checkbox]),.overlay-editor .overlay-layer-body label>select{width:100%;min-width:0}
+.overlay-editor .overlay-layer-body input[type=range]{margin-top:5px}
 .overlay-editor .overlay-layer-body input[type=color]{min-height:44px;padding:4px;border-radius:10px;cursor:pointer}
 .overlay-editor .overlay-range,.overlay-editor .overlay-poster-aware,.overlay-editor .overlay-remove-layer{grid-column:1/-1}
 .overlay-editor .overlay-range{padding:10px 12px;border:1px solid color-mix(in srgb,var(--border) 70%,transparent);border-radius:10px;background:color-mix(in srgb,var(--panel) 55%,transparent)}

@@ -7,6 +7,30 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.36-rc.11] - 2026-08-08
+
+### Added
+
+- Added illustrated theatrical overlay presets for Coming Soon, Feature
+  Trailer, Upcoming, Trending Now, Recently Added, New Release, Leaving Soon,
+  Editor's Pick, Watch Tonight, and Now Showing.
+- Added editable filmstrip, clapperboard, megaphone, popcorn, spotlight,
+  flame, laurel, marquee, and ticket artwork for title overlays.
+
+### Changed
+
+- Reorganized the collection-poster and title-overlay designers with compact
+  preset cards, grouped controls, responsive columns, and clearer settings.
+- Applied the cleaner, full-width control layout to the standard poster
+  overlay inspector.
+
+### Fixed
+
+- Added four-corner resizing so artwork can grow left, right, up, and down
+  while remaining bounded by the poster canvas.
+- Improved vertical icon resizing and prevented editor controls from
+  colliding or overflowing at narrower viewport sizes.
+
 ## [2.0.36-rc.10] - 2026-08-08
 
 ### Added

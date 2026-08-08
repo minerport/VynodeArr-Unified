@@ -98,6 +98,13 @@ test('poster variables derive friendly values from library metadata',()=>{
   assert.equal(values.file_size,'15 GB');assert.equal(values.completion_percent,'100%');assert.equal(values.tags,'favorite, 4k');assert.equal(values.date_added,'Jul 30');assert.equal(values.added_ago,'3 days ago');assert.equal(values.release_age,'13 days ago');assert.equal(values.download_status,'Downloading');assert.equal(values.download_progress,'63%');assert.equal(values.download_eta,'Tomorrow');assert.equal(values.library_status,'Complete');
 });
 
+test('theatrical artwork icons render as editable overlay layers',()=>{
+  for(const [iconName,path] of [['filmstrip','M3 5h18v14H3z'],['megaphone','M3 10v4h4'],['popcorn','M6 9h12'],['marquee','M3 6h18v12H3z']]){
+    const template=sanitizeOverlayTemplate({layers:[{kind:'icon',iconName,variable:'custom_text',label:'',width:24}]});
+    assert.match(renderOverlaySvg({poster:Buffer.from('poster'),template,item:{title:'Movie'}}).toString(),new RegExp(path));
+  }
+});
+
 test('poster variables expose Reeltrack collection artwork values',()=>{
   const values=posterVariableValues({collectionName:'Weekend picks',collectionTitleCount:14,collectionMediaType:'Movies',collectionLastSync:'2026-08-08T12:00:00Z'},{now:'2026-08-08T13:00:00Z'});
   assert.equal(values.collection_name,'Weekend picks');assert.equal(values.collection_title_count,14);assert.equal(values.collection_media_type,'Movies');assert.equal(values.collection_last_sync,'Aug 8');
