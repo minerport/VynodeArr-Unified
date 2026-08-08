@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { DiscoverRequest } from "./discover-request";
 import type { DiscoverItem } from "./discover-types";
 import type {
@@ -8,6 +8,9 @@ import type {
 } from "./reeltrack-lists-types";
 import "./react-reeltrack-lists.css";
 import { ModalPortal } from "./modal-portal";
+import type { OverlayTemplate } from "./poster-overlays-types";
+
+const ReeltrackPosterDesigner = lazy(() => import("./reeltrack-poster-designer").then((module) => ({ default: module.ReeltrackPosterDesigner })));
 
 const message = (error: unknown) =>
   error instanceof Error
@@ -15,6 +18,13 @@ const message = (error: unknown) =>
     : "VynodeArr could not complete this request.";
 const cleanFolder = (value: string) => value === "/" ? "/" : value.replaceAll("\\", "/").replace(/\/+$/, "") || "/";
 const parentFolder = (value: string) => cleanFolder(value).split("/").slice(0, -1).join("/") || "/";
+const reeltrackPosterUrl = (item: ReeltrackListItem) => item.tmdbId
+  ? `/api/reeltrack/poster/${item.domain}/${item.tmdbId}`
+  : item.posterUrl || "";
+function ReeltrackPoster({ item }: { item: ReeltrackListItem }) {
+  const [failed, setFailed] = useState(false), url = reeltrackPosterUrl(item);
+  return !url || failed ? <span>{item.domain === "movie" ? "MOVIE" : "TV"}</span> : <img src={url} alt="" loading="lazy" onError={() => setFailed(true)} />;
+}
 const discoverItem = (item: ReeltrackListItem): DiscoverItem => ({
   id: `reeltrack_${item.domain}_${item.tmdbId}`,
   tmdbId: Number(item.tmdbId),
@@ -69,7 +79,10 @@ export function ReeltrackListsView({
     [hostDirectories, setHostDirectories] = useState<Array<{ name: string; path: string }>>([]),
     [hostBrowserError, setHostBrowserError] = useState(""),
     [automationInterval, setAutomationInterval] = useState(60),
-    [automationCollectionName, setAutomationCollectionName] = useState("");
+    [automationCollectionName, setAutomationCollectionName] = useState(""),
+    [collectionPosterTemplate, setCollectionPosterTemplate] = useState<OverlayTemplate | null>(null),
+    [titleOverlayTemplate, setTitleOverlayTemplate] = useState<OverlayTemplate | null>(null),
+    [posterDesigner, setPosterDesigner] = useState<"collection" | "title" | null>(null);
   const selected =
     lists.find((value) => String(value.id) === selectedId) || lists[0];
   async function load() {
@@ -117,6 +130,8 @@ export function ReeltrackListsView({
     setTvHostRoot(selected.automation?.tvHostRoot || trailerStatus?.hostRoots?.tv || "/tv");
     setAutomationInterval(selected.automation?.intervalMinutes || 60);
     setAutomationCollectionName(selected.automation?.collectionName || selected.name);
+    setCollectionPosterTemplate(selected.automation?.collectionPosterTemplate || null);
+    setTitleOverlayTemplate(selected.automation?.titleOverlayTemplate || null);
   }, [selectedId]);
   useEffect(() => {
     if (!hostBrowser) return;
@@ -267,6 +282,8 @@ export function ReeltrackListsView({
             movieHostRoot,
             tvHostRoot,
             collectionName: automationCollectionName || selected.name,
+            collectionPosterTemplate,
+            titleOverlayTemplate,
             intervalMinutes: automationInterval,
           }),
         },
@@ -701,6 +718,10 @@ export function ReeltrackListsView({
                     </label>
                   </div>
                 ) : null}
+                {automationEnabled ? <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:10,gridColumn:"1/-1"}}>
+                  <div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) auto auto",gap:"6px 10px",alignItems:"center",padding:10,border:"1px solid var(--border)",borderRadius:10}}><strong>Collection poster</strong><button className="secondary" type="button" onClick={() => setPosterDesigner("collection")}>{collectionPosterTemplate ? "Edit poster" : "Design poster"}</button>{collectionPosterTemplate ? <button className="text-button danger" type="button" onClick={() => setCollectionPosterTemplate(null)}>Remove</button> : null}<small className="muted" style={{gridColumn:"1/-1"}}>{collectionPosterTemplate ? `${collectionPosterTemplate.layers.length} layers` : "Use layered shapes, text, and collection variables."}</small></div>
+                  <div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) auto auto",gap:"6px 10px",alignItems:"center",padding:10,border:"1px solid var(--border)",borderRadius:10}}><strong>Title overlays</strong><button className="secondary" type="button" onClick={() => setPosterDesigner("title")}>{titleOverlayTemplate ? "Edit overlay" : "Design overlay"}</button>{titleOverlayTemplate ? <button className="text-button danger" type="button" onClick={() => setTitleOverlayTemplate(null)}>Remove</button> : null}<small className="muted" style={{gridColumn:"1/-1"}}>{titleOverlayTemplate ? `${titleOverlayTemplate.layers.length} layers` : "Apply a custom overlay to every managed title."}</small></div>
+                </div> : null}
                 {selected?.automation?.error ? <p className="danger-text">{selected.automation.error}</p> : null}
                 {selected?.automation?.summary ? (
                   <div className="reeltrack-automation-summary">
@@ -754,11 +775,7 @@ export function ReeltrackListsView({
               {items.map((item) => (
                 <article key={`${item.source}:${item.externalId}`}>
                   <div className="reeltrack-poster">
-                    {item.posterUrl ? (
-                      <img src={item.posterUrl} alt="" loading="lazy" />
-                    ) : (
-                      <span>{item.domain === "movie" ? "MOVIE" : "TV"}</span>
-                    )}
+                    <ReeltrackPoster item={item} />
                     <b>
                       {item.library
                         ? "IN LIBRARY"
@@ -865,6 +882,16 @@ export function ReeltrackListsView({
           </div>
         </ModalPortal>
       ) : null}
+      {posterDesigner && selected ? <Suspense fallback={null}><ReeltrackPosterDesigner
+        mode={posterDesigner}
+        template={posterDesigner === "collection" ? collectionPosterTemplate : titleOverlayTemplate}
+        collectionName={automationCollectionName || selected.name}
+        titleCount={selected.items?.length || 0}
+        sample={selected.items?.find((item) => item.tmdbId) as { domain: "movie" | "tv"; tmdbId?: number | null; title: string; year?: number | null } | undefined}
+        request={request}
+        onClose={() => setPosterDesigner(null)}
+        onSave={(template) => { posterDesigner === "collection" ? setCollectionPosterTemplate(template) : setTitleOverlayTemplate(template); setPosterDesigner(null); notify("Artwork design ready. Save automation to apply it."); }}
+      /></Suspense> : null}
       {requesting ? (
         <DiscoverRequest
           item={discoverItem(requesting)}

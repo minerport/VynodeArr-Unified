@@ -18,6 +18,10 @@ test('Reeltrack Lists remains fluid while the viewport is resized',async()=>{
   assert.match(view,/MAP HOST FOLDER/);
   assert.match(view,/Plex, host, and engine paths are mapped independently/);
   assert.doesNotMatch(view,/Add as Movie root/);
+  assert.match(view,/\/api\/reeltrack\/poster\/\$\{item\.domain\}\/\$\{item\.tmdbId\}/);
+  assert.match(view,/onError=\{\(\) => setFailed\(true\)\}/);
+  assert.match(styles,/\.reeltrack-automation-fields\s*\{[^}]*align-items:\s*start/);
+  assert.match(styles,/\.reeltrack-item-grid article\s*\{[^}]*grid-template-columns:\s*88px[^}]*min-height:\s*154px/);
 });
 
 test('loaded Action Center records cannot widen the mobile viewport',async()=>{
@@ -1231,7 +1235,7 @@ test('poster overlay sub-conditions are ranked and expose inherited appearance o
   assert.match(editor,/setEditing\(current=>current\?/);
   assert.match(editor,/typeof changes==="function"\?changes\(layer\):changes/);
   for(const label of ['Shape / background color','Text color','Font size','Font weight','Text alignment','Capitalization','Shape opacity','Inner spacing','Corner radius','Adaptive contrast'])assert.match(source,new RegExp(label.replace(/[\/]/g,'\\$&')));
-  assert.match(types,/rank: number/);assert.match(service,/sort\(\(a,b\)=>a\.rank-b\.rank\)/);
+  assert.match(types,/rank: number/);assert.match(service,/sort\(\(a,\s*b\)\s*=>\s*a\.rank\s*-\s*b\.rank\)/);
 });
 
 test('icon and shape editors keep artwork separate from optional variables',async()=>{

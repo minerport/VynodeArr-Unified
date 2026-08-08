@@ -1495,10 +1495,69 @@ export function createApplication(options = {}) {
     }
     return summary;
   }
+  const reeltrackPosterTemplate = (value, domain = "all") => {
+    if (!value || typeof value !== "object") return null;
+    return sanitizeOverlayTemplate({
+      ...value,
+      id: value.id || `overlay_${randomUUID()}`,
+      name: value.name || "Reeltrack collection artwork",
+      domain,
+      target: "plex",
+      enabled: value.enabled !== false,
+    });
+  };
+  const reeltrackPosterItem = ({ list, domain, count, syncedAt, title }) => ({
+    title: title || list.name,
+    collection: title || list.name,
+    collectionName: title || list.name,
+    collectionTitleCount: count,
+    collectionMediaType: domain === "tv" ? "Television" : domain === "movie" ? "Movies" : "Movies & Television",
+    collectionLastSync: syncedAt || new Date().toISOString(),
+  });
+  async function renderedReeltrackArtwork(template, item, poster = null) {
+    const sharp = (await import("sharp")).default,
+      overlay = renderOverlaySvg({
+        poster: Buffer.alloc(0),
+        template,
+        item,
+        includePoster: false,
+      }),
+      base = poster?.length
+        ? sharp(poster).rotate().resize(600, 900, { fit: "cover", position: "centre" })
+        : sharp({ create: { width: 600, height: 900, channels: 4, background: "#08111f" } });
+    return base
+      .composite([{ input: overlay, top: 0, left: 0 }])
+      .jpeg({ quality: 92, chromaSubsampling: "4:4:4" })
+      .toBuffer();
+  }
+  async function applyReeltrackTitleArtwork({ template, endpoint, token, items, ratingKeys, list, domain, syncedAt }) {
+    if (!template?.enabled || !template.layers?.length) return 0;
+    let applied = 0;
+    for (const plexItem of items.filter((item) => ratingKeys.includes(String(item.ratingKey)))) {
+      try {
+        const poster = await plexService.artwork(endpoint, token, plexItem.thumb || `/library/metadata/${plexItem.ratingKey}/thumb`),
+          identity = plexExternalIds(plexItem).find((value) => value.startsWith("tmdb:")),
+          source = (list.items || []).find((value) => String(value.tmdbId || "") === String(identity?.split(":")[1] || "")) || {},
+          rendered = await renderedReeltrackArtwork(template, {
+            ...source,
+            ...plexItem,
+            collection: list.automation?.collectionName || list.name,
+            collectionName: list.automation?.collectionName || list.name,
+            collectionTitleCount: ratingKeys.length,
+            collectionMediaType: domain === "tv" ? "Television" : "Movies",
+            collectionLastSync: syncedAt,
+          }, poster.body);
+        await plexService.uploadPoster(endpoint, token, plexItem.ratingKey, rendered, "image/jpeg");
+        applied += 1;
+      } catch {}
+    }
+    return applied;
+  }
   async function runReeltrackPlexAutomation(userId, listId, { refreshProvider = true } = {}) {
     const runKey = `${userId}:${listId}`;
     if (reeltrackAutomationRuns.has(runKey)) return reeltrackAutomationRuns.get(runKey);
     const task = (async () => {
+      const runStartedAt = new Date().toISOString();
       let [apiKey, current, plexSettings, plexToken] = await Promise.all([
         engineSettings.reeltrackCredential(userId),
         reeltrackSnapshotForUser(userId),
@@ -1552,7 +1611,7 @@ export function createApplication(options = {}) {
           Object.fromEntries(targets.map((target) => [target.domain, target.localRoot])),
         ),
         jobs = { ...(automation.jobs || {}) },
-        totals = { managedTitles: 0, placeholders: 0, downloaded: 0, removed: 0, realMatches: 0 },
+        totals = { managedTitles: 0, placeholders: 0, downloaded: 0, removed: 0, realMatches: 0, collectionPosters: 0, titlePosters: 0 },
         collectionRatingKeys = { ...(automation.collectionRatingKeys || {}) },
         plexLibraryLocations = {};
       for (const { domain, library, libraryLocation, localRoot, plexItems } of targets) {
@@ -1715,6 +1774,32 @@ export function createApplication(options = {}) {
           },
         );
         collectionRatingKeys[domain] = collection.ratingKey;
+        const collectionTemplate = reeltrackPosterTemplate(automation.collectionPosterTemplate, domain),
+          titleTemplate = reeltrackPosterTemplate(automation.titleOverlayTemplate, domain);
+        if (collection.ratingKey && collectionTemplate?.enabled && collectionTemplate.layers?.length) {
+          const rendered = await renderedReeltrackArtwork(
+            collectionTemplate,
+            reeltrackPosterItem({
+              list,
+              domain,
+              count: placeholderKeys.length,
+              syncedAt: runStartedAt,
+              title: automation.collectionName || list.name,
+            }),
+          );
+          await plexService.uploadPoster(plexSettings.endpoint, plexToken, collection.ratingKey, rendered, "image/jpeg");
+          totals.collectionPosters += 1;
+        }
+        totals.titlePosters += await applyReeltrackTitleArtwork({
+          template: titleTemplate,
+          endpoint: plexSettings.endpoint,
+          token: plexToken,
+          items: refreshedItems,
+          ratingKeys: placeholderKeys,
+          list,
+          domain,
+          syncedAt: runStartedAt,
+        });
         totals.managedTitles += wanted.size;
         totals.placeholders += placeholderKeys.length;
         totals.downloaded += downloaded;
@@ -1747,6 +1832,8 @@ export function createApplication(options = {}) {
           libraryAdded: libraryAdds.added,
           libraryExisting: libraryAdds.existing,
           libraryFailed: libraryAdds.failed,
+          collectionPosters: totals.collectionPosters,
+          titlePosters: totals.titlePosters,
         },
         libraryErrors: libraryAdds.errors,
       };
@@ -8181,6 +8268,54 @@ export function createApplication(options = {}) {
           });
         }
         if (
+          url.pathname.match(/^\/api\/reeltrack\/poster\/(movie|tv)\/(\d+)$/) &&
+          req.method === "GET"
+        ) {
+          if (!permitted(res, session, "discover")) return;
+          const match = url.pathname.match(/^\/api\/reeltrack\/poster\/(movie|tv)\/(\d+)$/),
+            metadata = await discovery.details(match[1], Number(match[2]));
+          if (!metadata?.poster) return json(res, 404, { message: "Poster unavailable" });
+          res.writeHead(302, {
+            location: metadata.poster,
+            "cache-control": "private, max-age=21600",
+          });
+          return res.end();
+        }
+        if (
+          url.pathname === "/api/reeltrack/poster-design/preview" &&
+          req.method === "POST"
+        ) {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          const input = await body(req),
+            domain = input.domain === "tv" ? "tv" : "movie",
+            template = reeltrackPosterTemplate(input.template, domain);
+          if (!template?.layers?.length) throw new Error("Add at least one poster layer.");
+          let poster = null;
+          if (input.mode === "title" && Number(input.tmdbId) > 0) {
+            const metadata = await discovery.details(domain, Number(input.tmdbId));
+            if (metadata?.poster) {
+              const response = await fetch(metadata.poster, { signal: AbortSignal.timeout(10000) });
+              if (response.ok) poster = Buffer.from(await response.arrayBuffer());
+            }
+          }
+          const rendered = await renderedReeltrackArtwork(
+            template,
+            {
+              title: input.title || "Example title",
+              year: input.year || new Date().getUTCFullYear(),
+              collection: input.collectionName || "My collection",
+              collectionName: input.collectionName || "My collection",
+              collectionTitleCount: Number(input.titleCount) || 12,
+              collectionMediaType: domain === "tv" ? "Television" : "Movies",
+              collectionLastSync: new Date().toISOString(),
+            },
+            poster,
+          );
+          return json(res, 200, {
+            image: `data:image/jpeg;base64,${rendered.toString("base64")}`,
+          });
+        }
+        if (
           url.pathname === "/api/reeltrack/trailers/folders" &&
           req.method === "GET"
         ) {
@@ -8595,6 +8730,12 @@ export function createApplication(options = {}) {
             tvHostRoot: String(input.tvHostRoot || localLibraryRoot("tv")),
             collectionName:
               String(input.collectionName || current.importedLists[index].name || "Reeltrack").trim().slice(0, 120),
+            collectionPosterTemplate: Object.hasOwn(input, "collectionPosterTemplate")
+              ? reeltrackPosterTemplate(input.collectionPosterTemplate)
+              : current.importedLists[index].automation?.collectionPosterTemplate || null,
+            titleOverlayTemplate: Object.hasOwn(input, "titleOverlayTemplate")
+              ? reeltrackPosterTemplate(input.titleOverlayTemplate)
+              : current.importedLists[index].automation?.titleOverlayTemplate || null,
             intervalMinutes: Math.max(15, Math.min(1440, Number(input.intervalMinutes) || 60)),
             status: enabled ? "scheduled" : "disabled",
             error: null,

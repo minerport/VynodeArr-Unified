@@ -7,6 +7,38 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.36-rc.7] - 2026-08-08
+
+### Added
+
+- Added an administrator collection-poster designer for synchronized Reeltrack
+  lists with multiple editable text and shape layers.
+- Added collection name, title count, media type, and last-sync variables for
+  collection artwork.
+- Added optional layered title overlays for the managed Plex titles inside a
+  synchronized collection.
+- Added exact server-rendered artwork previews using the same renderer and
+  dimensions used for Plex uploads.
+
+### Changed
+
+- Reapplied collection posters and managed-title overlays whenever automation
+  creates, synchronizes, or updates a Plex collection.
+- Made the list artwork designer a separate lazy-loaded route chunk and
+  condensed Reeltrack title cards and automation controls.
+
+### Fixed
+
+- Loaded Reeltrack title posters through the authenticated application route
+  and replaced unavailable images with a clean media-type fallback.
+- Preserved explicit removal of saved collection posters and title-overlay
+  designs when automation settings are updated.
+
+### Validation
+
+- Passed all 218 automated tests plus TypeScript, production build, bundle,
+  branding, and deployment validation.
+
 ## [2.0.36-rc.6] - 2026-08-08
 
 ### Added

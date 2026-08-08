@@ -98,6 +98,11 @@ test('poster variables derive friendly values from library metadata',()=>{
   assert.equal(values.file_size,'15 GB');assert.equal(values.completion_percent,'100%');assert.equal(values.tags,'favorite, 4k');assert.equal(values.date_added,'Jul 30');assert.equal(values.added_ago,'3 days ago');assert.equal(values.release_age,'13 days ago');assert.equal(values.download_status,'Downloading');assert.equal(values.download_progress,'63%');assert.equal(values.download_eta,'Tomorrow');assert.equal(values.library_status,'Complete');
 });
 
+test('poster variables expose Reeltrack collection artwork values',()=>{
+  const values=posterVariableValues({collectionName:'Weekend picks',collectionTitleCount:14,collectionMediaType:'Movies',collectionLastSync:'2026-08-08T12:00:00Z'},{now:'2026-08-08T13:00:00Z'});
+  assert.equal(values.collection_name,'Weekend picks');assert.equal(values.collection_title_count,14);assert.equal(values.collection_media_type,'Movies');assert.equal(values.collection_last_sync,'Aug 8');
+});
+
 test('days since added uses Plex metadata for Plex and library metadata for VynodeArr',()=>{
   assert.equal(posterVariableValues({addedAt:'2020-01-01T00:00:00Z'},{now:'2026-08-07T23:59:00Z',plexAddedAt:'2026-08-01T01:00:00Z'}).plex_days_since_added,6);
   assert.equal(posterVariableValues({addedAt:'2026-08-01T00:00:00Z'},{now:'2026-08-07T12:00:00Z'}).plex_days_since_added,6);

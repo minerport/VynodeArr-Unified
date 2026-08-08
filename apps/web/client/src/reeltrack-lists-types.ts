@@ -31,13 +31,15 @@ export interface ReeltrackList {
     movieHostRoot?:string;
     tvHostRoot?:string;
     collectionName?:string;
+    collectionPosterTemplate?:import("./poster-overlays-types").OverlayTemplate|null;
+    titleOverlayTemplate?:import("./poster-overlays-types").OverlayTemplate|null;
     intervalMinutes?:number;
     status?:'scheduled'|'ready'|'error'|'disabled';
     error?:string|null;
     libraryErrors?:string[];
     lastRunAt?:string|null;
     nextRunAt?:string|null;
-    summary?:{providerTitles:number;managedTitles:number;placeholders:number;downloaded:number;removed:number;failed?:number;realMatches:number;libraryAdded?:number;libraryExisting?:number;libraryFailed?:number};
+    summary?:{providerTitles:number;managedTitles:number;placeholders:number;downloaded:number;removed:number;failed?:number;realMatches:number;libraryAdded?:number;libraryExisting?:number;libraryFailed?:number;collectionPosters?:number;titlePosters?:number};
   }|null;
 }
 export interface ReeltrackListsMountOptions {
