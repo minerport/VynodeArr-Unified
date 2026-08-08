@@ -40,16 +40,20 @@ const posterOverlayAllowance={route:7_700,css:6_700};
 // workspace. Vite folds the responsive route stylesheet into shared CSS.
 const reeltrackAllowance={shell:600,css:7_500};
 // Library Review adds one administrator-only mount bridge and a responsive,
-// independently loaded two-column file comparison surface.
-const libraryReviewAllowance={shell:600,css:4_500};
+// independently loaded three-column file comparison surface with explicit
+// cross-theme card alignment.
+const libraryReviewAllowance={shell:600,css:4_800};
+// Administrator media removal adds a shared, lazy detail dialog plus a small
+// legacy-shell fallback for choosing whether files and folders are deleted.
+const mediaRemovalAllowance={shell:700,css:1_300};
 const failures=[];
 
 if(!entry)failures.push('The React entry bundle was not produced.');
 else if(entry.bytes>limits.entry)failures.push(`React entry is ${entry.bytes} bytes (limit ${limits.entry}).`);
 if(!shell)failures.push('The TypeScript application shell bundle was not produced.');
-else if(shell.bytes>limits.shell+mobileAllowance.shell+reeltrackAllowance.shell+libraryReviewAllowance.shell)failures.push(`Application shell is ${shell.bytes} bytes (limit ${limits.shell+mobileAllowance.shell+reeltrackAllowance.shell+libraryReviewAllowance.shell}).`);
+else if(shell.bytes>limits.shell+mobileAllowance.shell+reeltrackAllowance.shell+libraryReviewAllowance.shell+mediaRemovalAllowance.shell)failures.push(`Application shell is ${shell.bytes} bytes (limit ${limits.shell+mobileAllowance.shell+reeltrackAllowance.shell+libraryReviewAllowance.shell+mediaRemovalAllowance.shell}).`);
 for(const chunk of routeChunks){const routeLimit=limits.route+(chunk.name.startsWith('system-')?performanceAllowance.systemRoute:0)+(chunk.name.startsWith('poster-overlays-')?posterOverlayAllowance.route:0);if(chunk.bytes>routeLimit)failures.push(`${chunk.name} is ${chunk.bytes} bytes (route limit ${routeLimit}).`);}
-if(stylesheet&&stylesheet.bytes>limits.css+mobileAllowance.css+performanceAllowance.css+posterOverlayAllowance.css+reeltrackAllowance.css+libraryReviewAllowance.css)failures.push(`React stylesheet is ${stylesheet.bytes} bytes (limit ${limits.css+mobileAllowance.css+performanceAllowance.css+posterOverlayAllowance.css+reeltrackAllowance.css+libraryReviewAllowance.css}).`);
+if(stylesheet&&stylesheet.bytes>limits.css+mobileAllowance.css+performanceAllowance.css+posterOverlayAllowance.css+reeltrackAllowance.css+libraryReviewAllowance.css+mediaRemovalAllowance.css)failures.push(`React stylesheet is ${stylesheet.bytes} bytes (limit ${limits.css+mobileAllowance.css+performanceAllowance.css+posterOverlayAllowance.css+reeltrackAllowance.css+libraryReviewAllowance.css+mediaRemovalAllowance.css}).`);
 
 if(failures.length){
   console.error(`Web bundle budget failed:\n- ${failures.join('\n- ')}`);

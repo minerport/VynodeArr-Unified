@@ -1385,6 +1385,15 @@ test('shared modal portals contain focus and restore the originating page',async
   assert.match(tv,/role="region"/);assert.doesNotMatch(tv,/react-tv-detail[^\n]+aria-modal/);
 });
 
+test('administrators choose whether library removal also deletes media folders',async()=>{
+  const [dialog,styles,movie,tv,shell]=await Promise.all([read('apps/web/client/src/remove-library-item-dialog.tsx'),read('apps/web/client/src/remove-library-item-dialog.css'),read('apps/web/client/src/movie-detail.tsx'),read('apps/web/client/src/tv-detail.tsx'),read('apps/web/client/src/app-shell.ts')]);
+  for(const value of ['Delete media files and','configured root folder','Permanent deletion is enabled','Remove and keep files','Remove and delete files','This cannot be undone'])assert.ok(dialog.includes(value),value);
+  assert.match(styles,/remove-files-choice\.selected/);assert.match(styles,/remove-files-warning/);
+  assert.match(movie,/deleteFiles=\$\{deleteFiles\}&addImportExclusion=false/);assert.match(movie,/RemoveLibraryItemDialog/);
+  assert.match(tv,/deleteFiles=\$\{deleteFiles\}&addImportListExclusion=false/);assert.match(tv,/RemoveLibraryItemDialog/);
+  assert.match(shell,/movieIds:ids,deleteFiles/);assert.match(shell,/seriesIds:ids,deleteFiles/);assert.match(shell,/OK = delete files and folders/);
+});
+
 test('download decision center explains native candidate evidence',async()=>{
   const [server,notifications,types,styles]=await Promise.all([read('apps/api/src/app.js'),read('apps/web/client/src/notifications.tsx'),read('apps/web/client/src/notification-types.ts'),read('apps/web/public/notifications.css')]);
   for(const value of ['downloadDecisionStore','recordDownloadDecisions','/api/download-decisions','customFormatScore','preferredWordScore','upgradeEligible'])assert.ok(server.includes(value),value);
