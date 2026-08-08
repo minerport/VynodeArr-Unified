@@ -29,6 +29,9 @@ test('Reeltrack Lists remains fluid while the viewport is resized',async()=>{
   assert.match(designer,/Four-poster collage/);assert.match(designer,/quadPosters/);assert.match(designer,/Find a title/);
   for(const label of ['THEATRICAL OVERLAY DESIGNS','Coming Soon','Feature Trailer','Upcoming','Trending Now','Recently Added','New Release','Leaving Soon',"Editor's Pick",'Watch Tonight','Now Showing'])assert.ok(designer.includes(label),label);
   for(const corner of ['nw','ne','sw','se'])assert.ok(artStyles.includes(`overlay-resize-${corner}`),corner);
+  for(const control of ['Layer level','To front','Forward','Backward','To back'])assert.ok(designer.includes(control),control);
+  assert.match(designer,/changes:\s*Partial<OverlayLayer>\s*=\s*\{\s*position:\s*"custom",\s*x,\s*y,\s*width,\s*height\s*\}/);
+  assert.match(designer,/layers:\s*\[\.\.\.current\.layers,\s*accent,\s*graphic,\s*badge\]/);
   assert.match(view,/overlays applied/);assert.match(view,/overlay failures/);
 });
 

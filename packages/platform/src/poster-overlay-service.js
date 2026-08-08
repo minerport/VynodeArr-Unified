@@ -1131,7 +1131,7 @@ export function renderOverlaySvg({
           ? boxWidth
           : layer.fontSize * 1.15 * Math.max(1, lineCount) + layer.padding * 2,
       boxHeight =
-        layer.kind === "shape" && layer.height > 0
+        layer.height > 0
           ? Math.max(27, (height * layer.height) / 100)
           : naturalHeight,
       x = Math.min(width - boxWidth, (width * layer.x) / 100),

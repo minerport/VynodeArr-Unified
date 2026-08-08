@@ -7,6 +7,28 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.36-rc.12] - 2026-08-08
+
+### Added
+
+- Added explicit layer-level controls to move selected collection-poster and
+  title-overlay items forward, backward, to the front, or to the back.
+- Added durable, integrity-checked original-artwork backups for managed
+  Reeltrack collection posters and title overlays.
+
+### Changed
+
+- Upgraded theatrical presets into independently editable accent, icon, and
+  text layers with more complete poster-ready compositions.
+- Allowed every artwork layer to grow or shrink horizontally and vertically
+  from all four resize corners in both the editor and exact Plex renderer.
+
+### Fixed
+
+- Restored the first captured Plex artwork before replacing, updating, or
+  removing a managed overlay or collection poster, preventing effects from
+  accumulating across repeated edits and synchronization runs.
+
 ## [2.0.36-rc.11] - 2026-08-08
 
 ### Added

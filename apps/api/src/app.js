@@ -511,7 +511,8 @@ export function createApplication(options = {}) {
       applications: [],
     });
   const plexPosterBackupDir = join(dataDir, "plex-poster-backups"),
-    reeltrackPosterBackgroundDir = join(dataDir, "reeltrack-poster-backgrounds");
+    reeltrackPosterBackgroundDir = join(dataDir, "reeltrack-poster-backgrounds"),
+    reeltrackArtworkBackupDir = join(dataDir, "reeltrack-artwork-originals");
   const plexService = options.plexService || new PlexService();
   const trailerDownloader =
     options.trailerDownloader ||
@@ -1572,7 +1573,36 @@ export function createApplication(options = {}) {
       .jpeg({ quality: 92, chromaSubsampling: "4:4:4" })
       .toBuffer();
   }
-  async function applyReeltrackTitleArtwork({ template, endpoint, token, items, ratingKeys, list, domain, syncedAt }) {
+  async function reeltrackOriginalArtwork({ automation, endpoint, token, machineIdentifier, ratingKey, artworkPath, domain, kind }) {
+    automation.artworkOriginals ||= {};
+    const key = `${machineIdentifier}:${ratingKey}`, existing = automation.artworkOriginals[key];
+    if (existing?.backupFile && /^[a-f0-9-]{36}\.poster$/i.test(existing.backupFile)) {
+      const body = await readFile(join(reeltrackArtworkBackupDir, existing.backupFile));
+      if (createHash("sha256").update(body).digest("hex") !== existing.sha256) throw new Error("The managed artwork original failed integrity validation");
+      return { body, contentType: existing.contentType, key, captured: false, synthetic: Boolean(existing.synthetic) };
+    }
+    const synthetic = typeof plexService.artwork !== "function",
+      current = !synthetic
+        ? await plexService.artwork(endpoint, token, artworkPath || `/library/metadata/${ratingKey}/thumb`)
+        : { body: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="600" height="900"><rect width="600" height="900" fill="#08111f"/></svg>'), contentType: "image/svg+xml" },
+      original = await originalPlexPoster({ server: { machineIdentifier } }, ratingKey, current),
+      backupFile = `${randomUUID()}.poster`;
+    await mkdir(reeltrackArtworkBackupDir, { recursive: true });
+    await writeFile(join(reeltrackArtworkBackupDir, backupFile), original.body, { mode: 384, flag: "wx" });
+    automation.artworkOriginals[key] = { backupFile, contentType: original.contentType, sha256: createHash("sha256").update(original.body).digest("hex"), machineIdentifier, ratingKey: String(ratingKey), domain, kind, synthetic, capturedAt: new Date().toISOString() };
+    return { ...original, key, captured: true };
+  }
+  async function restoreReeltrackArtwork({ automation, endpoint, token, machineIdentifier, domain, kind }) {
+    const restored = [];
+    for (const record of Object.values(automation.artworkOriginals || {}).filter((item) => !item.synthetic && item.machineIdentifier === machineIdentifier && item.domain === domain && item.kind === kind)) {
+      if (!/^[a-f0-9-]{36}\.poster$/i.test(String(record.backupFile || ""))) continue;
+      const body = await readFile(join(reeltrackArtworkBackupDir, record.backupFile)).catch(() => null);
+      if (!body?.length || createHash("sha256").update(body).digest("hex") !== record.sha256) continue;
+      await plexService.uploadPoster(endpoint, token, record.ratingKey, body, record.contentType).then(() => restored.push(record.ratingKey)).catch(() => {});
+    }
+    return restored;
+  }
+  async function applyReeltrackTitleArtwork({ template, endpoint, token, machineIdentifier, automation, items, ratingKeys, list, domain, syncedAt }) {
     if (!template?.enabled || !template.layers?.length) return { applied: 0, failed: 0, errors: [] };
     let applied = 0, failed = 0;
     const errors = [];
@@ -1582,8 +1612,8 @@ export function createApplication(options = {}) {
           pathTmdbId = (plexItem.files || []).map((file) => String(file).match(/\[tmdb-(\d+)\]/i)?.[1]).find(Boolean),
           tmdbId = Number(identity?.split(":")[1] || pathTmdbId || 0),
           source = (list.items || []).find((value) => String(value.tmdbId || "") === String(tmdbId || "")) || {},
-          plexPoster = await plexService.artwork(endpoint, token, plexItem.thumb || `/library/metadata/${plexItem.ratingKey}/thumb`).then((value) => value.body).catch(() => null),
-          poster = plexPoster || await remotePosterBuffer(domain, tmdbId);
+          original = await reeltrackOriginalArtwork({ automation, endpoint, token, machineIdentifier, ratingKey: plexItem.ratingKey, artworkPath: plexItem.thumb, domain, kind: "title" }).catch(() => null),
+          poster = original?.body || await remotePosterBuffer(domain, tmdbId);
         if (!poster?.length) throw new Error("No Plex or provider poster was available");
         const
           rendered = await renderedReeltrackArtwork(template, {
@@ -1824,6 +1854,7 @@ export function createApplication(options = {}) {
         throw new Error(
           `Plex indexed ${placeholderKeys.length} of ${expectedPlaceholderCount} managed ${domain === "tv" ? "television" : "movie"} trailers in ${library.title}. Verify that ${libraryLocation} is the selected library's container path, then run the automation again.`,
         );
+      await restoreReeltrackArtwork({ automation, endpoint: plexSettings.endpoint, token: plexToken, machineIdentifier: plexSettings.server?.machineIdentifier || "", domain, kind: "title" });
       const collection = await plexService.syncCollection(
           plexSettings.endpoint,
           plexToken,
@@ -1839,6 +1870,8 @@ export function createApplication(options = {}) {
         const collectionTemplate = reeltrackPosterTemplate(automation.collectionPosterTemplate, domain),
           titleTemplate = reeltrackPosterTemplate(automation.titleOverlayTemplate, domain);
         if (collection.ratingKey && collectionTemplate?.enabled && collectionTemplate.layers?.length) {
+          const originalCollection = await reeltrackOriginalArtwork({ automation, endpoint: plexSettings.endpoint, token: plexToken, machineIdentifier: plexSettings.server?.machineIdentifier || "", ratingKey: collection.ratingKey, domain, kind: "collection" });
+          if (!originalCollection.captured && !originalCollection.synthetic) await plexService.uploadPoster(plexSettings.endpoint, plexToken, collection.ratingKey, originalCollection.body, originalCollection.contentType);
           const rendered = await renderedReeltrackArtwork(
             collectionTemplate,
             reeltrackPosterItem({
@@ -1856,6 +1889,8 @@ export function createApplication(options = {}) {
           template: titleTemplate,
           endpoint: plexSettings.endpoint,
           token: plexToken,
+          machineIdentifier: plexSettings.server?.machineIdentifier || "",
+          automation,
           items: refreshedItems,
           ratingKeys: placeholderKeys,
           list,
@@ -6985,6 +7020,17 @@ export function createApplication(options = {}) {
     variableValues: value.variableValues || {},
     status: value.restoredAt ? "restored" : "applied",
   });
+  async function originalPlexPoster(settings, ratingKey, fallbackPoster) {
+    const stored = await plexPosterApplicationStore.read(),
+      prior = (stored.applications || [])
+        .filter((item) => !item.restoredAt && String(item.ratingKey) === String(ratingKey) && item.serverMachineIdentifier === settings.server?.machineIdentifier)
+        .sort((a, b) => String(a.appliedAt || "").localeCompare(String(b.appliedAt || "")))[0];
+    if (!prior) return { ...fallbackPoster, managed: false };
+    if (!/^plex_poster_[A-Za-z0-9-]+\.poster$/.test(String(prior.backupFile || ""))) throw new Error("The original Plex poster record is invalid");
+    const body = await readFile(join(plexPosterBackupDir, prior.backupFile));
+    if (createHash("sha256").update(body).digest("hex") !== prior.backupSha256) throw new Error("The original Plex poster failed integrity validation");
+    return { body, contentType: prior.backupContentType, managed: true };
+  }
   async function renderedPlexPoster(target, template, session) {
     const rawPlexAddedAt=target.plex.addedAt,numericPlexAddedAt=Number(rawPlexAddedAt),plexAddedDate=Number.isFinite(numericPlexAddedAt)&&numericPlexAddedAt>0?new Date(numericPlexAddedAt<(1e12)?numericPlexAddedAt*1000:numericPlexAddedAt):new Date(rawPlexAddedAt||'');
     const { item: item, context: context } = await overlayRenderContext(
@@ -7030,8 +7076,10 @@ export function createApplication(options = {}) {
         mediaId: mediaId,
         libraryKey: libraryKey,
         ratingKey: ratingKey,
-      }),
-      rendered = await renderedPlexPoster(target, template, session),
+      });
+    target.poster = await originalPlexPoster(target.settings, target.plex.ratingKey, target.poster);
+    if (target.poster.managed) await plexService.uploadPoster(target.settings.endpoint, target.token, target.plex.ratingKey, target.poster.body, target.poster.contentType);
+    const rendered = await renderedPlexPoster(target, template, session),
       id = `plex_poster_${randomUUID()}`,
       backupFile = `${id}.poster`,
       backupPath = join(plexPosterBackupDir, backupFile);

@@ -105,6 +105,13 @@ test('theatrical artwork icons render as editable overlay layers',()=>{
   }
 });
 
+test('explicit layer heights resize text and icon artwork in exact output',()=>{
+  const template=sanitizeOverlayTemplate({layers:[{kind:'text',variable:'custom_text',label:'COMING SOON',width:70,height:8},{kind:'icon',iconName:'filmstrip',variable:'custom_text',label:'',width:30,height:18}]});
+  const svg=renderOverlaySvg({poster:Buffer.from('poster'),template,item:{title:'Movie'}}).toString();
+  assert.match(svg,/height="72"/);
+  assert.match(svg,/height="162"/);
+});
+
 test('poster variables expose Reeltrack collection artwork values',()=>{
   const values=posterVariableValues({collectionName:'Weekend picks',collectionTitleCount:14,collectionMediaType:'Movies',collectionLastSync:'2026-08-08T12:00:00Z'},{now:'2026-08-08T13:00:00Z'});
   assert.equal(values.collection_name,'Weekend picks');assert.equal(values.collection_title_count,14);assert.equal(values.collection_media_type,'Movies');assert.equal(values.collection_last_sync,'Aug 8');
