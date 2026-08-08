@@ -510,7 +510,8 @@ export function createApplication(options = {}) {
       version: 1,
       applications: [],
     });
-  const plexPosterBackupDir = join(dataDir, "plex-poster-backups");
+  const plexPosterBackupDir = join(dataDir, "plex-poster-backups"),
+    reeltrackPosterBackgroundDir = join(dataDir, "reeltrack-poster-backgrounds");
   const plexService = options.plexService || new PlexService();
   const trailerDownloader =
     options.trailerDownloader ||
@@ -1497,7 +1498,7 @@ export function createApplication(options = {}) {
   }
   const reeltrackPosterTemplate = (value, domain = "all") => {
     if (!value || typeof value !== "object") return null;
-    return sanitizeOverlayTemplate({
+    const template = sanitizeOverlayTemplate({
       ...value,
       id: value.id || `overlay_${randomUUID()}`,
       name: value.name || "Reeltrack collection artwork",
@@ -1505,6 +1506,15 @@ export function createApplication(options = {}) {
       target: "plex",
       enabled: value.enabled !== false,
     });
+    const canvas = value.canvas || {}, color = (input, fallback) => /^#[0-9a-f]{6}$/i.test(String(input || "")) ? String(input).toLowerCase() : fallback;
+    template.canvas = {
+      backgroundType: ["solid", "linear", "radial"].includes(canvas.backgroundType) ? canvas.backgroundType : "linear",
+      colorA: color(canvas.colorA, "#08111f"),
+      colorB: color(canvas.colorB, "#243b65"),
+      angle: Math.max(0, Math.min(360, Number(canvas.angle) || 135)),
+      backgroundAsset: /^[a-f0-9-]{36}\.(?:jpe?g|png|webp)$/i.test(String(canvas.backgroundAsset || "")) ? String(canvas.backgroundAsset) : "",
+    };
+    return template;
   };
   const reeltrackPosterItem = ({ list, domain, count, syncedAt, title }) => ({
     title: title || list.name,
@@ -1522,9 +1532,15 @@ export function createApplication(options = {}) {
         item,
         includePoster: false,
       }),
+      canvas = template.canvas || {}, uploaded = !poster?.length && canvas.backgroundAsset
+        ? await readFile(join(reeltrackPosterBackgroundDir, canvas.backgroundAsset)).catch(() => null)
+        : null,
+      gradient = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="900"><defs>${canvas.backgroundType === "radial" ? `<radialGradient id="g"><stop stop-color="${canvas.colorA || "#08111f"}"/><stop offset="1" stop-color="${canvas.colorB || "#243b65"}"/></radialGradient>` : `<linearGradient id="g" gradientTransform="rotate(${canvas.angle || 135} .5 .5)"><stop stop-color="${canvas.colorA || "#08111f"}"/><stop offset="1" stop-color="${canvas.backgroundType === "solid" ? canvas.colorA || "#08111f" : canvas.colorB || "#243b65"}"/></linearGradient>`}</defs><rect width="600" height="900" fill="url(#g)"/></svg>`,
       base = poster?.length
         ? sharp(poster).rotate().resize(600, 900, { fit: "cover", position: "centre" })
-        : sharp({ create: { width: 600, height: 900, channels: 4, background: "#08111f" } });
+        : uploaded?.length
+          ? sharp(uploaded).rotate().resize(600, 900, { fit: "cover", position: "centre" })
+          : sharp(Buffer.from(gradient));
     return base
       .composite([{ input: overlay, top: 0, left: 0 }])
       .jpeg({ quality: 92, chromaSubsampling: "4:4:4" })
@@ -8314,6 +8330,32 @@ export function createApplication(options = {}) {
           return json(res, 200, {
             image: `data:image/jpeg;base64,${rendered.toString("base64")}`,
           });
+        }
+        if (
+          url.pathname === "/api/reeltrack/poster-design/background" &&
+          req.method === "POST"
+        ) {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          const input = await body(req, 8e6), match = String(input.image || "").match(/^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/i);
+          if (!match) throw new Error("Choose a JPEG, PNG, or WebP background image.");
+          const image = Buffer.from(match[2], "base64");
+          if (!image.length || image.length > 5e6) throw new Error("Background images must be 5 MB or smaller.");
+          const sharp = (await import("sharp")).default, metadata = await sharp(image).metadata();
+          if (!metadata.width || !metadata.height || metadata.width < 300 || metadata.height < 450)
+            throw new Error("Background images must be at least 300 × 450 pixels.");
+          const extension = match[1].toLowerCase() === "jpeg" ? "jpg" : match[1].toLowerCase(), asset = `${randomUUID()}.${extension}`;
+          await mkdir(reeltrackPosterBackgroundDir, { recursive: true });
+          await writeFile(join(reeltrackPosterBackgroundDir, asset), image, { mode: 384, flag: "wx" });
+          return json(res, 201, { asset, preview: `/api/reeltrack/poster-design/background/${asset}` });
+        }
+        const reeltrackBackgroundMatch = url.pathname.match(/^\/api\/reeltrack\/poster-design\/background\/([a-f0-9-]{36}\.(?:jpe?g|png|webp))$/i);
+        if (reeltrackBackgroundMatch && req.method === "GET") {
+          if (!administrator(res, session)) return;
+          const asset = reeltrackBackgroundMatch[1], image = await readFile(join(reeltrackPosterBackgroundDir, asset)).catch(() => null);
+          if (!image) return json(res, 404, { message: "Background unavailable" });
+          const extension = asset.split(".").at(-1)?.toLowerCase();
+          res.writeHead(200, { "content-type": extension === "png" ? "image/png" : extension === "webp" ? "image/webp" : "image/jpeg", "cache-control": "private, max-age=86400", "content-length": String(image.length) });
+          return res.end(image);
         }
         if (
           url.pathname === "/api/reeltrack/trailers/folders" &&

@@ -73,6 +73,14 @@ export interface OverlayTemplate {
     cutoff: boolean;
     rating: boolean;
   };
+  canvas?: {
+    backgroundType: "solid" | "linear" | "radial";
+    colorA: string;
+    colorB: string;
+    angle: number;
+    backgroundAsset?: string;
+    backgroundPreview?: string;
+  };
   createdAt?: string;
   updatedAt?: string;
 }

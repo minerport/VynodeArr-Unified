@@ -5,7 +5,7 @@ import test from 'node:test';
 const read=(path)=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
 test('Reeltrack Lists remains fluid while the viewport is resized',async()=>{
-  const [styles,view]=await Promise.all([read('apps/web/client/src/react-reeltrack-lists.css'),read('apps/web/client/src/reeltrack-lists.tsx')]);
+  const [styles,view,designer]=await Promise.all([read('apps/web/client/src/react-reeltrack-lists.css'),read('apps/web/client/src/reeltrack-lists.tsx'),read('apps/web/client/src/reeltrack-poster-designer.tsx')]);
   assert.match(styles,/\.react-reeltrack-lists\s*>\s*\.reeltrack-hero\s*\{[^}]*position:\s*static[^}]*height:\s*auto[^}]*min-height:\s*0/);
   assert.match(styles,/\.reeltrack-key-form input\s*\{[^}]*min-width:\s*0[^}]*width:\s*100%/);
   assert.match(styles,/\.reeltrack-list-nav\s*\{[^}]*display:\s*flex[^}]*max-height:\s*calc\(100dvh - 8rem\)[^}]*flex-direction:\s*column[^}]*overflow-y:\s*auto/);
@@ -22,6 +22,10 @@ test('Reeltrack Lists remains fluid while the viewport is resized',async()=>{
   assert.match(view,/onError=\{\(\) => setFailed\(true\)\}/);
   assert.match(styles,/\.reeltrack-automation-fields\s*\{[^}]*align-items:\s*start/);
   assert.match(styles,/\.reeltrack-item-grid article\s*\{[^}]*grid-template-columns:\s*88px[^}]*min-height:\s*154px/);
+  assert.match(designer,/Drag to position · pull corner to resize/);assert.match(designer,/overlay-resize-handle/);assert.match(designer,/onPointerMove/);
+  assert.doesNotMatch(designer,/>X \(%\)</);assert.doesNotMatch(designer,/>Y \(%\)</);
+  for(const label of ['STARTER POSTERS','Solid color','Linear gradient','Radial gradient','Gradient angle','Upload custom background','Add icon','Adaptive poster contrast','Conditions','Exact rendered Plex output'])assert.ok(designer.includes(label),label);
+  assert.match(designer,/poster-overlay-layer-identity/);assert.match(designer,/poster-overlay-conditions/);
 });
 
 test('loaded Action Center records cannot widen the mobile viewport',async()=>{

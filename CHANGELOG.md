@@ -7,6 +7,38 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.36-rc.8] - 2026-08-08
+
+### Added
+
+- Added starter collection-poster designs and customizable solid, linear,
+  and radial-gradient backgrounds.
+- Added validated custom JPEG, PNG, and WebP poster-background uploads with
+  persistent server-side storage and Plex rendering.
+- Added interactive drag positioning and corner-handle resizing to Reeltrack
+  collection posters and managed-title overlays.
+
+### Changed
+
+- Replaced the reduced Reeltrack artwork controls with the same layer model,
+  variables, icons, shapes, text fitting, appearance controls, conditions,
+  ranked sub-conditions, and adaptive contrast used by Poster Overlays.
+- Removed manual X/Y fields in favor of direct manipulation on the poster.
+- Kept an exact server-rendered Plex output preview alongside the interactive
+  editing canvas.
+
+### Fixed
+
+- Ensured collection previews always have visible starter artwork or a chosen
+  color/gradient background instead of an empty dark canvas.
+- Preserved uploaded backgrounds after reopening the editor and used them for
+  collection creation, updates, and recurring synchronization.
+
+### Validation
+
+- Passed all 218 automated tests plus TypeScript, production build, bundle,
+  branding, and deployment validation.
+
 ## [2.0.36-rc.7] - 2026-08-08
 
 ### Added
