@@ -1075,9 +1075,12 @@ function InteractiveCanvas({ template, values, background, selectedIds, onSelect
         <span
           className="reeltrack-selection-box"
           data-selection-count={selectedLayers.length}
-          style={{ left: `${selectionBounds.x}%`, top: `${selectionBounds.y}%`, width: `${selectionBounds.width}%`, height: `${selectionBounds.height}%` }}
+          style={{ position: "absolute", zIndex: 20, display: "block", boxSizing: "border-box", border: "2px solid #64d8ff", pointerEvents: "none", left: `${selectionBounds.x}%`, top: `${selectionBounds.y}%`, width: `${selectionBounds.width}%`, height: `${selectionBounds.height}%` }}
         >
-          {corners.map((corner) => <span key={corner} className={`overlay-resize-handle overlay-resize-${corner}`} aria-label={`Resize ${corner}`} onPointerDown={(event) => beginResize(event, selectedLayers, corner)} />)}
+          {corners.map((corner) => {
+            const north = corner.startsWith("n"), west = corner.endsWith("w");
+            return <span key={corner} className={`overlay-resize-handle overlay-resize-${corner}`} aria-label={`Resize ${corner}`} style={{ pointerEvents: "auto", position: "absolute", width: 14, height: 14, margin: 0, border: "2px solid #fff", borderRadius: "50%", background: "#1688ff", boxShadow: "0 1px 5px #000", zIndex: 9, left: west ? -7 : "auto", right: west ? "auto" : -7, top: north ? -7 : "auto", bottom: north ? "auto" : -7, cursor: corner === "nw" || corner === "se" ? "nwse-resize" : "nesw-resize" }} onPointerDown={(event) => beginResize(event, selectedLayers, corner)} />;
+          })}
         </span>
       ) : null}
     </div>
