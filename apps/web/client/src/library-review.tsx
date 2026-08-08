@@ -35,6 +35,24 @@ const comparisonTitleKey = (value: string, folder = false) =>
     .replace(/[^a-z0-9]/gi, "")
     .toLowerCase();
 
+const validTmdbId = (value: unknown) => {
+  const id = Number(value);
+  return Number.isInteger(id) && id > 0 ? id : null;
+};
+
+const hasLibraryIdentityMatch = (
+  titleKeys: Set<string>,
+  tmdbIds: Set<number>,
+  title: string,
+  tmdbId: unknown,
+) => {
+  const normalizedTmdbId = validTmdbId(tmdbId);
+  return (
+    titleKeys.has(comparisonTitleKey(title)) ||
+    (normalizedTmdbId !== null && tmdbIds.has(normalizedTmdbId))
+  );
+};
+
 function ComparisonBadge({ label, matched }: { label: string; matched: boolean }) {
   return <span className={`title-comparison ${matched ? "matched" : "missing"}`}>{label}: {matched ? "Match" : "No match"}</span>;
 }
@@ -205,7 +223,9 @@ export function LibraryReviewView({
   }, []);
 
   const plexTitleKeys = useMemo(() => new Set((review?.plex || []).map((item) => comparisonTitleKey(item.title)).filter(Boolean)), [review]),
+    plexTmdbIds = useMemo(() => new Set((review?.plex || []).map((item) => validTmdbId(item.tmdbId)).filter((id): id is number => id !== null)), [review]),
     vynodeTitleKeys = useMemo(() => new Set((review?.vynode || []).map((item) => comparisonTitleKey(item.title)).filter(Boolean)), [review]),
+    vynodeTmdbIds = useMemo(() => new Set((review?.vynode || []).map((item) => validTmdbId(item.tmdbId)).filter((id): id is number => id !== null)), [review]),
     folderTitleKeys = useMemo(() => new Set((review?.scan || []).map((item) => comparisonTitleKey(item.name, true)).filter(Boolean)), [review]);
 
   const plexItems = useMemo(
@@ -225,14 +245,13 @@ export function LibraryReviewView({
     vynodeItems = useMemo(
       () =>
         (review?.vynode || []).filter((item) => {
-          const key = comparisonTitleKey(item.title),
-            passesFilter =
+          const passesFilter =
               vynodeFilter === "all" ||
-              (vynodeFilter === "plex-missing" && !plexTitleKeys.has(key)) ||
+              (vynodeFilter === "plex-missing" && !hasLibraryIdentityMatch(plexTitleKeys, plexTmdbIds, item.title, item.tmdbId)) ||
               (vynodeFilter === "filename-mismatch" && hasFilenameMismatch(item.filePath, item.title));
           return passesFilter && matches(vynodeQuery, item.title, item.year, item.tmdbId, item.filePath);
         }),
-      [review, vynodeQuery, vynodeFilter, plexTitleKeys],
+      [review, vynodeQuery, vynodeFilter, plexTitleKeys, plexTmdbIds],
     ),
     scanItems = useMemo(
       () =>
@@ -545,7 +564,7 @@ export function LibraryReviewView({
                   selectedPlex.ratingKey === item.ratingKey
                 }
                 onSelect={() => setSelectedPlex(item)}
-                vynodeMatch={vynodeTitleKeys.has(comparisonTitleKey(item.title))}
+                vynodeMatch={hasLibraryIdentityMatch(vynodeTitleKeys, vynodeTmdbIds, item.title, item.tmdbId)}
                 folderMatch={folderTitleKeys.has(comparisonTitleKey(item.title))}
               />
             ))}
@@ -569,7 +588,7 @@ export function LibraryReviewView({
             <div className="library-review-filter-tabs" aria-label="Filter VynodeArr titles">
               {([
                 ["all", "All", review?.vynode.length || 0],
-                ["plex-missing", "No Plex match", (review?.vynode || []).filter((item) => !plexTitleKeys.has(comparisonTitleKey(item.title))).length],
+                ["plex-missing", "No Plex match", (review?.vynode || []).filter((item) => !hasLibraryIdentityMatch(plexTitleKeys, plexTmdbIds, item.title, item.tmdbId)).length],
                 ["filename-mismatch", "Filename mismatch", (review?.vynode || []).filter((item) => hasFilenameMismatch(item.filePath, item.title)).length],
               ] as const).map(([value, label, count]) => (
                 <button type="button" className={vynodeFilter === value ? "active" : ""} key={value} onClick={() => { setVynodeFilter(value); setVynodeLimit(100); }}>
@@ -594,7 +613,7 @@ export function LibraryReviewView({
                 item={item}
                 selected={selectedVynode?.publicId === item.publicId}
                 onSelect={() => setSelectedVynode(item)}
-                plexMatch={plexTitleKeys.has(comparisonTitleKey(item.title))}
+                plexMatch={hasLibraryIdentityMatch(plexTitleKeys, plexTmdbIds, item.title, item.tmdbId)}
               />
             ))}
           </div>
