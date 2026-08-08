@@ -24,6 +24,9 @@ const filenameMatchesTitle = (filePath: string, title: string) => {
   return !normalizedTitle || lettersOnly(filename).includes(normalizedTitle);
 };
 
+const hasFilenameMismatch = (filePath: string, title: string) =>
+  Boolean(filePath) && !filenameMatchesTitle(filePath, title);
+
 const comparisonTitleKey = (value: string, folder = false) =>
   (folder ? value.replace(/\s*\((?:19|20)\d{2}\)\s*$/, "") : value)
     .normalize("NFKD")
@@ -82,8 +85,7 @@ function VynodeMovieRow({
   onSelect: () => void;
   plexMatch: boolean;
 }) {
-  const filenameMismatch =
-    Boolean(item.filePath) && !filenameMatchesTitle(item.filePath, item.title);
+  const filenameMismatch = hasFilenameMismatch(item.filePath, item.title);
   return (
     <button
       className={`library-review-item${selected ? " selected" : ""}${filenameMismatch ? " filename-mismatch" : ""}`}
@@ -138,6 +140,7 @@ export function LibraryReviewView({
     [selectedLibraries, setSelectedLibraries] = useState<string[]>([]),
     [plexQuery, setPlexQuery] = useState(""),
     [vynodeQuery, setVynodeQuery] = useState(""),
+    [vynodeFilter, setVynodeFilter] = useState<"all" | "plex-missing" | "filename-mismatch">("all"),
     [scanQuery, setScanQuery] = useState(""),
     [scanFilter, setScanFilter] = useState<"all" | "matched" | "unmatched">("all"),
     [selectedPlex, setSelectedPlex] = useState<PlexReviewMovie | null>(null),
@@ -213,16 +216,15 @@ export function LibraryReviewView({
     ),
     vynodeItems = useMemo(
       () =>
-        (review?.vynode || []).filter((item) =>
-          matches(
-            vynodeQuery,
-            item.title,
-            item.year,
-            item.tmdbId,
-            item.filePath,
-          ),
-        ),
-      [review, vynodeQuery],
+        (review?.vynode || []).filter((item) => {
+          const key = comparisonTitleKey(item.title),
+            passesFilter =
+              vynodeFilter === "all" ||
+              (vynodeFilter === "plex-missing" && !plexTitleKeys.has(key)) ||
+              (vynodeFilter === "filename-mismatch" && hasFilenameMismatch(item.filePath, item.title));
+          return passesFilter && matches(vynodeQuery, item.title, item.year, item.tmdbId, item.filePath);
+        }),
+      [review, vynodeQuery, vynodeFilter, plexTitleKeys],
     ),
     scanItems = useMemo(
       () =>
@@ -497,6 +499,17 @@ export function LibraryReviewView({
                 setVynodeLimit(100);
               }}
             />
+            <div className="library-review-filter-tabs" aria-label="Filter VynodeArr titles">
+              {([
+                ["all", "All", review?.vynode.length || 0],
+                ["plex-missing", "No Plex match", (review?.vynode || []).filter((item) => !plexTitleKeys.has(comparisonTitleKey(item.title))).length],
+                ["filename-mismatch", "Filename mismatch", (review?.vynode || []).filter((item) => hasFilenameMismatch(item.filePath, item.title)).length],
+              ] as const).map(([value, label, count]) => (
+                <button type="button" className={vynodeFilter === value ? "active" : ""} key={value} onClick={() => { setVynodeFilter(value); setVynodeLimit(100); }}>
+                  {label} {count}
+                </button>
+              ))}
+            </div>
           </header>
           <div
             className="library-review-list"
