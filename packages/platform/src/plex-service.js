@@ -16,9 +16,10 @@ const itemExternalIds=item=>{
   const values=[];for(const [field,prefix]of [['tmdbId','tmdb'],['tvdbId','tvdb'],['imdbId','imdb']])if(item?.[field])values.push(`${prefix}:${String(item[field]).toLowerCase()}`);
   for(const value of [item?.guid,...(item?.guids||item?.Guid||[])]){const id=externalId(value?.id||value);if(id)values.push(id);}return[...new Set(values)];
 };
+const plexAddedAt=value=>{const raw=value?.addedAt??xmlAttribute(value,'addedAt'),numeric=Number(raw);if(Number.isFinite(numeric)&&numeric>0)return numeric;const date=new Date(raw||'');return Number.isFinite(date.getTime())?date.toISOString():null;};
 const plexMetadata=(response,libraryType)=>{
   const metadataValue=response.value?.MediaContainer?.Metadata,metadata=response.type==='json'?(Array.isArray(metadataValue)?metadataValue:metadataValue?[metadataValue]:[]):[...String(response.value).matchAll(/<(?:Video|Directory)\b[^>]*(?:\/>|>[\s\S]*?<\/(?:Video|Directory)>)/gi)].map(match=>match[0]);
-  return metadata.map(item=>({ratingKey:String(item.ratingKey??xmlAttribute(item,'ratingKey')),title:decodeXml(item.title??xmlAttribute(item,'title')),year:Number(item.year??xmlAttribute(item,'year'))||null,type:String((item.type??xmlAttribute(item,'type'))||libraryType),thumb:String(item.thumb??xmlAttribute(item,'thumb')),guid:String(item.guid??xmlAttribute(item,'guid')),guids:item.Guid||[...String(item).matchAll(/<Guid\b[^>]*id="([^"]+)"[^>]*\/>/gi)].map(match=>({id:decodeXml(match[1])}))})).filter(item=>item.ratingKey);
+  return metadata.map(item=>({ratingKey:String(item.ratingKey??xmlAttribute(item,'ratingKey')),title:decodeXml(item.title??xmlAttribute(item,'title')),year:Number(item.year??xmlAttribute(item,'year'))||null,type:String((item.type??xmlAttribute(item,'type'))||libraryType),thumb:String(item.thumb??xmlAttribute(item,'thumb')),addedAt:plexAddedAt(item),guid:String(item.guid??xmlAttribute(item,'guid')),guids:item.Guid||[...String(item).matchAll(/<Guid\b[^>]*id="([^"]+)"[^>]*\/>/gi)].map(match=>({id:decodeXml(match[1])})),files:[...new Set((response.type==='json'?(Array.isArray(item.Media)?item.Media:item.Media?[item.Media]:[]).flatMap(media=>(Array.isArray(media.Part)?media.Part:media.Part?[media.Part]:[]).map(part=>part.file)):[...String(item).matchAll(/<Part\b[^>]*\bfile="([^"]+)"/gi)].map(match=>decodeXml(match[1]))).filter(Boolean).map(String))]})).filter(item=>item.ratingKey);
 };
 
 export class PlexService{
@@ -51,7 +52,7 @@ export class PlexService{
   }
   async libraryItems(endpoint,token,library){
     const response=await this.request(endpoint,token,`/library/sections/${encodeURIComponent(library.key)}/all?includeGuids=1`),items=plexMetadata(response,library.type).slice(0,20000),missing=items.filter(item=>itemExternalIds(item).length===0);
-    for(let offset=0;offset<missing.length;offset+=100){const batch=missing.slice(offset,offset+100),ids=batch.map(item=>item.ratingKey).join(','),details=await this.request(endpoint,token,`/library/metadata/${ids}?includeGuids=1`).then(value=>plexMetadata(value,library.type)).catch(()=>[]),byKey=new Map(details.map(item=>[item.ratingKey,item]));for(const item of batch){const detail=byKey.get(item.ratingKey);if(detail){item.guid=detail.guid;item.guids=detail.guids;item.thumb=item.thumb||detail.thumb;}}}
+    for(let offset=0;offset<missing.length;offset+=100){const batch=missing.slice(offset,offset+100),ids=batch.map(item=>item.ratingKey).join(','),details=await this.request(endpoint,token,`/library/metadata/${ids}?includeGuids=1`).then(value=>plexMetadata(value,library.type)).catch(()=>[]),byKey=new Map(details.map(item=>[item.ratingKey,item]));for(const item of batch){const detail=byKey.get(item.ratingKey);if(detail){item.guid=detail.guid;item.guids=detail.guids;item.thumb=item.thumb||detail.thumb;item.files=item.files?.length?item.files:detail.files||[];}}}
     return items;
   }
   async artwork(endpoint,token,path){
@@ -69,11 +70,11 @@ export class PlexService{
   }
   match(vynodeItems,plexItems){
     const index=new Map();for(const item of plexItems)for(const id of itemExternalIds(item)){const values=index.get(id)||[];values.push(item);index.set(id,values);}
-    return vynodeItems.map(item=>{const ids=itemExternalIds(item),matches=[...new Map(ids.flatMap(id=>index.get(id)||[]).map(value=>[value.ratingKey,value])).values()];return{domain:item.domain,id:item.id,title:item.title,year:item.year||null,externalIds:ids,status:!ids.length?'unmatched':matches.length===1?'matched':matches.length>1?'ambiguous':'unmatched',plex:matches.map(value=>({ratingKey:value.ratingKey,title:value.title,year:value.year,type:value.type,thumb:value.thumb}))};});
+    return vynodeItems.map(item=>{const ids=itemExternalIds(item),matches=[...new Map(ids.flatMap(id=>index.get(id)||[]).map(value=>[value.ratingKey,value])).values()];return{domain:item.domain,id:item.id,title:item.title,year:item.year||null,externalIds:ids,status:!ids.length?'unmatched':matches.length===1?'matched':matches.length>1?'ambiguous':'unmatched',plex:matches.map(value=>({ratingKey:value.ratingKey,title:value.title,year:value.year,type:value.type,thumb:value.thumb,addedAt:value.addedAt}))};});
   }
   matchLibrary(vynodeItems,plexItems){
     const index=new Map();for(const item of vynodeItems)for(const id of itemExternalIds(item)){const values=index.get(id)||[];values.push(item);index.set(id,values);}
-    return plexItems.map(plex=>{const ids=itemExternalIds(plex),matches=[...new Map(ids.flatMap(id=>index.get(id)||[]).map(value=>[value.id,value])).values()],item=matches[0];return{domain:item?.domain||(plex.type==='show'?'tv':'movie'),id:item?.id||`plex_${plex.ratingKey}`,title:item?.title||plex.title,year:item?.year||plex.year||null,externalIds:ids,status:!ids.length||!matches.length?'unmatched':matches.length===1?'matched':'ambiguous',candidateCount:matches.length,plex:[{ratingKey:plex.ratingKey,title:plex.title,year:plex.year,type:plex.type,thumb:plex.thumb}]};});
+    return plexItems.map(plex=>{const ids=itemExternalIds(plex),matches=[...new Map(ids.flatMap(id=>index.get(id)||[]).map(value=>[value.id,value])).values()],item=matches[0];return{domain:item?.domain||(plex.type==='show'?'tv':'movie'),id:item?.id||`plex_${plex.ratingKey}`,title:item?.title||plex.title,year:item?.year||plex.year||null,externalIds:ids,status:!ids.length||!matches.length?'unmatched':matches.length===1?'matched':'ambiguous',candidateCount:matches.length,plex:[{ratingKey:plex.ratingKey,title:plex.title,year:plex.year,type:plex.type,thumb:plex.thumb,addedAt:plex.addedAt}]};});
   }
 }
 

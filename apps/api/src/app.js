@@ -31,6 +31,7 @@ import { EngineManagementService } from "../../../packages/platform/src/engine-m
 import { EngineUpdateReviewService } from "../../../packages/platform/src/engine-update-review-service.js";
 import {
   PlexService,
+  plexExternalIds,
   sanitizePlexEndpoint,
 } from "../../../packages/platform/src/plex-service.js";
 import { JsonStore } from "../../../packages/platform/src/json-store.js";
@@ -480,6 +481,12 @@ export function createApplication(options = {}) {
       version: 1,
       collections: [],
     });
+  const reeltrackListStore =
+    options.reeltrackListStore ||
+    new JsonStore(join(dataDir, "reeltrack-lists.json"), {
+      version: 1,
+      users: {},
+    });
   const posterOverlayStore =
     options.posterOverlayStore ||
     new JsonStore(join(dataDir, "poster-overlays.json"), {
@@ -607,6 +614,7 @@ export function createApplication(options = {}) {
     "credentials.enc",
     "master-key",
     "collections.json",
+    "reeltrack-lists.json",
     "poster-overlays.json",
     "plex-settings.json",
     "plex-poster-applications.json",
@@ -1151,6 +1159,152 @@ export function createApplication(options = {}) {
       return entry;
     });
     return entry;
+  }
+  const reeltrackBaseUrl = "https://reeltrack.vynodehub.com";
+  async function reeltrackRequest(path, apiKey) {
+    const controller = new AbortController(),
+      timeout = setTimeout(() => controller.abort(), 1e4);
+    try {
+      const response = await (options.fetcher || globalThis.fetch)(
+        `${reeltrackBaseUrl}${path}`,
+        {
+          headers: { "X-API-Key": apiKey, Accept: "application/json" },
+          signal: controller.signal,
+        },
+      );
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403)
+          throw new Error("Reeltrack rejected this API key.");
+        throw new Error(
+          `Reeltrack could not complete this request (${response.status}).`,
+        );
+      }
+      const payload = await response.json();
+      return payload?.data ?? payload;
+    } catch (error) {
+      if (error?.name === "AbortError")
+        throw new Error("Reeltrack took too long to respond.");
+      throw error;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+  const reeltrackArray = (value) =>
+    Array.isArray(value)
+      ? value
+      : Array.isArray(value?.items)
+        ? value.items
+        : Array.isArray(value?.lists)
+          ? value.lists
+          : [];
+  async function reeltrackAvailableLists(apiKey) {
+    return reeltrackArray(await reeltrackRequest("/api/v1/lists", apiKey));
+  }
+  async function reeltrackListItems(apiKey, listId) {
+    return reeltrackArray(
+      await reeltrackRequest(
+        `/api/v1/lists/${encodeURIComponent(listId)}/items?limit=500`,
+        apiKey,
+      ),
+    );
+  }
+  async function reeltrackSnapshotForUser(userId) {
+    const stored = await reeltrackListStore.read();
+    return (
+      stored.users?.[userId] || {
+        importedLists: [],
+        updatedAt: null,
+      }
+    );
+  }
+  async function saveReeltrackSnapshot(userId, snapshot) {
+    await reeltrackListStore.update((current) => {
+      current.version = 1;
+      current.users = current.users || {};
+      current.users[userId] = snapshot;
+      return snapshot;
+    });
+  }
+  async function matchedReeltrackLists(session, lists) {
+    const [movies, television] = await Promise.all([
+        sync.list("movie"),
+        sync.list("tv"),
+      ]),
+      identity = new Map();
+    for (const [domain, items] of [
+      ["movie", movies],
+      ["tv", television],
+    ])
+      for (const item of items) {
+        if (item.tmdbId)
+          identity.set(`${domain}:tmdb:${String(item.tmdbId)}`, item);
+        if (domain === "tv" && item.tvdbId)
+          identity.set(`${domain}:tvdb:${String(item.tvdbId)}`, item);
+        if (item.imdbId)
+          identity.set(
+            `${domain}:imdb:${String(item.imdbId).toLowerCase()}`,
+            item,
+          );
+      }
+    return lists.map((list) => ({
+      ...list,
+      items: (list.items || []).map((sourceItem) => {
+        const domain =
+            String(sourceItem.type || "").toLowerCase() === "tv" ||
+            String(sourceItem.type || "").toLowerCase() === "series"
+              ? "tv"
+              : "movie",
+          source = String(sourceItem.source || "").toLowerCase(),
+          externalId = String(
+            sourceItem.externalId ||
+              (source === "tvdb" ? sourceItem.tvdbId : "") ||
+              (source === "imdb" ? sourceItem.imdbId : ""),
+          ).trim(),
+          explicitTmdbId = Number(sourceItem.tmdbId) || null,
+          match =
+            (explicitTmdbId
+              ? identity.get(`${domain}:tmdb:${explicitTmdbId}`)
+              : null) ||
+            (source && source !== "tmdb" && externalId
+              ? identity.get(
+                  `${domain}:${source}:${source === "imdb" ? externalId.toLowerCase() : externalId}`,
+                )
+              : null),
+          canView =
+            session.user.role === "administrator" ||
+            session.user.permissions?.[domain === "movie" ? "movies" : "tv"] ===
+              true,
+          tmdbId = explicitTmdbId;
+        return {
+          ...sourceItem,
+          domain,
+          source,
+          externalId,
+          tmdbId: Number.isInteger(tmdbId) && tmdbId > 0 ? tmdbId : null,
+          library: match
+            ? {
+                id: match.id,
+                title: match.title,
+                status:
+                  domain === "movie"
+                    ? match.hasFile || Number(match.sizeOnDisk || 0) > 0
+                      ? "available"
+                      : "pending"
+                    : Number.parseInt(match.episodeProgress || "0", 10) > 0 ||
+                        Number(match.sizeOnDisk || 0) > 0
+                      ? "available"
+                      : "pending",
+                canView,
+              }
+            : null,
+          canRequest: !match && Number.isInteger(tmdbId) && tmdbId > 0,
+          requestBlockReason:
+            match || (Number.isInteger(tmdbId) && tmdbId > 0)
+              ? null
+              : "Reeltrack did not provide a TMDB ID, so VynodeArr will not guess from the title.",
+        };
+      }),
+    }));
   }
   const operationTime = (value) =>
     String(
@@ -2492,44 +2646,51 @@ export function createApplication(options = {}) {
   async function rematchMedia(input) {
     const domain = String(input.domain || ""),
       mediaId = Number(input.mediaId),
-      tmdbId = Number(input.tmdbId);
+      tmdbId = Number(input.tmdbId),
+      imdbId = String(input.imdbId || "").trim().toLowerCase(),
+      hasTmdbId = Number.isInteger(tmdbId) && tmdbId > 0,
+      hasImdbId = /^tt\d+$/.test(imdbId);
     if (
       !["movie", "tv"].includes(domain) ||
       !Number.isFinite(mediaId) ||
-      !Number.isFinite(tmdbId)
+      (!hasTmdbId && !hasImdbId)
     )
-      throw new Error("Choose a valid TMDB match");
-    if (!discovery.configured())
+      throw new Error("Choose a valid TMDB or IMDb match");
+    if (hasTmdbId && !discovery.configured())
       throw new Error(
         "Add a TMDB key in Service Settings before fixing library matches.",
       );
-    const current = await management.execute(domain, "library", "GET", {
-        id: mediaId,
-      }),
-      metadata = await discovery.details(domain, tmdbId);
-    const identity = { tmdbId: tmdbId, tvdbId: metadata.tvdbId };
+    const current = await management.execute(domain, "library", "GET", { id: mediaId });
+    let metadata = null;
     let match;
-    for (const term of lookupTermsForIdentity(domain, identity)) {
+    if (hasImdbId && !hasTmdbId) {
       const matches = await management.execute(domain, "lookup", "GET", {
-        query: { term: term },
+        query: { term: `imdb:${imdbId}` },
       });
-      match = exactEngineMatch(
-        domain,
-        identity,
-        Array.isArray(matches) ? matches : [],
+      match = (Array.isArray(matches) ? matches : []).find(
+        (value) => String(value.imdbId || "").toLowerCase() === imdbId,
       );
-      if (match) break;
+      metadata = match;
+    } else {
+      metadata = await discovery.details(domain, tmdbId);
+      const identity = { tmdbId: tmdbId, tvdbId: metadata.tvdbId };
+      for (const term of lookupTermsForIdentity(domain, identity)) {
+        const matches = await management.execute(domain, "lookup", "GET", { query: { term: term } });
+        match = exactEngineMatch(domain, identity, Array.isArray(matches) ? matches : []);
+        if (match) break;
+      }
     }
     if (!match)
       throw new Error(
-        `The ${domain === "movie" ? "movie" : "television"} engine could not resolve that TMDB title. Try another match.`,
+        `The ${domain === "movie" ? "movie" : "television"} engine could not resolve that external ID. Try another match.`,
       );
     const library = await management.execute(domain, "library", "GET"),
       records = Array.isArray(library) ? library : library?.records || [],
       duplicate = records.find(
         (value) =>
           Number(value.id) !== mediaId &&
-          (Number(value.tmdbId) === tmdbId ||
+          ((hasTmdbId && Number(value.tmdbId) === tmdbId) ||
+            (hasImdbId && String(value.imdbId || "").toLowerCase() === imdbId) ||
             (metadata.tvdbId &&
               Number(value.tvdbId) === Number(metadata.tvdbId))),
       );
@@ -2577,7 +2738,40 @@ export function createApplication(options = {}) {
       result = await management.execute(domain, "library", "POST", {
         payload: replacement,
       });
+      const folderResult = await management.execute(
+          domain,
+          "libraryFolder",
+          "GET",
+          { id: Number(result.id) },
+        ),
+        correctedFolder = String(folderResult?.folder || "").trim(),
+        correctedPath = correctedFolder
+          ? joinMediaPath(rootFolderPath, correctedFolder)
+          : "";
+      if (
+        correctedPath &&
+        normalizeMediaPath(correctedPath) !== normalizeMediaPath(result.path)
+      )
+        result = await management.execute(domain, "library", "PUT", {
+          id: Number(result.id),
+          query: { moveFiles: true },
+          payload: {
+            ...result,
+            path: correctedPath,
+            rootFolderPath: rootFolderPath,
+          },
+        });
     } catch (error) {
+      if (Number.isFinite(Number(result?.id)))
+        await management
+          .execute(domain, "library", "DELETE", {
+            id: Number(result.id),
+            query:
+              domain === "movie"
+                ? { deleteFiles: false, addImportExclusion: false }
+                : { deleteFiles: false, addImportListExclusion: false },
+          })
+          .catch(() => {});
       await management
         .execute(domain, "library", "POST", { payload: rollback })
         .catch(() => {});
@@ -2595,15 +2789,17 @@ export function createApplication(options = {}) {
         },
       })
       .catch(() => {});
-    await sync.reconcileItem(
-      domain,
-      `${domain === "movie" ? "movie" : "series"}_${Number(result.id)}`,
-    );
+    const oldPublicId = `${domain === "movie" ? "movie" : "series"}_${mediaId}`,
+      newPublicId = `${domain === "movie" ? "movie" : "series"}_${Number(result.id)}`;
+    if (oldPublicId !== newPublicId)
+      await sync.reconcileItem(domain, oldPublicId);
+    await sync.reconcileItem(domain, newPublicId);
     return {
       domain: domain,
       id: Number(result.id),
       title: result.title || metadata.title,
-      tmdbId: tmdbId,
+      tmdbId: Number(result.tmdbId) || (hasTmdbId ? tmdbId : null),
+      imdbId: result.imdbId || (hasImdbId ? imdbId : null),
     };
   }
   async function reassignMediaFile(input) {
@@ -6116,9 +6312,11 @@ export function createApplication(options = {}) {
     plexLibraryTitle: value.plexLibraryTitle,
     appliedAt: value.appliedAt,
     restoredAt: value.restoredAt || null,
+    variableValues: value.variableValues || {},
     status: value.restoredAt ? "restored" : "applied",
   });
   async function renderedPlexPoster(target, template, session) {
+    const rawPlexAddedAt=target.plex.addedAt,numericPlexAddedAt=Number(rawPlexAddedAt),plexAddedDate=Number.isFinite(numericPlexAddedAt)&&numericPlexAddedAt>0?new Date(numericPlexAddedAt<(1e12)?numericPlexAddedAt*1000:numericPlexAddedAt):new Date(rawPlexAddedAt||'');
     const { item: item, context: context } = await overlayRenderContext(
         target.domain,
         target.item,
@@ -6129,7 +6327,7 @@ export function createApplication(options = {}) {
         poster: Buffer.alloc(0),
         template: template,
         item: item,
-        context: context,
+        context: { ...context, plexAddedAt: Number.isFinite(plexAddedDate.getTime()) ? plexAddedDate.toISOString() : null },
         includePoster: false,
       }),
       sharp = (await import("sharp")).default;
@@ -6193,6 +6391,11 @@ export function createApplication(options = {}) {
         .update(target.poster.body)
         .digest("hex"),
       renderedSha256: createHash("sha256").update(rendered).digest("hex"),
+      variableValues: posterVariableValues(target.item, {
+        plexAddedAt: Number.isFinite(Number(target.plex.addedAt)) && Number(target.plex.addedAt) > 0
+          ? new Date(Number(target.plex.addedAt) < 1e12 ? Number(target.plex.addedAt) * 1000 : Number(target.plex.addedAt)).toISOString()
+          : target.plex.addedAt,
+      }),
       appliedAt: new Date().toISOString(),
       restoredAt: null,
     };
@@ -7462,6 +7665,213 @@ export function createApplication(options = {}) {
             path: path,
             mappings: mappings || [],
           });
+        }
+        if (url.pathname === "/api/reeltrack/status" && req.method === "GET") {
+          if (!permitted(res, session, "discover")) return;
+          const [credential, snapshot] = await Promise.all([
+            engineSettings.reeltrackCredential(session.user.id),
+            reeltrackSnapshotForUser(session.user.id),
+          ]);
+          return json(res, 200, {
+            configured: Boolean(credential),
+            importedCount: snapshot.importedLists?.length || 0,
+            updatedAt: snapshot.updatedAt || null,
+          });
+        }
+        if (url.pathname === "/api/reeltrack/test" && req.method === "POST") {
+          if (
+            !permitted(res, session, "discover") ||
+            !requireCsrf(req, res, session)
+          )
+            return;
+          const input = await body(req),
+            apiKey = String(input.apiKey || "").trim();
+          if (!apiKey) throw new Error("Enter a Reeltrack API key.");
+          const lists = await reeltrackAvailableLists(apiKey);
+          return json(res, 200, { valid: true, listCount: lists.length });
+        }
+        if (
+          url.pathname === "/api/reeltrack/connection" &&
+          req.method === "PUT"
+        ) {
+          if (
+            !permitted(res, session, "discover") ||
+            !requireCsrf(req, res, session)
+          )
+            return;
+          const input = await body(req),
+            apiKey = String(input.apiKey || "").trim();
+          if (!apiKey) throw new Error("Enter a Reeltrack API key.");
+          const lists = await reeltrackAvailableLists(apiKey);
+          await engineSettings.saveReeltrackCredential(session.user.id, apiKey);
+          await recordAudit(session, {
+            category: "integration",
+            action: "reeltrack.connected",
+            target: "Reeltrack",
+            summary: `Connected Reeltrack with ${lists.length} available list${lists.length === 1 ? "" : "s"}.`,
+          });
+          return json(res, 200, {
+            configured: true,
+            listCount: lists.length,
+          });
+        }
+        if (
+          url.pathname === "/api/reeltrack/connection" &&
+          req.method === "DELETE"
+        ) {
+          if (
+            !permitted(res, session, "discover") ||
+            !requireCsrf(req, res, session)
+          )
+            return;
+          await engineSettings.removeReeltrackCredential(session.user.id);
+          await recordAudit(session, {
+            category: "integration",
+            action: "reeltrack.disconnected",
+            target: "Reeltrack",
+            summary: "Removed the protected Reeltrack API key. Imported snapshots were retained.",
+          });
+          return json(res, 200, { configured: false });
+        }
+        if (
+          url.pathname === "/api/reeltrack/available-lists" &&
+          req.method === "GET"
+        ) {
+          if (!permitted(res, session, "discover")) return;
+          const apiKey = await engineSettings.reeltrackCredential(
+            session.user.id,
+          );
+          if (!apiKey)
+            return json(res, 409, {
+              error: {
+                code: "reeltrack_not_connected",
+                message: "Connect Reeltrack before loading lists.",
+              },
+            });
+          const [available, snapshot] = await Promise.all([
+              reeltrackAvailableLists(apiKey),
+              reeltrackSnapshotForUser(session.user.id),
+            ]),
+            imported = new Set(
+              (snapshot.importedLists || []).map((item) => String(item.id)),
+            );
+          return json(res, 200, {
+            items: available.map((item) => ({
+              ...item,
+              imported: imported.has(String(item.id)),
+            })),
+          });
+        }
+        if (
+          url.pathname === "/api/reeltrack/imported-lists" &&
+          req.method === "GET"
+        ) {
+          if (!permitted(res, session, "discover")) return;
+          const snapshot = await reeltrackSnapshotForUser(session.user.id);
+          return json(res, 200, {
+            items: await matchedReeltrackLists(
+              session,
+              snapshot.importedLists || [],
+            ),
+            updatedAt: snapshot.updatedAt || null,
+          });
+        }
+        if (
+          url.pathname === "/api/reeltrack/imported-lists" &&
+          req.method === "POST"
+        ) {
+          if (
+            !permitted(res, session, "discover") ||
+            !requireCsrf(req, res, session)
+          )
+            return;
+          const input = await body(req),
+            selected = new Set(
+              (Array.isArray(input.listIds) ? input.listIds : []).map(String),
+            ),
+            apiKey = await engineSettings.reeltrackCredential(session.user.id);
+          if (!apiKey) throw new Error("Connect Reeltrack before importing lists.");
+          if (!selected.size) throw new Error("Choose at least one Reeltrack list.");
+          const available = await reeltrackAvailableLists(apiKey),
+            chosen = available.filter((item) => selected.has(String(item.id)));
+          if (!chosen.length) throw new Error("The selected Reeltrack lists are no longer available.");
+          const importedLists = await Promise.all(
+              chosen.map(async (list) => ({
+                ...list,
+                items: await reeltrackListItems(apiKey, list.id),
+                importedAt: new Date().toISOString(),
+              })),
+            ),
+            snapshot = {
+              importedLists,
+              updatedAt: new Date().toISOString(),
+            };
+          await saveReeltrackSnapshot(session.user.id, snapshot);
+          await recordAudit(session, {
+            category: "integration",
+            action: "reeltrack.lists_imported",
+            target: "Reeltrack lists",
+            summary: `Imported ${importedLists.length} Reeltrack list${importedLists.length === 1 ? "" : "s"}.`,
+            metadata: { listIds: [...selected] },
+          });
+          return json(res, 200, {
+            items: await matchedReeltrackLists(session, importedLists),
+            updatedAt: snapshot.updatedAt,
+          });
+        }
+        if (url.pathname === "/api/reeltrack/sync" && req.method === "POST") {
+          if (
+            !permitted(res, session, "discover") ||
+            !requireCsrf(req, res, session)
+          )
+            return;
+          const [apiKey, current] = await Promise.all([
+            engineSettings.reeltrackCredential(session.user.id),
+            reeltrackSnapshotForUser(session.user.id),
+          ]);
+          if (!apiKey) throw new Error("Connect Reeltrack before synchronizing lists.");
+          const wanted = new Set(
+              (current.importedLists || []).map((item) => String(item.id)),
+            ),
+            available = await reeltrackAvailableLists(apiKey),
+            importedLists = await Promise.all(
+              available
+                .filter((item) => wanted.has(String(item.id)))
+                .map(async (list) => ({
+                  ...list,
+                  items: await reeltrackListItems(apiKey, list.id),
+                  importedAt: new Date().toISOString(),
+                })),
+            ),
+            snapshot = {
+              importedLists,
+              updatedAt: new Date().toISOString(),
+            };
+          await saveReeltrackSnapshot(session.user.id, snapshot);
+          return json(res, 200, {
+            items: await matchedReeltrackLists(session, importedLists),
+            updatedAt: snapshot.updatedAt,
+          });
+        }
+        const reeltrackListMatch = url.pathname.match(
+          /^\/api\/reeltrack\/imported-lists\/([^/]+)$/,
+        );
+        if (reeltrackListMatch && req.method === "DELETE") {
+          if (
+            !permitted(res, session, "discover") ||
+            !requireCsrf(req, res, session)
+          )
+            return;
+          const listId = decodeURIComponent(reeltrackListMatch[1]),
+            current = await reeltrackSnapshotForUser(session.user.id),
+            snapshot = {
+              importedLists: (current.importedLists || []).filter(
+                (item) => String(item.id) !== listId,
+              ),
+              updatedAt: new Date().toISOString(),
+            };
+          await saveReeltrackSnapshot(session.user.id, snapshot);
+          return json(res, 200, { removed: true });
         }
         if (url.pathname === "/api/discover/feed" && req.method === "GET") {
           if (!permitted(res, session, "discover")) return;
@@ -9544,6 +9954,136 @@ export function createApplication(options = {}) {
             variables: posterVariables,
           });
         }
+        if (url.pathname === "/api/library-review/movies" && req.method === "GET") {
+          if (!administrator(res, session)) return;
+          const settings = await plexSettingsStore.read(),
+            token = await engineSettings.plexCredential();
+          if (!settings.endpoint || !token)
+            return json(res, 400, {
+              error: {
+                code: "plex_not_configured",
+                message: "Connect Plex in Poster Overlays before reviewing libraries.",
+              },
+            });
+          const requested = new Set(
+              String(url.searchParams.get("libraryKeys") || "")
+                .split(",")
+                .filter(Boolean),
+            ),
+            libraryFilterProvided = url.searchParams.has("libraryKeys"),
+            libraries = (settings.libraries || []).filter(
+              (item) =>
+                item.type === "movie" &&
+                (!libraryFilterProvided || requested.has(String(item.key))),
+            ),
+            [rawVynode, rawRoots, rawProfiles] = await Promise.all([
+              management.execute("movie", "library", "GET"),
+              management.execute("movie", "rootFolders", "GET"),
+              management.execute("movie", "profiles", "GET"),
+            ]),
+            vynode = (Array.isArray(rawVynode) ? rawVynode : []).map((item) => ({
+              id: Number(item.id),
+              publicId: `movie_${Number(item.id)}`,
+              title: item.title || "Untitled movie",
+              year: Number(item.year) || null,
+              tmdbId: Number(item.tmdbId) || null,
+              folderPath: item.path || "",
+              filePath:
+                item.movieFile?.path ||
+                (item.path && item.movieFile?.relativePath
+                  ? joinMediaPath(item.path, item.movieFile.relativePath)
+                  : item.path || ""),
+            })),
+            scanByPath = new Map(),
+            reviewTitleKey = (value) =>
+              String(value || "")
+                .normalize("NFKD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .replace(/[^a-z0-9]/gi, "")
+                .toLowerCase(),
+            vynodeByTitle = new Map();
+          for (const item of vynode) {
+            const key = reviewTitleKey(item.title);
+            if (key) vynodeByTitle.set(key, [...(vynodeByTitle.get(key) || []), item]);
+          }
+          for (const item of vynode) {
+            const path = normalizeMediaPath(item.folderPath);
+            if (path)
+              scanByPath.set(path.toLowerCase(), {
+                path,
+                name: item.title,
+                status: "matched",
+                matchType: "path",
+                movieId: item.id,
+                tmdbId: item.tmdbId,
+                rootFolderPath: "",
+                filePath: item.filePath,
+              });
+          }
+          for (const root of Array.isArray(rawRoots) ? rawRoots : [])
+            for (const folder of root.unmappedFolders || []) {
+              const path = normalizeMediaPath(folder.path),
+                name = folder.name || path.split("/").at(-1) || path,
+                yearMatch = String(name).match(/\(((?:19|20)\d{2})\)\s*$/),
+                titleName = yearMatch
+                  ? String(name).slice(0, yearMatch.index).trim()
+                  : name,
+                candidates = vynodeByTitle.get(reviewTitleKey(titleName)) || [],
+                titleMatch =
+                  candidates.find((item) =>
+                    yearMatch ? Number(item.year) === Number(yearMatch[1]) : true,
+                  ) || null;
+              if (path && !scanByPath.has(path.toLowerCase()))
+                scanByPath.set(path.toLowerCase(), {
+                  path,
+                  name,
+                  status: titleMatch ? "matched" : "unmatched",
+                  matchType: titleMatch ? "title" : null,
+                  movieId: titleMatch?.id || null,
+                  tmdbId: titleMatch?.tmdbId || null,
+                  vynodeTitle: titleMatch?.title || "",
+                  rootFolderPath: normalizeMediaPath(root.path),
+                  filePath: "",
+                });
+            }
+          const plex = [];
+          for (const library of libraries) {
+            const items = await plexService.libraryItems(
+              settings.endpoint,
+              token,
+              library,
+            );
+            plex.push(
+              ...items.map((item) => {
+                const tmdb = plexExternalIds(item)
+                  .find((value) => value.startsWith("tmdb:"))
+                  ?.slice(5);
+                return {
+                  ratingKey: item.ratingKey,
+                  title: item.title || "Untitled movie",
+                  year: Number(item.year) || null,
+                  tmdbId: Number(tmdb) || null,
+                  libraryKey: String(library.key),
+                  libraryTitle: library.title,
+                  filePaths: Array.isArray(item.files) ? item.files : [],
+                };
+              }),
+            );
+          }
+          return json(res, 200, {
+            libraries: (settings.libraries || []).filter(
+              (item) => item.type === "movie",
+            ),
+            plex: plex.sort((a, b) => a.title.localeCompare(b.title)),
+            vynode: vynode.sort((a, b) => a.title.localeCompare(b.title)),
+            profiles: (Array.isArray(rawProfiles) ? rawProfiles : []).map(
+              (profile) => ({ id: Number(profile.id), name: profile.name }),
+            ),
+            scan: [...scanByPath.values()].sort((a, b) =>
+              a.name.localeCompare(b.name),
+            ),
+          });
+        }
         if (
           url.pathname === "/api/poster-overlays/plex" &&
           req.method === "GET"
@@ -9667,14 +10207,18 @@ export function createApplication(options = {}) {
                   ? plexService.matchLibrary(vynode, plexItems)
                   : plexService.match(vynode, plexItems);
             entries.push(
-              ...matches.map((item) => ({
-                ...item,
-                plexLibrary: {
-                  key: library.key,
-                  title: library.title,
-                  type: library.type,
-                },
-              })),
+              ...matches.map((item) => {
+                const source=vynode.find(value=>value.id===item.id),raw=item.plex[0]?.addedAt,numeric=Number(raw),date=Number.isFinite(numeric)&&numeric>0?new Date(numeric<1e12?numeric*1000:numeric):new Date(raw||"");
+                return{
+                  ...item,
+                  variableValues:source?posterVariableValues(source,{plexAddedAt:Number.isFinite(date.getTime())?date.toISOString():null}):{},
+                  plexLibrary: {
+                    key: library.key,
+                    title: library.title,
+                    type: library.type,
+                  },
+                };
+              }),
             );
           }
           const summary = {
@@ -9710,7 +10254,6 @@ export function createApplication(options = {}) {
             applications: (stored.applications || [])
               .slice()
               .reverse()
-              .slice(0, 100)
               .map(publicPlexPosterApplication),
           });
         }
@@ -9721,14 +10264,6 @@ export function createApplication(options = {}) {
           if (!administrator(res, session) || !requireCsrf(req, res, session))
             return;
           const input = await body(req);
-          if (String(input.confirmation || "") !== "APPLY TO PLEX")
-            return json(res, 400, {
-              error: {
-                code: "confirmation_required",
-                message:
-                  "Type APPLY TO PLEX to confirm this one-title poster upload.",
-              },
-            });
           const configuration = await posterOverlayConfiguration(),
             template = configuration.templates.find(
               (item) => item.id === String(input.templateId || ""),
@@ -9769,16 +10304,6 @@ export function createApplication(options = {}) {
                 code: "invalid_plex_targets",
                 message:
                   "Choose between 1 and 500 distinct matched Plex titles.",
-              },
-            });
-          if (
-            String(input.confirmation || "") !==
-            `APPLY ${targets.length} TO PLEX`
-          )
-            return json(res, 400, {
-              error: {
-                code: "confirmation_required",
-                message: `Type APPLY ${targets.length} TO PLEX to confirm these poster uploads.`,
               },
             });
           const configuration = await posterOverlayConfiguration(),
@@ -9836,15 +10361,7 @@ export function createApplication(options = {}) {
         if (plexPosterRestore && req.method === "POST") {
           if (!administrator(res, session) || !requireCsrf(req, res, session))
             return;
-          const input = await body(req);
-          if (String(input.confirmation || "") !== "RESTORE PLEX POSTER")
-            return json(res, 400, {
-              error: {
-                code: "confirmation_required",
-                message:
-                  "Type RESTORE PLEX POSTER to restore the captured artwork.",
-              },
-            });
+          await body(req);
           const stored = await plexPosterApplicationStore.read(),
             application = (stored.applications || []).find(
               (item) => item.id === plexPosterRestore[1],
@@ -11076,6 +11593,7 @@ export function createApplication(options = {}) {
             metadata: {
               mediaId: input.mediaId || null,
               tmdbId: input.tmdbId || null,
+              imdbId: input.imdbId || null,
             },
           });
           return json(res, 200, { matched: true, result: result });

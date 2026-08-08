@@ -4,6 +4,18 @@ import test from 'node:test';
 
 const read=(path)=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
+test('Reeltrack Lists remains fluid while the viewport is resized',async()=>{
+  const [styles,view]=await Promise.all([read('apps/web/client/src/react-reeltrack-lists.css'),read('apps/web/client/src/reeltrack-lists.tsx')]);
+  assert.match(styles,/\.react-reeltrack-lists>\.reeltrack-hero\{[^}]*position:static[^}]*height:auto[^}]*min-height:0/);
+  assert.match(styles,/\.reeltrack-key-form input\{[^}]*min-width:0[^}]*width:100%/);
+  assert.match(styles,/\.reeltrack-list-nav\{[^}]*display:flex[^}]*max-height:calc\(100dvh - 8rem\)[^}]*flex-direction:column[^}]*overflow-y:auto/);
+  assert.match(styles,/@media\(max-width:900px\)\{[\s\S]*?\.reeltrack-workspace\{grid-template-columns:minmax\(0,1fr\)/);
+  assert.match(styles,/@media\(max-width:480px\)\{[^}]*\.react-reeltrack-lists\{gap:\.85rem/);
+  assert.doesNotMatch(view,/Manage integrations/);
+  assert.match(view,/This is the only place in VynodeArr where your Reeltrack key is entered/);
+  assert.match(view,/Replace API key/);
+});
+
 test('loaded Action Center records cannot widen the mobile viewport',async()=>{
   const [styles,navigation]=await Promise.all([read('apps/web/public/styles.css'),read('apps/web/client/src/navigation-lifecycle.ts')]);
   assert.match(styles,/\.operations-center > \*,[\s\S]*?\.operations-action header > div[\s\S]*?min-width: 0;[\s\S]*?max-width: 100%;/);
@@ -165,6 +177,8 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(library,/selectFromPointer/);
   assert.match(library,/scrollIntoView/);
   assert.match(library,/IntersectionObserver/);
+  assert.match(library,/limit < total/);
+  assert.match(library,/setLoadingPage\(true\)/);
   assert.match(library,/setDebouncedQuery/);
   assert.match(library,/sessionStorage/);
   assert.match(library,/onPointerEnter=\{prefetch\}/);
@@ -229,6 +243,15 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(foundation,/\.vynode-nested-modal-layer/);
   assert.match(foundation,/max-height:\s*calc\(100dvh - 2rem\)/);
   assert.match(movieDetail,/Rename & organize/);
+  assert.match(movieDetail,/Search files in this folder/);
+  assert.match(movieDetail,/visibleFiles/);
+  assert.match(movieDetail,/value\.result\?\.path/);
+  assert.match(movieDetail,/Movie refresh and folder scan completed/);
+  assert.match(movieDetail,/commands\/\$\{commandId\}/);
+  assert.match(movieDetail,/Refreshing & scanning/);
+  assert.match(tvDetail,/Series refresh and folder scan completed/);
+  assert.match(tvDetail,/commands\/\$\{commandId\}/);
+  assert.match(tvDetail,/onClick=\{\(\)=>void refresh\(\)\}/);
   assert.match(collections,/export function CollectionsView/);
   assert.match(collections,/CollectionBuilder/);
   assert.match(collections,/includedMovieIds/);
@@ -466,6 +489,10 @@ test('storage folders and import review use a typed React route and analysis bou
   assert.match(review,/Select all shown/);
   assert.match(review,/Possible mismatches/);
   assert.match(review,/Find match/);
+  assert.match(review,/importLookupTerm/);
+  assert.match(review,/imdb:\$\{value\.toLowerCase\(\)\}/);
+  assert.match(review,/tmdb:\$\{value\}/);
+  assert.match(review,/Search by title, TMDB ID, or IMDb ID/);
   assert.match(review,/Already imported match/);
   assert.match(review,/options\.startImport\(domain,items\)/);
   assert.match(review,/Possible duplicate/);
@@ -1053,6 +1080,14 @@ test('poster overlays preserve existing library card sizing',async()=>{
   assert.match(library,/view !== "poster" \? <PosterAssignmentLayers item=\{item\} \/> : null/);
 });
 
+test('alternate library views size overlays against their poster thumbnails',async()=>{
+  const css=await read('apps/web/client/src/react-library.css');
+  for(const view of ['cards','compact','list']){
+    assert.match(css,new RegExp(`\\.view-${view} \\.poster\\{[^}]*container-type:inline-size`));
+  }
+  assert.doesNotMatch(css,/\.view-poster \.poster\{[^}]*container-type:inline-size/);
+});
+
 test('poster overlay style cards stay compact on phones',async()=>{
   const source=await read('apps/web/client/src/poster-overlays.tsx');
   assert.match(source,/overlay-template-panel \.panel-heading \.badge\{align-self:flex-start\}/);
@@ -1070,39 +1105,108 @@ test('poster overlay creation stays available beside the style list',async()=>{
 
 test('poster overlay editor layers retain drag and resize pointer input',async()=>{
   const source=await read('apps/web/client/src/poster-overlays.tsx');
-  const preview=await read('apps/web/client/src/poster-overlay-library-preview.tsx');
-  assert.match(preview,/\.overlay-preview \.poster-overlay-layer\{pointer-events:auto!important\}/);
+  const styles=await read('apps/web/client/src/poster-overlays-runtime.css');
+  assert.match(styles,/\.overlay-preview \.poster-overlay-layer\{pointer-events:auto!important\}/);
   assert.match(source,/onPointerMove=/);assert.match(source,/overlay-resize-handle/);
 });
 
-test('poster overlay editor provides bounded layer fields and a shape library',async()=>{
-  const rail=await read('apps/web/client/src/poster-overlay-editor-rail.tsx');
-  for(const shape of ['rounded','square','pill','circle','ticket','ribbon','tag','hexagon','chevron'])assert.ok(rail.includes(shape),shape);
-  assert.match(rail,/overlay-layer-body input/);assert.match(rail,/min-width:0/);
-  assert.match(rail,/overlay-preview-column>label select\{box-sizing:border-box;width:100%;min-width:0\}/);
+test('poster overlay layer selection scrolls settings into view and new layers start centered',async()=>{
+  const source=await read('apps/web/client/src/poster-overlays.tsx');
+  assert.match(source,/scrollLayerSettings\(selectedLayerId\)/);
+  assert.match(source,/scrollIntoView\(\{behavior:"smooth",block:"start"\}\)/);
+  assert.match(source,/onLayerSelect\?\.\(layer\.id\)/);
+  assert.match(source,/requestAnimationFrame\(\(\)=>scrollLayerSettings\(id\)\)/);
+  assert.match(source,/onSelect=\{selectLayer\}/);
+  assert.match(source,/onLayerSelect=\{selectLayer\}/);
+  assert.match(source,/blankLayer\(variables\[0\]\),position:"custom" as const,x:30,y:45/);
+  assert.match(source,/width: 22,[\s\S]*?position: "custom" as const,[\s\S]*?x: 39,[\s\S]*?y: 45/);
+  assert.match(source,/height: 10,[\s\S]*?position: "custom" as const,[\s\S]*?x: 30,[\s\S]*?y: 45/);
 });
 
-test('poster overlay editor uses three settings columns and an always-visible preview',async()=>{
+test('poster overlay layer settings cards minimize independently inside the second column',async()=>{
+  const [source,layout]=await Promise.all([read('apps/web/client/src/poster-overlays.tsx'),read('apps/web/client/src/poster-overlay-editor-layout.tsx')]);
+  assert.match(source,/collapsedLayerIds/);
+  assert.match(source,/open=\{!collapsedLayerIds\.includes\(layer\.id\)\}/);
+  assert.match(source,/onToggle=\{event=>\{const open=event\.currentTarget\.open;setCollapsedLayerIds\(current=>open/);
+  assert.match(source,/setCollapsedLayerIds\(value=>value\.filter\(item=>item!==id\)\)/);
+  assert.doesNotMatch(source,/hidden=\{layer\.id !== selectedLayerId\}/);
+  assert.doesNotMatch(source,/layerSettingsMinimized|Minimize layer settings/);
+  assert.match(layout,/\.overlay-layer-editor\.selected\{border-color:var\(--accent\)!important\}/);
+  assert.match(layout,/\.overlay-layer-editor\[open\]>summary/);
+  assert.doesNotMatch(layout,/layer-settings-minimized|overlay-editor-fields\.minimized/);
+});
+
+test('poster overlay editor remains inside its viewport without deferred toggle event access',async()=>{
+  const [source,layout]=await Promise.all([read('apps/web/client/src/poster-overlays.tsx'),read('apps/web/client/src/poster-overlay-editor-layout.tsx')]);
+  assert.match(layout,/\.overlay-editor-backdrop\{box-sizing:border-box;padding:12px!important;overflow:hidden\}/);
+  assert.match(layout,/width:min\(1840px,100%\);height:100%;max-height:100%/);
+  assert.doesNotMatch(layout,/width:min\(1840px,calc\(100vw/);
+  assert.doesNotMatch(source,/current=>event\.currentTarget\.open/);
+});
+
+test('poster overlay previews retain layers with representative missing metadata values',async()=>{
+  const source=await read('apps/web/client/src/poster-overlays.tsx');
+  assert.match(source,/resolved != null && String\(resolved\)\.trim\(\)/);
+  assert.match(source,/!String\(previewValues\[rule\.variable\] \?\? ""\)\.trim\(\)/);
+  assert.match(source,/variable==="plex_days_since_added"/);
+  assert.match(source,/media\?\.addedAt/);
+  assert.match(source,/return "1"/);
+  assert.match(source,/title:"Example title"/);
+  assert.match(source,/return defaults\[variable\]\|\|variable\.replaceAll/);
+});
+
+test('poster overlay library choices grow as the user scrolls',async()=>{
+  const editor=await read('apps/web/client/src/poster-overlays.tsx'),plex=await read('apps/web/client/src/poster-overlays-plex.tsx');
+  assert.match(editor,/setMediaLimit\(value=>Math\.min\(value\+100,filteredMedia\.length\)\)/);
+  assert.match(editor,/visible=filteredMedia\.slice\(0,mediaLimit\)/);
+  assert.doesNotMatch(editor,/\.slice\(0, 200\)/);
+  assert.match(editor,/setPreviewLimit\(value=>Math\.min\(value\+100,editingMedia\.length\)\)/);
+  assert.match(editor,/\.slice\(0, previewLimit\)/);
+  assert.match(plex,/setVisibleLimit\(value=>Math\.min\(value\+100,filteredEntries\.length\)\)/);
+  assert.doesNotMatch(plex,/\.slice\(0, 500\)/);
+});
+
+test('poster overlay styling loads once instead of being injected by every preview',async()=>{
+  const [editor,preview,rail,review,css]=await Promise.all([read('apps/web/client/src/poster-overlays.tsx'),read('apps/web/client/src/poster-overlay-library-preview.tsx'),read('apps/web/client/src/poster-overlay-editor-rail.tsx'),read('apps/web/client/src/poster-overlay-application-review.tsx'),read('apps/web/client/src/poster-overlays-runtime.css')]);
+  assert.match(editor,/import "\.\/poster-overlays-runtime\.css"/);
+  for(const source of [preview,rail,review])assert.doesNotMatch(source,/<style>/);
+  assert.match(css,/\.overlay-library-chrome/);assert.match(css,/\.overlay-layer-list/);assert.match(css,/\.overlay-application-preview/);
+});
+
+test('Plex poster batches support variable filters and direct scoped restoration',async()=>{
+  const source=await read('apps/web/client/src/poster-overlays-plex.tsx'),api=await read('apps/api/src/app.js');
+  assert.match(source,/Filter titles by variables/);assert.match(source,/Select filtered/);assert.match(source,/Select entire matched library/);
+  assert.match(source,/notice plex-match-review/);assert.match(source,/notice plex-library-review/);assert.match(source,/notice plex-history-panel/);assert.match(source,/overlay-condition-builder>p\{margin:0\}/);
+  assert.match(source,/plex-match-group-items\{display:grid;grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);assert.match(source,/plex-history-list\{grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
+  assert.match(source,/\['matched','Matched'/);assert.match(source,/\['unmatched','Not matched'/);assert.doesNotMatch(source,/className="plex-match-details"/);
+  assert.match(source,/Restore filtered/);assert.match(source,/Restore all/);assert.match(source,/targets\.slice\(index,index\+500\)/);
+  assert.doesNotMatch(source,/APPLY TO PLEX|RESTORE PLEX POSTER|confirmationText/);
+  assert.match(api,/variableValues:source\?posterVariableValues/);assert.match(api,/variableValues: posterVariableValues/);
+});
+
+test('poster overlay editor provides bounded layer fields and a shape library',async()=>{
+  const rail=await read('apps/web/client/src/poster-overlay-editor-rail.tsx'),layout=await read('apps/web/client/src/poster-overlay-editor-layout.tsx');
+  for(const shape of ['rounded','square','pill','circle','ticket','ribbon','tag','hexagon','chevron'])assert.ok(rail.includes(shape),shape);
+  assert.match(layout,/overlay-layer-body input/);assert.match(layout,/min-width:0/);
+  assert.match(layout,/overlay-preview-column>label select\{box-sizing:border-box;width:100%;min-width:0\}/);
+});
+
+test('poster overlay editor uses four focused desktop columns and a sequential mobile workflow',async()=>{
   const conditions=await read('apps/web/client/src/poster-overlay-conditions.tsx'),layout=await read('apps/web/client/src/poster-overlay-editor-layout.tsx'),editor=await read('apps/web/client/src/poster-overlays.tsx');
   assert.match(conditions,/overlay-condition-row\{grid-column:1\/-1;grid-row:2;width:100%/);
   assert.match(conditions,/overlay-condition-rule\{display:grid;grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
   assert.match(conditions,/@media\(max-width:1000px\)\{\.overlay-condition-rule/);
   assert.match(conditions,/@media\(max-width:980px\)\{\.overlay-condition-row\{grid-row:auto\}/);
-  assert.match(layout,/width: min\(1760px, calc\(100vw - 24px\)\)/);
-  assert.match(layout,/grid-template-columns: minmax\(230px, 250px\) minmax\(370px, 1fr\) minmax\(400px, 1\.08fr\) minmax\(340px, 380px\)/);
-  assert.match(layout,/grid-template-areas: "rail fields conditions preview"/);
-  assert.match(layout,/overlay-preview-column \{\s*grid-area: preview;\s*align-self: start;\s*position: sticky/);
-  assert.match(layout,/@media \(max-width: 1499px\)[\s\S]*"rail fields preview"[\s\S]*"conditions conditions preview"/);
-  assert.match(layout,/@media \(min-width: 1500px\)[\s\S]*height: 100%;[\s\S]*max-height: 100%/);
-  assert.match(layout,/max-height: 100% !important;[\s\S]*overflow-y: auto !important/);
-  assert.match(layout,/scrollbar-gutter: stable/);
-  assert.match(layout,/touch-action: pan-y/);
-  assert.match(layout,/padding-bottom: 48px/);
-  assert.match(layout,/scrollbar-width: auto/);
-  assert.match(layout,/overlay-editor-fields > \.overlay-layer-editor \{\s*align-self: start;\s*height: max-content;\s*min-height: max-content/);
-  assert.match(layout,/@media \(min-width: 981px\)[\s\S]*height: calc\(100dvh - 40px\);[\s\S]*grid-template-rows: auto minmax\(0, 1fr\) auto/);
-  assert.match(layout,/overlay-layer-body > \.notice \{\s*grid-column: 1 \/ -1;\s*display: grid/);
-  assert.match(layout,/overlay-style-variants > header \{\s*position: static;\s*display: grid;\s*height: auto/);
+  assert.match(layout,/width:min\(1840px,100%\);height:100%;max-height:100%/);
+  assert.match(layout,/grid-template-columns:minmax\(250px,280px\) minmax\(460px,1\.18fr\) minmax\(420px,1fr\) minmax\(330px,370px\)/);
+  assert.match(layout,/grid-template-areas:"rail fields conditions preview"/);
+  assert.match(layout,/overlay-preview-column\{grid-area:preview/);
+  assert.match(layout,/@media\(max-width:1499px\)[\s\S]*"rail fields preview" "rail conditions preview"/);
+  assert.match(layout,/scrollbar-gutter:stable/);
+  assert.match(layout,/padding:14px 12px 48px/);
+  assert.match(layout,/@media\(max-width:980px\)[\s\S]*grid-template-areas:"rail" "fields" "conditions" "preview"/);
+  assert.match(layout,/overlay-layer-body>\.notice\{grid-column:1\/-1;display:grid/);
+  assert.match(layout,/overlay-style-variants>header\{position:static;display:grid/);
   for(const control of ['Position','Prefix','Suffix','Text color','Badge color','Horizontal position','Vertical position','Layer width','Adaptive poster contrast','Font size','Font weight','Text alignment','Capitalization','Text opacity','Shape opacity','Inner spacing','Corner radius','Remove layer'])assert.ok(editor.includes(control),control);
 });
 
@@ -1299,4 +1403,33 @@ test('administrator audit coverage includes security, jobs, exports, collections
     'guide_template.rejected','request.submitted','request.canceled','request.match_corrected'
   ])assert.match(server,new RegExp(action.replaceAll('.','\\.')),action);
   assert.doesNotMatch(server,/recordAudit\(session,\{[^}]+(?:apiCredential|password|currentPassword|newPassword):/);
+});
+
+test('new poster styles require explicit media and destination choices',async()=>{
+  const [studio,rail]=await Promise.all([read('apps/web/client/src/poster-overlays.tsx'),read('apps/web/client/src/poster-overlay-editor-rail.tsx')]);
+  assert.match(studio,/domain: "" as OverlayDomain/);
+  assert.match(studio,/target: "" as "vynode"/);
+  assert.match(studio,/layers: \[\]/);
+  assert.match(studio,/Choose a destination/);
+  assert.match(studio,/missingEditorChoices\.length > 0/);
+  assert.match(studio,/item\.domain === editing\.domain/);
+  assert.match(rail,/Choose Movies or Television/);
+  assert.doesNotMatch(rail,/<option value="all">Movies & television<\/option>/);
+});
+
+test('movie library review keeps Plex and VynodeArr lists independent while allowing TMDB rematches',async()=>{
+  const [review,types,styles,mismatchStyles,server,tabs,routing,islands]=await Promise.all([
+    read('apps/web/client/src/library-review.tsx'),
+    read('apps/web/client/src/library-review-types.ts'),
+    read('apps/web/client/src/library-review.css'),
+    read('apps/web/client/src/library-review-mismatch.css'),
+    read('apps/api/src/app.js'),
+    read('apps/web/client/src/service-tabs.tsx'),
+    read('apps/web/client/src/service-settings-routing.ts'),
+    read('apps/web/client/src/react-islands.tsx')
+  ]);
+  for(const value of ['Compare every movie location','plexItems.slice','vynodeItems.slice','scanItems.slice','filePaths.join','item.filePath','Use Plex TMDB ID','Search by TMDB or IMDb ID','/api/manage/movie/lookup?term=','imdb:${imdbId}','/api/discover/details/movie/${tmdbId}','Use this match','/api/media-match','MOVIE FOLDERS','matched','unmatched','lettersOnly','filenameMatchesTitle','filename-mismatch','ADD A MOVIE FOLDER','Select any movie folder','searchFolderMatch','Search folder match by TMDB or IMDb ID','Add existing folder to VynodeArr','tmdb:${selectedPlex.tmdbId}','searchForMovie: false','Title match','Already in VynodeArr as','comparisonTitleKey','validTmdbId','hasLibraryIdentityMatch','plexTmdbIds','vynodeTmdbIds','ComparisonBadge','VynodeArr','Folder','No match','RenamePreview','/api/media-files/rename?domain=movie','Rename & organize','Naming-standard changes queued','plex-missing','No Plex match','Filename mismatch','hasFilenameMismatch'])assert.ok(review.includes(value),value);
+  for(const value of ['/api/library-review/movies','plexExternalIds','movieFile?.path','libraryTitle','filePaths','rootFolders','unmappedFolders','scanByPath','rawProfiles','rootFolderPath','reviewTitleKey','vynodeByTitle','matchType: titleMatch ? "title"'])assert.ok(server.includes(value),value);
+  assert.match(types,/PlexReviewMovie/);assert.match(types,/VynodeReviewMovie/);assert.match(types,/FolderScanMovie/);assert.match(styles,/grid-template-columns:repeat\(3/);assert.match(mismatchStyles,/filename-mismatch/);assert.match(mismatchStyles,/header\{position:static/);assert.match(mismatchStyles,/justify-items:stretch/);assert.match(mismatchStyles,/text-align:left!important/);assert.match(mismatchStyles,/justify-content:flex-start/);assert.match(mismatchStyles,/title-comparison\.matched/);assert.match(mismatchStyles,/title-comparison\.missing/);
+  assert.match(tabs,/Library Review/);assert.match(routing,/libraryReview/);assert.match(islands,/mountLibraryReview/);
 });

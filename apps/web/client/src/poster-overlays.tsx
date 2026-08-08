@@ -26,6 +26,8 @@ import {
   resolveConditionalLayer,
 } from "./poster-overlay-layer";
 import { PosterLayerContent } from "./poster-overlay-icons";
+import "./poster-overlay-inspector.css";
+import "./poster-overlays-runtime.css";
 const styles = `.poster-overlay-route{display:grid;gap:20px}.overlay-studio-grid{display:grid;grid-template-columns:minmax(320px,.8fr) minmax(420px,1.2fr);gap:20px}.overlay-template-list{display:grid;gap:14px}.overlay-template-card{display:grid;grid-template-columns:92px 1fr;gap:14px;align-items:center;padding:12px;border:1px solid var(--border);border-radius:14px}.overlay-template-card small,.overlay-media-picker small{display:block;color:var(--muted)}.overlay-preview{position:relative;width:min(100%,300px);aspect-ratio:2/3;overflow:hidden;border:1px solid var(--border);border-radius:14px;background:linear-gradient(145deg,#24324b,#07101d 62%,#02060d) center/cover;box-shadow:inset 0 -100px 80px -70px #000}.overlay-preview-layer{font-weight:800}.overlay-scope-row,.overlay-layer-editor{display:grid;grid-template-columns:1fr 1fr;gap:10px}.overlay-media-picker{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;max-height:360px;overflow:auto}.overlay-media-picker label{display:grid;grid-template-columns:auto 38px 1fr;gap:8px;align-items:center;padding:8px;border:1px solid var(--border);border-radius:10px}.overlay-media-picker img{width:38px;aspect-ratio:2/3;object-fit:cover}.overlay-editor-backdrop{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:20px;background:#000c}.overlay-editor{display:grid;grid-template-rows:auto minmax(0,1fr) auto;width:min(1100px,100%);max-height:calc(100dvh - 40px);overflow:hidden;border:1px solid var(--border);border-radius:18px;background:var(--panel,#08111f)}.overlay-editor-grid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:20px;overflow:auto;padding:20px}.overlay-editor-fields{display:grid;gap:12px}.overlay-layer-editor{padding:12px;border:1px solid var(--border);border-radius:12px}.overlay-preview-column{display:grid;align-content:start;justify-items:center;gap:10px;position:sticky;top:0}.overlay-editor-footer{display:flex;justify-content:flex-end;gap:10px;padding:16px 20px;border-top:1px solid var(--border)}@media(max-width:800px){.overlay-studio-grid,.overlay-scope-row,.overlay-media-picker,.overlay-editor-grid,.overlay-layer-editor{grid-template-columns:1fr}.overlay-editor-backdrop{padding:0}.overlay-editor{width:100%;height:100dvh;max-height:none;border:0;border-radius:0}.overlay-editor-grid{padding:14px}.overlay-preview-column{position:static;order:-1}.overlay-preview-column .overlay-preview{width:180px}.poster-overlay-route .hero>.primary{width:100%}}`;
 const layoutStyles = `.poster-overlay-route{min-width:0}.poster-overlay-route .hero{min-width:0}.poster-overlay-route .hero h1{font-size:clamp(2rem,5vw,4rem);overflow-wrap:anywhere}.poster-overlay-route>.settings-tabs{display:flex;flex-wrap:nowrap;gap:8px;overflow-x:auto;overscroll-behavior-inline:contain;scrollbar-width:thin;padding:8px}.poster-overlay-route>.settings-tabs a{flex:0 0 auto;min-width:max-content;padding:10px 14px}.overlay-template-card{grid-template-columns:76px minmax(0,1fr);min-width:0}.overlay-template-card>.overlay-preview{width:76px}.overlay-template-content{min-width:0;display:grid;gap:8px;align-content:center}.overlay-template-content>strong,.overlay-template-content>small{overflow-wrap:anywhere}.overlay-template-content .form-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.overlay-template-content button{width:100%;min-width:0;padding-inline:7px}.overlay-assignment-panel label,.overlay-editor label{display:grid;gap:6px;min-width:0}.overlay-scope-row{align-items:end}.overlay-apply-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.overlay-apply-list button{width:100%;white-space:normal}.overlay-editor-backdrop{z-index:10000}.overlay-editor>.panel-heading{display:flex;flex-direction:row!important;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px}.overlay-editor>.panel-heading>div{flex:1;min-width:0}.overlay-editor>.panel-heading button{width:auto;flex:0 0 auto}.overlay-layer-editor{display:block;padding:0;overflow:hidden}.overlay-layer-editor>summary{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px;cursor:pointer;font-weight:800;list-style:none}.overlay-layer-editor>summary::-webkit-details-marker{display:none}.overlay-layer-editor>summary small{color:var(--muted);font-weight:500}.overlay-layer-editor[open]>summary{border-bottom:1px solid var(--border)}.overlay-layer-body{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:12px}.overlay-layer-body>.danger{align-self:end}.overlay-layer-toggle{align-content:center}@media(max-width:800px){.poster-overlay-route{gap:14px}.poster-overlay-route>.settings-tabs{margin-inline:0}.poster-overlay-route>.panel,.poster-overlay-route .overlay-studio-grid>.panel{padding:14px}.overlay-studio-grid{grid-template-columns:1fr}.overlay-template-list{gap:10px}}@media(max-width:600px){.poster-overlay-route .hero{gap:12px}.poster-overlay-route .hero>.primary{min-height:48px}.poster-overlay-route>.settings-tabs a{padding:9px 12px}.overlay-template-card{grid-template-columns:72px minmax(0,1fr);align-items:start;padding:10px}.overlay-template-card>.overlay-preview{width:72px;grid-row:1/span 2}.overlay-template-content .form-actions{grid-template-columns:repeat(2,minmax(0,1fr))}.overlay-template-content .form-actions .danger{grid-column:1/-1}.overlay-apply-list,.overlay-layer-body{grid-template-columns:1fr}.overlay-editor>.panel-heading{padding:12px 14px}}`;
 const responsiveLayoutStyles = `.poster-overlay-route{min-width:0}.poster-overlay-route .hero h1{font-size:clamp(2rem,5vw,4rem);overflow-wrap:anywhere}.poster-overlay-route>.settings-tabs{display:flex;flex-wrap:nowrap;gap:8px;overflow-x:auto;padding:8px}.poster-overlay-route>.settings-tabs a{flex:0 0 auto;min-width:max-content;padding:10px 14px}.overlay-new-action{display:flex;align-items:center;gap:8px}.overlay-template-card{grid-template-columns:76px minmax(0,1fr);min-width:0}.overlay-template-card>.overlay-preview{width:76px}.overlay-template-content{min-width:0}.overlay-template-content .form-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.overlay-template-content button{width:100%;min-width:0}@media(max-width:800px){.poster-overlay-route{gap:14px}.poster-overlay-route>.panel{padding:14px}.overlay-studio-grid{grid-template-columns:1fr}.overlay-template-list{gap:10px}}@media(max-width:600px){.poster-overlay-route>.settings-tabs a{padding:9px 12px}.overlay-template-panel>.panel-heading{align-items:stretch}.overlay-template-panel .panel-heading .badge{align-self:flex-start}.overlay-new-action{display:grid;grid-template-columns:auto 1fr;width:100%}.overlay-new-action button{min-height:44px}.overlay-template-card{grid-template-columns:64px minmax(0,1fr);align-items:center;gap:10px;padding:10px}.overlay-template-card>.overlay-preview{width:64px}.overlay-template-content{display:grid;gap:5px}.overlay-template-content .form-actions{grid-template-columns:repeat(3,minmax(0,1fr));position:static;margin:3px 0 0;padding:0;border:0;background:none;backdrop-filter:none}.overlay-template-content button{min-height:44px;padding:6px 3px;font-size:.78rem}}`;
@@ -113,11 +115,11 @@ const blankLayer = (variable = "title"): OverlayLayer => ({
 const blankTemplate = (): OverlayTemplate => ({
   id: "",
   name: "New poster style",
-  domain: "all",
-  target: "vynode",
+  domain: "" as OverlayDomain,
+  target: "" as "vynode",
   enabled: true,
   tvFileAggregation: "most_common",
-  layers: [blankLayer("title")],
+  layers: [],
   plexBadges: {
     monitored: false,
     availability: false,
@@ -129,9 +131,10 @@ const errorText = (reason: unknown) =>
   reason instanceof Error
     ? reason.message
     : "The request could not be completed.";
+const scrollLayerSettings=(id:string)=>document.getElementById(`overlay-layer-settings-${id}`)?.scrollIntoView({behavior:"smooth",block:"start"});
 const previewValue = (variable: string, media?: OverlayMedia) => {
   const resolved = media?.artwork?.overlayValues?.[variable];
-  if (resolved !== undefined) return resolved;
+  if (resolved != null && String(resolved).trim()) return String(resolved);
   if (variable === "resolution")
     return (
       String(media?.quality || "").match(/(?:2160|1080|720|480)p?/i)?.[0] || ""
@@ -147,7 +150,15 @@ const previewValue = (variable: string, media?: OverlayMedia) => {
       ? "Cutoff unmet"
       : "At cutoff";
   const value = (media as unknown as Record<string, unknown>)?.[variable];
-  return Array.isArray(value) ? value.join(", ") : String(value ?? "");
+  if(Array.isArray(value)&&value.length)return value.join(", ");
+  if(value!==undefined&&value!==null&&String(value).trim())return String(value);
+  if(variable==="plex_days_since_added"){
+    const raw=media?.plexAddedAt??media?.addedAt,numeric=Number(raw),added=Number.isFinite(numeric)&&numeric>0?new Date(numeric<1e12?numeric*1000:numeric):new Date(raw||""),now=new Date();
+    if(Number.isFinite(added.getTime()))return String(Math.max(1,Math.floor((Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate())-Date.UTC(added.getUTCFullYear(),added.getUTCMonth(),added.getUTCDate()))/86400000)));
+    return "1";
+  }
+  const defaults:Record<string,string>={title:"Example title",year:String(new Date().getUTCFullYear()),rating:"8.0",quality:"1080p",resolution:"1080p",quality_profile:"HD",video_codec:"HEVC",audio_codec:"EAC3",audio_channels:"5.1",dynamic_range:"HDR",source:"WEB-DL",runtime:"120 min",certification:"PG-13",studio:"Example studio",network:"Example network",genres:"Drama",original_language:"English",library_status:"Available",completion_percent:"100%",file_size:"8 GB",tags:"Featured",date_added:"Today",added_ago:"7 days ago",release_date:"Today",release_age:"30 days ago",download_status:"Downloading",download_progress:"50%",download_eta:"In 1 day",series_status:"Continuing",next_episode:"Next episode in 7 days",requested_by:"Example user",request_count:"1"};
+  return defaults[variable]||variable.replaceAll("_"," ").replace(/^./,letter=>letter.toUpperCase());
 };
 
 function Preview({
@@ -156,12 +167,14 @@ function Preview({
   media,
   target,
   onLayerChange,
+  onLayerSelect,
 }: {
   template: OverlayTemplate;
   poster?: string;
   media?: OverlayMedia;
   target?: "vynode" | "plex";
   onLayerChange?: (id: string, changes: Partial<OverlayLayer>) => void;
+  onLayerSelect?: (id: string) => void;
 }) {
   const [drag, setDrag] = useState<{
     id: string;
@@ -175,7 +188,7 @@ function Preview({
       ...(layer.conditions?.rules || []),
       ...(layer.styleRules || []).flatMap((style) => style.conditions.rules),
     ])
-      if (previewValues[rule.variable] === undefined)
+      if (!String(previewValues[rule.variable] ?? "").trim())
         previewValues[rule.variable] = previewValue(rule.variable, media);
   return (
     <div
@@ -230,6 +243,7 @@ function Preview({
               touchAction: "none",
             }}
             onPointerDown={(event) => {
+              onLayerSelect?.(layer.id);
               if (!onLayerChange) return;
               const rect = event.currentTarget.getBoundingClientRect();
               event.currentTarget.setPointerCapture(event.pointerId);
@@ -343,14 +357,19 @@ export function PosterOverlaysView({
     [media, setMedia] = useState<
       Array<OverlayMedia & { domain: "movie" | "tv" }>
     >([]),
+    [plexPreviewMedia, setPlexPreviewMedia] = useState<
+      Array<OverlayMedia & { domain: "movie" | "tv" }>
+    >([]),
     [collections, setCollections] = useState<OverlayCollection[]>([]),
     [userCollections, setUserCollections] = useState<OverlayUserCollection[]>(
       [],
     ),
     [editing, setEditing] = useState<OverlayTemplate | null>(null),
     [selectedLayerId, setSelectedLayerId] = useState(""),
+    [collapsedLayerIds, setCollapsedLayerIds] = useState<string[]>([]),
     [iconQuery, setIconQuery] = useState(""),
     [previewId, setPreviewId] = useState(""),
+    [previewLimit, setPreviewLimit] = useState(100),
     [applicationReview, setApplicationReview] = useState<{
       template: OverlayTemplate;
       payload: Record<string, unknown>;
@@ -359,6 +378,7 @@ export function PosterOverlaysView({
     } | null>(null),
     [loading, setLoading] = useState(true),
     [query, setQuery] = useState(""),
+    [mediaLimit, setMediaLimit] = useState(100),
     [selected, setSelected] = useState<string[]>([]),
     [scope, setScope] = useState<
       "all" | "items" | "collection" | "user-collection" | "rules"
@@ -409,13 +429,32 @@ export function PosterOverlaysView({
     void load();
   }, [load]);
   useEffect(() => {
+    let active=true;
+    if(editing?.target!=="plex"||!["movie","tv"].includes(editing.domain)){setPlexPreviewMedia([]);return()=>{active=false;};}
+    void (async()=>{
+      try{
+        const {loadPlexPreviewMedia}=await import("./poster-overlay-plex-preview");
+        const items=await loadPlexPreviewMedia(options,media,editing.domain as "movie"|"tv");
+        if(active)setPlexPreviewMedia(items);
+      }catch{if(active)setPlexPreviewMedia([]);}
+    })();
+    return()=>{active=false;};
+  },[editing?.target,editing?.domain,media,options]);
+  useEffect(() => {
     if (
       editing &&
       !editing.layers.some((layer) => layer.id === selectedLayerId)
     )
       setSelectedLayerId(editing.layers[0]?.id || "");
   }, [editing, selectedLayerId]);
-  const visible = useMemo(
+  useEffect(() => {
+    if (!editing || !selectedLayerId) return;
+    scrollLayerSettings(selectedLayerId);
+  }, [selectedLayerId, editing?.layers.length]);
+  useEffect(()=>setPreviewLimit(100),[editing?.target,editing?.domain]);
+  const selectLayer=(id:string)=>{setCollapsedLayerIds(value=>value.filter(item=>item!==id));setSelectedLayerId(id);requestAnimationFrame(()=>scrollLayerSettings(id));};
+  useEffect(()=>setMediaLimit(100),[domain,query,scope]);
+  const filteredMedia = useMemo(
     () =>
       media
         .filter(
@@ -425,12 +464,20 @@ export function PosterOverlaysView({
               `${item.title} ${item.year || ""}`
                 .toLowerCase()
                 .includes(query.toLowerCase())),
-        )
-        .slice(0, 200),
+        ),
     [media, domain, query],
-  );
+  ),visible=filteredMedia.slice(0,mediaLimit);
   const saveTemplate = async () => {
     if (!editing) return;
+    if (
+      !editing.name.trim() ||
+      !["movie", "tv"].includes(editing.domain) ||
+      !["vynode", "plex"].includes(editing.target) ||
+      !editing.layers.length
+    ) {
+      options.notify("Choose Movies or Television, choose a destination, and add a layer before saving.", "error");
+      return;
+    }
     setBusy(true);
     try {
       const path = editing.id
@@ -540,6 +587,20 @@ export function PosterOverlaysView({
   const selectedLayer = editing?.layers.find(
       (layer) => layer.id === selectedLayerId,
     ),
+    editingMedia = editing
+      ? (editing.target==="plex"?plexPreviewMedia:media).filter((item) => item.domain === editing.domain)
+      : [],
+    previewMedia =
+      editingMedia.find(
+        (item) => (item.previewKey||`${item.domain}:${item.id}`) === previewId,
+      ) || editingMedia.find((item) => item.artwork?.url),
+    missingEditorChoices = editing
+      ? [
+          !["movie", "tv"].includes(editing.domain) ? "Movies or Television" : "",
+          !["vynode", "plex"].includes(editing.target) ? "VynodeArr or Plex" : "",
+          !editing.layers.length ? "at least one layer" : "",
+        ].filter(Boolean)
+      : [],
     updateSelectedLayer = (
       changes:
         | Partial<OverlayLayer>
@@ -577,7 +638,7 @@ export function PosterOverlaysView({
           <div className="panel skeleton">Loading Plex connection…</div>
         }
       >
-        <PlexConnectionPanel options={options} templates={templates} />
+        <PlexConnectionPanel options={options} templates={templates} variables={variables} />
       </Suspense>
       {loading ? (
         <div className="panel skeleton">Loading poster styles…</div>
@@ -711,7 +772,7 @@ export function PosterOverlaysView({
                     placeholder="Search title or year"
                   />
                 </label>
-                <div className="overlay-media-picker">
+                <div className="overlay-media-picker" onScroll={event=>{const node=event.currentTarget;if(node.scrollTop+node.clientHeight>=node.scrollHeight-80)setMediaLimit(value=>Math.min(value+100,filteredMedia.length));}}>
                   {visible.map((item) => (
                     <label key={`${item.domain}:${item.id}`}>
                       <input
@@ -921,17 +982,19 @@ export function PosterOverlaysView({
                     selectedId={selectedLayerId}
                     query={iconQuery}
                     onQuery={setIconQuery}
-                    onSelect={setSelectedLayerId}
-                    onChange={(changes) =>
-                      setEditing({ ...editing, ...changes })
-                    }
+                    onSelect={selectLayer}
+                    onChange={(changes) => {
+                      if (changes.domain !== undefined && changes.domain !== editing.domain)
+                        setPreviewId("");
+                      setEditing({ ...editing, ...changes });
+                    }}
                     onAddText={() => {
-                      const layer = blankLayer(variables[0]);
+                      const layer = {...blankLayer(variables[0]),position:"custom" as const,x:30,y:45};
                       setEditing({
                         ...editing,
                         layers: [...editing.layers, layer],
                       });
-                      setSelectedLayerId(layer.id);
+                      selectLayer(layer.id);
                     }}
                     onAddIcon={(name) => {
                       const layer = {
@@ -941,13 +1004,16 @@ export function PosterOverlaysView({
                         label: "",
                         contentPosition: "none" as const,
                         width: 22,
+                        position: "custom" as const,
+                        x: 39,
+                        y: 45,
                         fontSize: 56,
                       };
                       setEditing({
                         ...editing,
                         layers: [...editing.layers, layer],
                       });
-                      setSelectedLayerId(layer.id);
+                      selectLayer(layer.id);
                     }}
                     onAddShape={(shape) => {
                       const layer = {
@@ -957,16 +1023,25 @@ export function PosterOverlaysView({
                         shape,
                         width: 40,
                         height: 10,
+                        position: "custom" as const,
+                        x: 30,
+                        y: 45,
                       };
                       setEditing({
                         ...editing,
                         layers: [...editing.layers, layer],
                       });
-                      setSelectedLayerId(layer.id);
+                      selectLayer(layer.id);
                     }}
                   />
                 </Suspense>
                 <div className="overlay-editor-fields">
+                  {!editing.layers.length ? (
+                    <div className="empty compact overlay-layer-empty">
+                      <strong>No layers yet</strong>
+                      <p>Add text, a shape, or a media icon from the first column.</p>
+                    </div>
+                  ) : null}
                   {editing.target === "plex" ? (
                     <Suspense>
                       <PlexBadgeChoices
@@ -987,12 +1062,13 @@ export function PosterOverlaysView({
                       });
                     return (
                       <details
-                        className="overlay-layer-editor"
+                        id={`overlay-layer-settings-${layer.id}`}
+                        className={`overlay-layer-editor${layer.id===selectedLayerId?" selected":""}`}
                         key={layer.id}
-                        open
-                        hidden={layer.id !== selectedLayerId}
+                        open={!collapsedLayerIds.includes(layer.id)}
+                        onToggle={event=>{const open=event.currentTarget.open;setCollapsedLayerIds(current=>open?current.filter(id=>id!==layer.id):current.includes(layer.id)?current:[...current,layer.id])}}
                       >
-                        <summary>
+                        <summary onClick={()=>setSelectedLayerId(layer.id)}>
                           <span>Layer {index + 1}</span>
                           <small>
                             {layer.variable.replaceAll("_", " ")}
@@ -1018,6 +1094,11 @@ export function PosterOverlaysView({
                               onChange={update}
                             />
                           </Suspense>
+                          <div className="overlay-control-group-heading overlay-placement-heading">
+                            <span className="eyebrow">PLACEMENT &amp; SIZE</span>
+                            <strong>Place the layer</strong>
+                            <small className="muted">Use a preset or fine-tune the exact position and dimensions.</small>
+                          </div>
                           <label>
                             Position
                             <select
@@ -1036,6 +1117,11 @@ export function PosterOverlaysView({
                               ))}
                             </select>
                           </label>
+                          <div className="overlay-control-group-heading overlay-copy-heading">
+                            <span className="eyebrow">TEXT &amp; COLORS</span>
+                            <strong>Format the content</strong>
+                            <small className="muted">Add surrounding text and set the base appearance.</small>
+                          </div>
                           <label>
                             Prefix
                             <input
@@ -1074,6 +1160,11 @@ export function PosterOverlaysView({
                               }
                             />
                           </label>
+                          <div className="overlay-control-group-heading overlay-geometry-heading">
+                            <span className="eyebrow">FINE POSITION</span>
+                            <strong>Adjust on the poster</strong>
+                            <small className="muted">Dragging the preview updates these same values.</small>
+                          </div>
                           <label className="overlay-range">
                             <span>Horizontal position</span>
                             <span>{Math.round(layer.x ?? 5)}%</span>
@@ -1124,7 +1215,12 @@ export function PosterOverlaysView({
                               }
                             />
                           </label>
-                          <label className="overlay-layer-toggle">
+                          <div className="overlay-control-group-heading overlay-type-heading">
+                            <span className="eyebrow">TYPOGRAPHY</span>
+                            <strong>Refine readability</strong>
+                            <small className="muted">Control type, alignment, spacing, and opacity.</small>
+                          </div>
+                          <label className="overlay-layer-toggle overlay-poster-aware">
                             <span>Adaptive poster contrast</span>
                             <span className="muted">
                               Tints and softens the artwork beneath this layer
@@ -1288,7 +1384,7 @@ export function PosterOverlaysView({
                             />
                           </label>
                           <button
-                            className="danger"
+                            className="danger overlay-remove-layer"
                             onClick={() =>
                               setEditing({
                                 ...editing,
@@ -1307,7 +1403,8 @@ export function PosterOverlaysView({
                 </div>
                 <div className="overlay-preview-column">
                   <p className="overlay-preview-hint">
-                    Drag to move. Use the blue handle to resize.
+                    Choose where this style will be used, then build against a
+                    real matching poster.
                   </p>
                   <label>
                     Destination
@@ -1320,6 +1417,7 @@ export function PosterOverlaysView({
                         })
                       }
                     >
+                      <option value="" disabled>Choose a destination</option>
                       <option value="vynode">VynodeArr</option>
                       <option value="plex">Plex</option>
                     </select>
@@ -1329,45 +1427,34 @@ export function PosterOverlaysView({
                     <select
                       value={previewId}
                       onChange={(event) => setPreviewId(event.target.value)}
+                      onScroll={event=>{const node=event.currentTarget;if(node.scrollTop+node.clientHeight>=node.scrollHeight-80)setPreviewLimit(value=>Math.min(value+100,editingMedia.length));}}
                     >
-                      <option value="">First available poster</option>
-                      {media
-                        .filter(
-                          (item) =>
-                            editing.domain === "all" ||
-                            item.domain === editing.domain,
-                        )
-                        .slice(0, 300)
+                      <option value="">
+                        {editingMedia.length
+                          ? "First available poster"
+                          : "Choose Movies or Television first"}
+                      </option>
+                      {editingMedia
+                        .slice(0, previewLimit)
                         .map((item) => (
                           <option
-                            value={`${item.domain}:${item.id}`}
-                            key={`${item.domain}:${item.id}`}
+                            value={item.previewKey||`${item.domain}:${item.id}`}
+                            key={item.previewKey||`${item.domain}:${item.id}`}
                           >
-                            {item.title} {item.year ? `(${item.year})` : ""}
+                            {item.previewLabel||`${item.title} ${item.year ? `(${item.year})` : ""}`}
                           </option>
                         ))}
                     </select>
                   </label>
                   <Preview
                     template={editing}
-                    target={editing.target}
-                    media={
-                      media.find(
-                        (item) => `${item.domain}:${item.id}` === previewId,
-                      ) || media.find((item) => item.artwork?.url)
-                    }
+                    target={editing.target || undefined}
+                    media={previewMedia}
                     poster={
-                      (
-                        media.find(
-                          (item) => `${item.domain}:${item.id}` === previewId,
-                        ) || media.find((item) => item.artwork?.url)
-                      )?.artwork?.originalUrl ||
-                      (
-                        media.find(
-                          (item) => `${item.domain}:${item.id}` === previewId,
-                        ) || media.find((item) => item.artwork?.url)
-                      )?.artwork?.url
+                      previewMedia?.artwork?.originalUrl ||
+                      previewMedia?.artwork?.url
                     }
+                    onLayerSelect={selectLayer}
                     onLayerChange={(id, changes) =>
                       setEditing({
                         ...editing,
@@ -1395,13 +1482,20 @@ export function PosterOverlaysView({
                 ) : null}
               </div>
               <div className="overlay-editor-footer">
+                {missingEditorChoices.length ? (
+                  <p className="overlay-save-guidance" role="status">
+                    To save, choose {missingEditorChoices.join(", ")}.
+                  </p>
+                ) : null}
                 <button className="secondary" onClick={() => setEditing(null)}>
                   Cancel
                 </button>
                 <button
                   className="primary"
                   disabled={
-                    busy || !editing.name.trim() || !editing.layers.length
+                    busy ||
+                    !editing.name.trim() ||
+                    missingEditorChoices.length > 0
                   }
                   onClick={() => void saveTemplate()}
                 >

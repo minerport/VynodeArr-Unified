@@ -9,13 +9,29 @@ import type {
 
 const errorText = (reason: unknown) =>
   reason instanceof Error ? reason.message : "Plex operation failed.";
+type VariableFilter={variable:string;operator:string;value:string};
+const filterMatches=(values:Record<string,unknown>|undefined,filter:VariableFilter)=>{
+  if(!filter.variable)return true;
+  const actual=values?.[filter.variable],text=String(actual??"").toLowerCase(),expected=filter.value.toLowerCase(),left=Number(actual),right=Number(filter.value);
+  if(filter.operator==="truthy")return Boolean(text);
+  if(filter.operator==="falsy")return !text;
+  if(filter.operator==="equals")return text===expected;
+  if(filter.operator==="not_equals")return text!==expected;
+  if(filter.operator==="contains")return text.includes(expected);
+  if(filter.operator==="not_contains")return !text.includes(expected);
+  if(!Number.isFinite(left)||!Number.isFinite(right))return false;
+  return filter.operator==="greater_than"?left>right:filter.operator==="less_than"?left<right:filter.operator==="greater_than_or_equal"?left>=right:left<=right;
+};
+const matchesFilters=(values:Record<string,unknown>|undefined,filters:VariableFilter[])=>filters.every(filter=>filterMatches(values,filter));
 
 export function PlexConnectionPanel({
   options,
   templates,
+  variables,
 }: {
   options: PosterOverlayMountOptions;
   templates: OverlayTemplate[];
+  variables: string[];
 }) {
   const [plex, setPlex] = useState<PlexOverlayConnection | null>(null),
     [endpoint, setEndpoint] = useState(""),
@@ -27,13 +43,12 @@ export function PlexConnectionPanel({
       "all" | "matched" | "unmatched" | "ambiguous"
     >("all"),
     [reviewQuery, setReviewQuery] = useState(""),
+    [visibleLimit, setVisibleLimit] = useState(100),
+    [variableFilters, setVariableFilters] = useState<Array<{variable:string;operator:string;value:string}>>([]),
     [templateId, setTemplateId] = useState(""),
     [selectedTargets, setSelectedTargets] = useState<string[]>([]),
-    [confirmation, setConfirmation] = useState(""),
     [applications, setApplications] = useState<PlexPosterApplication[]>([]),
-    [historyExpanded, setHistoryExpanded] = useState(false),
-    [restoreId, setRestoreId] = useState(""),
-    [restoreConfirmation, setRestoreConfirmation] = useState("");
+    [historyExpanded, setHistoryExpanded] = useState(false);
   const load = useCallback(async () => {
     try {
       const [connection, history] = await Promise.all([
@@ -55,6 +70,7 @@ export function PlexConnectionPanel({
   useEffect(() => {
     void load();
   }, [load]);
+  useEffect(()=>setVisibleLimit(100),[review,reviewFilter,reviewQuery]);
   const save = async () => {
     setBusy(true);
     try {
@@ -123,10 +139,6 @@ export function PlexConnectionPanel({
       selectedTargets.includes(targetKey(item)),
     ),
     selectedEntry = selectedEntries[0],
-    confirmationText =
-      selectedEntries.length === 1
-        ? "APPLY TO PLEX"
-        : `APPLY ${selectedEntries.length} TO PLEX`,
     previewUrl = (
       mode: "original" | "preview",
       item: PlexMatchReview["entries"][number],
@@ -138,16 +150,16 @@ export function PlexConnectionPanel({
       if (mode === "preview") params.set("templateId", templateId);
       return `/api/poster-overlays/plex/${mode}/${item.domain}/${item.id}?${params}`;
     };
-  const visibleEntries = (review?.entries || [])
+  const filteredEntries = (review?.entries || [])
     .filter(
       (item) =>
         (reviewFilter === "all" || item.status === reviewFilter) &&
         (!reviewQuery.trim() ||
           `${item.title} ${item.year || ""} ${item.plexLibrary.title} ${item.externalIds.join(" ")}`
             .toLowerCase()
-            .includes(reviewQuery.trim().toLowerCase())),
-    )
-    .slice(0, 500);
+            .includes(reviewQuery.trim().toLowerCase())) &&
+        matchesFilters(item.variableValues,variableFilters),
+    ),visibleEntries=filteredEntries.slice(0,visibleLimit);
   const toggleTarget = (key: string, checked: boolean) =>
     setSelectedTargets((current) =>
       checked
@@ -172,26 +184,20 @@ export function PlexConnectionPanel({
           application: PlexPosterApplication;
         }>("/api/poster-overlays/plex/apply", {
           method: "POST",
-          body: JSON.stringify({ confirmation, templateId, ...targets[0] }),
+          body: JSON.stringify({ templateId, ...targets[0] }),
         });
         setApplications((current) => [value.application, ...current]);
         options.notify(
           `${targets[0].title} was updated in Plex. Rollback artwork is ready.`,
         );
       } else {
-        const value = await options.request<{
-          applications: PlexPosterApplication[];
-          summary: { applied: number; failed: number };
-        }>("/api/poster-overlays/plex/apply-batch", {
-          method: "POST",
-          body: JSON.stringify({ confirmation, templateId, targets }),
-        });
-        setApplications((current) => [...value.applications, ...current]);
+        const applied:PlexPosterApplication[]=[],failures:unknown[]=[];
+        for(let index=0;index<targets.length;index+=500){const value=await options.request<{applications:PlexPosterApplication[];failures:unknown[]}>("/api/poster-overlays/plex/apply-batch",{method:"POST",body:JSON.stringify({templateId,targets:targets.slice(index,index+500)})});applied.push(...value.applications);failures.push(...value.failures);}
+        setApplications((current) => [...applied, ...current]);
         options.notify(
-          `${value.summary.applied} Plex posters updated${value.summary.failed ? `; ${value.summary.failed} failed` : ""}.`,
+          `${applied.length} Plex posters updated${failures.length ? `; ${failures.length} failed` : ""}.`,
         );
       }
-      setConfirmation("");
     } catch (reason) {
       options.notify(errorText(reason), "error");
     } finally {
@@ -205,15 +211,13 @@ export function PlexConnectionPanel({
         application: PlexPosterApplication;
       }>(`/api/poster-overlays/plex/applications/${application.id}/restore`, {
         method: "POST",
-        body: JSON.stringify({ confirmation: restoreConfirmation }),
+        body: "{}",
       });
       setApplications((current) =>
         current.map((item) =>
           item.id === application.id ? value.application : item,
         ),
       );
-      setRestoreId("");
-      setRestoreConfirmation("");
       options.notify(
         `${application.title} was restored to its captured Plex poster.`,
       );
@@ -223,6 +227,17 @@ export function PlexConnectionPanel({
       setBusy(false);
     }
   };
+  const restoreMany=async(items:PlexPosterApplication[])=>{
+    if(!items.length)return;
+    setBusy(true);let restored=0;
+    try{
+      for(const application of items){
+        try{const value=await options.request<{application:PlexPosterApplication}>(`/api/poster-overlays/plex/applications/${application.id}/restore`,{method:"POST",body:"{}"});setApplications(current=>current.map(item=>item.id===application.id?value.application:item));restored++;}catch(reason){options.notify(`${application.title}: ${errorText(reason)}`,"error");}
+      }
+      options.notify(`${restored} Plex poster${restored===1?"":"s"} restored.`);
+    }finally{setBusy(false);}
+  };
+  const restorableApplications=applications.filter(item=>item.status==="applied"),filteredRestores=restorableApplications.filter(item=>matchesFilters(item.variableValues,variableFilters));
   return (
     <section
       className="panel plex-connection-panel"
@@ -230,6 +245,8 @@ export function PlexConnectionPanel({
     >
       <style>{`.plex-match-toolbar{display:grid;grid-template-columns:minmax(220px,1fr) auto;gap:12px;align-items:end}.plex-match-list{display:grid;gap:8px;max-height:620px;overflow:auto;padding:2px}.plex-match-row{display:grid;grid-template-columns:44px minmax(220px,1.3fr) minmax(260px,1fr) auto;gap:16px;align-items:center;min-height:76px;padding:12px 14px;border:1px solid var(--border);border-radius:12px;background:color-mix(in srgb,var(--panel,#08111f) 88%,transparent);cursor:pointer}.plex-match-row:hover{border-color:var(--accent,#58a6ff);background:color-mix(in srgb,var(--panel,#08111f) 78%,var(--accent,#58a6ff) 8%)}.plex-match-row.is-selected{border-color:var(--accent,#58a6ff);box-shadow:inset 3px 0 0 var(--accent,#58a6ff)}.plex-match-row.is-disabled{cursor:not-allowed;opacity:.68}.plex-match-check{display:grid;place-items:center;align-self:stretch}.plex-match-check input{width:22px;height:22px;margin:0}.plex-match-title,.plex-match-details{display:grid;gap:4px;min-width:0}.plex-match-title strong{font-size:1rem;line-height:1.25}.plex-match-title small,.plex-match-details small{color:var(--muted);overflow-wrap:anywhere}.plex-match-status{justify-self:end}.plex-match-empty{padding:28px;text-align:center;border:1px dashed var(--border);border-radius:12px;color:var(--muted)}@media(max-width:760px){.plex-match-toolbar,.plex-match-row{grid-template-columns:44px minmax(0,1fr)}.plex-match-details,.plex-match-status{grid-column:2}.plex-match-row{gap:8px 12px;min-height:96px}.plex-match-status{justify-self:start}.plex-match-list{max-height:70dvh}}`}</style>
       <style>{`.plex-connection-panel{min-width:0}.plex-connection-panel .panel-heading{align-items:flex-start}.plex-connection-panel .panel-heading>div{min-width:0}.plex-server-title{overflow-wrap:anywhere}.plex-connection-panel>.overlay-scope-row>label{display:grid;gap:6px;min-width:0}.plex-connection-panel>.overlay-scope-row input{width:100%;min-width:0}.plex-library-picker{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin:12px 0}.plex-library-option{display:grid!important;grid-template-columns:auto minmax(0,1fr);gap:10px!important;align-items:center;padding:11px 12px;border:1px solid var(--border);border-radius:12px;background:color-mix(in srgb,var(--panel,#08111f) 90%,transparent);cursor:pointer}.plex-library-option:has(input:checked){border-color:var(--accent,#58a6ff);background:color-mix(in srgb,var(--panel,#08111f) 82%,var(--accent,#58a6ff) 10%)}.plex-library-option input{width:20px;height:20px;margin:0}.plex-library-option span{display:grid;min-width:0}.plex-library-option small{color:var(--muted)}.plex-history-header{display:flex;align-items:center;justify-content:space-between;gap:12px}.plex-history-header h3{margin-bottom:2px}.plex-history-list{display:grid;gap:8px;margin-top:12px}.plex-history-card{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px 16px;align-items:center;padding:12px 14px;border:1px solid var(--border);border-radius:12px;background:color-mix(in srgb,var(--panel,#08111f) 90%,transparent)}.plex-history-content{display:grid;gap:4px;min-width:0}.plex-history-content small{color:var(--muted);overflow-wrap:anywhere}.plex-history-content .badge{justify-self:start}.plex-history-card .form-actions{margin:0}@media(max-width:760px){.plex-connection-panel{padding:14px!important}.plex-connection-panel .panel-heading{display:grid!important;gap:10px}.plex-connection-panel .panel-heading .badge{justify-self:start}.plex-connection-panel .overlay-scope-row{grid-template-columns:1fr}.plex-connection-panel .form-actions{display:grid;grid-template-columns:1fr}.plex-library-picker{grid-template-columns:1fr}.plex-history-header{align-items:flex-start}.plex-history-card{grid-template-columns:1fr}.plex-history-card .form-actions{display:grid}}`}</style>
+      <style>{`.plex-match-review{display:grid;gap:10px;padding:14px}.plex-match-review>.form-actions,.plex-match-review .overlay-condition-builder>.form-actions{margin-top:0;flex-wrap:wrap}.plex-match-review>.form-actions{justify-content:flex-start}.plex-match-review>label{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.plex-match-review>label select{width:min(320px,100%)}.plex-match-review>label small{flex:1 1 260px}.plex-match-review>.overlay-condition-builder{gap:8px;padding:10px 12px}.plex-match-review>.overlay-condition-builder>p{margin:0}@media(max-width:760px){.plex-match-review>label{display:grid}.plex-match-review>label select{width:100%}}`}</style>
+      <style>{`.plex-library-review{display:grid;gap:10px}.plex-library-review>p{margin:0}.plex-library-review>.plex-library-picker{margin:0}.plex-review-libraries{width:auto;justify-self:start}.plex-match-review .plex-match-toolbar{grid-template-columns:minmax(260px,1fr) auto}.plex-match-review .plex-match-toolbar label{display:grid;grid-template-columns:auto minmax(220px,1fr);align-items:center;gap:8px}.plex-match-review .plex-match-toolbar input{margin:0}.plex-match-review>.form-actions{gap:8px}.plex-match-review>.overlay-condition-builder .overlay-condition-rule{grid-template-columns:minmax(180px,1fr) minmax(150px,.7fr) minmax(120px,1fr) auto}.plex-match-list{display:grid;grid-template-columns:1fr;align-content:start;gap:14px}.plex-match-group{display:grid;gap:7px}.plex-match-group>h3{display:flex;align-items:center;justify-content:space-between;margin:0;padding:0 2px;font-size:.95rem}.plex-match-group-items{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.plex-match-row{grid-template-columns:28px minmax(0,1fr) auto;gap:8px;min-height:44px;padding:7px 9px}.plex-match-check{grid-row:auto}.plex-match-title{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.plex-match-title strong{font-size:.88rem}.plex-match-status{grid-column:auto;grid-row:auto}.plex-match-empty{grid-column:1/-1}.plex-history-panel{padding:14px}.plex-history-panel .plex-history-header .form-actions{margin:0;flex-wrap:wrap}.plex-history-list{grid-template-columns:repeat(3,minmax(0,1fr))}.plex-history-card{grid-template-columns:minmax(0,1fr);align-content:start;min-height:112px}.plex-history-card .form-actions{justify-content:flex-start}.plex-history-card .form-actions button{width:100%}@media(max-width:1100px){.plex-match-group-items,.plex-history-list{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:760px){.plex-match-review .plex-match-toolbar,.plex-match-review .plex-match-toolbar label,.plex-match-group-items,.plex-history-list{grid-template-columns:1fr}.plex-match-review .plex-match-toolbar strong{font-size:.85rem}.plex-match-review>.overlay-condition-builder .overlay-condition-rule{grid-template-columns:1fr}.plex-history-panel .plex-history-header{display:grid}.plex-review-libraries{width:100%}}`}</style>
       <div className="panel-heading">
         <div>
           <span className="eyebrow">PLEX ARTWORK</span>
@@ -298,7 +315,7 @@ export function PlexConnectionPanel({
         ) : null}
       </div>
       {plex?.configured ? (
-        <div className="notice">
+        <div className="notice plex-library-review">
           <strong>Choose libraries and revalidate matches</strong>
           <p className="muted">
             Select one or more Plex libraries to compare with VynodeArr.
@@ -328,7 +345,7 @@ export function PlexConnectionPanel({
           </div>
           <button
             type="button"
-            className="secondary"
+            className="secondary plex-review-libraries"
             disabled={busy || !selectedLibraries.length}
             onClick={() => void reviewMatches()}
           >
@@ -338,7 +355,7 @@ export function PlexConnectionPanel({
         </div>
       ) : null}
       {review ? (
-        <div className="notice">
+        <div className="notice plex-match-review">
           <div className="plex-match-toolbar">
             <label>
               Find a Plex library title
@@ -391,6 +408,17 @@ export function PlexConnectionPanel({
               here.
             </small>
           </label>
+          <fieldset className="overlay-condition-builder">
+            <legend>Filter titles by variables</legend>
+            <p className="muted">All filter rules must match. Filters affect the list, Select filtered, and filtered restore.</p>
+            {variableFilters.map((filter,index)=><div className="overlay-condition-rule" key={index}>
+              <select aria-label={`Plex filter ${index+1} variable`} value={filter.variable} onChange={event=>setVariableFilters(current=>current.map((item,i)=>i===index?{...item,variable:event.target.value}:item))}><option value="">Choose variable</option>{variables.filter(item=>!['icon','custom_text'].includes(item)).map(item=><option value={item} key={item}>{item.replaceAll('_',' ')}</option>)}</select>
+              <select aria-label={`Plex filter ${index+1} operator`} value={filter.operator} onChange={event=>setVariableFilters(current=>current.map((item,i)=>i===index?{...item,operator:event.target.value}:item))}><option value="equals">equals</option><option value="not_equals">does not equal</option><option value="contains">contains</option><option value="not_contains">does not contain</option><option value="greater_than">is greater than</option><option value="less_than">is less than</option><option value="greater_than_or_equal">is at least</option><option value="less_than_or_equal">is at most</option><option value="truthy">has a value</option><option value="falsy">has no value</option></select>
+              {!['truthy','falsy'].includes(filter.operator)?<input aria-label={`Plex filter ${index+1} value`} value={filter.value} onChange={event=>setVariableFilters(current=>current.map((item,i)=>i===index?{...item,value:event.target.value}:item))}/>:null}
+              <button type="button" className="icon-button" aria-label={`Remove Plex filter ${index+1}`} onClick={()=>setVariableFilters(current=>current.filter((_,i)=>i!==index))}>×</button>
+            </div>)}
+            <div className="form-actions"><button type="button" className="secondary" onClick={()=>setVariableFilters(current=>[...current,{variable:'plex_days_since_added',operator:'greater_than_or_equal',value:'1'}])}>Add variable filter</button>{variableFilters.length?<button type="button" className="text-button" onClick={()=>setVariableFilters([])}>Clear filters</button>:null}</div>
+          </fieldset>
           <div className="form-actions">
             <button
               type="button"
@@ -398,15 +426,15 @@ export function PlexConnectionPanel({
               disabled={!selectedTemplate}
               onClick={() =>
                 setSelectedTargets(
-                  review.entries
+                  filteredEntries
                     .filter(compatible)
-                    .slice(0, 500)
                     .map(targetKey),
                 )
               }
             >
-              Select all matched
+              Select filtered
             </button>
+            <button type="button" className="secondary" disabled={!selectedTemplate} onClick={()=>setSelectedTargets(review.entries.filter(compatible).map(targetKey))}>Select entire matched library</button>
             <button
               type="button"
               className="secondary"
@@ -419,11 +447,13 @@ export function PlexConnectionPanel({
               {selectedTargets.length} selected
             </span>
             <span className="muted">
-              Showing {visibleEntries.length} of {review.summary.total}
+              Showing {visibleEntries.length} of {filteredEntries.length}
             </span>
           </div>
-          <div className="plex-match-list">
-            {visibleEntries.map((item) => {
+          <div className="plex-match-list" onScroll={event=>{const node=event.currentTarget;if(node.scrollTop+node.clientHeight>=node.scrollHeight-160)setVisibleLimit(value=>Math.min(value+100,filteredEntries.length));}}>
+            {([['matched','Matched',visibleEntries.filter(item=>item.status==='matched')],['unmatched','Not matched',visibleEntries.filter(item=>item.status!=='matched')]] as const).map(([group,label,entries])=>entries.length?<section className="plex-match-group" key={group}>
+              <h3><span>{label}</span><span className="badge">{entries.length}</span></h3>
+              <div className="plex-match-group-items">{entries.map((item) => {
               const key = targetKey(item),
                 canApply = compatible(item),
                 selected = selectedTargets.includes(key);
@@ -447,32 +477,15 @@ export function PlexConnectionPanel({
                     <strong>
                       {item.title} {item.year ? `(${item.year})` : ""}
                     </strong>
-                    <small>
-                      {item.domain === "movie" ? "Movie" : "Television series"}{" "}
-                      · {item.plexLibrary.title}
-                    </small>
-                  </span>
-                  <span className="plex-match-details">
-                    <small>
-                      {item.externalIds.join(" · ") ||
-                        "No external IDs available"}
-                    </small>
-                    <small>
-                      {item.status === "matched"
-                        ? `Matched to ${item.plex[0]?.title || item.title}${item.plex[0]?.year ? ` (${item.plex[0].year})` : ""}`
-                        : item.status === "ambiguous"
-                          ? `${item.candidateCount || 2} VynodeArr titles share this Plex identity`
-                          : "No exact external-ID match in VynodeArr"}
-                    </small>
                   </span>
                   <span
                     className={`plex-match-status badge${item.status === "matched" ? " green" : ""}`}
                   >
-                    {item.status.toUpperCase()}
+                    {item.status === "matched" ? "MATCHED" : "NOT MATCHED"}
                   </span>
                 </label>
               );
-            })}
+            })}</div></section>:null)}
             {!visibleEntries.length ? (
               <div className="plex-match-empty">
                 No library items match this search and status filter.
@@ -482,7 +495,7 @@ export function PlexConnectionPanel({
         </div>
       ) : null}
       {selectedEntry && selectedTemplate ? (
-        <div className="notice">
+        <div className="notice plex-application-review">
           <h3>
             {selectedEntries.length === 1
               ? "One-title application review"
@@ -532,18 +545,10 @@ export function PlexConnectionPanel({
               <figcaption>Overlay preview</figcaption>
             </figure>
           </div>
-          <label>
-            Type <strong>{confirmationText}</strong>
-            <input
-              value={confirmation}
-              onChange={(event) => setConfirmation(event.target.value)}
-              autoComplete="off"
-            />
-          </label>
           <button
             type="button"
             className="danger"
-            disabled={busy || confirmation !== confirmationText}
+            disabled={busy || !selectedEntries.length}
             onClick={() => void apply()}
           >
             Capture rollback and apply{" "}
@@ -554,7 +559,7 @@ export function PlexConnectionPanel({
         </div>
       ) : null}
       {applications.length ? (
-        <div className="notice">
+        <div className="notice plex-history-panel">
           <div className="plex-history-header">
             <div>
               <h3>Recent Plex poster changes</h3>
@@ -562,15 +567,7 @@ export function PlexConnectionPanel({
                 Applied and restored artwork with rollback status.
               </p>
             </div>
-            {applications.length > 6 ? (
-              <button
-                type="button"
-                className="secondary"
-                onClick={() => setHistoryExpanded((value) => !value)}
-              >
-                {historyExpanded ? "Show recent" : "Show all"}
-              </button>
-            ) : null}
+            <div className="form-actions"><button type="button" className="danger" disabled={busy||!filteredRestores.length} onClick={()=>void restoreMany(filteredRestores)}>Restore filtered ({filteredRestores.length})</button><button type="button" className="danger" disabled={busy||!restorableApplications.length} onClick={()=>void restoreMany(restorableApplications)}>Restore all ({restorableApplications.length})</button>{applications.length>6?<button type="button" className="secondary" onClick={()=>setHistoryExpanded(value=>!value)}>{historyExpanded?"Show recent":"Show all"}</button>:null}</div>
           </div>
           <div className="plex-history-list">
             {(historyExpanded ? applications : applications.slice(0, 6)).map(
@@ -587,44 +584,10 @@ export function PlexConnectionPanel({
                     >
                       {application.status.toUpperCase()}
                     </span>
-                    {restoreId === application.id ? (
-                      <label>
-                        Type <strong>RESTORE PLEX POSTER</strong>
-                        <input
-                          value={restoreConfirmation}
-                          onChange={(event) =>
-                            setRestoreConfirmation(event.target.value)
-                          }
-                          autoComplete="off"
-                        />
-                      </label>
-                    ) : null}
                   </div>
                   {application.status === "applied" ? (
                     <div className="form-actions">
-                      <button
-                        type="button"
-                        className="secondary"
-                        onClick={() => {
-                          setRestoreId(application.id);
-                          setRestoreConfirmation("");
-                        }}
-                      >
-                        Prepare restore
-                      </button>
-                      {restoreId === application.id ? (
-                        <button
-                          type="button"
-                          className="danger"
-                          disabled={
-                            busy ||
-                            restoreConfirmation !== "RESTORE PLEX POSTER"
-                          }
-                          onClick={() => void restore(application)}
-                        >
-                          Restore captured poster
-                        </button>
-                      ) : null}
+                      <button type="button" className="danger" disabled={busy} onClick={() => void restore(application)}>Restore captured poster</button>
                     </div>
                   ) : null}
                 </article>

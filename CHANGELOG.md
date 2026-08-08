@@ -7,6 +7,183 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.35-rc.32] - 2026-08-07
+
+### Added
+
+- Added a Library Review page with independent Plex and VynodeArr movie lists displayed side by side.
+- Displayed each title's movie library, TMDB ID, and filename or full media path without forcing titles into paired rows.
+- Added independent searching, scrolling, and Plex movie-library filtering.
+- Allowed administrators to correct a selected VynodeArr match using the selected Plex title's TMDB ID or a manually entered TMDB ID.
+
+### Validation
+
+- Passed 210 automated tests, TypeScript checks, production builds, bundle and branding checks, and deployment validation.
+
+## [2.0.35-rc.31] - 2026-08-07
+
+### Fixed
+
+- Removed stale library entries after correcting a movie or television match.
+- Moved corrected matches and their existing files to the canonical folder calculated by the media engine.
+- Restored the original match safely when a corrected match or folder move cannot be completed.
+- Loaded additional Movies and Television library pages automatically as users scroll beyond the first result set.
+- Prevented overlapping library pagination requests while retaining a manual Load more fallback.
+
+### Validation
+
+- Passed 208 automated tests and web TypeScript checks.
+
+## [2.0.35-rc.30] - 2026-08-07
+
+### Changed
+
+- Grouped Plex match results into Matched and Not matched sections.
+- Reduced every match result to its checkbox, title, year, and match status.
+- Displayed grouped titles in compact responsive columns.
+
+### Fixed
+
+- Removed the old multi-line match metadata layout that caused title rows to overlap.
+
+### Validation
+
+- Passed 208 automated tests, TypeScript checks, production builds, bundle and branding checks, and deployment validation.
+
+## [2.0.35-rc.29] - 2026-08-07
+
+### Changed
+
+- Condensed Plex library selection, matching controls, variable filters, and selection actions.
+- Displayed matched Plex titles in responsive two-column cards on desktop.
+- Displayed recent Plex poster changes in a responsive three-column card grid instead of full-width rows.
+
+### Fixed
+
+- Applied compact styling to the actual match-results workspace instead of the library-selection panel.
+- Corrected the malformed remove-filter icon.
+
+### Validation
+
+- Passed 208 automated tests, TypeScript checks, production builds, bundle and branding checks, and deployment validation.
+
+## [2.0.35-rc.28] - 2026-08-07
+
+### Changed
+
+- Preserved leading and trailing spaces in layer prefixes, suffixes, and conditional formatting overrides.
+- Condensed Plex match controls after library synchronization.
+- Consolidated repeated overlay preview, editor, badge, and review styles into one route stylesheet to prevent layout shifts during large-list rerenders.
+
+### Fixed
+
+- Replaced the remaining 200-title VynodeArr overlay picker cap with incremental loading through the complete filtered library.
+
+### Validation
+
+- Passed 208 automated tests, TypeScript checks, production builds, bundle and branding checks, and deployment validation.
+
+## [2.0.35-rc.27] - 2026-08-07
+
+### Added
+
+- Added multi-variable filters for Plex poster application and rollback history.
+- Added individual, filtered, entire-library, and full-library Plex apply and restore scopes.
+
+### Changed
+
+- Removed typed confirmation phrases from Plex poster application and restoration.
+- Stored the applied title's variable values with each rollback record for deterministic filtered restoration.
+- Used destination-specific added dates when rendering both Plex and VynodeArr overlays.
+
+### Validation
+
+- Passed 207 automated tests, TypeScript checks, production builds, bundle and branding checks, and deployment validation.
+
+## [2.0.35-rc.26] - 2026-08-07
+
+### Fixed
+
+- Used VynodeArr added dates for VynodeArr styles and matched Plex added dates for Plex styles in the overlay editor.
+- Preserved Plex added timestamps in multi-library match results so editor previews and conditions calculate the correct age.
+- Replaced fixed overlay-library result caps with incremental batches that grow as users scroll.
+- Allowed Select all matched to include the complete filtered Plex library instead of only the first 500 titles.
+
+### Validation
+
+- Passed 206 automated tests, TypeScript checks, production builds, bundle and branding checks, and deployment validation.
+
+## [2.0.35-rc.25] - 2026-08-07
+
+### Fixed
+
+- Made Plex Days Since Added use a title's added date when preview metadata contains an empty value.
+- Ensured Plex age values have a minimum of one day so conditions never receive an unusable zero value.
+
+### Validation
+
+- Passed 205 automated tests, TypeScript checks, production builds, bundle and branding checks, and deployment validation.
+
+## [2.0.35-rc.24] - 2026-08-07
+
+### Fixed
+
+- Prevented layer-card disclosure updates from reading a cleared React event target while editing poster overlays.
+- Bounded the Poster Overlay editor to the backdrop's available width and height instead of adding viewport dimensions to modal padding.
+- Removed page-level horizontal and vertical overflow while retaining responsive desktop, tablet, and mobile editor layouts.
+
+### Validation
+
+- Passed 204 automated tests, TypeScript checks, production builds, bundle and branding checks, and deployment validation.
+
+## [2.0.35-rc.23] - 2026-08-07
+
+### Fixed
+
+- Replaced the whole-column Layer Settings minimizer with independently collapsible settings cards for every overlay layer.
+- Expanded and focused the selected layer card when adding a layer or selecting it from the build rail or poster preview.
+- Preserved Plex added timestamps supplied as Unix seconds, Unix milliseconds, or ISO dates so days-since-added rules render reliably.
+- Kept editor preview layers visible with representative metadata values when the selected title lacks the configured variable.
+
+### Validation
+
+- Passed 203 automated tests, TypeScript checks, production builds, bundle and branding checks, and deployment validation.
+
+## [2.0.35-rc.22] - 2026-08-07
+
+### Improved
+
+- Centered newly added overlay text, icon, and shape layers and selected them immediately.
+- Made build-rail and poster-preview layer clicks focus and scroll the matching second-column settings into view.
+- Added responsive minimize and expand controls for the Layer Settings column, with automatic expansion when a layer is selected.
+
+### Validation
+
+- Passed 202 automated tests, TypeScript checks, production builds, bundle and branding checks, and deployment validation.
+
+## [2.0.35-rc.21] - 2026-08-07
+
+### Added
+
+- Added a Plex-backed whole-calendar-day `Days since added` poster-overlay variable without substituting the Movie or Television engine added date.
+- Added inclusive numeric condition operators for configurable ranked ranges such as 0–7, 8–14, and 15+ days.
+- Preserved independent appearance formatting for every ranked sub-condition in the editor and final Plex artwork renderer.
+
+### Validation
+
+- Passed 200 automated tests, TypeScript checks, production builds, bundle and branding checks, and deployment validation.
+
+## [2.0.35-rc.20] - 2026-08-07
+
+### Fixed
+
+- Rebuilt the Reeltrack list integration and Poster Overlay editor from the stable v2.0.35 codebase instead of retaining the broken RC poster-rendering changes.
+- Corrected VynodeArr overlay sizing in alternate Movie and Television card, compact, and detailed-list layouts while leaving the primary poster-grid layout unchanged.
+
+### Validation
+
+- Passed complete tests, TypeScript checks, production web build, bundle validation, and deployment validation.
+
 ## [2.0.35] - 2026-08-06
 
 ### Fixed
@@ -1423,7 +1600,12 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.24...HEAD
+[2.0.35-rc.24]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.23...v2.0.35-rc.24
+[2.0.35-rc.23]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.22...v2.0.35-rc.23
+[2.0.35-rc.22]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.21...v2.0.35-rc.22
+[2.0.35-rc.21]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.20...v2.0.35-rc.21
+[2.0.35-rc.20]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35...v2.0.35-rc.20
 [2.0.35]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.8...v2.0.35
 [2.0.35-rc.8]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.7...v2.0.35-rc.8
 [2.0.35-rc.7]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.6...v2.0.35-rc.7

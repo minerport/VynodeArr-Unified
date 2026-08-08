@@ -28,7 +28,9 @@ consistent experience and account system.
 ## Current release
 
 Version **2.0.35** is available for production use on Unraid, Windows, and
-standard Docker installations. It includes a durable local Movie and Television catalog, targeted
+standard Docker installations. Version **2.0.35-rc.32** is available as a
+prerelease with side-by-side Plex and VynodeArr movie-library review, filename
+visibility, and TMDB-based match correction. The production release includes a durable local Movie and Television catalog, targeted
 event-driven updates, server-side paging, performance controls, and persistent
 artwork caching that reduce engine CPU and network load while preserving
 current library information and poster overlays. Persisted synchronization

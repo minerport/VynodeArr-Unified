@@ -30,14 +30,26 @@ const mobileAllowance={shell:1_800,css:3_000};
 // live resource controls. Keep that intentional surface under a narrow,
 // route-specific allowance instead of raising every lazy-route budget.
 const performanceAllowance={systemRoute:1_500,css:600};
+// Poster Overlay Studio carries its destination-aware editor, grouped layer
+// inspector, exact live poster preview, destination-specific added dates,
+// representative missing-metadata values, selection-to-settings navigation,
+// and one shared stylesheet replacing per-preview runtime style injection.
+// Keep its headroom isolated from every other application route.
+const posterOverlayAllowance={route:7_700,css:6_700};
+// Reeltrack adds one Discover-permission navigation bridge and a lazy Lists
+// workspace. Vite folds the responsive route stylesheet into shared CSS.
+const reeltrackAllowance={shell:600,css:7_500};
+// Library Review adds one administrator-only mount bridge and a responsive,
+// independently loaded two-column file comparison surface.
+const libraryReviewAllowance={shell:600,css:4_500};
 const failures=[];
 
 if(!entry)failures.push('The React entry bundle was not produced.');
 else if(entry.bytes>limits.entry)failures.push(`React entry is ${entry.bytes} bytes (limit ${limits.entry}).`);
 if(!shell)failures.push('The TypeScript application shell bundle was not produced.');
-else if(shell.bytes>limits.shell+mobileAllowance.shell)failures.push(`Application shell is ${shell.bytes} bytes (limit ${limits.shell+mobileAllowance.shell}).`);
-for(const chunk of routeChunks){const routeLimit=limits.route+(chunk.name.startsWith('system-')?performanceAllowance.systemRoute:0);if(chunk.bytes>routeLimit)failures.push(`${chunk.name} is ${chunk.bytes} bytes (route limit ${routeLimit}).`);}
-if(stylesheet&&stylesheet.bytes>limits.css+mobileAllowance.css+performanceAllowance.css)failures.push(`React stylesheet is ${stylesheet.bytes} bytes (limit ${limits.css+mobileAllowance.css+performanceAllowance.css}).`);
+else if(shell.bytes>limits.shell+mobileAllowance.shell+reeltrackAllowance.shell+libraryReviewAllowance.shell)failures.push(`Application shell is ${shell.bytes} bytes (limit ${limits.shell+mobileAllowance.shell+reeltrackAllowance.shell+libraryReviewAllowance.shell}).`);
+for(const chunk of routeChunks){const routeLimit=limits.route+(chunk.name.startsWith('system-')?performanceAllowance.systemRoute:0)+(chunk.name.startsWith('poster-overlays-')?posterOverlayAllowance.route:0);if(chunk.bytes>routeLimit)failures.push(`${chunk.name} is ${chunk.bytes} bytes (route limit ${routeLimit}).`);}
+if(stylesheet&&stylesheet.bytes>limits.css+mobileAllowance.css+performanceAllowance.css+posterOverlayAllowance.css+reeltrackAllowance.css+libraryReviewAllowance.css)failures.push(`React stylesheet is ${stylesheet.bytes} bytes (limit ${limits.css+mobileAllowance.css+performanceAllowance.css+posterOverlayAllowance.css+reeltrackAllowance.css+libraryReviewAllowance.css}).`);
 
 if(failures.length){
   console.error(`Web bundle budget failed:\n- ${failures.join('\n- ')}`);

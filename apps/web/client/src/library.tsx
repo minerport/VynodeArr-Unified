@@ -347,6 +347,7 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
     [searching, setSearching] = useState(false),
     [priorityIds, setPriorityIds] = useState<Set<string>>(() => new Set()),
     [loading, setLoading] = useState(!options.items.length),
+    [loadingPage, setLoadingPage] = useState(false),
     [syncing, setSyncing] = useState(false),
     [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null),
     [loadError, setLoadError] = useState("");
@@ -415,7 +416,10 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
           );
       } finally {
         pending = false;
-        if (active) setLoading(false);
+        if (active) {
+          setLoading(false);
+          setLoadingPage(false);
+        }
       }
     };
     const resume = () => {
@@ -509,6 +513,7 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
     return () => window.clearTimeout(timer);
   }, [query]);
   useEffect(() => {
+    setLoadingPage(true);
     setLimit(batchSize);
   }, [filter, sort, debouncedQuery, view, batchSize]);
   useEffect(() => {
@@ -645,17 +650,25 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
   );
   useEffect(() => {
     const node = loadMoreRef.current;
-    if (!node || limit >= total || !("IntersectionObserver" in window)) return;
+    if (
+      !node ||
+      loadingPage ||
+      limit >= total ||
+      !("IntersectionObserver" in window)
+    )
+      return;
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries.some((entry) => entry.isIntersecting))
-          setLimit((value) => value + batchSize);
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setLoadingPage(true);
+          setLimit((value) => Math.min(value + batchSize, total));
+        }
       },
       { rootMargin: "600px" },
     );
     observer.observe(node);
     return () => observer.disconnect();
-  }, [limit, total, batchSize]);
+  }, [limit, total, batchSize, loadingPage]);
   useEffect(() => {
     const alignRail = () =>
       setRailTop(
@@ -1108,18 +1121,21 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
           <p>Change the search or library filter.</p>
         </div>
       ) : null}
-      {limit < visible.length ? (
+      {limit < total ? (
         <div className="library-load-more" ref={loadMoreRef}>
           <p>
-            Showing {limit.toLocaleString()} of{" "}
-            {visible.length.toLocaleString()}
+            Showing {visible.length.toLocaleString()} of {total.toLocaleString()}
           </p>
           <button
             className="secondary"
             type="button"
-            onClick={() => setLimit((value) => value + batchSize)}
+            disabled={loadingPage}
+            onClick={() => {
+              setLoadingPage(true);
+              setLimit((value) => Math.min(value + batchSize, total));
+            }}
           >
-            Load more
+            {loadingPage ? "Loading…" : "Load more"}
           </button>
         </div>
       ) : null}

@@ -112,6 +112,42 @@ async function appSession(options,run){
     await run({base,cookie,csrf:result.csrf,app});
   }finally{server.closeAllConnections?.();await new Promise((resolve)=>server.close(resolve));app.sync.stopPolling();await rm(directory,{recursive:true,force:true});}
 }
+test('Reeltrack lists keep API keys server-side and match library titles only by durable external IDs',()=>{
+  const reeltrackFetch=async(input,init={})=>{
+    const url=String(input);
+    assert.equal(init.headers['X-API-Key'],'rt_live_test-key');
+    if(url.endsWith('/api/v1/lists'))return new Response(JSON.stringify({data:[{id:5,name:'My watchlist',description:'Imported from Reeltrack',kind:'custom'}]}),{status:200,headers:{'content-type':'application/json'}});
+    if(url.includes('/api/v1/lists/5/items'))return new Response(JSON.stringify({data:[
+      {mediaId:123,title:'Durable match',type:'movie',year:2026,tmdbId:1003598,source:'tmdb',externalId:'1003598',rank:1},
+      {mediaId:124,title:'Durable match',type:'movie',year:2026,tmdbId:9999999,source:'tmdb',externalId:'9999999',rank:2},
+      {mediaId:125,title:'TV match',type:'tv',year:2026,source:'tvdb',externalId:'4567',tmdbId:7654,rank:3},
+      {mediaId:126,title:'Durable match',type:'movie',year:2026,tmdbId:null,source:'plex',externalId:'1003598',rank:4},
+      {mediaId:127,title:'Durable match',type:'movie',year:2026,tmdbId:null,source:'jellyfin',externalId:'1003598',rank:5}
+    ]}),{status:200,headers:{'content-type':'application/json'}});
+    throw new Error(`Unexpected Reeltrack request: ${url}`);
+  };
+  const movie=Object.assign(new MovieFixtureAdapter(),{listMovies:async()=>[{id:'movie_durable',title:'Durable match',year:2026,tmdbId:1003598,hasFile:true}]}),
+    tv=Object.assign(new TvFixtureAdapter(),{listSeries:async()=>[{id:'series_durable',title:'TV match',year:2026,tmdbId:7654,tvdbId:4567,episodeProgress:'1 / 2'}]});
+  return appSession({movie,tv,fetcher:reeltrackFetch},async({base,cookie,csrf})=>{
+    const mutationHeaders={cookie,'content-type':'application/json','x-vynodearr-csrf':csrf};
+    const connected=await fetch(`${base}/api/reeltrack/connection`,{method:'PUT',headers:mutationHeaders,body:JSON.stringify({apiKey:'rt_live_test-key'})});
+    assert.equal(connected.status,200);
+    const status=await (await fetch(`${base}/api/reeltrack/status`,{headers:{cookie}})).json();
+    assert.deepEqual(status,{configured:true,importedCount:0,updatedAt:null});
+    assert.equal(JSON.stringify(status).includes('rt_live_test-key'),false);
+    const importedResponse=await fetch(`${base}/api/reeltrack/imported-lists`,{method:'POST',headers:mutationHeaders,body:JSON.stringify({listIds:[5]})});
+    assert.equal(importedResponse.status,200);
+    const imported=await importedResponse.json(),items=imported.items[0].items;
+    assert.equal(items[0].library.id,'movie_durable');
+    assert.equal(items[1].library,null,'an identical title must not bypass the external-ID mismatch');
+    assert.equal(items[1].canRequest,true);
+    assert.equal(items[2].library.id,'series_durable');
+    assert.equal(items[3].library,null,'a Plex identity must not be interpreted as a TMDB identity');
+    assert.equal(items[3].tmdbId,null);assert.equal(items[3].canRequest,false);
+    assert.equal(items[4].library,null,'a Jellyfin identity must not be interpreted as a TMDB identity');
+    assert.equal(items[4].tmdbId,null);assert.equal(items[4].canRequest,false);
+  });
+});
 test('authenticated artwork proxy caches binary responses without exposing engine URLs',()=>appSession({
   movie:Object.assign(new MovieFixtureAdapter(),{getArtwork:async()=>({body:Buffer.from('image-data'),contentType:'image/jpeg'})}),tv:new TvFixtureAdapter()
 },async({base,cookie})=>{
@@ -174,19 +210,18 @@ test('Plex poster connection previews, applies one title with rollback, and rest
   const saved=await fetch(`${base}/api/poster-overlays/plex`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({endpoint:'http://plex.local:32400',token:'protected-token'})}),value=await saved.json();
   assert.equal(saved.status,200);assert.equal(value.configured,true);assert.equal(value.artworkWritesEnabled,true);assert.equal(value.server.name,'Review Plex');assert.equal(value.token,undefined);
   const status=await (await fetch(`${base}/api/poster-overlays/plex`,{headers:{cookie}})).json();assert.equal(status.configured,true);assert.equal(status.libraries[0].title,'Movies');assert.equal(JSON.stringify(status).includes('protected-token'),false);
-  const reviewed=await fetch(`${base}/api/poster-overlays/plex/matches`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({libraryKeys:['1']})}),review=await reviewed.json();assert.equal(reviewed.status,200);assert.equal(review.summary.matched,1);assert.equal(review.artworkWritesEnabled,true);
+  const reviewed=await fetch(`${base}/api/poster-overlays/plex/matches`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({libraryKeys:['1']})}),review=await reviewed.json();assert.equal(reviewed.status,200);assert.equal(review.summary.matched,1);assert.equal(review.artworkWritesEnabled,true);assert.equal(typeof review.entries[0].variableValues,'object');
   const vynodeStyleResponse=await fetch(`${base}/api/poster-overlays/templates`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({name:'VynodeArr only',domain:'movie',target:'vynode',layers:[{variable:'title'}]})}),vynodeStyle=(await vynodeStyleResponse.json()).template;
   const styleResponse=await fetch(`${base}/api/poster-overlays/templates`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({name:'Plex preview',domain:'movie',target:'plex',plexBadges:{monitored:true,availability:true,cutoff:true,rating:true},layers:[{variable:'title'}]})}),style=(await styleResponse.json()).template,matched=review.entries.find(item=>item.status==='matched'),params=new URLSearchParams({libraryKey:'1',ratingKey:'91',templateId:style.id});
   assert.equal(style.target,'plex');assert.equal(vynodeStyle.target,'vynode');
   const originalResponse=await fetch(`${base}/api/poster-overlays/plex/original/movie/${matched.id}?${params}`,{headers:{cookie}});assert.equal(originalResponse.status,200);assert.deepEqual(Buffer.from(await originalResponse.arrayBuffer()),original);
   const wrongPreviewParams=new URLSearchParams({libraryKey:'1',ratingKey:'91',templateId:vynodeStyle.id}),wrongPreview=await fetch(`${base}/api/poster-overlays/plex/preview/movie/${matched.id}?${wrongPreviewParams}`,{headers:{cookie}});assert.equal(wrongPreview.status,400);
   const preview=await fetch(`${base}/api/poster-overlays/plex/preview/movie/${matched.id}?${params}`,{headers:{cookie}}),previewBytes=Buffer.from(await preview.arrayBuffer());assert.equal(preview.status,200);assert.match(preview.headers.get('content-type'),/image\/jpeg/);assert.ok(previewBytes.length>original.length);
-  const denied=await fetch(`${base}/api/poster-overlays/plex/apply`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({confirmation:'APPLY',templateId:style.id,domain:'movie',mediaId:matched.id,libraryKey:'1',ratingKey:'91'})});assert.equal(denied.status,400);assert.equal(uploads.length,0);
-  const wrongTarget=await fetch(`${base}/api/poster-overlays/plex/apply`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({confirmation:'APPLY TO PLEX',templateId:vynodeStyle.id,domain:'movie',mediaId:matched.id,libraryKey:'1',ratingKey:'91'})});assert.equal(wrongTarget.status,400);assert.equal(uploads.length,0);
-  const applied=await fetch(`${base}/api/poster-overlays/plex/apply`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({confirmation:'APPLY TO PLEX',templateId:style.id,domain:'movie',mediaId:matched.id,libraryKey:'1',ratingKey:'91'})}),application=(await applied.json()).application;assert.equal(applied.status,201);assert.equal(application.status,'applied');assert.equal(uploads.length,1);assert.equal(uploads[0].contentType,'image/jpeg');assert.deepEqual(uploads[0].value,previewBytes);assert.notDeepEqual(uploads[0].value,original);
-  const restored=await fetch(`${base}/api/poster-overlays/plex/applications/${application.id}/restore`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({confirmation:'RESTORE PLEX POSTER'})});assert.equal(restored.status,200);assert.equal((await restored.json()).application.status,'restored');assert.equal(uploads.length,2);assert.deepEqual(uploads[1].value,original);assert.equal(uploads[1].contentType,'image/svg+xml');
-  const batchTarget={domain:'movie',mediaId:matched.id,title:matched.title,libraryKey:'1',ratingKey:'91'},batch=await fetch(`${base}/api/poster-overlays/plex/apply-batch`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({confirmation:'APPLY 1 TO PLEX',templateId:style.id,targets:[batchTarget]})}),batchValue=await batch.json();assert.equal(batch.status,200);assert.deepEqual(batchValue.summary,{requested:1,applied:1,failed:0});assert.equal(uploads.length,3);
-  const duplicateBatch=await fetch(`${base}/api/poster-overlays/plex/apply-batch`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({confirmation:'APPLY 2 TO PLEX',templateId:style.id,targets:[batchTarget,batchTarget]})});assert.equal(duplicateBatch.status,400);assert.equal(uploads.length,3);
+  const wrongTarget=await fetch(`${base}/api/poster-overlays/plex/apply`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({templateId:vynodeStyle.id,domain:'movie',mediaId:matched.id,libraryKey:'1',ratingKey:'91'})});assert.equal(wrongTarget.status,400);assert.equal(uploads.length,0);
+  const applied=await fetch(`${base}/api/poster-overlays/plex/apply`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({templateId:style.id,domain:'movie',mediaId:matched.id,libraryKey:'1',ratingKey:'91'})}),application=(await applied.json()).application;assert.equal(applied.status,201);assert.equal(application.status,'applied');assert.equal(typeof application.variableValues,'object');assert.equal(uploads.length,1);assert.equal(uploads[0].contentType,'image/jpeg');assert.deepEqual(uploads[0].value,previewBytes);assert.notDeepEqual(uploads[0].value,original);
+  const restored=await fetch(`${base}/api/poster-overlays/plex/applications/${application.id}/restore`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:'{}'});assert.equal(restored.status,200);assert.equal((await restored.json()).application.status,'restored');assert.equal(uploads.length,2);assert.deepEqual(uploads[1].value,original);assert.equal(uploads[1].contentType,'image/svg+xml');
+  const batchTarget={domain:'movie',mediaId:matched.id,title:matched.title,libraryKey:'1',ratingKey:'91'},batch=await fetch(`${base}/api/poster-overlays/plex/apply-batch`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({templateId:style.id,targets:[batchTarget]})}),batchValue=await batch.json();assert.equal(batch.status,200);assert.deepEqual(batchValue.summary,{requested:1,applied:1,failed:0});assert.equal(uploads.length,3);
+  const duplicateBatch=await fetch(`${base}/api/poster-overlays/plex/apply-batch`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({templateId:style.id,targets:[batchTarget,batchTarget]})});assert.equal(duplicateBatch.status,400);assert.equal(uploads.length,3);
   const removed=await fetch(`${base}/api/poster-overlays/plex`,{method:'DELETE',headers:{cookie,'x-vynodearr-csrf':csrf}});assert.equal(removed.status,200);assert.equal((await removed.json()).configured,false);
 });});
 test('encrypted application backups can be downloaded once and inspected before restore',()=>appSession({movie:new MovieFixtureAdapter(),tv:new TvFixtureAdapter()},async({base,cookie,csrf})=>{

@@ -20,17 +20,27 @@ test('Plex authentication errors are actionable without exposing the token',asyn
 });
 
 test('Plex matching uses external IDs and reports ambiguity without title fallback',()=>{
-  const service=new PlexService(),vynode=[{id:'movie_1',domain:'movie',title:'Same title',tmdbId:10},{id:'movie_2',domain:'movie',title:'Same title',tmdbId:20},{id:'movie_3',domain:'movie',title:'Unique by name only'}],plex=[{ratingKey:'a',title:'Different title',Guid:[{id:'tmdb://10'}]},{ratingKey:'b',title:'Same title',Guid:[{id:'tmdb://20'}]},{ratingKey:'c',title:'Duplicate ID',Guid:[{id:'tmdb://20'}]},{ratingKey:'d',title:'Unique by name only',Guid:[]}];
-  const result=service.match(vynode,plex);assert.equal(result[0].status,'matched');assert.equal(result[0].plex[0].ratingKey,'a');assert.equal(result[1].status,'ambiguous');assert.equal(result[2].status,'unmatched');
+  const service=new PlexService(),vynode=[{id:'movie_1',domain:'movie',title:'Same title',tmdbId:10},{id:'movie_2',domain:'movie',title:'Same title',tmdbId:20},{id:'movie_3',domain:'movie',title:'Unique by name only'}],plex=[{ratingKey:'a',title:'Different title',addedAt:1786057200,Guid:[{id:'tmdb://10'}]},{ratingKey:'b',title:'Same title',Guid:[{id:'tmdb://20'}]},{ratingKey:'c',title:'Duplicate ID',Guid:[{id:'tmdb://20'}]},{ratingKey:'d',title:'Unique by name only',Guid:[]}];
+  const result=service.match(vynode,plex);assert.equal(result[0].status,'matched');assert.equal(result[0].plex[0].ratingKey,'a');assert.equal(result[0].plex[0].addedAt,1786057200);assert.equal(result[1].status,'ambiguous');assert.equal(result[2].status,'unmatched');
 });
 
 test('multi-library review is driven by Plex items instead of repeating every VynodeArr title',()=>{
-  const service=new PlexService(),vynode=[{id:'movie_a',domain:'movie',title:'Alpha',tmdbId:10},{id:'movie_b',domain:'movie',title:'Beta',tmdbId:20}],first=service.matchLibrary(vynode,[{ratingKey:'1',title:'Alpha',type:'movie',Guid:[{id:'tmdb://10'}]}]),second=service.matchLibrary(vynode,[{ratingKey:'2',title:'Other',type:'movie',Guid:[{id:'tmdb://99'}]}]);
-  assert.equal(first.length,1);assert.equal(first[0].status,'matched');assert.equal(first[0].id,'movie_a');assert.equal(second.length,1);assert.equal(second[0].status,'unmatched');assert.equal(second[0].id,'plex_2');
+  const service=new PlexService(),vynode=[{id:'movie_a',domain:'movie',title:'Alpha',tmdbId:10},{id:'movie_b',domain:'movie',title:'Beta',tmdbId:20}],first=service.matchLibrary(vynode,[{ratingKey:'1',title:'Alpha',type:'movie',addedAt:1700000000,Guid:[{id:'tmdb://10'}]}]),second=service.matchLibrary(vynode,[{ratingKey:'2',title:'Other',type:'movie',Guid:[{id:'tmdb://99'}]}]);
+  assert.equal(first.length,1);assert.equal(first[0].status,'matched');assert.equal(first[0].id,'movie_a');assert.equal(first[0].plex[0].addedAt,1700000000);assert.equal(second.length,1);assert.equal(second[0].status,'unmatched');assert.equal(second[0].id,'plex_2');
 });
 
 test('Plex library hydration retrieves omitted GUIDs and accepts legacy agent identifiers',async()=>{
-  const calls=[],service=new PlexService({fetchImpl:async url=>{calls.push(url);if(url.includes('/library/sections/1/all'))return new Response(JSON.stringify({MediaContainer:{Metadata:[{ratingKey:'10',title:'Modern',year:2024,guid:'plex://movie/modern'},{ratingKey:'11',title:'Legacy',year:2009,guid:'com.plexapp.agents.themoviedb://34653?lang=en'}]}}));if(url.includes('/library/metadata/10'))return new Response(JSON.stringify({MediaContainer:{Metadata:[{ratingKey:'10',title:'Modern',Guid:[{id:'tmdb://32562'},{id:'imdb://tt1517451'}]}]}}));throw new Error(`Unexpected URL ${url}`);}}),items=await service.libraryItems('http://plex.local:32400','token',{key:'1',type:'movie'}),result=service.match([{id:'movie_a',domain:'movie',title:'Modern',tmdbId:32562},{id:'movie_b',domain:'movie',title:'Legacy',tmdbId:34653}],items);assert.equal(result[0].status,'matched');assert.equal(result[1].status,'matched');assert.equal(calls.length,2);assert.match(calls[1],/library\/metadata\/10\?includeGuids=1/);
+  const calls=[],service=new PlexService({fetchImpl:async url=>{calls.push(url);if(url.includes('/library/sections/1/all'))return new Response(JSON.stringify({MediaContainer:{Metadata:[{ratingKey:'10',title:'Modern',year:2024,addedAt:1786057200,guid:'plex://movie/modern'},{ratingKey:'11',title:'Legacy',year:2009,guid:'com.plexapp.agents.themoviedb://34653?lang=en'}]}}));if(url.includes('/library/metadata/10'))return new Response(JSON.stringify({MediaContainer:{Metadata:[{ratingKey:'10',title:'Modern',Guid:[{id:'tmdb://32562'},{id:'imdb://tt1517451'}]}]}}));throw new Error(`Unexpected URL ${url}`);}}),items=await service.libraryItems('http://plex.local:32400','token',{key:'1',type:'movie'}),result=service.match([{id:'movie_a',domain:'movie',title:'Modern',tmdbId:32562},{id:'movie_b',domain:'movie',title:'Legacy',tmdbId:34653}],items);assert.equal(result[0].status,'matched');assert.equal(result[0].plex[0].addedAt,1786057200);assert.equal(result[1].status,'matched');assert.equal(calls.length,2);assert.match(calls[1],/library\/metadata\/10\?includeGuids=1/);
+});
+
+test('Plex library metadata retains numeric and ISO added timestamps',async()=>{
+  const service=new PlexService({fetchImpl:async()=>new Response(JSON.stringify({MediaContainer:{Metadata:[{ratingKey:'1',title:'Numeric',addedAt:1786057200,Guid:[{id:'tmdb://1'}]},{ratingKey:'2',title:'ISO',addedAt:'2026-08-01T12:00:00Z',Guid:[{id:'tmdb://2'}]}]}}))}),items=await service.libraryItems('http://plex.local:32400','token',{key:'1',type:'movie'});
+  assert.equal(items[0].addedAt,1786057200);assert.equal(items[1].addedAt,'2026-08-01T12:00:00.000Z');
+});
+
+test('Plex library metadata retains every movie filename for independent library review',async()=>{
+  const service=new PlexService({fetchImpl:async()=>new Response(JSON.stringify({MediaContainer:{Metadata:[{ratingKey:'1',title:'Two files',Guid:[{id:'tmdb://1'}],Media:[{Part:[{file:'/plex/movies/Two files/part-one.mkv'},{file:'/plex/movies/Two files/part-two.mkv'}]}]}]}}))}),items=await service.libraryItems('http://plex.local:32400','token',{key:'1',type:'movie'});
+  assert.deepEqual(items[0].files,['/plex/movies/Two files/part-one.mkv','/plex/movies/Two files/part-two.mkv']);
 });
 
 test('Plex artwork proxy accepts bounded image responses and rejects arbitrary paths',async()=>{
