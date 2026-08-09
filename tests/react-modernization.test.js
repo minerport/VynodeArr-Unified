@@ -15,6 +15,8 @@ test('Reeltrack Lists remains fluid while the viewport is resized',async()=>{
   assert.match(view,/This is the only place in VynodeArr where your Reeltrack key\s+is entered/);
   assert.match(view,/Replace API key/);
   assert.match(view,/Choose host folder/);
+  assert.match(view,/Get your API key at reeltrack\.vynodehub\.com/);
+  for(const guidance of ['Keep this list in sync with Plex','1. Turn on automatic management','2','Choose where titles belong','Name it and choose a schedule','Customize artwork','Original Plex artwork is backed up','Last sync results','Save and apply settings'])assert.ok(view.includes(guidance),guidance);
   assert.match(view,/MAP HOST FOLDER/);
   assert.match(view,/Plex, host, and engine paths are mapped independently/);
   assert.doesNotMatch(view,/Add as Movie root/);
@@ -39,7 +41,7 @@ test('Reeltrack Lists remains fluid while the viewport is resized',async()=>{
   assert.match(designer,/for\s*\(const item of snapshots\)\s*onChange\(item\.id,\s*\{\s*position:\s*"custom"/);
   assert.match(designer,/layers:\s*\[\.\.\.current\.layers,\s*accent,\s*graphic,\s*badge\]/);
   assert.match(view,/overlays applied/);assert.match(view,/overlay failures/);
-  assert.match(view,/artwork\/\$\{kind\}\/restore/);assert.match(view,/Revert in Plex/);assert.match(view,/saved only for \$\{selected\.name\}/);
+  assert.match(view,/artwork\/\$\{kind\}\/restore/);assert.match(view,/Restore original/);assert.match(view,/used only for \$\{selected\.name\}/);
 });
 
 test('loaded Action Center records cannot widen the mobile viewport',async()=>{
@@ -1222,6 +1224,7 @@ test('Plex poster batches support variable filters and direct scoped restoration
   assert.match(source,/plex-match-group-items\{display:grid;grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);assert.match(source,/plex-history-list\{grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
   assert.match(source,/\['matched','Matched'/);assert.match(source,/\['unmatched','Not matched'/);assert.doesNotMatch(source,/className="plex-match-details"/);
   assert.match(source,/Restore filtered/);assert.match(source,/Restore all/);assert.match(source,/targets\.slice\(index,index\+500\)/);
+  assert.match(source,/Plex poster change history/);assert.match(source,/View history/);assert.match(source,/Reviewing matches does not modify artwork/);
   assert.doesNotMatch(source,/APPLY TO PLEX|RESTORE PLEX POSTER|confirmationText/);
   assert.match(api,/variableValues:source\?posterVariableValues/);assert.match(api,/variableValues: posterVariableValues/);
 });

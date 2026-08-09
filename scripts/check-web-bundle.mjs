@@ -56,14 +56,24 @@ const libraryReviewAllowance={shell:600,css:4_800};
 // Administrator media removal adds a shared, lazy detail dialog plus a small
 // legacy-shell fallback for choosing whether files and folders are deleted.
 const mediaRemovalAllowance={shell:700,css:1_300};
+// Interactive search now keeps compact search, source, quality, status, and
+// sorting controls available on phones instead of hiding desktop-only columns.
+const releaseBrowserAllowance={css:2_500};
+// Managed Reeltrack collections now use a numbered first-run setup flow with
+// separate storage, scheduling, artwork, and sync-result cards.
+const managedCollectionSetupAllowance={css:2_300};
+// Poster Overlays now separates Plex history from VynodeArr assignments and
+// supports fixed or daily-rotating saved styles with explicit help text.
+const overlayAssignmentClarityAllowance={route:1_700,css:1_000};
+const reeltrackApiKeyLinkAllowance={css:100};
 const failures=[];
 
 if(!entry)failures.push('The React entry bundle was not produced.');
 else if(entry.bytes>limits.entry)failures.push(`React entry is ${entry.bytes} bytes (limit ${limits.entry}).`);
 if(!shell)failures.push('The TypeScript application shell bundle was not produced.');
 else if(shell.bytes>limits.shell+mobileAllowance.shell+reeltrackAllowance.shell+libraryReviewAllowance.shell+mediaRemovalAllowance.shell)failures.push(`Application shell is ${shell.bytes} bytes (limit ${limits.shell+mobileAllowance.shell+reeltrackAllowance.shell+libraryReviewAllowance.shell+mediaRemovalAllowance.shell}).`);
-for(const chunk of routeChunks){const routeLimit=limits.route+(chunk.name.startsWith('system-')?performanceAllowance.systemRoute:0)+(chunk.name.startsWith('poster-overlays-')?posterOverlayAllowance.route:0);if(chunk.bytes>routeLimit)failures.push(`${chunk.name} is ${chunk.bytes} bytes (route limit ${routeLimit}).`);}
-if(stylesheet&&stylesheet.bytes>limits.css+mobileAllowance.css+performanceAllowance.css+posterOverlayAllowance.css+reeltrackAllowance.css+trailerDownloadAllowance.css+managedListCompactAllowance.css+artworkDesignerAllowance.css+libraryReviewAllowance.css+mediaRemovalAllowance.css)failures.push(`React stylesheet is ${stylesheet.bytes} bytes (limit ${limits.css+mobileAllowance.css+performanceAllowance.css+posterOverlayAllowance.css+reeltrackAllowance.css+trailerDownloadAllowance.css+managedListCompactAllowance.css+artworkDesignerAllowance.css+libraryReviewAllowance.css+mediaRemovalAllowance.css}).`);
+for(const chunk of routeChunks){const routeLimit=limits.route+(chunk.name.startsWith('system-')?performanceAllowance.systemRoute:0)+(chunk.name.startsWith('poster-overlays-')?posterOverlayAllowance.route+overlayAssignmentClarityAllowance.route:0);if(chunk.bytes>routeLimit)failures.push(`${chunk.name} is ${chunk.bytes} bytes (route limit ${routeLimit}).`);}
+if(stylesheet&&stylesheet.bytes>limits.css+mobileAllowance.css+performanceAllowance.css+posterOverlayAllowance.css+reeltrackAllowance.css+trailerDownloadAllowance.css+managedListCompactAllowance.css+artworkDesignerAllowance.css+libraryReviewAllowance.css+mediaRemovalAllowance.css+releaseBrowserAllowance.css+managedCollectionSetupAllowance.css+overlayAssignmentClarityAllowance.css+reeltrackApiKeyLinkAllowance.css)failures.push(`React stylesheet is ${stylesheet.bytes} bytes (limit ${limits.css+mobileAllowance.css+performanceAllowance.css+posterOverlayAllowance.css+reeltrackAllowance.css+trailerDownloadAllowance.css+managedListCompactAllowance.css+artworkDesignerAllowance.css+libraryReviewAllowance.css+mediaRemovalAllowance.css+releaseBrowserAllowance.css+managedCollectionSetupAllowance.css+overlayAssignmentClarityAllowance.css+reeltrackApiKeyLinkAllowance.css}).`);
 
 if(failures.length){
   console.error(`Web bundle budget failed:\n- ${failures.join('\n- ')}`);

@@ -52,6 +52,15 @@
   color: var(--muted);
   margin-right: auto;
 }
+.reeltrack-api-key-link {
+  color: var(--cyan);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+.reeltrack-api-key-link:hover {
+  text-decoration: underline;
+}
 .reeltrack-trailer-status {
   display: flex;
   align-items: center;
@@ -191,6 +200,129 @@
 .reeltrack-list-automation > p.danger-text {
   margin: 0;
   font-size: 0.8rem;
+}
+.reeltrack-list-automation > .reeltrack-automation-step,
+.reeltrack-list-automation > .reeltrack-automation-results {
+  grid-column: 1 / -1;
+}
+.reeltrack-list-automation-heading .eyebrow {
+  color: var(--cyan);
+  font-size: 0.64rem;
+}
+.reeltrack-automation-toggle {
+  padding: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--cyan) 30%, var(--line));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--cyan) 5%, transparent);
+}
+.reeltrack-automation-toggle input {
+  align-self: start;
+  margin-top: 0.2rem;
+}
+.reeltrack-automation-step {
+  display: grid;
+  gap: 0.7rem;
+  padding: 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--panel) 72%, transparent);
+}
+.reeltrack-step-heading {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+}
+.reeltrack-step-heading > span {
+  display: grid;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex: 0 0 1.75rem;
+  place-items: center;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--cyan) 18%, var(--panel));
+  color: var(--cyan);
+  font-weight: 800;
+}
+.reeltrack-step-heading > div {
+  display: grid;
+  gap: 0.15rem;
+}
+.reeltrack-step-heading em {
+  margin-left: 0.35rem;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-style: normal;
+  font-weight: 600;
+}
+.reeltrack-library-fields {
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+}
+.reeltrack-schedule-fields {
+  grid-template-columns: minmax(240px, 2fr) minmax(180px, 1fr);
+}
+.reeltrack-artwork-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+.reeltrack-artwork-option {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel-strong);
+}
+.reeltrack-artwork-option > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+}
+.reeltrack-artwork-option > div:first-child {
+  display: grid;
+  gap: 0.15rem;
+}
+.reeltrack-automation-results {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.75rem;
+  border-left: 3px solid var(--cyan);
+  background: color-mix(in srgb, var(--cyan) 5%, transparent);
+}
+.reeltrack-automation-results > div:first-child {
+  display: grid;
+  gap: 0.1rem;
+}
+.reeltrack-automation-summary span {
+  padding: 0.25rem 0.45rem;
+  border-radius: 999px;
+  background: var(--panel-strong);
+}
+@media (max-width: 760px) {
+  .reeltrack-list-automation {
+    padding: 0.65rem;
+  }
+  .reeltrack-list-automation-heading {
+    align-items: flex-start;
+  }
+  .reeltrack-list-automation-heading > button {
+    white-space: nowrap;
+  }
+  .reeltrack-schedule-fields,
+  .reeltrack-artwork-options {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .reeltrack-library-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .reeltrack-artwork-option > div:last-child button,
+  .reeltrack-list-automation > .primary {
+    width: 100%;
+  }
+  .reeltrack-automation-summary {
+    gap: 0.35rem;
+  }
 }
 .reeltrack-remote-list {
   display: grid;

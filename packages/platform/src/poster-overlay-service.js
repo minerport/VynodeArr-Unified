@@ -440,6 +440,7 @@ export function sanitizeOverlayAssignment(input = {}, existing = null) {
     templateId: cleanText(input.templateId, 100),
     name: cleanText(input.name || "Overlay assignment", 80),
     enabled: input.enabled !== false,
+    presentationMode: input.presentationMode === "rotate" ? "rotate" : "fixed",
     scope: {
       type,
       domain,
@@ -875,8 +876,7 @@ export function resolveOverlayTemplate(
         .map((value) => [value.id, value]),
     ),
     rank = { items: 5, "user-collection": 4, collection: 3, rules: 2, all: 1 };
-  return (
-    assignments
+  const assignment = assignments
       .filter(
         (value) =>
           active.has(value.templateId) &&
@@ -887,8 +887,15 @@ export function resolveOverlayTemplate(
           (rank[b.scope.type] || 0) - (rank[a.scope.type] || 0) ||
           String(b.updatedAt).localeCompare(String(a.updatedAt)),
       )
-      .map((value) => active.get(value.templateId))[0] || null
-  );
+      [0];
+  if (!assignment) return null;
+  if (assignment.presentationMode !== "rotate") return active.get(assignment.templateId) || null;
+  const choices = [...active.values()].filter((template) => template.domain === "all" || template.domain === domain).sort((a,b)=>String(a.id).localeCompare(String(b.id)));
+  if (!choices.length) return null;
+  const day = new Date().toISOString().slice(0,10), seed = `${item.id || item.title || "poster"}:${day}`;
+  let hash = 0;
+  for (let index = 0; index < seed.length; index += 1) hash = ((hash << 5) - hash + seed.charCodeAt(index)) | 0;
+  return choices[Math.abs(hash) % choices.length];
 }
 
 const xml = (value) =>

@@ -391,6 +391,7 @@ export function PosterOverlaysView({
     [yearTo, setYearTo] = useState(""),
     [availability, setAvailability] = useState(""),
     [monitoring, setMonitoring] = useState("");
+  const [presentationMode,setPresentationMode]=useState<"fixed"|"rotate">("fixed");
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -552,7 +553,7 @@ export function PosterOverlaysView({
         yearTo,
         availability,
         monitoring,
-      }),
+      },presentationMode),
     );
   };
   const confirmApplication = async () => {
@@ -721,12 +722,14 @@ export function PosterOverlaysView({
           <section className="panel overlay-assignment-panel">
             <div className="panel-heading">
               <div>
-                <h2>Apply a style</h2>
+                <span className="eyebrow">VYNODEARR LIBRARY OVERLAYS</span>
+                <h2>Apply saved styles inside VynodeArr</h2>
                 <p className="muted">
-                  Choose the exact scope before any artwork changes.
+                  This section changes posters shown in VynodeArr only. It does not change artwork stored in Plex.
                 </p>
               </div>
             </div>
+            <fieldset className="overlay-presentation-mode"><legend>How should saved styles be displayed?</legend><label><input type="radio" name="overlay-presentation" checked={presentationMode==="fixed"} onChange={()=>setPresentationMode("fixed")}/><span><strong>Keep the selected style</strong><small>Continue showing the style chosen when this assignment is saved.</small></span></label><label><input type="radio" name="overlay-presentation" checked={presentationMode==="rotate"} onChange={()=>setPresentationMode("rotate")}/><span><strong>Rotate saved styles</strong><small>Cycle through compatible VynodeArr poster styles daily. Each title stays consistent for the entire day.</small></span></label></fieldset>
             <div className="overlay-scope-row">
               <label>
                 Library
@@ -919,6 +922,7 @@ export function PosterOverlaysView({
                     {item.scope.type === "items"
                       ? ` · ${item.scope.mediaIds.length} titles`
                       : ""}
+                    {` · ${item.presentationMode === "rotate" ? "daily rotation" : "fixed style"}`}
                   </small>
                 </span>
                 <button
@@ -950,6 +954,7 @@ export function PosterOverlaysView({
               )
               .filter((item) => domain === "all" || item.domain === domain)}
             busy={busy}
+            presentationMode={(applicationReview.payload.presentationMode as "fixed"|"rotate") || "fixed"}
             onCancel={() => setApplicationReview(null)}
             onConfirm={() => void confirmApplication()}
           />

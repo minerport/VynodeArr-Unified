@@ -93,6 +93,7 @@ export interface OverlayAssignment {
   templateId: string;
   name: string;
   enabled: boolean;
+  presentationMode?: "fixed" | "rotate";
   scope: {
     type: "all" | "items" | "rules";
     domain: OverlayDomain;

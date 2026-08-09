@@ -7,6 +7,26 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.38-rc.1] - 2026-08-09
+
+### Added
+
+- Added mobile interactive-search controls for release text, status, source, and quality filtering, plus sorting by status, title, source, quality, score, size, age, or peers in either direction.
+- Added fixed and daily-rotating VynodeArr poster-style assignments. Daily rotation selects from compatible saved VynodeArr styles while keeping each title stable throughout the day.
+- Added a persistent link to `https://reeltrack.vynodehub.com` so users can find or create their Reeltrack API key from either connection state.
+
+### Changed
+
+- Reorganized managed Reeltrack collection setup into a numbered first-use flow for automation, Plex and host destinations, collection naming and scheduling, and optional artwork.
+- Rewrote Reeltrack storage, artwork backup, synchronization, and result guidance in plain language, with clearer readiness and failure states and a responsive phone layout.
+- Clearly separated Plex artwork operations from VynodeArr library-overlay assignments and added assignment-mode guidance to the application review.
+- Collapsed Plex poster history into a compact summary that reveals restoration controls and individual records only when opened.
+- Condensed mobile interactive-search headers and result rows, kept controls visible while scrolling, and added a live filtered-result count.
+
+### Validation
+
+- Passed all 224 automated tests plus TypeScript, production build, bundle, branding, and deployment validation.
+
 ## [2.0.37] - 2026-08-08
 
 ### Added
@@ -2136,6 +2156,7 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 [2.0.34-rc.3]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.34-rc.2...v2.0.34-rc.3
 [2.0.34-rc.2]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.34-rc.1...v2.0.34-rc.2
 [2.0.34-rc.1]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33...v2.0.34-rc.1
+[2.0.38-rc.1]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.37...v2.0.38-rc.1
 [2.0.37]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.36...v2.0.37
 [2.0.33]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.32...v2.0.33
 [2.0.33-rc.5]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33-rc.4...v2.0.33-rc.5

@@ -491,6 +491,7 @@ export function ReeltrackListsView({
             <i /> Reeltrack connected
           </span>
           <small>Credentials are stored securely on the server.</small>
+          <a className="reeltrack-api-key-link" href="https://reeltrack.vynodehub.com" target="_blank" rel="noreferrer">Get your API key at reeltrack.vynodehub.com</a>
           <button
             className="text-button"
             disabled={busy}
@@ -679,11 +680,12 @@ export function ReeltrackListsView({
               <section className="reeltrack-list-automation">
                 <div className="reeltrack-list-automation-heading">
                   <div>
-                    <strong>Managed Plex collection</strong>
+                    <span className="eyebrow">LIST AUTOMATION</span>
+                    <strong>Keep this list in sync with Plex</strong>
                     <small>
                       {selected?.automation?.enabled
                         ? `${selected.automation.status || "scheduled"}${selected.automation.lastRunAt ? ` · Last run ${new Date(selected.automation.lastRunAt).toLocaleString()}` : ""}`
-                        : "Not enabled for this imported list"}
+                        : "Set this up once and VynodeArr can maintain the collection for you."}
                     </small>
                   </div>
                   {selected?.automation?.enabled ? (
@@ -698,49 +700,57 @@ export function ReeltrackListsView({
                     checked={automationEnabled}
                     onChange={(event) => setAutomationEnabled(event.target.checked)}
                   />
-                  Automatically sync this list, trailers, and Plex
+                  <span><strong>1. Turn on automatic management</strong><small>Periodically refresh the Reeltrack list, register missing titles, manage trailers, and update the Plex collection.</small></span>
                 </label>
                 {automationEnabled ? (
-                  <div className="reeltrack-automation-fields">
+                  <div className="reeltrack-automation-step">
+                    <div className="reeltrack-step-heading"><span>2</span><div><strong>Choose where titles belong</strong><small>Select the Plex library and the matching folder on this VynodeArr host. Nothing is moved by choosing these locations.</small></div></div>
+                    <div className="reeltrack-automation-fields reeltrack-library-fields">
                     {selected?.items?.some((item) => item.domain === "movie") ? <div className="reeltrack-plex-target"><label>
-                      Movie Plex library
+                      <span>Movie library</span>
                       <select value={automationMovieLibraryKey} onChange={(event) => setAutomationMovieLibraryKey(event.target.value)}>
                         <option value="">Choose a movie library</option>
                         {(trailerStatus?.libraries || []).filter((library) => library.type === "movie").map((library) => <option key={library.key} value={library.key}>{library.title}</option>)}
                       </select>
-                      <small>Plex reference: {rootCompatibility("movie").location || "not reported"}</small>
+                      <small>Plex stores this library at {rootCompatibility("movie").location || "an unreported location"}.</small>
                       <div className="storage-path-control"><input aria-label="Movie host folder" readOnly value={movieHostRoot}/><button className="secondary" type="button" onClick={() => openHostBrowser("movie")}>Choose host folder</button></div>
-                    </label>{automationMovieLibraryKey && !rootCompatibility("movie").compatible ? <div className="reeltrack-root-warning"><span>The Movie engine needs its own configured root, which may use a different path.</span><a className="button-link secondary" href="#service/root-folders">Review storage folders</a></div> : <small className="reeltrack-root-ready">Plex, host, and engine paths are mapped independently</small>}</div> : null}
+                    </label>{automationMovieLibraryKey && !rootCompatibility("movie").compatible ? <div className="reeltrack-root-warning"><span>Movie storage still needs a compatible engine root.</span><a className="button-link secondary" href="#service/root-folders">Review folders</a></div> : <small className="reeltrack-root-ready">Ready: Plex, host, and Movie engine paths can differ.</small>}</div> : null}
                     {selected?.items?.some((item) => item.domain === "tv") ? <div className="reeltrack-plex-target"><label>
-                      Television Plex library
+                      <span>Television library</span>
                       <select value={automationTvLibraryKey} onChange={(event) => setAutomationTvLibraryKey(event.target.value)}>
                         <option value="">Choose a television library</option>
                         {(trailerStatus?.libraries || []).filter((library) => library.type === "show").map((library) => <option key={library.key} value={library.key}>{library.title}</option>)}
                       </select>
-                      <small>Plex reference: {rootCompatibility("tv").location || "not reported"}</small>
+                      <small>Plex stores this library at {rootCompatibility("tv").location || "an unreported location"}.</small>
                       <div className="storage-path-control"><input aria-label="Television host folder" readOnly value={tvHostRoot}/><button className="secondary" type="button" onClick={() => openHostBrowser("tv")}>Choose host folder</button></div>
-                    </label>{automationTvLibraryKey && !rootCompatibility("tv").compatible ? <div className="reeltrack-root-warning"><span>The Television engine needs its own configured root, which may use a different path.</span><a className="button-link secondary" href="#service/root-folders">Review storage folders</a></div> : <small className="reeltrack-root-ready">Plex, host, and engine paths are mapped independently</small>}</div> : null}
-                    <label>
-                      Collection name
+                    </label>{automationTvLibraryKey && !rootCompatibility("tv").compatible ? <div className="reeltrack-root-warning"><span>Television storage still needs a compatible engine root.</span><a className="button-link secondary" href="#service/root-folders">Review folders</a></div> : <small className="reeltrack-root-ready">Ready: Plex, host, and Television engine paths can differ.</small>}</div> : null}
+                    </div>
+                  </div>
+                ) : null}
+                {automationEnabled ? (
+                  <div className="reeltrack-automation-step">
+                    <div className="reeltrack-step-heading"><span>3</span><div><strong>Name it and choose a schedule</strong><small>This is the collection name people see in Plex. The schedule controls how often changes from Reeltrack are checked.</small></div></div>
+                    <div className="reeltrack-automation-fields reeltrack-schedule-fields"><label>
+                      <span>Collection name in Plex</span>
                       <input value={automationCollectionName} onChange={(event) => setAutomationCollectionName(event.target.value)} />
                     </label>
                     <label>
-                      Interval
+                      <span>Check for changes</span>
                       <select value={automationInterval} onChange={(event) => setAutomationInterval(Number(event.target.value))}>
                         <option value={15}>15 minutes</option><option value={30}>30 minutes</option><option value={60}>1 hour</option><option value={360}>6 hours</option><option value={1440}>24 hours</option>
                       </select>
-                    </label>
+                    </label></div>
                   </div>
                 ) : null}
-                {automationEnabled ? <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:10,gridColumn:"1/-1"}}>
-                  <div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) auto auto",gap:"6px 10px",alignItems:"center",padding:10,border:"1px solid var(--border)",borderRadius:10}}><strong>Collection poster</strong><button className="secondary" type="button" onClick={() => setPosterDesigner("collection")}>{collectionPosterTemplate ? "Edit poster" : "Design poster"}</button>{selected?.automation?.collectionPosterTemplate ? <button className="text-button danger" disabled={busy} type="button" onClick={() => void restoreArtwork("collection")}>Revert in Plex</button> : collectionPosterTemplate ? <button className="text-button danger" type="button" onClick={() => setCollectionPosterTemplate(null)}>Remove</button> : null}<small className="muted" style={{gridColumn:"1/-1"}}>{collectionPosterTemplate ? `${collectionPosterTemplate.layers.length} layers · saved only for ${selected.name}` : "Use layered shapes, text, and collection variables."}</small></div>
-                  <div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) auto auto",gap:"6px 10px",alignItems:"center",padding:10,border:"1px solid var(--border)",borderRadius:10}}><strong>Title overlays</strong><button className="secondary" type="button" onClick={() => setPosterDesigner("title")}>{titleOverlayTemplate ? "Edit overlay" : "Design overlay"}</button>{selected?.automation?.titleOverlayTemplate ? <button className="text-button danger" disabled={busy} type="button" onClick={() => void restoreArtwork("titles")}>Revert in Plex</button> : titleOverlayTemplate ? <button className="text-button danger" type="button" onClick={() => setTitleOverlayTemplate(null)}>Remove</button> : null}<small className="muted" style={{gridColumn:"1/-1"}}>{titleOverlayTemplate ? `${titleOverlayTemplate.layers.length} layers · saved only for ${selected.name}` : "Apply a custom overlay to every managed title."}</small></div>
-                </div> : null}
+                {automationEnabled ? <div className="reeltrack-automation-step"><div className="reeltrack-step-heading"><span>4</span><div><strong>Customize artwork <em>Optional</em></strong><small>Design one poster for the collection, or add an overlay to each title poster. Original Plex artwork is backed up before changes are applied.</small></div></div><div className="reeltrack-artwork-options">
+                  <div className="reeltrack-artwork-option"><div><strong>Collection poster</strong><small>{collectionPosterTemplate ? `${collectionPosterTemplate.layers.length} layers · used only for ${selected.name}` : "A single poster displayed for this collection in Plex."}</small></div><div><button className="secondary" type="button" onClick={() => setPosterDesigner("collection")}>{collectionPosterTemplate ? "Edit design" : "Design poster"}</button>{selected?.automation?.collectionPosterTemplate ? <button className="text-button danger" disabled={busy} type="button" onClick={() => void restoreArtwork("collection")}>Restore original</button> : collectionPosterTemplate ? <button className="text-button danger" type="button" onClick={() => setCollectionPosterTemplate(null)}>Remove design</button> : null}</div></div>
+                  <div className="reeltrack-artwork-option"><div><strong>Title poster overlays</strong><small>{titleOverlayTemplate ? `${titleOverlayTemplate.layers.length} layers · used only for ${selected.name}` : "A consistent label or design added to every managed title poster."}</small></div><div><button className="secondary" type="button" onClick={() => setPosterDesigner("title")}>{titleOverlayTemplate ? "Edit design" : "Design overlay"}</button>{selected?.automation?.titleOverlayTemplate ? <button className="text-button danger" disabled={busy} type="button" onClick={() => void restoreArtwork("titles")}>Restore originals</button> : titleOverlayTemplate ? <button className="text-button danger" type="button" onClick={() => setTitleOverlayTemplate(null)}>Remove design</button> : null}</div></div>
+                </div></div> : null}
                 {selected?.automation?.error ? <p className="danger-text">{selected.automation.error}</p> : null}
                 {selected?.automation?.summary ? (
-                  <div className="reeltrack-automation-summary">
+                  <div className="reeltrack-automation-results"><div><strong>Last sync results</strong><small>What VynodeArr found and changed during the most recent run.</small></div><div className="reeltrack-automation-summary">
                     <span><strong>{selected.automation.summary.providerTitles}</strong> list titles</span><span><strong>{selected.automation.summary.placeholders}</strong> Plex placeholders</span><span><strong>{selected.automation.summary.realMatches}</strong> real matches</span><span><strong>{selected.automation.summary.libraryAdded || 0}</strong> added</span><span><strong>{selected.automation.summary.libraryExisting || 0}</strong> registered</span>{selected.automation.summary.collectionPosters ? <span><strong>{selected.automation.summary.collectionPosters}</strong> collection posters applied</span> : null}{selected.automation.summary.collectionPosterFailures ? <span className="danger-text" title={selected.automation.summary.collectionPosterErrors?.join("\n")}><strong>{selected.automation.summary.collectionPosterFailures}</strong> collection poster failures</span> : null}{selected.automation.summary.titlePosters ? <span><strong>{selected.automation.summary.titlePosters}</strong> overlays applied</span> : null}{selected.automation.summary.titlePosterFailures ? <span className="danger-text" title={selected.automation.summary.titlePosterErrors?.join("\n")}><strong>{selected.automation.summary.titlePosterFailures}</strong> overlay failures</span> : null}{selected.automation.summary.libraryFailed ? <span className="danger-text"><strong>{selected.automation.summary.libraryFailed}</strong> library failures</span> : null}{selected.automation.summary.failed ? <span className="danger-text"><strong>{selected.automation.summary.failed}</strong> trailer failures</span> : null}
-                  </div>
+                  </div></div>
                 ) : null}
                 {selected?.automation?.libraryErrors?.length ? (
                   <small className="danger-text">{selected.automation.libraryErrors.join(" · ")}</small>
@@ -750,7 +760,7 @@ export function ReeltrackListsView({
                   disabled={busy || (automationEnabled && Boolean(selected?.items?.some((item) => item.domain === "movie")) && !automationMovieLibraryKey) || (automationEnabled && Boolean(selected?.items?.some((item) => item.domain === "tv")) && !automationTvLibraryKey)}
                   onClick={() => void saveAutomation()}
                 >
-                  Save automation
+                  Save and apply settings
                 </button>
               </section>
             ) : null}

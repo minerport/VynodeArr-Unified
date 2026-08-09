@@ -92,6 +92,14 @@ test('specific poster assignments override broad assignments without changing un
   assert.equal(assignmentMatches(assignments[1],{id:'movie_8'},{domain:'movie'}),false);
 });
 
+test('VynodeArr assignments can keep one saved style or rotate compatible styles daily',()=>{
+  const first=sanitizeOverlayTemplate({id:'template_first',name:'First',target:'vynode',domain:'movie',enabled:true}),second=sanitizeOverlayTemplate({id:'template_second',name:'Second',target:'vynode',domain:'movie',enabled:true});
+  const fixed=sanitizeOverlayAssignment({templateId:first.id,presentationMode:'fixed',scope:{type:'all',domain:'movie'}}),rotating=sanitizeOverlayAssignment({templateId:first.id,presentationMode:'rotate',scope:{type:'all',domain:'movie'}});
+  assert.equal(resolveOverlayTemplate({id:'movie_10'},'movie',[first,second],[fixed])?.id,first.id);
+  assert.ok([first.id,second.id].includes(resolveOverlayTemplate({id:'movie_10'},'movie',[first,second],[rotating])?.id));
+  assert.equal(rotating.presentationMode,'rotate');
+});
+
 test('poster variables derive friendly values from library metadata',()=>{
   const now='2026-08-02T12:00:00Z',values=posterVariableValues({title:'Example',rating:8.84,quality:'WEBDL-1080p',qualityProfile:'Ultra HD',runtimeMinutes:120,genres:['Drama'],monitoring:'all',state:'available',tmdbId:42,sizeOnDisk:16106127360,completionPercent:100,tags:['favorite','4k'],addedAt:'2026-07-30T12:00:00Z',releaseDate:'2026-07-20T12:00:00Z',queue:{status:'downloading',progress:63,eta:'2026-08-03T12:00:00Z'}},{now});
   assert.equal(values.rating,'8.8');assert.equal(values.resolution,'1080p');assert.equal(values.quality_profile,'Ultra HD');assert.equal(values.runtime,'120 min');assert.equal(values.monitored,'Monitored');assert.equal(values.tmdb_id,42);
