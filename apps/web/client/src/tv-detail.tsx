@@ -7,6 +7,7 @@ import { MatchBrowser,type MatchCandidate } from './match-browser';
 import { ModalPortal } from './modal-portal';
 import { MediaCollectionControl } from './media-collection-control';
 import { RemoveLibraryItemDialog } from './remove-library-item-dialog';
+import { DetailHeroTrailer } from './detail-hero-trailer';
 import './react-tv-detail.css';
 
 const message=(reason:unknown)=>reason instanceof Error?reason.message:'The operation failed.';
@@ -59,7 +60,7 @@ export function TvDetailView({options}:{options:TvDetailMountOptions}){
   const facts=[['Network',item.network||'Not specified'],['Status',item.status||'Unknown'],['Monitoring',item.monitoring||'Unknown'],['Episodes',item.episodeProgress||'Not reported'],['Missing',item.missingEpisodes||0],['Next',item.nextEpisode?.airDateUtc?new Date(item.nextEpisode.airDateUtc).toLocaleDateString():'Complete']];
   return <div className={`react-tv-detail${enrichmentLoading?' enrichment-pending':''}`} role="region" aria-label={`${item.title} television details`}>
     <div className="vynode-detail-surface">
-    {item.backdrop?.url?<div className="detail-backdrop"><img src={item.backdrop.url} alt="" aria-hidden="true"/></div>:null}<a className="back-link" href="#tv">← Back to Television</a>
+    <DetailHeroTrailer artwork={item.backdrop?.url} title={item.title} source={`/api/media/trailers/tv/${encodeURIComponent(options.publicId)}`} fallbackTrailer={enrichment?.trailer}/><a className="back-link" href="#tv">← Back to Television</a>
     <div className="panel-heading detail-freshness"><span className={`badge ${freshness?.source==='catalog'?'amber':'green'}`}>{freshness?.source==='catalog'?'Catalog fallback':freshness?.source==='cache'?'Cached live details':'Live engine details'}</span><small>{freshness?.updatedAt?`Updated ${new Date(freshness.updatedAt).toLocaleString()}`:'Freshness unavailable'}</small>{options.administrator?<button className="secondary" disabled={Boolean(busy)} onClick={()=>void refreshDetails()}>{busy==='details'?'Updating…':'Update details'}</button>:null}</div>
     <section className="detail-hero"><div className="detail-art">{item.artwork?.url?<img src={item.artwork.url} alt=""/>:<span className="art-fallback">TV</span>}</div><div className="detail-copy"><span className="eyebrow">TV SERIES</span><h1>{item.title}</h1><p className="lede">{item.overview}</p><span className="badge green">{item.monitoring||'Unknown'}</span>{options.administrator?<div className="detail-actions">
       <button className={`primary${busy==='SeriesSearch'?' is-working':''}`} disabled={Boolean(busy)} onClick={()=>void command('SeriesSearch',{seriesId:engineId})}>{busy==='SeriesSearch'?'Searching…':'Automatic search'}</button>

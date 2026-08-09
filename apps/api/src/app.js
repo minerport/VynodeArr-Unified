@@ -36,6 +36,7 @@ import {
 } from "../../../packages/platform/src/plex-service.js";
 import { JsonStore } from "../../../packages/platform/src/json-store.js";
 import { TrailerDownloadService } from "../../../packages/platform/src/trailer-download-service.js";
+import { TrailerPlaybackService } from "../../../packages/platform/src/trailer-playback-service.js";
 import {
   GuideTemplateService,
   formatForMovieEngine,
@@ -520,6 +521,17 @@ export function createApplication(options = {}) {
       binary: env.VYNODEARR_YTDLP_BINARY || "yt-dlp",
       movieRoot: env.VYNODEARR_TRAILER_DIR || env.VYNODEARR_MOVIE_LIBRARY_PATH || "/movies",
       tvRoot: env.VYNODEARR_TV_LIBRARY_PATH || "/tv",
+    });
+  const trailerPlayback =
+    options.trailerPlayback ||
+    new TrailerPlaybackService({
+      movieRoot:
+        trailerDownloader.roots?.movie ||
+        env.VYNODEARR_TRAILER_DIR ||
+        env.VYNODEARR_MOVIE_LIBRARY_PATH ||
+        "/movies",
+      tvRoot:
+        trailerDownloader.roots?.tv || env.VYNODEARR_TV_LIBRARY_PATH || "/tv",
     });
   const requestStore =
     options.requestStore ||
@@ -14362,6 +14374,26 @@ export function createApplication(options = {}) {
                 }
               : {}),
           });
+        }
+        const trailerMatch = url.pathname.match(
+          /^\/api\/media\/trailers\/(movie|tv)\/((?:movie|series)_[A-Za-z0-9_-]+)$/,
+        );
+        if (trailerMatch && ["GET", "HEAD"].includes(req.method)) {
+          const domain = trailerMatch[1],
+            permission = domain === "movie" ? "movies" : "tv";
+          if (!permitted(res, session, permission)) return;
+          const detail = await mediaDetail(domain, trailerMatch[2]),
+            file = detail?.item
+              ? await trailerPlayback.find(domain, detail.item.location || detail.item.rootFolder)
+              : null;
+          if (!file) {
+            res.writeHead(404, {
+              "cache-control": "private, max-age=60",
+              "x-content-type-options": "nosniff",
+            });
+            return res.end();
+          }
+          return trailerPlayback.send(req, res, file);
         }
         const movieMatch = url.pathname.match(
           /^\/api\/media\/movies\/(movie_[A-Za-z0-9_-]+)$/,

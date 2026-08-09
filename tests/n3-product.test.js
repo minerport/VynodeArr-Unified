@@ -168,6 +168,15 @@ test('authenticated artwork proxy caches binary responses without exposing engin
   const response=await fetch(`${base}/api/artwork/movie/movie_1/poster`,{headers:{cookie}});assert.equal(response.status,200);assert.equal(response.headers.get('content-type'),'image/jpeg');assert.equal(Buffer.from(await response.arrayBuffer()).toString(),'image-data');
   assert.equal((await fetch(`${base}/api/artwork/movie/movie_1/poster`)).status,401);
 }));
+test('authenticated movie and television trailer endpoints delegate range delivery without Plex',()=>{
+  const calls=[],trailerPlayback={find:async(domain,location)=>{calls.push({domain,location});return{path:`/${domain}/trailer.mp4`,size:7,contentType:'video/mp4'};},send:(req,res,file)=>{assert.equal(req.headers.range,'bytes=1-3');res.writeHead(206,{'content-type':file.contentType,'content-range':'bytes 1-3/7','content-length':'3','accept-ranges':'bytes'});res.end('rai');}};
+  return appSession({movie:new MovieFixtureAdapter(),tv:new TvFixtureAdapter(),trailerPlayback},async({base,cookie})=>{
+    for(const path of ['/api/media/trailers/movie/movie_orbit-city','/api/media/trailers/tv/series_afterlight']){
+      const response=await fetch(`${base}${path}`,{headers:{cookie,range:'bytes=1-3'}});assert.equal(response.status,206);assert.equal(response.headers.get('accept-ranges'),'bytes');assert.equal(await response.text(),'rai');
+    }
+    assert.deepEqual(calls.map(call=>call.domain),['movie','tv']);assert.equal((await fetch(`${base}/api/media/trailers/movie/movie_orbit-city`)).status,401);
+  });
+});
 test('composed posters reuse the same bounded artwork cache as library posters',()=>{
   let artworkReads=0;const movie=Object.assign(new MovieFixtureAdapter(),{getArtwork:async()=>{artworkReads+=1;return{body:Buffer.from('image-data'),contentType:'image/jpeg'};}});
   return appSession({movie,tv:new TvFixtureAdapter()},async({base,cookie})=>{

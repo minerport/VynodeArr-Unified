@@ -11,6 +11,10 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Replaced the outdated GitHub and Unraid listing screenshots with a current
   six-view product tour and added a linked VynodeArr walkthrough video.
+- Added muted, lightweight hero-trailer playback to movie and television
+  details using browser-compatible local trailers, byte-range streaming, sound
+  and pause controls, reduced-data safeguards, and the existing fanart as a
+  permanent fallback. Plex is not required.
 
 ## [2.0.38] - 2026-08-09
 

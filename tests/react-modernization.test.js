@@ -1489,3 +1489,10 @@ test('movie library review keeps Plex and VynodeArr lists independent while allo
   assert.match(types,/PlexReviewMovie/);assert.match(types,/VynodeReviewMovie/);assert.match(types,/FolderScanMovie/);assert.match(styles,/grid-template-columns:repeat\(3/);assert.match(mismatchStyles,/filename-mismatch/);assert.match(mismatchStyles,/header\{position:static/);assert.match(mismatchStyles,/justify-items:stretch/);assert.match(mismatchStyles,/text-align:left!important/);assert.match(mismatchStyles,/justify-content:flex-start/);assert.match(mismatchStyles,/title-comparison\.matched/);assert.match(mismatchStyles,/title-comparison\.missing/);
   assert.match(tabs,/Library Review/);assert.match(routing,/libraryReview/);assert.match(islands,/mountLibraryReview/);
 });
+
+test('movie and television details share lightweight hero trailer playback with artwork fallback',async()=>{
+  const [hero,movie,tv,styles]=await Promise.all([read('apps/web/client/src/detail-hero-trailer.tsx'),read('apps/web/client/src/movie-detail.tsx'),read('apps/web/client/src/tv-detail.tsx'),read('apps/web/client/src/detail-hero-trailer.css')]);
+  assert.match(hero,/muted autoPlay playsInline preload="metadata"/);assert.match(hero,/prefers-reduced-motion/);assert.match(hero,/saveData/);
+  assert.match(hero,/Turn sound on/);assert.match(hero,/onError/);assert.match(styles,/trailer-ready/);
+  assert.match(movie,/api\/media\/trailers\/movie/);assert.match(tv,/api\/media\/trailers\/tv/);
+});

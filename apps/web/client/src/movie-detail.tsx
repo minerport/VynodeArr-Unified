@@ -7,6 +7,7 @@ import { MatchBrowser,type MatchCandidate } from './match-browser';
 import { ModalPortal } from './modal-portal';
 import { MediaCollectionControl } from './media-collection-control';
 import { RemoveLibraryItemDialog } from './remove-library-item-dialog';
+import { DetailHeroTrailer } from './detail-hero-trailer';
 import './react-movie-detail.css';
 
 const errorMessage=(reason:unknown)=>reason instanceof Error?reason.message:'The operation failed.';
@@ -68,7 +69,7 @@ export function MovieDetailView({options}:{options:MovieDetailMountOptions}){
   const fileNeedle=fileQuery.trim().toLowerCase(),visibleDirectories=fileBrowser?.directories.filter(entry=>!fileNeedle||`${entry.name||''} ${entry.path}`.toLowerCase().includes(fileNeedle))||[],visibleFiles=fileBrowser?.files.filter(entry=>!fileNeedle||`${entry.name||''} ${entry.path}`.toLowerCase().includes(fileNeedle))||[];
   return <div className={`react-movie-detail${enrichmentLoading?' enrichment-pending':''}`} role="region" aria-label={`${item.title} movie details`}>
     <div className="vynode-detail-surface">
-    {item.backdrop?.url?<div className="detail-backdrop"><img src={item.backdrop.url} alt="" aria-hidden="true"/></div>:null}
+    <DetailHeroTrailer artwork={item.backdrop?.url} title={item.title} source={`/api/media/trailers/movie/${encodeURIComponent(options.publicId)}`} fallbackTrailer={enrichment?.trailer}/>
     <a className="back-link" href="#movies">← Back to Movies</a>
     <div className="panel-heading detail-freshness"><span className={`badge ${freshness?.source==='catalog'?'amber':'green'}`}>{freshness?.source==='catalog'?'Catalog fallback':freshness?.source==='cache'?'Cached live details':'Live engine details'}</span><small>{freshness?.updatedAt?`Updated ${new Date(freshness.updatedAt).toLocaleString()}`:'Freshness unavailable'}</small>{options.administrator?<button className="secondary" disabled={Boolean(busy)} onClick={()=>void refreshDetails()}>{busy==='details'?'Updating…':'Update details'}</button>:null}</div>
     <section className="detail-hero"><div className="detail-art">{item.artwork?.url?<img src={item.artwork.url} alt=""/>:<span className="art-fallback">M</span>}</div><div className="detail-copy"><span className="eyebrow">MOVIE</span><h1>{item.title}</h1><p className="lede">{item.overview}</p><span className="badge green">{item.monitoring||'Unknown'}</span>{options.administrator?<div className="detail-actions">
