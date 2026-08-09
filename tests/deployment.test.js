@@ -20,14 +20,15 @@ test('local Compose persists random engine keys and shares them with VynodeArr',
 });
 test('Unraid template has required mappings, self-contained image, and upstream attribution',async()=>{
   const text=await readFile(new URL('../templates/vynodearr.xml',import.meta.url),'utf8');
-  for(const value of ['<Name>VynodeArr</Name>','ghcr.io/minerport/vynodearr-unified:latest','<Registry>https://ghcr.io</Registry>','<MyIP/>','Target="8686"','Target="/config"','Target="/movies"','Target="/tv"','Target="/downloads"'])assert.match(text,new RegExp(value));
+  for(const value of ['<Name>VynodeArr</Name>','ghcr.io/minerport/vynodearr-unified:latest','<Registry>https://github.com/minerport/VynodeArr-Unified/pkgs/container/vynodearr-unified</Registry>','<MyIP/>','Target="8686"','Target="/config"','Target="/movies"','Target="/tv"','Target="/downloads"'])assert.match(text,new RegExp(value));
   const overview=text.match(/<Overview>(.*?)<\/Overview>/s)?.[1]||'';
   assert.match(overview,/\bRadarr\b/);assert.match(overview,/\bSonarr\b/);
   assert.match(text,/GPLv3/);assert.match(text,/Apache 2\.0/);
   assert.match(text,/<License>Apache-2\.0<\/License>/);
   assert.match(text,/<ReadMe>https:\/\/raw\.githubusercontent\.com\/minerport\/VynodeArr-Unified\/main\/README\.md<\/ReadMe>/);
-  for(const target of ['/media','/movies-2','/movies-3','/tv-2','/tv-3'])assert.match(text,new RegExp(`<Config Name="[^"]+" Target="${target}" Default=""[^>]+Required="false"[^>]*><\\/Config>`));
-  assert.match(text,/do not register the same library through two container paths/i);
+  assert.match(text,new RegExp(`<Config Name="[^"]+" Target="/media" Default=""[^>]+Required="false"[^>]*><\\/Config>`));
+  for(const target of ['/movies-2','/movies-3','/tv-2','/tv-3'])assert.doesNotMatch(text,new RegExp(`Target="${target}"`));
+  assert.match(text,/do not expose the same library through both a legacy path and \/media/i);
   assert.doesNotMatch(text,/Target="\/unraid-template"/);
   assert.doesNotMatch(text,/templates-user/);
 });

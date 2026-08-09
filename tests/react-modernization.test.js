@@ -518,8 +518,9 @@ test('storage folders and import review use a typed React route and analysis bou
   assert.match(view,/\/filesystem\?/);
   assert.match(view,/Download and library paths match/);
   assert.match(view,/Configured library mappings/);
-  assert.match(view,/`Use for \$\{domain==='movie'\?'Movies':'Television'\}`/);
-  assert.match(view,/Assign this optional path in the VynodeArr container settings and click Apply/);
+  assert.match(view,/Use for Movies/);
+  assert.match(view,/Use for Television/);
+  assert.match(view,/Each row is one direct child of \/media/);
   assert.match(view,/setScanRoot\(root\)/);
   assert.match(view,/LibraryImportReview/);
   assert.match(view,/ModalPortal/);
@@ -528,6 +529,8 @@ test('storage folders and import review use a typed React route and analysis bou
   assert.match(view,/Make default/);
   assert.match(api,/new Set\(\["cdrom", "floppy", "usb"\]\)/);
   assert.match(api,/!ignoredMediaChildren\.has\(item\.name\.toLowerCase\(\)\)/);
+  assert.match(api,/readFile\("\/proc\/self\/mountinfo"/);
+  assert.match(api,/mainMediaConfigured: mountPoints\.has\("\/media"\)/);
   assert.match(types,/startImport:/);
   assert.match(islands,/mountRootFolders/);
   assert.match(legacy,/showRootFoldersReact/);

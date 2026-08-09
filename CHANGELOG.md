@@ -7,6 +7,21 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.40-rc.5] - 2026-08-09
+
+### Changed
+
+- Simplified new Unraid installations to the legacy `/movies` and `/tv`
+  mappings plus one optional `/media` parent. Storage Folders scans only the
+  parent's direct children and lets administrators assign each child to the
+  movie or television engine without numbered container-path placeholders.
+
+### Fixed
+
+- Requests now add media to the selected destination first, then send and
+  track an explicit movie or television search command instead of relying on
+  an implicit add-time engine search.
+
 ## [2.0.40-rc.4] - 2026-08-09
 
 ### Fixed
@@ -2333,7 +2348,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.40-rc.4...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.40-rc.5...HEAD
+[2.0.40-rc.5]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.40-rc.4...v2.0.40-rc.5
 [2.0.40-rc.4]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.40-rc.3...v2.0.40-rc.4
 [2.0.40-rc.3]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.40-rc.2...v2.0.40-rc.3
 [2.0.40-rc.2]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.40-rc.1...v2.0.40-rc.2

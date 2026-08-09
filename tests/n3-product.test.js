@@ -360,7 +360,7 @@ test('user page permissions are enforced by APIs and update active sessions imme
   assert.ok(audit.some(item=>item.action==='user.request_limits_removed'&&item.metadata.targetUserId===created.id));
 }));
 test('approval-required Discover requests stay out of the engine until an administrator approves them',()=>{
-  const library=[],posts=[];
+  const library=[],posts=[],commands=[];
   const movieClient={
     get:async(path)=>{
       if(path==='qualityprofile')return[{id:1,name:'HD'}];
@@ -370,7 +370,8 @@ test('approval-required Discover requests stay out of the engine until an admini
       throw new Error(`Unexpected movie GET ${path}`);
     },
     post:async(path,payload)=>{
-      assert.equal(path,'movie');posts.push(payload);const result={...payload,id:99,title:payload.title||'Approval Film',year:2026,hasFile:false};library.push(result);return result;
+      if(path==='command'){commands.push(payload);return{id:501,name:payload.name,status:'queued'};}
+      assert.equal(path,'movie');posts.push(structuredClone(payload));const result={...payload,id:99,title:payload.title||'Approval Film',year:2026,hasFile:false};library.push(result);return result;
     },
     delete:async()=>({})
   };
@@ -393,7 +394,7 @@ test('approval-required Discover requests stay out of the engine until an admini
     const administered=(await (await fetch(`${base}/api/requests`,{headers:{cookie}})).json()).items;
     assert.equal(administered[0].user.id,created.id);assert.equal(administered[0].canApprove,true);
     const approved=await fetch(`${base}/api/requests/${requestValue.request.id}/approve`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:'{}'});
-    assert.equal(approved.status,200);assert.equal(posts.length,1);
+    assert.equal(approved.status,200);assert.equal(posts.length,1);assert.equal(posts[0].addOptions.searchForMovie,false);assert.deepEqual(commands,[{name:'MoviesSearch',movieIds:[99]}]);
     const retainedAdminNotifications=await (await fetch(`${base}/api/notifications`,{headers:{cookie}})).json();
     assert.equal(retainedAdminNotifications.items.some(item=>item.id===adminNotifications.items[0].id),true);assert.equal(retainedAdminNotifications.items.find(item=>item.id===adminNotifications.items[0].id).type,'approved');assert.deepEqual(retainedAdminNotifications.pageBadge,{href:'#request-management',count:0});
     const duplicate=await fetch(`${base}/api/requests/${requestValue.request.id}/approve`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:'{}'});

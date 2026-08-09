@@ -5534,17 +5534,38 @@ export function createApplication(options = {}) {
         Number(record.tmdbId),
         record.payload,
       );
+    const searchRequested =
+        record.domain === "movie"
+          ? payload.addOptions?.searchForMovie === true
+          : televisionAddPayload(payload).addOptions.searchForMissingEpisodes,
+      addPayload =
+        record.domain === "movie"
+          ? {
+              ...payload,
+              addOptions: {
+                ...(payload.addOptions || {}),
+                searchForMovie: false,
+              },
+            }
+          : televisionAddPayload({
+              ...payload,
+              addOptions: {
+                ...(payload.addOptions || {}),
+                searchForMissingEpisodes: false,
+                searchForCutoffUnmetEpisodes: false,
+              },
+            });
     const result = await management.execute(record.domain, "library", "POST", {
-      payload: record.domain === "tv" ? televisionAddPayload(payload) : payload,
+      payload: addPayload,
     });
-    if (
-      record.domain === "tv" &&
-      televisionAddPayload(payload).addOptions.searchForMissingEpisodes
-    )
+    if (record.domain === "tv" && searchRequested) {
+      const command = await management.execute("tv", "commands", "POST", {
+        payload: { name: "SeriesSearch", seriesId: result.id },
+      });
       await createSearchActivity(
         record.userId,
         { name: "SeriesSearch", seriesId: result.id },
-        result,
+        command,
         {
           domain: "tv",
           source: "request",
@@ -5555,14 +5576,15 @@ export function createApplication(options = {}) {
             "Request added to the library; searching for monitored missing episodes.",
         },
       );
-    if (
-      record.domain === "movie" &&
-      payload.addOptions?.searchForMovie === true
-    )
+    }
+    if (record.domain === "movie" && searchRequested) {
+      const command = await management.execute("movie", "commands", "POST", {
+        payload: { name: "MoviesSearch", movieIds: [result.id] },
+      });
       await createSearchActivity(
         record.userId,
         { name: "MoviesSearch", movieIds: [result.id] },
-        result,
+        command,
         {
           domain: "movie",
           source: "request",
@@ -5574,6 +5596,7 @@ export function createApplication(options = {}) {
             "Request added to the library; searching for an accepted movie release.",
         },
       );
+    }
     const updatedAt = new Date().toISOString();
     await requestStore.update((current) => {
       const item = (current.requests || []).find(
@@ -8428,17 +8451,13 @@ export function createApplication(options = {}) {
         if (url.pathname === "/api/storage/available-library-folders" && req.method === "GET") {
           if (!administrator(res, session)) return;
           const definitions = [
-            { path: "/movies", label: "Primary movie library", domain: "movie" },
-            { path: "/movies-2", label: "Additional movie library 1", domain: "movie" },
-            { path: "/movies-3", label: "Additional movie library 2", domain: "movie" },
-            { path: "/tv", label: "Primary television library", domain: "tv" },
-            { path: "/tv-2", label: "Additional television library 1", domain: "tv" },
-            { path: "/tv-3", label: "Additional television library 2", domain: "tv" },
-          ], roots = await Promise.all([management.execute("movie", "rootFolders", "GET", {}).catch(() => []), management.execute("tv", "rootFolders", "GET", {}).catch(() => [])]), normalized = value => String(value || "").replaceAll("\\", "/").replace(/\/+$/, "") || "/", registered = Object.fromEntries(["movie", "tv"].map((domain, index) => [domain, new Set((Array.isArray(roots[index]) ? roots[index] : []).map(item => normalized(item.path)))]));
-          const folders = await Promise.all(definitions.map(async item => ({ ...item, configured: await readdir(item.path).then(() => true).catch(() => false), registered: registered[item.domain].has(item.path) })));
+            { path: "/movies", label: "Legacy movie library", domain: "movie" },
+            { path: "/tv", label: "Legacy television library", domain: "tv" },
+          ], roots = await Promise.all([management.execute("movie", "rootFolders", "GET", {}).catch(() => []), management.execute("tv", "rootFolders", "GET", {}).catch(() => [])]), normalized = value => String(value || "").replaceAll("\\", "/").replace(/\/+$/, "") || "/", registered = Object.fromEntries(["movie", "tv"].map((domain, index) => [domain, new Set((Array.isArray(roots[index]) ? roots[index] : []).map(item => normalized(item.path)))])), mountPoints = await readFile("/proc/self/mountinfo", "utf8").then(value => new Set(value.split(/\r?\n/).map(line => line.split(" ")[4]).filter(Boolean).map(path => path.replace(/\\040/g, " ").replace(/\\011/g, "\t").replace(/\\134/g, "\\")))).catch(() => new Set());
+          const folders = definitions.map(item => ({ ...item, configured: mountPoints.has(item.path), registered: registered[item.domain].has(item.path) }));
           const ignoredMediaChildren = new Set(["cdrom", "floppy", "usb"]);
           const mediaChildren = await readdir("/media", { withFileTypes: true }).then(items => items.filter(item => item.isDirectory() && !item.name.startsWith(".") && !ignoredMediaChildren.has(item.name.toLowerCase())).slice(0, 200).map(item => { const path = `/media/${item.name}`;return { path, label: item.name.replace(/[-_]+/g, " ").replace(/\b\w/g, letter => letter.toUpperCase()), domain: null, configured: true, registeredMovie: registered.movie.has(path), registeredTv: registered.tv.has(path) }; })).catch(() => []);
-          return json(res, 200, { mainMediaConfigured: await readdir("/media").then(() => true).catch(() => false), folders, mediaChildren });
+          return json(res, 200, { mainMediaConfigured: mountPoints.has("/media"), folders, mediaChildren: mountPoints.has("/media") ? mediaChildren : [] });
         }
         if (url.pathname === "/api/media-destinations" && req.method === "GET") {
           const requestedDomain = url.searchParams.get("domain"),
