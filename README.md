@@ -27,42 +27,24 @@ consistent experience and account system.
 
 ## Current release
 
-Version **2.0.35** is available for production use on Unraid, Windows, and
-standard Docker installations. Version **2.0.36-rc.5** is available as a
-prerelease with managed Reeltrack trailer collections, automatic Movie and TV
-library registration, and separate Plex Movie and Television targets for mixed
-lists. The production release includes a durable local Movie and Television catalog, targeted
-event-driven updates, server-side paging, performance controls, and persistent
-artwork caching that reduce engine CPU and network load while preserving
-current library information and poster overlays. Persisted synchronization
-health now survives restarts, and a temporary engine or attention-summary
-failure keeps the durable catalog available instead of replacing the library
-with a generic load failure. RC.6 adds per-engine circuit breakers, prioritized
-and deduplicated synchronization queues, catalog integrity diagnostics, and
-safe administrator retry and rebuild controls that preserve the last usable
-catalog until a complete replacement is ready. Engine requests are now
-concurrency-limited and shared across operational readers, while import bursts
-are reconciled after a quiet period to reduce SQLite lock contention and engine
-thread-pool pressure on large libraries. RC.7 makes background interface
-refreshes visibility-aware, prevents polling and navigation from shifting the
-visible page, groups Service Settings without removing routes, clarifies
-Action Center and Automation Timeline behavior, and standardizes accessible
-desktop and mobile dialogs without removing any controls. It also includes the Engine
-Update Center and its backup-gated
-candidate workflow. The new administrator Library Action Center identifies operational
-issues, explains their impact, recommends a safe next action, and provides a
-unified Automation Timeline across requests, searches, downloads, queue and
-history events, notifications, audits, validation, and Plex artwork, with a
-phone-friendly filter and event layout. Its
-Poster Overlay Studio adds reusable,
-variable-aware text, shape, and media-icon layers; precise positioning and
-resizing; adaptive colors; conditional rendering; text wrapping and automatic
-fitting; exact VynodeArr previews; reversible library assignments; expanded
-movie-file metadata; season, next-episode, and latest-episode variables; and
-multi-rule AND/OR layer conditions. Conditional style variants can optionally
-change colors, shapes, icon appearance, font weight, and adaptive contrast when
-metadata matches, with independent ranked formatting and fully scrollable editor
-controls. This stable release is published as the `latest` image.
+Version **2.0.37** is the current production release for Unraid, Windows, and
+standard Docker installations. It adds managed Reeltrack-to-Plex collections,
+official trailer placeholders, automatic Movie and Television registration,
+mixed-list Plex targets, and explicit host-path mapping when Plex and the media
+engines mount the same storage differently.
+
+Each synchronized list can have its own collection poster and title overlay.
+The artwork studio supports exact Plex previews, uploaded or gradient
+backgrounds, four-poster collages, metadata variables, conditions, theatrical
+presets, drag and four-corner resize controls, multi-selection, grouping, and
+layer ordering. Original Plex artwork is captured once and integrity checked,
+so designs can be updated or reverted per list without accumulating effects.
+
+Health now recognizes warnings for TMDB titles removed upstream. VynodeArr
+checks whether the title remains in the Movie library, proposes a valid
+replacement when available, preserves files and settings during a confirmed
+rematch, and allows irrelevant or unresolved warnings to be dismissed. This
+stable release is published as the `latest` image.
 
 The administrator Validation Center checks
 engine connectivity, storage, acquisition providers, scheduled automation,
@@ -351,6 +333,14 @@ real movie file is never deleted. Each list stores its own collection name,
 Plex library, update interval, last and next run, reconciliation summary, and
 actionable error state. Each synchronization processes every missing title and
 reports any trailer failures that still need attention.
+
+Each imported list can independently apply a custom Plex collection poster and
+an overlay to its managed titles. The shared artwork editor provides uploaded,
+solid, linear-gradient, and radial-gradient backgrounds; optional four-title
+poster collages; editable metadata text, shapes, and icons; theatrical presets;
+conditions; drag and resize; grouping; and layer ordering. VynodeArr renders an
+exact server preview, applies designs during synchronization, and retains the
+first original Plex artwork for safe per-list restoration.
 
 ### Personal interface presentation
 

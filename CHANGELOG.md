@@ -7,6 +7,41 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.37] - 2026-08-08
+
+### Added
+
+- Added optional managed Plex collections for imported Reeltrack lists, with scheduled provider refreshes, official trailer downloads through `yt-dlp`, automatic Movie and Television library registration, and cleanup when real media arrives or a title leaves its source list.
+- Added independent Movie and Television Plex targets for mixed lists, explicit host-folder mapping, engine-root compatibility checks, and safe handling when Plex, VynodeArr, and the media engines use different paths for the same storage.
+- Added a complete collection-poster and managed-title-overlay designer with exact Plex previews, custom uploads, gradients, four-title collages, metadata variables, conditions, text, shapes, icons, and illustrated theatrical presets.
+- Added drag positioning, four-corner resizing, multi-selection, persistent grouping, proportional group transforms, and layer-level controls to managed artwork editors.
+- Added integrity-checked original Plex artwork backups, per-list collection and title artwork restoration, and separate artwork success/failure reporting.
+- Added guided recovery for movie-engine warnings caused by removed TMDB titles, including library detection, replacement matching, confirmed rematching that preserves files and settings, and durable dismissal when no action is needed.
+
+### Changed
+
+- Store managed trailers inside normal title folders under the selected media root instead of a separate trailer volume, while confining creation and cleanup to VynodeArr-owned files and empty folders.
+- Register supported missing list titles with the appropriate media engine without forcing an immediate search, and build Plex collections only after their managed placeholders are indexed.
+- Compose every artwork revision from the first captured original so repeated edits never accumulate overlays, and restore native artwork before removal.
+- Condensed Reeltrack automation controls and title cards into responsive multi-column layouts with bounded wrapping and phone-safe controls.
+- Enriched managed overlays with TMDB genre, rating, runtime, certification, studio, and network metadata when Plex placeholders omit those values.
+
+### Fixed
+
+- Fixed incomplete list synchronization, missing Plex collections, stale trailer-job records, delayed Plex indexing, and incorrect root selection.
+- Fixed title overlays applying to only one placeholder, transient Plex artwork failures aborting later titles, and collection-poster failures preventing independent title-overlay work.
+- Fixed original-artwork restore races, stale backup failures, cross-server backup collisions, and poster updates that could leave Plex showing an older or cumulatively overlaid image.
+- Fixed decorative shapes inheriting visible custom-text placeholders and restored reliable selection, pointer movement, and resizing for artwork.
+- Fixed Health recovery mutations being rejected by the API's read-only review fallback.
+
+### Security
+
+- Restricted trailer sources to validated HTTPS YouTube URLs, bounded downloader execution, verified the final `yt-dlp` path, and confined removal to managed files beneath the configured library root.
+
+### Validation
+
+- Passed all 223 automated tests plus TypeScript, production build, bundle, branding, and deployment validation.
+
 ## [2.0.36-rc.19] - 2026-08-08
 
 ### Added
@@ -2069,6 +2104,7 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 [2.0.34-rc.3]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.34-rc.2...v2.0.34-rc.3
 [2.0.34-rc.2]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.34-rc.1...v2.0.34-rc.2
 [2.0.34-rc.1]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33...v2.0.34-rc.1
+[2.0.37]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.36...v2.0.37
 [2.0.33]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.32...v2.0.33
 [2.0.33-rc.5]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33-rc.4...v2.0.33-rc.5
 [2.0.33-rc.4]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33-rc.3...v2.0.33-rc.4
