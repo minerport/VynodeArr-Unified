@@ -407,7 +407,6 @@ export function sanitizeOverlayTemplate(input = {}, existing = null) {
     domain: cleanDomain(input.domain || existing?.domain),
     target,
     enabled: input.enabled !== false,
-    previewPosterMode: input.previewPosterMode === "fixed" ? "fixed" : "rotate",
     previewPosterKey: cleanText(input.previewPosterKey || existing?.previewPosterKey, 200),
     tvFileAggregation,
     layers,

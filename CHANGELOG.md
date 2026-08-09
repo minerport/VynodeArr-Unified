@@ -7,6 +7,17 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.38-rc.3] - 2026-08-09
+
+### Changed
+
+- Simplified saved style previews to always retain the exact poster visible when the style is saved or updated; removed the unnecessary rotation choice from the editor.
+- Separated saved poster styles into VynodeArr and Plex template groups according to the destination selected when each style was saved.
+
+### Validation
+
+- Passed all 224 automated tests plus TypeScript, production build, bundle, branding, and deployment validation.
+
 ## [2.0.38-rc.2] - 2026-08-09
 
 ### Changed
@@ -2168,6 +2179,7 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 [2.0.34-rc.3]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.34-rc.2...v2.0.34-rc.3
 [2.0.34-rc.2]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.34-rc.1...v2.0.34-rc.2
 [2.0.34-rc.1]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33...v2.0.34-rc.1
+[2.0.38-rc.3]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.38-rc.2...v2.0.38-rc.3
 [2.0.38-rc.2]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.38-rc.1...v2.0.38-rc.2
 [2.0.38-rc.1]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.37...v2.0.38-rc.1
 [2.0.37]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.36...v2.0.37

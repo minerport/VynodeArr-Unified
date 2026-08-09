@@ -46,9 +46,9 @@ replacement when available, preserves files and settings during a confirmed
 rematch, and allows irrelevant or unresolved warnings to be dismissed. This
 stable release is published as the `latest` image.
 
-Version **2.0.38-rc.2** is available on the development channel. It adds a
+Version **2.0.38-rc.3** is available on the development channel. It adds a
 cleaner guided Reeltrack collection setup, clearer Plex and VynodeArr overlay
-workflows, rotating or saved style-card preview posters, stackable VynodeArr
+workflows, saved style-card preview posters, stackable VynodeArr
 overlay templates, compact Plex poster history, and mobile interactive-search
 filtering and sorting.
 

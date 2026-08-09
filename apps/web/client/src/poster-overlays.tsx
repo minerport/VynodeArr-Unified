@@ -118,7 +118,6 @@ const blankTemplate = (): OverlayTemplate => ({
   domain: "" as OverlayDomain,
   target: "" as "vynode",
   enabled: true,
-  previewPosterMode: "rotate",
   previewPosterKey: "",
   tvFileAggregation: "most_common",
   layers: [],
@@ -392,8 +391,7 @@ export function PosterOverlaysView({
     [yearFrom, setYearFrom] = useState(""),
     [yearTo, setYearTo] = useState(""),
     [availability, setAvailability] = useState(""),
-    [monitoring, setMonitoring] = useState(""),
-    [previewRotation,setPreviewRotation]=useState(0);
+    [monitoring, setMonitoring] = useState("");
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -455,7 +453,6 @@ export function PosterOverlaysView({
     scrollLayerSettings(selectedLayerId);
   }, [selectedLayerId, editing?.layers.length]);
   useEffect(()=>setPreviewLimit(100),[editing?.target,editing?.domain]);
-  useEffect(()=>{const timer=window.setInterval(()=>setPreviewRotation(value=>value+1),8000);return()=>window.clearInterval(timer);},[]);
   const selectLayer=(id:string)=>{setCollapsedLayerIds(value=>value.filter(item=>item!==id));setSelectedLayerId(id);requestAnimationFrame(()=>scrollLayerSettings(id));};
   useEffect(()=>setMediaLimit(100),[domain,query,scope]);
   const filteredMedia = useMemo(
@@ -488,7 +485,7 @@ export function PosterOverlaysView({
           ? `/api/poster-overlays/templates/${editing.id}`
           : "/api/poster-overlays/templates",
         method = editing.id ? "PUT" : "POST";
-      const fallbackPreview=previewMedia||editingMedia[0],previewPosterKey=editing.previewPosterMode==="fixed"&&fallbackPreview?(fallbackPreview.previewKey||`${fallbackPreview.domain}:${fallbackPreview.id}`):editing.previewPosterKey||"";
+      const fallbackPreview=previewMedia||editingMedia[0],previewPosterKey=fallbackPreview?(fallbackPreview.previewKey||`${fallbackPreview.domain}:${fallbackPreview.id}`):editing.previewPosterKey||"";
       await options.request(path, { method, body: JSON.stringify({...editing,previewPosterKey}) });
       const appliedCount = assignments.filter(
         (item) => item.templateId === editing.id,
@@ -676,12 +673,34 @@ export function PosterOverlaysView({
               </div>
             </div>
             <div className="overlay-template-list">
-              {templates.map((template) => (
+              {(["vynode", "plex"] as const).map((target) => {
+                const groupedTemplates = templates.filter(
+                  (template) => template.target === target,
+                );
+                return (
+                  <section
+                    className="overlay-template-group"
+                    data-destination={target}
+                    key={target}
+                  >
+                    <header className="overlay-template-group-heading">
+                      <div>
+                        <h3>{target === "vynode" ? "VynodeArr templates" : "Plex templates"}</h3>
+                        <p>
+                          {target === "vynode"
+                            ? "Styles used only on posters displayed inside VynodeArr."
+                            : "Styles saved for applying directly to Plex artwork."}
+                        </p>
+                      </div>
+                      <span className="badge">{groupedTemplates.length}</span>
+                    </header>
+                    <div className="overlay-template-group-list">
+              {groupedTemplates.map((template) => (
                 <article className="overlay-template-card" key={template.id}>
                   <Preview
                     template={template}
                     target={template.target}
-                    poster={(()=>{const eligible=media.filter(item=>(template.domain==="all"||item.domain===template.domain)&&item.artwork?.url);if(!eligible.length)return undefined;const fixed=eligible.find(item=>(item.previewKey||`${item.domain}:${item.id}`)===template.previewPosterKey),chosen=template.previewPosterMode==="fixed"?(fixed||eligible[0]):eligible[(previewRotation+templates.indexOf(template))%eligible.length];return chosen?.artwork?.originalUrl||chosen?.artwork?.url;})()}
+                    poster={(()=>{const eligible=media.filter(item=>(template.domain==="all"||item.domain===template.domain)&&item.artwork?.url);if(!eligible.length)return undefined;const chosen=eligible.find(item=>(item.previewKey||`${item.domain}:${item.id}`)===template.previewPosterKey)||eligible[0];return chosen?.artwork?.originalUrl||chosen?.artwork?.url;})()}
                   />
                   <div className="overlay-template-content">
                     <strong>{template.name}</strong>
@@ -693,7 +712,7 @@ export function PosterOverlaysView({
                           : "Television"}{" "}
                       · {template.layers.length} layer
                       {template.layers.length === 1 ? "" : "s"}
-                      {` · ${template.previewPosterMode === "fixed" ? "saved preview poster" : "rotating preview posters"}`}
+                      {" · saved preview poster"}
                     </small>
                     <div className="form-actions">
                       <button
@@ -726,15 +745,18 @@ export function PosterOverlaysView({
                   </div>
                 </article>
               ))}
-              {!templates.length ? (
-                <div className="empty compact">
-                  <h3>No poster styles</h3>
+              {!groupedTemplates.length ? (
+                <div className="empty compact overlay-template-empty">
+                  <h4>No {target === "vynode" ? "VynodeArr" : "Plex"} templates</h4>
                   <p>
-                    Create one to begin. Nothing in the current library changes
-                    until it is assigned.
+                    Create a style and choose {target === "vynode" ? "VynodeArr" : "Plex"} as its destination.
                   </p>
                 </div>
               ) : null}
+                    </div>
+                  </section>
+                );
+              })}
             </div>
           </section>
           <section className="panel overlay-assignment-panel">
@@ -1492,7 +1514,6 @@ export function PosterOverlaysView({
                         ))}
                     </select>
                   </label>
-                  <fieldset className="overlay-preview-mode"><legend>Saved style preview poster</legend><label><input type="radio" name="preview-poster-mode" checked={editing.previewPosterMode!=="fixed"} onChange={()=>setEditing({...editing,previewPosterMode:"rotate"})}/><span><strong>Rotate library posters</strong><small>The small saved-style preview cycles through matching library posters. This does not rotate or change the overlay layers.</small></span></label><label><input type="radio" name="preview-poster-mode" checked={editing.previewPosterMode==="fixed"} onChange={()=>setEditing({...editing,previewPosterMode:"fixed"})}/><span><strong>Keep the poster shown now</strong><small>Save the poster currently visible in the preview as this style card’s background.</small></span></label></fieldset>
                   <Preview
                     template={editing}
                     target={editing.target || undefined}

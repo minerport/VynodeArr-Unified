@@ -93,10 +93,10 @@ test('compatible poster assignments compose without changing unmatched items',()
   assert.equal(assignmentMatches(assignments[1],{id:'movie_8'},{domain:'movie'}),false);
 });
 
-test('saved style previews retain their poster behavior independently of overlay assignments',()=>{
-  const fixed=sanitizeOverlayTemplate({id:'overlay_fixed',previewPosterMode:'fixed',previewPosterKey:'movie:10'}),rotating=sanitizeOverlayTemplate({id:'overlay_rotating',previewPosterMode:'rotate',previewPosterKey:'movie:11'});
-  assert.equal(fixed.previewPosterMode,'fixed');assert.equal(fixed.previewPosterKey,'movie:10');
-  assert.equal(rotating.previewPosterMode,'rotate');
+test('saved style previews retain the poster shown when saved',()=>{
+  const template=sanitizeOverlayTemplate({id:'overlay_fixed',previewPosterKey:'movie:10'});
+  assert.equal(template.previewPosterKey,'movie:10');
+  assert.equal('previewPosterMode' in template,false);
 });
 
 test('poster variables derive friendly values from library metadata',()=>{

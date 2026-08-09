@@ -1215,7 +1215,8 @@ test('poster overlay styling loads once instead of being injected by every previ
   assert.match(editor,/import "\.\/poster-overlays-runtime\.css"/);
   for(const source of [preview,rail,review])assert.doesNotMatch(source,/<style>/);
   assert.match(css,/\.overlay-library-chrome/);assert.match(css,/\.overlay-layer-list/);assert.match(css,/\.overlay-application-preview/);
-  for(const guidance of ['Saved style preview poster','Rotate library posters','Keep the poster shown now','does not rotate or change the overlay layers','Styles stack instead of replacing one another','Update an applied style in place','Update style','Update applied style','there is no need to remove and reapply it'])assert.ok(editor.includes(guidance),guidance);
+  for(const guidance of ['saved preview poster','VynodeArr templates','Plex templates','data-destination={target}','template.target === target','Styles stack instead of replacing one another','Update an applied style in place','Update style','Update applied style','there is no need to remove and reapply it'])assert.ok(editor.includes(guidance),guidance);
+  for(const removed of ['Rotate library posters','preview-poster-mode','overlay-preview-mode'])assert.ok(!editor.includes(removed),removed);
 });
 
 test('Plex poster batches support variable filters and direct scoped restoration',async()=>{
