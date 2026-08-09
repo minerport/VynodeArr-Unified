@@ -7,6 +7,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.39-rc.1] - 2026-08-09
+
 ### Changed
 
 - Replaced the outdated GitHub and Unraid listing screenshots with a current
@@ -15,6 +17,11 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   details using browser-compatible local trailers, byte-range streaming, sound
   and pause controls, reduced-data safeguards, and the existing fanart as a
   permanent fallback. Plex is not required.
+
+### Validation
+
+- Passed all 228 automated tests plus TypeScript, production build, bundle,
+  branding, deployment, and Community Applications metadata validation.
 
 ## [2.0.38] - 2026-08-09
 
@@ -2178,7 +2185,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.36-rc.5...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.39-rc.1...HEAD
+[2.0.39-rc.1]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.38...v2.0.39-rc.1
 [2.0.36-rc.5]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.36-rc.4...v2.0.36-rc.5
 [2.0.36-rc.4]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.36-rc.3...v2.0.36-rc.4
 [2.0.36-rc.3]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.36-rc.2...v2.0.36-rc.3
