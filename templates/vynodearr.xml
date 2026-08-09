@@ -2,8 +2,9 @@
 <Container version="2">
   <Name>VynodeArr</Name>
   <Repository>ghcr.io/minerport/vynodearr-unified:latest</Repository>
-  <Registry>https://ghcr.io/minerport/vynodearr-unified</Registry>
+  <Registry>https://ghcr.io</Registry>
   <Network>bridge</Network>
+  <MyIP/>
   <Shell>sh</Shell>
   <Privileged>false</Privileged>
   <Support>https://github.com/minerport/VynodeArr-Unified/issues</Support>

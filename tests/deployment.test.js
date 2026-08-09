@@ -20,7 +20,7 @@ test('local Compose persists random engine keys and shares them with VynodeArr',
 });
 test('Unraid template has required mappings, self-contained image, and upstream attribution',async()=>{
   const text=await readFile(new URL('../templates/vynodearr.xml',import.meta.url),'utf8');
-  for(const value of ['<Name>VynodeArr</Name>','ghcr.io/minerport/vynodearr-unified:latest','<Registry>https://ghcr.io/minerport/vynodearr-unified</Registry>','Target="8686"','Target="/config"','Target="/movies"','Target="/tv"','Target="/downloads"'])assert.match(text,new RegExp(value));
+  for(const value of ['<Name>VynodeArr</Name>','ghcr.io/minerport/vynodearr-unified:latest','<Registry>https://ghcr.io</Registry>','<MyIP/>','Target="8686"','Target="/config"','Target="/movies"','Target="/tv"','Target="/downloads"'])assert.match(text,new RegExp(value));
   const overview=text.match(/<Overview>(.*?)<\/Overview>/s)?.[1]||'';
   assert.match(overview,/\bRadarr\b/);assert.match(overview,/\bSonarr\b/);
   assert.match(text,/GPLv3/);assert.match(text,/Apache 2\.0/);
