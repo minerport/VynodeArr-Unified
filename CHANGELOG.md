@@ -7,6 +7,21 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.40-rc.9] - 2026-08-09
+
+### Fixed
+
+- Root-folder migration now updates the selected movie or television engine first, synchronizes VynodeArr immediately afterward, and verifies that the old engine path has zero remaining title or collection references before reporting success.
+
+### Added
+
+- Health warnings that mention an engine path now provide an on-demand engine
+  mapping verification showing whether the root remains registered and how
+  many title and collection records still use it.
+- Verified legacy roots can be remapped directly inside the movie or television
+  engine to an equivalent registered path. The guarded repair changes stored
+  engine records only and always uses `moveFiles: false`.
+
 ## [2.0.40-rc.8] - 2026-08-09
 
 ### Fixed

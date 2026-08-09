@@ -59,12 +59,14 @@ test('loaded Action Center records cannot widen the mobile viewport',async()=>{
 });
 
 test('health recovery mutations are handled before the read-only API fallback',async()=>{
-  const server=await read('apps/api/src/app.js');
+  const [server,health]=await Promise.all([read('apps/api/src/app.js'),read('apps/web/client/src/health.tsx')]);
   const action=server.indexOf('const healthActionMatch = url.pathname.match');
   const fallback=server.indexOf('if (req.method !== "GET")');
   assert.ok(action>=0,'health action route');
   assert.ok(fallback>=0,'read-only fallback');
   assert.ok(action<fallback,'health action route must precede the read-only fallback');
+  for(const value of ['/api/storage/engine-path-verification','/api/storage/engine-path-remap','rootRegistered','collectionCount','collectionExamples','equivalentTargets','engine_paths.remapped','moveFiles: false'])assert.match(server,new RegExp(value.replaceAll('/','\\/')));
+  assert.match(health,/Verify engine mapping/);assert.match(health,/Engine verification:/);assert.match(health,/Remap engine to/);assert.match(health,/No files will be moved/);
 });
 
 test('library titles can be attributed to a user without creating another download request',async()=>{
@@ -530,6 +532,9 @@ test('storage folders and import review use a typed React route and analysis bou
   assert.match(types,/affectedCollections/);
   assert.match(migrationApi,/collectionsUpdated/);
   assert.match(migration,/estimated time remaining|Estimating time remaining/i);
+  assert.match(migration,/updates the .* engine first/i);
+  assert.match(view,/old path now has zero references/i);
+  for(const value of ['engineUpdated','engineTitlesRemaining','engineCollectionsRemaining','vynodeArrSynchronized'])assert.match(migrationApi,new RegExp(value));
   assert.match(view,/index \+= 100/);
   assert.match(view,/\/rootFolders/);
   assert.match(view,/\/filesystem\?/);

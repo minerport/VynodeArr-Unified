@@ -8589,6 +8589,90 @@ export function createApplication(options = {}) {
             targetRoot = String(url.searchParams.get("targetRoot") || "");
           return json(res, 200, await mediaPathMigrationPreview(domain, targetRoot));
         }
+        if (url.pathname === "/api/storage/engine-path-verification" && req.method === "GET") {
+          if (!administrator(res, session)) return;
+          const domain = String(url.searchParams.get("domain") || ""),
+            path = normalizeMediaPath(url.searchParams.get("path"));
+          if (!["movie", "tv"].includes(domain) || !path)
+            throw new Error("Choose a valid engine path to verify");
+          const [rootsValue, libraryValue, collectionsValue] = await Promise.all([
+              management.execute(domain, "rootFolders", "GET", {}),
+              management.execute(domain, "library", "GET", {}),
+              domain === "movie" ? management.execute("movie", "collections", "GET", {}).catch(() => []) : Promise.resolve([]),
+            ]),
+            roots = Array.isArray(rootsValue) ? rootsValue : [],
+            library = Array.isArray(libraryValue) ? libraryValue : libraryValue?.records || [],
+            collections = Array.isArray(collectionsValue) ? collectionsValue : collectionsValue?.records || [],
+            usesPath = (value) => {
+              const current = normalizeMediaPath(value);
+              return current === path || current.startsWith(`${path}/`);
+            },
+            titles = library.filter((item) => usesPath(item.path || item.rootFolderPath)),
+            collectionMatches = collections.filter((item) => normalizeMediaPath(item.rootFolderPath) === path),
+            sourceIdentity = await filesystemLocationIdentity(path).catch(() => ""),
+            equivalentTargets = [];
+          if (sourceIdentity)
+            for (const root of roots) {
+              const target = normalizeMediaPath(root.path);
+              if (!target || target === path) continue;
+              const identity = await filesystemLocationIdentity(target).catch(() => "");
+              if (identity === sourceIdentity) equivalentTargets.push(target);
+            }
+          return json(res, 200, {
+            domain,
+            path,
+            rootRegistered: roots.some((item) => normalizeMediaPath(item.path) === path),
+            titleCount: titles.length,
+            collectionCount: collectionMatches.length,
+            titleExamples: titles.slice(0, 10).map((item) => item.title || item.name || `ID ${item.id}`),
+            collectionExamples: collectionMatches.slice(0, 10).map((item) => item.title || item.name || `Collection ${item.id}`),
+            equivalentTargets,
+            checkedAt: new Date().toISOString(),
+          });
+        }
+        if (url.pathname === "/api/storage/engine-path-remap" && req.method === "POST") {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          const input = await body(req),
+            domain = String(input.domain || ""),
+            sourceRoot = normalizeMediaPath(input.sourceRoot),
+            targetRoot = normalizeMediaPath(input.targetRoot),
+            preview = await mediaPathMigrationPreview(domain, targetRoot, sourceRoot),
+            match = preview.matches.find((item) => item.sourceRoot === sourceRoot);
+          if (!match)
+            throw new Error("The source and target engine roots do not point to the same physical folder");
+          const ids = match.affected.map((item) => item.id),
+            idKey = domain === "movie" ? "movieIds" : "seriesIds";
+          for (let index = 0; index < ids.length; index += 100)
+            await management.execute(domain, "libraryEditor", "PUT", {
+              payload: {
+                [idKey]: ids.slice(index, index + 100),
+                rootFolderPath: targetRoot,
+                moveFiles: false,
+              },
+            });
+          let collectionsUpdated = 0;
+          if (domain === "movie") {
+            const collections = await management.execute("movie", "collections", "GET", {}).catch(() => []);
+            for (const collection of Array.isArray(collections) ? collections : collections?.records || []) {
+              if (!Number.isFinite(Number(collection.id)) || normalizeMediaPath(collection.rootFolderPath) !== sourceRoot) continue;
+              await management.execute("movie", "collections", "PUT", {
+                id: Number(collection.id),
+                payload: { ...collection, rootFolderPath: targetRoot },
+              });
+              collectionsUpdated += 1;
+            }
+          }
+          if (ids.length) await sync.synchronize(domain);
+          await recordAudit(session, {
+            category: "configuration",
+            action: "engine_paths.remapped",
+            target: `${sourceRoot} to ${targetRoot}`,
+            domain,
+            summary: `Remapped ${ids.length} title path${ids.length === 1 ? "" : "s"}${collectionsUpdated ? ` and ${collectionsUpdated} collection path${collectionsUpdated === 1 ? "" : "s"}` : ""} in the ${domain} engine without moving files.`,
+            metadata: { sourceRoot, targetRoot, updated: ids.length, collectionsUpdated, moveFiles: false },
+          });
+          return json(res, 200, { remapped: true, domain, sourceRoot, targetRoot, updated: ids.length, collectionsUpdated, moveFiles: false });
+        }
         if (url.pathname === "/api/storage/path-migration" && req.method === "POST") {
           if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
           const input = await body(req),
@@ -8625,7 +8709,42 @@ export function createApplication(options = {}) {
               collectionsUpdated += 1;
             }
           }
-          if (ids.length && input.final !== false) await sync.synchronize(domain);
+          let verification = null;
+          if (input.final !== false) {
+            // The engine is the source of truth. Refresh VynodeArr only after every
+            // engine record (and movie collection) has been remapped, then prove
+            // that the legacy engine path no longer owns any records.
+            await sync.synchronize(domain);
+            const [verifiedLibraryValue, verifiedCollectionsValue] = await Promise.all([
+                management.execute(domain, "library", "GET", {}),
+                domain === "movie"
+                  ? management.execute("movie", "collections", "GET", {}).catch(() => [])
+                  : Promise.resolve([]),
+              ]),
+              verifiedLibrary = Array.isArray(verifiedLibraryValue)
+                ? verifiedLibraryValue
+                : verifiedLibraryValue?.records || [],
+              verifiedCollections = Array.isArray(verifiedCollectionsValue)
+                ? verifiedCollectionsValue
+                : verifiedCollectionsValue?.records || [],
+              stillUsesSource = (value) => {
+                const path = normalizeMediaPath(value);
+                return path === sourceRoot || path.startsWith(`${sourceRoot}/`);
+              };
+            verification = {
+              engineTitlesRemaining: verifiedLibrary.filter((item) =>
+                stillUsesSource(item.path || item.rootFolderPath),
+              ).length,
+              engineCollectionsRemaining: verifiedCollections.filter(
+                (item) => normalizeMediaPath(item.rootFolderPath) === sourceRoot,
+              ).length,
+              vynodeArrSynchronized: true,
+            };
+            if (verification.engineTitlesRemaining || verification.engineCollectionsRemaining)
+              throw new Error(
+                `The engine still reports ${verification.engineTitlesRemaining} title path${verification.engineTitlesRemaining === 1 ? "" : "s"} and ${verification.engineCollectionsRemaining} collection path${verification.engineCollectionsRemaining === 1 ? "" : "s"} using ${sourceRoot}. VynodeArr was refreshed, but the migration is not complete.`,
+              );
+          }
           await recordAudit(session, {
             category: "configuration",
             action: "library_paths.migrated",
@@ -8641,6 +8760,8 @@ export function createApplication(options = {}) {
             targetRoot,
             updated: ids.length,
             collectionsUpdated,
+            engineUpdated: true,
+            verification,
             affected: match.affected,
             affectedCollections: match.affectedCollections || [],
           });

@@ -246,13 +246,15 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
     setMigrationProgress({ completed: 0, total, startedAt: Date.now() });
     try {
       const { applyPathMigration } = await import("./root-folder-migration");
-      let updated = 0;
+      let updated = 0, verified = false;
       for (let index = 0; index < Math.max(ids.length, 1); index += 100) {
         const batch = ids.slice(index, index + 100), result = await applyPathMigration(options, domain, match, batch, index + batch.length >= ids.length);
         updated += result.updated + (result.collectionsUpdated || 0);
+        if (result.verification) verified = result.engineUpdated && result.verification.vynodeArrSynchronized && result.verification.engineTitlesRemaining === 0 && result.verification.engineCollectionsRemaining === 0;
         setMigrationProgress((current) => current ? { ...current, completed: Math.min(total, updated) } : current);
       }
-      options.notify(`${updated} location${updated === 1 ? "" : "s"} updated. No files were moved.`);
+      if (!verified) throw new Error("The engine and VynodeArr mapping could not be verified after the update.");
+      options.notify(`${updated} location${updated === 1 ? "" : "s"} updated in the engine and VynodeArr. The old path now has zero references. No files were moved.`);
       setMigration(null);
       setMigrationProgress(null);
       await load();
