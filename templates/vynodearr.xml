@@ -17,7 +17,7 @@
   <TemplateURL>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/templates/vynodearr.xml</TemplateURL>
   <Icon>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/assets/branding/VynodeArr.png</Icon>
   <ReadMe>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/README.md</ReadMe>
-  <Changes>2.0.40-rc.6: Storage scans detect when a new /media child and a legacy /movies or /tv mapping point to the same Unraid folder. Administrators can preview and update existing engine paths without moving files, or deliberately continue scanning.</Changes>
+  <Changes>2.0.40-rc.7: Same-folder migrations show real batch progress, percentage, elapsed time, and estimated time remaining. Main /media folders can be expanded recursively so administrators can register deeper movie or television library locations.</Changes>
   <Date>2026-08-09</Date>
   <MinVer>6.12</MinVer>
   <License>Apache-2.0</License>

@@ -8532,7 +8532,11 @@ export function createApplication(options = {}) {
             match = preview.matches.find((item) => item.sourceRoot === sourceRoot);
           if (!match)
             throw new Error("The old and new paths no longer point to the same folder");
-          const ids = match.affected.map((item) => item.id),
+          const availableIds = new Set(match.affected.map((item) => item.id)),
+            requestedIds = Array.isArray(input.ids) ? [...new Set(input.ids.map(Number).filter(Number.isFinite))] : null;
+          if (requestedIds && requestedIds.length > 100)
+            throw new Error("Update at most 100 library locations at a time");
+          const ids = requestedIds ? requestedIds.filter((id) => availableIds.has(id)) : [...availableIds],
             idKey = domain === "movie" ? "movieIds" : "seriesIds";
           for (let index = 0; index < ids.length; index += 100)
             await management.execute(domain, "libraryEditor", "PUT", {
@@ -8542,7 +8546,7 @@ export function createApplication(options = {}) {
                 moveFiles: false,
               },
             });
-          if (ids.length) await sync.synchronize(domain);
+          if (ids.length && input.final !== false) await sync.synchronize(domain);
           await recordAudit(session, {
             category: "configuration",
             action: "library_paths.migrated",
@@ -8570,6 +8574,29 @@ export function createApplication(options = {}) {
           const ignoredMediaChildren = new Set(["cdrom", "floppy", "usb"]);
           const mediaChildren = await readdir("/media", { withFileTypes: true }).then(items => items.filter(item => item.isDirectory() && !item.name.startsWith(".") && !ignoredMediaChildren.has(item.name.toLowerCase())).slice(0, 200).map(item => { const path = `/media/${item.name}`;return { path, label: item.name.replace(/[-_]+/g, " ").replace(/\b\w/g, letter => letter.toUpperCase()), domain: null, configured: true, registeredMovie: registered.movie.has(path), registeredTv: registered.tv.has(path) }; })).catch(() => []);
           return json(res, 200, { mainMediaConfigured: mountPoints.has("/media"), folders, mediaChildren: mountPoints.has("/media") ? mediaChildren : [] });
+        }
+        if (url.pathname === "/api/storage/library-folder-children" && req.method === "GET") {
+          if (!administrator(res, session)) return;
+          const requested = normalizeMediaPath(url.searchParams.get("path")),
+            segments = requested.split("/").filter(Boolean);
+          if (!requested.startsWith("/media/") || segments.includes(".") || segments.includes("..") || segments.length > 9)
+            throw new Error("Choose a folder inside the main /media mapping");
+          const [movieRoots, tvRoots] = await Promise.all([
+              management.execute("movie", "rootFolders", "GET", {}).catch(() => []),
+              management.execute("tv", "rootFolders", "GET", {}).catch(() => []),
+            ]),
+            registeredMovie = new Set((Array.isArray(movieRoots) ? movieRoots : []).map((item) => normalizeMediaPath(item.path))),
+            registeredTv = new Set((Array.isArray(tvRoots) ? tvRoots : []).map((item) => normalizeMediaPath(item.path))),
+            ignored = new Set(["cdrom", "floppy", "usb"]),
+            folders = (await readdir(requested, { withFileTypes: true }))
+              .filter((item) => item.isDirectory() && !item.name.startsWith(".") && !ignored.has(item.name.toLowerCase()))
+              .slice(0, 200)
+              .map((item) => {
+                const path = `${requested}/${item.name}`;
+                return { path, label: item.name.replace(/[-_]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase()), domain: null, configured: true, registeredMovie: registeredMovie.has(path), registeredTv: registeredTv.has(path) };
+              })
+              .sort((left, right) => left.label.localeCompare(right.label));
+          return json(res, 200, { parent: requested, folders });
         }
         if (url.pathname === "/api/media-destinations" && req.method === "GET") {
           const requestedDomain = url.searchParams.get("domain"),

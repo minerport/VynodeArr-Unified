@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ComponentType } from "react";
 import type { MigrationDialogProps } from "./root-folder-migration-dialog";
+import type MediaFolderChildren from "./media-folder-children";
 import type { AvailableLibraryFoldersResponse, Directory, DownloadFolders, MediaDestination, MediaDestinationResponse, PathMigrationPreview, RootFolder, RootFoldersMountOptions, StorageDomain } from "./root-folders-types";
 import { ServiceTabs } from "./service-tabs";
 import { LibraryImportReview } from "./library-import-review";
@@ -29,7 +30,10 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
     [browser, setBrowser] = useState<null | "root" | "download" | "destination">(null),
     [scanRoot, setScanRoot] = useState<RootFolder | null>(null),
     [migration, setMigration] = useState<{ root: RootFolder; preview: PathMigrationPreview } | null>(null),
+    [migrationProgress, setMigrationProgress] = useState<{ completed: number; total: number; startedAt: number } | null>(null),
     [MigrationDialog, setMigrationDialog] = useState<ComponentType<MigrationDialogProps> | null>(null),
+    [FolderChildren, setFolderChildren] = useState<typeof MediaFolderChildren | null>(null),
+    [expandedMediaPath, setExpandedMediaPath] = useState(""),
     [current, setCurrent] = useState("/"),
     [directories, setDirectories] = useState<Directory[]>([]),
     [browseError, setBrowseError] = useState("");
@@ -126,6 +130,14 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
     } finally {
       setBusy("");
     }
+  };
+  const toggleMediaFolder = async (path: string) => {
+    if (expandedMediaPath === path) { setExpandedMediaPath(""); return; }
+    if (!FolderChildren) {
+      const module = await import("./media-folder-children");
+      setFolderChildren(() => module.default);
+    }
+    setExpandedMediaPath(path);
   };
   const remove = async (root: RootFolder) => {
     if (!confirm(`Remove ${root.path} as a library folder? Media files will not be deleted.`)) return;
@@ -230,11 +242,19 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
     const match = migration?.preview.match;
     if (!migration || !match) return;
     setBusy("migration");
+    const ids = match.affected.map((item) => item.id), total = ids.length;
+    setMigrationProgress({ completed: 0, total, startedAt: Date.now() });
     try {
       const { applyPathMigration } = await import("./root-folder-migration");
-      const result = await applyPathMigration(options, domain, match);
-      options.notify(`${result.updated} existing ${domain === "movie" ? "movie" : "television"} location${result.updated === 1 ? "" : "s"} updated. No files were moved.`);
+      let updated = 0;
+      for (let index = 0; index < ids.length; index += 100) {
+        const batch = ids.slice(index, index + 100), result = await applyPathMigration(options, domain, match, batch, index + batch.length >= ids.length);
+        updated += result.updated;
+        setMigrationProgress((current) => current ? { ...current, completed: Math.min(total, updated) } : current);
+      }
+      options.notify(`${updated} existing ${domain === "movie" ? "movie" : "television"} location${updated === 1 ? "" : "s"} updated. No files were moved.`);
       setMigration(null);
+      setMigrationProgress(null);
       await load();
     } catch (reason) {
       options.notify(message(reason), "error");
@@ -381,7 +401,7 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
         <div className="available-mapping-list">
           {directMappings.map(item=><article className="storage-path-row" key={item.path}><span className={`storage-path-state ${item.registered?'available':item.configured?'pending':'unavailable'}`}/><div className="storage-path-copy"><strong>{item.label}</strong><small>{item.path}</small><small>{item.registered?'Ready and registered with this engine.':item.configured?'Visible to VynodeArr and ready to register.':'This backward-compatible container path is not currently mapped.'}</small></div>{item.configured&&!item.registered?<button className="primary" disabled={busy===`available-${domain}-${item.path}`} onClick={()=>void registerAvailableFolder(item.path)}>{busy===`available-${domain}-${item.path}`?'Registering…':`Use for ${domain==='movie'?'Movies':'Television'}`}</button>:null}</article>)}
         </div>
-        <div className="main-media-folders"><div className="panel-heading"><div><h3>Main media folder</h3><p className="muted">{availableFolders?.mainMediaConfigured?'Each row is one direct child of /media. Assign it once to Movies or Television; VynodeArr will register that folder with the chosen engine.':'Map your shared host media folder to /media in the VynodeArr container, apply the change, and return here.'}</p></div><span className="badge">/media</span></div>{availableFolders?.mainMediaConfigured?(mediaChildren.length?<div className="available-mapping-list">{mediaChildren.map(item=>{const assigned=item.registeredMovie?'Movies':item.registeredTv?'Television':null;return <article className="storage-path-row" key={item.path}><span className={`storage-path-state ${assigned?'available':'pending'}`}/><div className="storage-path-copy"><strong>{item.label}</strong><small>{item.path}</small><small>{assigned?`Assigned to ${assigned} and registered with that engine.`:'Choose which engine should manage new media stored in this folder.'}</small></div>{!assigned?<div className="button-row"><button className="secondary" disabled={busy===`available-movie-${item.path}`||Boolean(busy)} onClick={()=>void registerAvailableFolder(item.path,'movie')}>{busy===`available-movie-${item.path}`?'Registering…':'Use for Movies'}</button><button className="secondary" disabled={busy===`available-tv-${item.path}`||Boolean(busy)} onClick={()=>void registerAvailableFolder(item.path,'tv')}>{busy===`available-tv-${item.path}`?'Registering…':'Use for Television'}</button></div>:null}</article>;})}</div>:<div className="empty compact"><p>No direct child folders were found beneath /media. Create the library folders on the host, then refresh this page.</p></div>):null}</div>
+        <div className="main-media-folders"><div className="panel-heading"><div><h3>Main media folder</h3><p className="muted">{availableFolders?.mainMediaConfigured?'Each row is one direct child of /media. Choose the folder itself, or show its subfolders to select a more specific library location.':'Map your shared host media folder to /media in the VynodeArr container, apply the change, and return here.'}</p></div><span className="badge">/media</span></div>{availableFolders?.mainMediaConfigured?(mediaChildren.length?<div className="available-mapping-list">{mediaChildren.map(item=>{const assigned=item.registeredMovie?'Movies':item.registeredTv?'Television':null,open=expandedMediaPath===item.path;return <div className="media-folder-tree-node" key={item.path}><article className="storage-path-row"><span className={`storage-path-state ${assigned?'available':'pending'}`}/><div className="storage-path-copy"><strong>{item.label}</strong><small>{item.path}</small><small>{assigned?`Assigned to ${assigned} and registered with that engine.`:'Choose which engine should manage this folder, or browse its next level.'}</small></div><div className="storage-path-actions"><button className="secondary" disabled={Boolean(busy)} onClick={()=>void toggleMediaFolder(item.path)}>{open?'Hide subfolders':'Show subfolders'}</button>{!assigned?<div className="button-row"><button className="secondary" disabled={Boolean(busy)} onClick={()=>void registerAvailableFolder(item.path,'movie')}>Use for Movies</button><button className="secondary" disabled={Boolean(busy)} onClick={()=>void registerAvailableFolder(item.path,'tv')}>Use for Television</button></div>:null}</div></article>{open&&FolderChildren?<FolderChildren busy={busy} parentPath={item.path} options={options} onRegister={registerAvailableFolder}/>:null}</div>;})}</div>:<div className="empty compact"><p>No direct child folders were found beneath /media. Create the library folders on the host, then refresh this page.</p></div>):null}</div>
         <div className="notice"><strong>Folder outside the main media parent?</strong><p>Add a custom Docker path mapping in the Unraid container, apply the change, then use the library-folder browser above to register that container path with the selected engine.</p></div>
       </section>
       <section className="panel media-destinations-panel">
@@ -690,7 +710,7 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
         </ModalPortal>
       ) : null}
       {scanRoot ? <LibraryImportReview domain={domain} initialRoot={scanRoot} options={options} onClose={() => setScanRoot(null)} onImported={load} /> : null}
-      {migration?.preview.match && MigrationDialog ? <MigrationDialog busy={busy === "migration"} domain={domain} migration={migration} onClose={() => setMigration(null)} onIgnore={(root) => { setMigration(null); setScanRoot(root); }} onMigrate={() => void migratePaths()} /> : null}
+      {migration?.preview.match && MigrationDialog ? <MigrationDialog busy={busy === "migration"} domain={domain} migration={migration} progress={migrationProgress} onClose={() => setMigration(null)} onIgnore={(root) => { setMigration(null); setScanRoot(root); }} onMigrate={() => void migratePaths()} /> : null}
     </div>
   );
 }

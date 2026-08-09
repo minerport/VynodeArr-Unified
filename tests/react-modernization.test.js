@@ -502,11 +502,12 @@ test('media naming and importing settings use a typed React route without flatte
 });
 
 test('storage folders and import review use a typed React route and analysis boundary',async()=>{
-  const [view,types,migration,migrationApi,analysis,review,islands,legacy,api]=await Promise.all([
+  const [view,types,migration,migrationApi,folderChildren,analysis,review,islands,legacy,api]=await Promise.all([
     read('apps/web/client/src/root-folders.tsx'),
     read('apps/web/client/src/root-folders-types.ts'),
     read('apps/web/client/src/root-folder-migration-dialog.tsx'),
     read('apps/web/client/src/root-folder-migration.ts'),
+    read('apps/web/client/src/media-folder-children.tsx'),
     read('apps/web/client/src/library-import-analysis.ts'),
     read('apps/web/client/src/library-import-review.tsx'),
     read('apps/web/client/src/react-islands.tsx'),
@@ -519,6 +520,9 @@ test('storage folders and import review use a typed React route and analysis bou
   assert.match(migrationApi,/\/api\/storage\/path-migration\/preview/);
   assert.match(migration,/Ignore and scan anyway/);
   assert.match(migration,/Update .* existing locations/);
+  assert.match(migration,/Updated .* of .* locations/);
+  assert.match(migration,/estimated time remaining|Estimating time remaining/i);
+  assert.match(view,/index \+= 100/);
   assert.match(view,/\/rootFolders/);
   assert.match(view,/\/filesystem\?/);
   assert.match(view,/Download and library paths match/);
@@ -526,6 +530,10 @@ test('storage folders and import review use a typed React route and analysis bou
   assert.match(view,/Use for Movies/);
   assert.match(view,/Use for Television/);
   assert.match(view,/Each row is one direct child of \/media/);
+  assert.match(view,/Show subfolders/);
+  assert.match(folderChildren,/library-folder-children/);
+  assert.match(folderChildren,/Use for Movies/);
+  assert.match(folderChildren,/Use for Television/);
   assert.match(view,/setScanRoot\(root\)/);
   assert.match(view,/LibraryImportReview/);
   assert.match(view,/ModalPortal/);

@@ -4,9 +4,9 @@ export function reviewPathMigration(options: RootFoldersMountOptions, domain: St
   return options.request<PathMigrationPreview>(`/api/storage/path-migration/preview?domain=${domain}&targetRoot=${encodeURIComponent(root.path)}`);
 }
 
-export function applyPathMigration(options: RootFoldersMountOptions, domain: StorageDomain, match: PathMigrationMatch) {
+export function applyPathMigration(options: RootFoldersMountOptions, domain: StorageDomain, match: PathMigrationMatch, ids: number[], final: boolean) {
   return options.request<{ updated: number }>("/api/storage/path-migration", {
     method: "POST",
-    body: JSON.stringify({ domain, sourceRoot: match.sourceRoot, targetRoot: match.targetRoot }),
+    body: JSON.stringify({ domain, sourceRoot: match.sourceRoot, targetRoot: match.targetRoot, ids, final }),
   });
 }

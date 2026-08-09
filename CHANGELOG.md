@@ -7,6 +7,17 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.40-rc.7] - 2026-08-09
+
+### Added
+
+- Main `/media` folder rows can now expand one level at a time so
+  administrators can browse arbitrarily deep subfolders and register the exact
+  movie or television library location they need.
+- Same-folder path migrations now show real batch progress, completion
+  percentage, elapsed time, and an estimated time remaining while existing
+  movie or television locations are updated.
+
 ## [2.0.40-rc.6] - 2026-08-09
 
 ### Added
@@ -2358,7 +2369,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.40-rc.6...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.40-rc.7...HEAD
+[2.0.40-rc.7]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.40-rc.6...v2.0.40-rc.7
 [2.0.40-rc.6]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.40-rc.5...v2.0.40-rc.6
 [2.0.40-rc.5]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.40-rc.4...v2.0.40-rc.5
 [2.0.40-rc.4]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.40-rc.3...v2.0.40-rc.4
