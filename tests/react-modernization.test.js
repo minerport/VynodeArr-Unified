@@ -1215,6 +1215,7 @@ test('poster overlay styling loads once instead of being injected by every previ
   assert.match(editor,/import "\.\/poster-overlays-runtime\.css"/);
   for(const source of [preview,rail,review])assert.doesNotMatch(source,/<style>/);
   assert.match(css,/\.overlay-library-chrome/);assert.match(css,/\.overlay-layer-list/);assert.match(css,/\.overlay-application-preview/);
+  for(const guidance of ['Saved style preview poster','Rotate library posters','Keep the poster shown now','does not rotate or change the overlay layers','Styles stack instead of replacing one another','Update an applied style in place','Update style','Update applied style','there is no need to remove and reapply it'])assert.ok(editor.includes(guidance),guidance);
 });
 
 test('Plex poster batches support variable filters and direct scoped restoration',async()=>{
@@ -1282,7 +1283,7 @@ test('icon and shape editors keep artwork separate from optional variables',asyn
 test('new poster style opens as a non-submit dialog action',async()=>{
   const source=await read('apps/web/client/src/poster-overlays.tsx');
   const layer=await read('apps/web/client/src/poster-overlay-layer.tsx');
-  assert.match(source,/type="button" className="primary" onClick=\{\(\) => setEditing\(blankTemplate\(\)\)\}/);
+  assert.match(source,/type="button" className="primary" onClick=\{\(\) => \{setPreviewId\(""\);setEditing\(blankTemplate\(\)\);\}\}/);
   assert.match(source,/overlayClientId\(\)/);
   assert.match(layer,/crypto\.randomUUID\?\.\(\)/);
   assert.match(layer,/crypto\.getRandomValues/);

@@ -67,6 +67,8 @@ export interface OverlayTemplate {
   domain: OverlayDomain;
   target: "vynode" | "plex";
   enabled: boolean;
+  previewPosterMode?: "fixed" | "rotate";
+  previewPosterKey?: string;
   tvFileAggregation: "most_common" | "best" | "lowest" | "mixed" | "latest";
   layers: OverlayLayer[];
   plexBadges: {
@@ -93,7 +95,6 @@ export interface OverlayAssignment {
   templateId: string;
   name: string;
   enabled: boolean;
-  presentationMode?: "fixed" | "rotate";
   scope: {
     type: "all" | "items" | "rules";
     domain: OverlayDomain;

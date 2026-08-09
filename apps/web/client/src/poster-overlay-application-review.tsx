@@ -34,7 +34,6 @@ export function buildApplicationReview(
     availability: string;
     monitoring: string;
   },
-  presentationMode: "fixed" | "rotate" = "fixed",
 ) {
   const from = Number(filters.yearFrom),
     to = Number(filters.yearTo || filters.yearFrom),
@@ -56,7 +55,6 @@ export function buildApplicationReview(
     mediaIds,
     payload: {
       templateId: template.id,
-      presentationMode,
       name: `${template.name} — ${scope === "rules" ? "matching rules" : label}`,
       scope: {
         type: ["collection", "user-collection"].includes(scope)
@@ -84,7 +82,6 @@ export default function ApplicationReview({
   label,
   items,
   busy,
-  presentationMode,
   onCancel,
   onConfirm,
 }: {
@@ -92,7 +89,6 @@ export default function ApplicationReview({
   label: string;
   items: OverlayMedia[];
   busy: boolean;
-  presentationMode: "fixed" | "rotate";
   onCancel: () => void;
   onConfirm: () => void;
 }) {
@@ -120,7 +116,7 @@ export default function ApplicationReview({
               <div className="notice">
                 <strong>{template.name}</strong>
                 <p>
-                  {presentationMode === "rotate" ? `Rotate compatible saved VynodeArr styles across ${label}. Each title keeps one style for the day.` : `Keep this saved style on ${label}.`} Custom layers render above the poster, status badges, and card details.
+                  Add this style to {label}. It will be combined with any other compatible VynodeArr styles already assigned to the same titles. Custom layers render above the poster, status badges, and card details.
                 </p>
               </div>
               <div className="overlay-media-picker">

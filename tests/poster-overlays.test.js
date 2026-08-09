@@ -84,20 +84,19 @@ test('poster layer shapes are sanitized and composed into matching SVG geometry'
   assert.equal(sanitizeOverlayLayer({shape:'unsafe'}).shape,'rounded');
 });
 
-test('specific poster assignments override broad assignments without changing unmatched items',()=>{
+test('compatible poster assignments compose without changing unmatched items',()=>{
   const broad=sanitizeOverlayTemplate({id:'overlay_broad',name:'Broad',layers:[{variable:'year'}]}),specific=sanitizeOverlayTemplate({id:'overlay_specific',name:'Specific',layers:[{variable:'rating'}]});
   const assignments=[sanitizeOverlayAssignment({id:'assignment_all',templateId:broad.id,scope:{type:'all',domain:'movie'}}),sanitizeOverlayAssignment({id:'assignment_item',templateId:specific.id,scope:{type:'items',domain:'movie',mediaIds:['movie_7']}})];
-  assert.equal(resolveOverlayTemplate({id:'movie_7'},'movie',[broad,specific],assignments)?.id,specific.id);
+  const composed=resolveOverlayTemplate({id:'movie_7'},'movie',[broad,specific],assignments);
+  assert.match(composed.id,/^composite_/);assert.equal(composed.layers.length,2);assert.deepEqual(composed.layers.map(layer=>layer.variable),['year','rating']);
   assert.equal(resolveOverlayTemplate({id:'series_7'},'tv',[broad,specific],assignments),null);
   assert.equal(assignmentMatches(assignments[1],{id:'movie_8'},{domain:'movie'}),false);
 });
 
-test('VynodeArr assignments can keep one saved style or rotate compatible styles daily',()=>{
-  const first=sanitizeOverlayTemplate({id:'template_first',name:'First',target:'vynode',domain:'movie',enabled:true}),second=sanitizeOverlayTemplate({id:'template_second',name:'Second',target:'vynode',domain:'movie',enabled:true});
-  const fixed=sanitizeOverlayAssignment({templateId:first.id,presentationMode:'fixed',scope:{type:'all',domain:'movie'}}),rotating=sanitizeOverlayAssignment({templateId:first.id,presentationMode:'rotate',scope:{type:'all',domain:'movie'}});
-  assert.equal(resolveOverlayTemplate({id:'movie_10'},'movie',[first,second],[fixed])?.id,first.id);
-  assert.ok([first.id,second.id].includes(resolveOverlayTemplate({id:'movie_10'},'movie',[first,second],[rotating])?.id));
-  assert.equal(rotating.presentationMode,'rotate');
+test('saved style previews retain their poster behavior independently of overlay assignments',()=>{
+  const fixed=sanitizeOverlayTemplate({id:'overlay_fixed',previewPosterMode:'fixed',previewPosterKey:'movie:10'}),rotating=sanitizeOverlayTemplate({id:'overlay_rotating',previewPosterMode:'rotate',previewPosterKey:'movie:11'});
+  assert.equal(fixed.previewPosterMode,'fixed');assert.equal(fixed.previewPosterKey,'movie:10');
+  assert.equal(rotating.previewPosterMode,'rotate');
 });
 
 test('poster variables derive friendly values from library metadata',()=>{

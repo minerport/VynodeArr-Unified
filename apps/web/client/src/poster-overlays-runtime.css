@@ -37,14 +37,14 @@
 .overlay-review-preview{display:grid;justify-items:center;gap:8px}
 .overlay-assignment-panel>.panel-heading{padding-bottom:12px;border-bottom:1px solid var(--border)}
 .overlay-assignment-panel>.panel-heading .eyebrow{color:var(--cyan);font-size:.64rem}
-.overlay-presentation-mode{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:10px 12px;border:1px solid var(--border);border-radius:12px}
-.overlay-presentation-mode legend{padding:0 5px;font-weight:800}
-.overlay-presentation-mode label{display:grid!important;grid-template-columns:auto minmax(0,1fr);gap:9px!important;align-items:start;padding:10px;border:1px solid var(--border);border-radius:10px;background:color-mix(in srgb,var(--panel,#08111f) 88%,transparent);cursor:pointer}
-.overlay-presentation-mode label:has(input:checked){border-color:var(--accent);background:color-mix(in srgb,var(--panel,#08111f) 80%,var(--accent) 10%)}
-.overlay-presentation-mode input{margin-top:3px}
-.overlay-presentation-mode span{display:grid;gap:3px}
-.overlay-presentation-mode small{color:var(--muted);line-height:1.35}
+.overlay-preview-mode{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:10px 12px;border:1px solid var(--border);border-radius:12px}
+.overlay-preview-mode legend{padding:0 5px;font-weight:800}
+.overlay-preview-mode label{display:grid!important;grid-template-columns:auto minmax(0,1fr);gap:9px!important;align-items:start;padding:10px;border:1px solid var(--border);border-radius:10px;background:color-mix(in srgb,var(--panel,#08111f) 88%,transparent);cursor:pointer}
+.overlay-preview-mode label:has(input:checked){border-color:var(--accent);background:color-mix(in srgb,var(--panel,#08111f) 80%,var(--accent) 10%)}
+.overlay-preview-mode input{margin-top:3px}
+.overlay-preview-mode span{display:grid;gap:3px}
+.overlay-preview-mode small{color:var(--muted);line-height:1.35}
 @media(min-width:801px){.overlay-preview-column{grid-template-columns:1fr 1fr}.overlay-preview-column>.overlay-preview-hint,.overlay-preview-column>.overlay-preview,.overlay-preview-column>p:last-child{grid-column:1/-1}.overlay-preview-column>.overlay-preview{width:240px}}
 @media(max-width:980px){.overlay-icon-library{grid-template-columns:repeat(6,minmax(0,1fr))}}
 @media(max-width:600px){.overlay-icon-library{grid-template-columns:repeat(4,minmax(0,1fr))}}
-@media(max-width:700px){.overlay-presentation-mode{grid-template-columns:1fr}}
+@media(max-width:700px){.overlay-preview-mode{grid-template-columns:1fr}}

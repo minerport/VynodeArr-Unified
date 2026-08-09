@@ -63,8 +63,10 @@ const releaseBrowserAllowance={css:2_500};
 // separate storage, scheduling, artwork, and sync-result cards.
 const managedCollectionSetupAllowance={css:2_300};
 // Poster Overlays now separates Plex history from VynodeArr assignments and
-// supports fixed or daily-rotating saved styles with explicit help text.
-const overlayAssignmentClarityAllowance={route:1_700,css:1_000};
+// explains preview-poster behavior, retains a fixed preview poster when chosen,
+// composes stackable saved styles without replacing prior layers, and exposes
+// in-place updates for every active library assignment using an edited style.
+const overlayAssignmentClarityAllowance={route:4_600,css:1_000};
 const reeltrackApiKeyLinkAllowance={css:100};
 const failures=[];
 

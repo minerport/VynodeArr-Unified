@@ -7,6 +7,18 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.38-rc.2] - 2026-08-09
+
+### Changed
+
+- Moved poster rotation to saved style-card previews: each style can rotate through matching library posters or keep the exact preview poster visible when saved.
+- Combined layers from multiple compatible VynodeArr style assignments so applying another template no longer replaces overlays that are already assigned to the same titles.
+- Made applied styles directly editable from saved styles and active assignments; updating a style now refreshes every linked VynodeArr library assignment without removing or reapplying it.
+
+### Validation
+
+- Passed all 224 automated tests plus TypeScript, production build, bundle, branding, and deployment validation.
+
 ## [2.0.38-rc.1] - 2026-08-09
 
 ### Added
@@ -2156,6 +2168,7 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 [2.0.34-rc.3]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.34-rc.2...v2.0.34-rc.3
 [2.0.34-rc.2]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.34-rc.1...v2.0.34-rc.2
 [2.0.34-rc.1]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33...v2.0.34-rc.1
+[2.0.38-rc.2]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.38-rc.1...v2.0.38-rc.2
 [2.0.38-rc.1]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.37...v2.0.38-rc.1
 [2.0.37]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.36...v2.0.37
 [2.0.33]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.32...v2.0.33

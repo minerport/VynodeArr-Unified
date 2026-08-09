@@ -407,6 +407,8 @@ export function sanitizeOverlayTemplate(input = {}, existing = null) {
     domain: cleanDomain(input.domain || existing?.domain),
     target,
     enabled: input.enabled !== false,
+    previewPosterMode: input.previewPosterMode === "fixed" ? "fixed" : "rotate",
+    previewPosterKey: cleanText(input.previewPosterKey || existing?.previewPosterKey, 200),
     tvFileAggregation,
     layers,
     plexBadges: {
@@ -440,7 +442,6 @@ export function sanitizeOverlayAssignment(input = {}, existing = null) {
     templateId: cleanText(input.templateId, 100),
     name: cleanText(input.name || "Overlay assignment", 80),
     enabled: input.enabled !== false,
-    presentationMode: input.presentationMode === "rotate" ? "rotate" : "fixed",
     scope: {
       type,
       domain,
@@ -876,7 +877,7 @@ export function resolveOverlayTemplate(
         .map((value) => [value.id, value]),
     ),
     rank = { items: 5, "user-collection": 4, collection: 3, rules: 2, all: 1 };
-  const assignment = assignments
+  const matching = assignments
       .filter(
         (value) =>
           active.has(value.templateId) &&
@@ -884,18 +885,18 @@ export function resolveOverlayTemplate(
       )
       .sort(
         (a, b) =>
-          (rank[b.scope.type] || 0) - (rank[a.scope.type] || 0) ||
-          String(b.updatedAt).localeCompare(String(a.updatedAt)),
-      )
-      [0];
-  if (!assignment) return null;
-  if (assignment.presentationMode !== "rotate") return active.get(assignment.templateId) || null;
-  const choices = [...active.values()].filter((template) => template.domain === "all" || template.domain === domain).sort((a,b)=>String(a.id).localeCompare(String(b.id)));
-  if (!choices.length) return null;
-  const day = new Date().toISOString().slice(0,10), seed = `${item.id || item.title || "poster"}:${day}`;
-  let hash = 0;
-  for (let index = 0; index < seed.length; index += 1) hash = ((hash << 5) - hash + seed.charCodeAt(index)) | 0;
-  return choices[Math.abs(hash) % choices.length];
+          (rank[a.scope.type] || 0) - (rank[b.scope.type] || 0) ||
+          String(a.updatedAt).localeCompare(String(b.updatedAt)),
+      );
+  const selected = [...new Map(matching.map((assignment) => [assignment.templateId, active.get(assignment.templateId)])).values()].filter(Boolean);
+  if (!selected.length) return null;
+  if (selected.length === 1) return selected[0];
+  return {
+    ...selected[selected.length - 1],
+    id: `composite_${selected.map((template) => template.id).join("_")}`,
+    name: selected.map((template) => template.name).join(" + "),
+    layers: selected.flatMap((template) => template.layers.map((layer) => ({ ...layer, id: `${template.id}:${layer.id}` }))),
+  };
 }
 
 const xml = (value) =>

@@ -118,6 +118,8 @@ const blankTemplate = (): OverlayTemplate => ({
   domain: "" as OverlayDomain,
   target: "" as "vynode",
   enabled: true,
+  previewPosterMode: "rotate",
+  previewPosterKey: "",
   tvFileAggregation: "most_common",
   layers: [],
   plexBadges: {
@@ -390,8 +392,8 @@ export function PosterOverlaysView({
     [yearFrom, setYearFrom] = useState(""),
     [yearTo, setYearTo] = useState(""),
     [availability, setAvailability] = useState(""),
-    [monitoring, setMonitoring] = useState("");
-  const [presentationMode,setPresentationMode]=useState<"fixed"|"rotate">("fixed");
+    [monitoring, setMonitoring] = useState(""),
+    [previewRotation,setPreviewRotation]=useState(0);
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -453,6 +455,7 @@ export function PosterOverlaysView({
     scrollLayerSettings(selectedLayerId);
   }, [selectedLayerId, editing?.layers.length]);
   useEffect(()=>setPreviewLimit(100),[editing?.target,editing?.domain]);
+  useEffect(()=>{const timer=window.setInterval(()=>setPreviewRotation(value=>value+1),8000);return()=>window.clearInterval(timer);},[]);
   const selectLayer=(id:string)=>{setCollapsedLayerIds(value=>value.filter(item=>item!==id));setSelectedLayerId(id);requestAnimationFrame(()=>scrollLayerSettings(id));};
   useEffect(()=>setMediaLimit(100),[domain,query,scope]);
   const filteredMedia = useMemo(
@@ -485,8 +488,18 @@ export function PosterOverlaysView({
           ? `/api/poster-overlays/templates/${editing.id}`
           : "/api/poster-overlays/templates",
         method = editing.id ? "PUT" : "POST";
-      await options.request(path, { method, body: JSON.stringify(editing) });
-      options.notify("Poster style saved.");
+      const fallbackPreview=previewMedia||editingMedia[0],previewPosterKey=editing.previewPosterMode==="fixed"&&fallbackPreview?(fallbackPreview.previewKey||`${fallbackPreview.domain}:${fallbackPreview.id}`):editing.previewPosterKey||"";
+      await options.request(path, { method, body: JSON.stringify({...editing,previewPosterKey}) });
+      const appliedCount = assignments.filter(
+        (item) => item.templateId === editing.id,
+      ).length;
+      options.notify(
+        editing.id && appliedCount
+          ? `Poster style updated across ${appliedCount} active ${appliedCount === 1 ? "assignment" : "assignments"}.`
+          : editing.id
+            ? "Poster style updated."
+            : "Poster style saved.",
+      );
       setEditing(null);
       await load();
     } catch (reason) {
@@ -553,7 +566,7 @@ export function PosterOverlaysView({
         yearTo,
         availability,
         monitoring,
-      },presentationMode),
+      }),
     );
   };
   const confirmApplication = async () => {
@@ -584,6 +597,10 @@ export function PosterOverlaysView({
     } catch (reason) {
       options.notify(errorText(reason), "error");
     }
+  };
+  const editTemplate = (template: OverlayTemplate) => {
+    setPreviewId(template.previewPosterKey || "");
+    setEditing(structuredClone(template));
   };
   const selectedLayer = editing?.layers.find(
       (layer) => layer.id === selectedLayerId,
@@ -653,7 +670,7 @@ export function PosterOverlaysView({
               </div>
               <div className="overlay-new-action">
                 <span className="badge">{templates.length}</span>
-                <button type="button" className="primary" onClick={() => setEditing(blankTemplate())}>
+                <button type="button" className="primary" onClick={() => {setPreviewId("");setEditing(blankTemplate());}}>
                   Create new style
                 </button>
               </div>
@@ -664,9 +681,7 @@ export function PosterOverlaysView({
                   <Preview
                     template={template}
                     target={template.target}
-                    poster={
-                      media.find((item) => item.artwork?.url)?.artwork?.url
-                    }
+                    poster={(()=>{const eligible=media.filter(item=>(template.domain==="all"||item.domain===template.domain)&&item.artwork?.url);if(!eligible.length)return undefined;const fixed=eligible.find(item=>(item.previewKey||`${item.domain}:${item.id}`)===template.previewPosterKey),chosen=template.previewPosterMode==="fixed"?(fixed||eligible[0]):eligible[(previewRotation+templates.indexOf(template))%eligible.length];return chosen?.artwork?.originalUrl||chosen?.artwork?.url;})()}
                   />
                   <div className="overlay-template-content">
                     <strong>{template.name}</strong>
@@ -678,22 +693,25 @@ export function PosterOverlaysView({
                           : "Television"}{" "}
                       · {template.layers.length} layer
                       {template.layers.length === 1 ? "" : "s"}
+                      {` · ${template.previewPosterMode === "fixed" ? "saved preview poster" : "rotating preview posters"}`}
                     </small>
                     <div className="form-actions">
                       <button
                         className="secondary"
-                        onClick={() => setEditing(structuredClone(template))}
+                        onClick={() => editTemplate(template)}
                       >
-                        Edit
+                        {assignments.some((item) => item.templateId === template.id)
+                          ? "Update"
+                          : "Edit"}
                       </button>
                       <button
                         className="secondary"
                         onClick={() =>
-                          setEditing({
+                          {setPreviewId(template.previewPosterKey||"");setEditing({
                             ...structuredClone(template),
                             id: "",
                             name: `${template.name} copy`,
-                          })
+                          });}
                         }
                       >
                         Duplicate
@@ -729,7 +747,7 @@ export function PosterOverlaysView({
                 </p>
               </div>
             </div>
-            <fieldset className="overlay-presentation-mode"><legend>How should saved styles be displayed?</legend><label><input type="radio" name="overlay-presentation" checked={presentationMode==="fixed"} onChange={()=>setPresentationMode("fixed")}/><span><strong>Keep the selected style</strong><small>Continue showing the style chosen when this assignment is saved.</small></span></label><label><input type="radio" name="overlay-presentation" checked={presentationMode==="rotate"} onChange={()=>setPresentationMode("rotate")}/><span><strong>Rotate saved styles</strong><small>Cycle through compatible VynodeArr poster styles daily. Each title stays consistent for the entire day.</small></span></label></fieldset>
+            <div className="notice"><strong>Styles stack instead of replacing one another</strong><p>Apply as many compatible templates as you need. VynodeArr combines their layers on matching titles; removing one assignment leaves the others in place.</p></div>
             <div className="overlay-scope-row">
               <label>
                 Library
@@ -913,6 +931,9 @@ export function PosterOverlaysView({
                 ))}
             </div>
             <h3>Active assignments</h3>
+            <p className="muted">
+              Update an applied style in place. Every library assignment using it refreshes automatically—there is no need to remove and reapply it.
+            </p>
             {assignments.map((item) => (
               <div className="data-row" key={item.id}>
                 <span>
@@ -922,15 +943,27 @@ export function PosterOverlaysView({
                     {item.scope.type === "items"
                       ? ` · ${item.scope.mediaIds.length} titles`
                       : ""}
-                    {` · ${item.presentationMode === "rotate" ? "daily rotation" : "fixed style"}`}
+                    {" · combined layers"}
                   </small>
                 </span>
-                <button
-                  className="danger"
-                  onClick={() => void removeAssignment(item)}
-                >
-                  Remove
-                </button>
+                <div className="form-actions">
+                  <button
+                    className="secondary"
+                    disabled={!templates.some((template) => template.id === item.templateId)}
+                    onClick={() => {
+                      const template = templates.find((candidate) => candidate.id === item.templateId);
+                      if (template) editTemplate(template);
+                    }}
+                  >
+                    Update style
+                  </button>
+                  <button
+                    className="danger"
+                    onClick={() => void removeAssignment(item)}
+                  >
+                    Remove
+                  </button>
+                </div>
               </div>
             ))}
             {!assignments.length ? (
@@ -954,7 +987,6 @@ export function PosterOverlaysView({
               )
               .filter((item) => domain === "all" || item.domain === domain)}
             busy={busy}
-            presentationMode={(applicationReview.payload.presentationMode as "fixed"|"rotate") || "fixed"}
             onCancel={() => setApplicationReview(null)}
             onConfirm={() => void confirmApplication()}
           />
@@ -973,8 +1005,17 @@ export function PosterOverlaysView({
                 <div>
                   <span className="eyebrow">POSTER STYLE</span>
                   <h2 id="overlay-editor-title">
-                    {editing.id ? "Edit style" : "Create style"}
+                    {editing.id && assignments.some((item) => item.templateId === editing.id)
+                      ? "Update applied style"
+                      : editing.id
+                        ? "Edit style"
+                        : "Create style"}
                   </h2>
+                  {editing.id && assignments.some((item) => item.templateId === editing.id) ? (
+                    <p className="muted">
+                      Saving updates every active VynodeArr assignment that uses this style while keeping its existing library scope.
+                    </p>
+                  ) : null}
                 </div>
                 <button className="secondary" onClick={() => setEditing(null)}>
                   Close
@@ -1451,6 +1492,7 @@ export function PosterOverlaysView({
                         ))}
                     </select>
                   </label>
+                  <fieldset className="overlay-preview-mode"><legend>Saved style preview poster</legend><label><input type="radio" name="preview-poster-mode" checked={editing.previewPosterMode!=="fixed"} onChange={()=>setEditing({...editing,previewPosterMode:"rotate"})}/><span><strong>Rotate library posters</strong><small>The small saved-style preview cycles through matching library posters. This does not rotate or change the overlay layers.</small></span></label><label><input type="radio" name="preview-poster-mode" checked={editing.previewPosterMode==="fixed"} onChange={()=>setEditing({...editing,previewPosterMode:"fixed"})}/><span><strong>Keep the poster shown now</strong><small>Save the poster currently visible in the preview as this style card’s background.</small></span></label></fieldset>
                   <Preview
                     template={editing}
                     target={editing.target || undefined}
@@ -1504,7 +1546,13 @@ export function PosterOverlaysView({
                   }
                   onClick={() => void saveTemplate()}
                 >
-                  {busy ? "Saving…" : "Save poster style"}
+                  {busy
+                    ? "Saving…"
+                    : editing.id && assignments.some((item) => item.templateId === editing.id)
+                      ? "Update applied style"
+                      : editing.id
+                        ? "Update poster style"
+                        : "Save poster style"}
                 </button>
               </div>
             </section>
