@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<CommunityApplications>
+  <Profile>VynodeArr provides one maintained Community Applications template for a unified, self-hosted movie and television library manager. It presents one secure dashboard while keeping its installation-managed movie and television engines, databases, settings, queues, logs, and persistent data isolated. Installation help, release notes, and support are available from the project links below.</Profile>
+  <Icon>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/assets/branding/VynodeArr.png</Icon>
+  <WebPage>https://github.com/minerport/VynodeArr-Unified</WebPage>
+  <Forum>https://github.com/minerport/VynodeArr-Unified/issues</Forum>
+</CommunityApplications>

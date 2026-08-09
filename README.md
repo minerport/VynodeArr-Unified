@@ -43,14 +43,14 @@ so designs can be updated or reverted per list without accumulating effects.
 Health now recognizes warnings for TMDB titles removed upstream. VynodeArr
 checks whether the title remains in the Movie library, proposes a valid
 replacement when available, preserves files and settings during a confirmed
-rematch, and allows irrelevant or unresolved warnings to be dismissed. This
-stable release is published as the `latest` image.
+rematch, and allows irrelevant or unresolved warnings to be dismissed.
 
-Version **2.0.38-rc.3** is available on the development channel. It adds a
-cleaner guided Reeltrack collection setup, clearer Plex and VynodeArr overlay
-workflows, saved style-card preview posters, stackable VynodeArr
-overlay templates, compact Plex poster history, and mobile interactive-search
-filtering and sorting.
+Version **2.0.38** is the current stable release and is published as the
+`latest` image. It adds a cleaner guided Reeltrack collection setup, clearer
+Plex and VynodeArr overlay workflows, saved style-card preview posters,
+stackable VynodeArr overlay templates, compact Plex poster history, mobile
+interactive-search filtering and sorting, and submission-ready Unraid
+Community Applications metadata.
 
 The administrator Validation Center checks
 engine connectivity, storage, acquisition providers, scheduled automation,

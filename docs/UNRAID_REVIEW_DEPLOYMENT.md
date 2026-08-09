@@ -1,7 +1,7 @@
 # Unraid deployment
 
-Use `templates/vynodearr.xml` for Community Applications and
-`infrastructure/unraid/vynodearr.xml` for local template validation.
+Use `templates/vynodearr.xml` for Community Applications and local template
+validation. Repository profile metadata lives at the root in `ca_profile.xml`.
 
 - Image: `ghcr.io/minerport/vynodearr-unified:latest`
 - Appdata: `/mnt/user/appdata/vynodearr` → `/config`

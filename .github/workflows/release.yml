@@ -79,7 +79,7 @@ jobs:
         run: |
           version="${GITHUB_REF_NAME#v}"
           cp templates/vynodearr.xml "release/VynodeArr-Unraid-${version}.xml"
-          cp templates/ca_profile.xml "release/VynodeArr-Community-Applications-Profile-${version}.xml"
+          cp ca_profile.xml "release/VynodeArr-Community-Applications-Profile-${version}.xml"
       - uses: softprops/action-gh-release@v2
         with:
           name: VynodeArr ${{ github.ref_name }}

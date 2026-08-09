@@ -10,8 +10,7 @@ const prohibited=[/\bradarr\b/i,/\bsonarr\b/i],extensions=new Set(['.js','.html'
 const violations=[];
 const attributionFiles=new Set([
   'README.md',
-  'templates/vynodearr.xml',
-  'infrastructure/unraid/vynodearr.xml'
+  'templates/vynodearr.xml'
 ]);
 async function scan(path){
   let entries;

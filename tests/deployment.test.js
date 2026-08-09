@@ -19,7 +19,7 @@ test('local Compose persists random engine keys and shares them with VynodeArr',
   assert.equal((text.match(/<AuthenticationRequired>Enabled<\/AuthenticationRequired>/g)||[]).length,2);
 });
 test('Unraid template has required mappings, self-contained image, and upstream attribution',async()=>{
-  const text=await readFile(new URL('../infrastructure/unraid/vynodearr.xml',import.meta.url),'utf8');
+  const text=await readFile(new URL('../templates/vynodearr.xml',import.meta.url),'utf8');
   for(const value of ['<Name>VynodeArr</Name>','ghcr.io/minerport/vynodearr-unified:latest','Target="8686"','Target="/config"','Target="/movies"','Target="/tv"','Target="/downloads"'])assert.match(text,new RegExp(value));
   const overview=text.match(/<Overview>(.*?)<\/Overview>/s)?.[1]||'';
   assert.match(overview,/\bRadarr\b/);assert.match(overview,/\bSonarr\b/);
@@ -34,7 +34,7 @@ test('1.0 release includes self-contained Unraid and Windows distributions',asyn
     readFile(new URL('../Dockerfile.unraid',import.meta.url),'utf8'),
     readFile(new URL('../infrastructure/unraid/entrypoint.sh',import.meta.url),'utf8'),
     readFile(new URL('../templates/vynodearr.xml',import.meta.url),'utf8'),
-    readFile(new URL('../templates/ca_profile.xml',import.meta.url),'utf8'),
+    readFile(new URL('../ca_profile.xml',import.meta.url),'utf8'),
     readFile(new URL('../distribution/windows/compose.yaml',import.meta.url),'utf8')
   ]);
   for(const value of ['Radarr.master.','Sonarr.main.','EXPOSE 8686','vynodearr-entrypoint'])assert.match(image,new RegExp(value.replaceAll('.','\\.')));
@@ -44,6 +44,10 @@ test('1.0 release includes self-contained Unraid and Windows distributions',asyn
   for(const value of ['/config/movies','/config/television','MOVIE_ENGINE_API_CREDENTIAL','TV_ENGINE_API_CREDENTIAL','env -u PORT'])assert.match(entrypoint,new RegExp(value));
   for(const value of ['ghcr.io/minerport/vynodearr-unified:latest','Target="8686"','Target="/config"','Target="/movies"','Target="/tv"','Target="/downloads"'])assert.match(template,new RegExp(value));
   assert.match(profile,/<CommunityApplications>/);
+  assert.match(profile,/<Profile>[^<]+<\/Profile>/);
+  assert.match(template,/main\/templates\/vynodearr\.xml/);
+  assert.equal((template.match(/<Screenshot>/g)||[]).length,2);
+  assert.match(template,/<ExtraSearchTerms>[^<]*radarr[^<]*sonarr/i);
   assert.match(windows,/ghcr\.io\/minerport\/vynodearr-unified/);
   assert.match(image,/VYNODEARR_SECURE_COOKIES=false/);
   assert.match(template,/Target="VYNODEARR_SECURE_COOKIES".*Default="false"/);

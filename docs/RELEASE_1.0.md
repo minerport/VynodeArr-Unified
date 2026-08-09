@@ -7,8 +7,8 @@ management application.
 
 - **Unraid/Linux x86-64:** `ghcr.io/minerport/vynodearr-unified:1.0.0`
 - **Windows x64:** Docker Desktop package attached to the GitHub release
-- **Community Applications:** `templates/vynodearr.xml` and
-  `templates/ca_profile.xml`
+- **Community Applications:** `templates/vynodearr.xml` and root
+  `ca_profile.xml`
 
 The Unraid image contains installation-managed movie and television engines.
 Only VynodeArr branding is presented in the main interface. API-based request

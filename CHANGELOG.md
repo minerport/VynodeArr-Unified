@@ -7,6 +7,17 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.38] - 2026-08-09
+
+### Changed
+
+- Prepared the repository for the current Unraid Community Applications submission flow with root `ca_profile.xml`, one canonical Docker template, clearer installation fields, searchable metadata, licensing, project documentation, and screenshots.
+- Promoted the tested 2.0.38 release-candidate series with mobile interactive-search filters, guided Reeltrack collection setup, clearer Plex and VynodeArr artwork workflows, saved preview posters, stackable VynodeArr overlay templates, and in-place applied-style updates.
+
+### Validation
+
+- Passed all 224 automated tests plus TypeScript, production build, bundle, branding, deployment, and Community Applications metadata validation.
+
 ## [2.0.38-rc.3] - 2026-08-09
 
 ### Changed
@@ -2179,6 +2190,7 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 [2.0.34-rc.3]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.34-rc.2...v2.0.34-rc.3
 [2.0.34-rc.2]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.34-rc.1...v2.0.34-rc.2
 [2.0.34-rc.1]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33...v2.0.34-rc.1
+[2.0.38]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.37...v2.0.38
 [2.0.38-rc.3]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.38-rc.2...v2.0.38-rc.3
 [2.0.38-rc.2]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.38-rc.1...v2.0.38-rc.2
 [2.0.38-rc.1]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.37...v2.0.38-rc.1
