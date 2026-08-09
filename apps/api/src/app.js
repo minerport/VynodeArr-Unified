@@ -15129,6 +15129,8 @@ export function createApplication(options = {}) {
         }
         if (url.pathname === "/api/system/health") {
           if (!administrator(res, session)) return;
+          if (url.searchParams.get("refresh") === "1")
+            await sync.synchronizeOperations();
           const [reported, state, movies] = await Promise.all([
               sync.operations("health"),
               operationsCenterStore.read(),

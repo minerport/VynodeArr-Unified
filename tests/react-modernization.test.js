@@ -66,6 +66,10 @@ test('health recovery mutations are handled before the read-only API fallback',a
   assert.ok(fallback>=0,'read-only fallback');
   assert.ok(action<fallback,'health action route must precede the read-only fallback');
   for(const value of ['/api/storage/engine-path-verification','/api/storage/engine-path-remap','rootRegistered','collectionCount','collectionExamples','equivalentTargets','engine_paths.remapped','moveFiles: false'])assert.match(server,new RegExp(value.replaceAll('/','\\/')));
+  assert.match(server,/searchParams\.get\("refresh"\) === "1"/);
+  assert.match(server,/synchronizeOperations\(\)/);
+  assert.match(health,/Check health now/);
+  assert.match(health,/\?refresh=1/);
   assert.match(health,/Verify engine mapping/);assert.match(health,/Engine verification:/);assert.match(health,/Remap engine to/);assert.match(health,/No files will be moved/);
 });
 

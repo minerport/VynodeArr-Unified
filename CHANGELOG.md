@@ -7,6 +7,12 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.40-rc.10] - 2026-08-09
+
+### Fixed
+
+- **Check health now** queries the movie and television engines again instead of redisplaying VynodeArr's saved operational-health snapshot, allowing resolved root-folder warnings to clear immediately.
+
 ## [2.0.40-rc.9] - 2026-08-09
 
 ### Fixed
