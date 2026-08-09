@@ -7,6 +7,10 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- Prefer matched Plex trailer extras when Plex is connected, proxying protected range requests through VynodeArr before falling back to a local trailer, TMDB, and finally hero artwork.
+
 ## [2.0.39-rc.3] - 2026-08-09
 
 ### Changed

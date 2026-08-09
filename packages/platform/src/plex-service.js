@@ -21,6 +21,12 @@ const plexMetadata=(response,libraryType)=>{
   const metadataValue=response.value?.MediaContainer?.Metadata,metadata=response.type==='json'?(Array.isArray(metadataValue)?metadataValue:metadataValue?[metadataValue]:[]):[...String(response.value).matchAll(/<(?:Video|Directory)\b[^>]*(?:\/>|>[\s\S]*?<\/(?:Video|Directory)>)/gi)].map(match=>match[0]);
   return metadata.map(item=>({ratingKey:String(item.ratingKey??xmlAttribute(item,'ratingKey')),title:decodeXml(item.title??xmlAttribute(item,'title')),year:Number(item.year??xmlAttribute(item,'year'))||null,type:String((item.type??xmlAttribute(item,'type'))||libraryType),thumb:String(item.thumb??xmlAttribute(item,'thumb')),addedAt:plexAddedAt(item),guid:String(item.guid??xmlAttribute(item,'guid')),guids:item.Guid||[...String(item).matchAll(/<Guid\b[^>]*id="([^"]+)"[^>]*\/>/gi)].map(match=>({id:decodeXml(match[1])})),files:[...new Set((response.type==='json'?(Array.isArray(item.Media)?item.Media:item.Media?[item.Media]:[]).flatMap(media=>(Array.isArray(media.Part)?media.Part:media.Part?[media.Part]:[]).map(part=>part.file)):[...String(item).matchAll(/<Part\b[^>]*\bfile="([^"]+)"/gi)].map(match=>decodeXml(match[1]))).filter(Boolean).map(String))]})).filter(item=>item.ratingKey);
 };
+const plexTrailerPath=response=>{
+  const metadata=response.type==='json'?response.value?.MediaContainer?.Metadata:null,record=Array.isArray(metadata)?metadata[0]:metadata,extras=record?.Extras?.Metadata||record?.Extras||[],values=Array.isArray(extras)?extras:extras?[extras]:[];
+  for(const extra of values){if(String(extra?.type||'').toLowerCase()!=='trailer')continue;const media=Array.isArray(extra.Media)?extra.Media:extra.Media?[extra.Media]:[];for(const value of media){const parts=Array.isArray(value.Part)?value.Part:value.Part?[value.Part]:[];for(const part of parts){const path=String(part?.key||'');if(/^\/library\/parts\/\d+\//.test(path))return path;}}}
+  if(response.type==='xml'){for(const block of String(response.value).matchAll(/<Video\b[^>]*\btype="trailer"[^>]*>[\s\S]*?<\/Video>/gi)){const path=decodeXml(block[0].match(/<Part\b[^>]*\bkey="([^"]+)"/i)?.[1]||'');if(/^\/library\/parts\/\d+\//.test(path))return path;}}
+  return null;
+};
 
 export class PlexService{
   constructor({fetchImpl=fetch,timeoutMs=10000}={}){this.fetch=fetchImpl;this.timeoutMs=timeoutMs;}
@@ -62,9 +68,32 @@ export class PlexService{
     for(let offset=0;offset<missing.length;offset+=100){const batch=missing.slice(offset,offset+100),ids=batch.map(item=>item.ratingKey).join(','),details=await this.request(endpoint,token,`/library/metadata/${ids}?includeGuids=1`).then(value=>plexMetadata(value,library.type)).catch(()=>[]),byKey=new Map(details.map(item=>[item.ratingKey,item]));for(const item of batch){const detail=byKey.get(item.ratingKey);if(detail){item.guid=detail.guid;item.guids=detail.guids;item.thumb=item.thumb||detail.thumb;item.files=item.files?.length?item.files:detail.files||[];}}}
     return items;
   }
+  async findLibraryMatch(endpoint,token,library,item){
+    const matches=new Map();
+    for(const identity of itemExternalIds(item)){
+      const [source,id]=identity.split(':');if(!source||!id)continue;
+      const response=await this.request(endpoint,token,`/library/sections/${encodeURIComponent(library.key)}/all?includeGuids=1&guid=${encodeURIComponent(`${source}://${id}`)}`),items=plexMetadata(response,library.type);
+      for(const candidate of items)if(itemExternalIds(candidate).includes(identity))matches.set(candidate.ratingKey,candidate);
+    }
+    return matches.size===1?[...matches.values()][0]:null;
+  }
   async artwork(endpoint,token,path){
     const value=String(path||'');if(!/^\/library\/metadata\/\d+\/thumb(?:\/\d+)?$/i.test(value)&&!/^\/library\/metadata\/\d+\/art(?:\/\d+)?$/i.test(value))throw new Error('Plex artwork path is invalid');
     const response=await this.fetch(`${cleanEndpoint(endpoint)}${value}`,{headers:{accept:'image/*','x-plex-token':String(token||'')},signal:AbortSignal.timeout(this.timeoutMs)});if(response.status===401)throw new Error('Plex rejected the access token');if(!response.ok)throw new Error(`Plex artwork returned HTTP ${response.status}`);const contentType=String(response.headers.get('content-type')||'');if(!contentType.startsWith('image/'))throw new Error('Plex returned an invalid artwork response');const body=Buffer.from(await response.arrayBuffer());if(!body.length||body.length>20_000_000)throw new Error('Plex artwork is empty or too large');return{body,contentType};
+  }
+  async trailer(endpoint,token,ratingKey){
+    if(!/^\d+$/.test(String(ratingKey||'')))throw new Error('Plex trailer target is invalid');
+    const response=await this.request(endpoint,token,`/library/metadata/${ratingKey}?includeExtras=1`),path=plexTrailerPath(response);
+    return path?{path}:null;
+  }
+  async openTrailer(endpoint,token,path,{range='',head=false}={}){
+    if(!/^\/library\/parts\/\d+\//.test(String(path||'')))throw new Error('Plex trailer path is invalid');
+    const headers={accept:'video/*','x-plex-token':String(token||'')};if(range)headers.range=String(range);
+    const response=await this.fetch(`${cleanEndpoint(endpoint)}${path}`,{method:head?'HEAD':'GET',headers,redirect:'error'});
+    if(response.status===401)throw new Error('Plex rejected the access token');
+    if(!response.ok&&response.status!==206)throw new Error(`Plex trailer returned HTTP ${response.status}`);
+    const contentType=String(response.headers.get('content-type')||'').toLowerCase();if(contentType&&!contentType.startsWith('video/')&&contentType!=='application/octet-stream')throw new Error('Plex returned an invalid trailer response');
+    return response;
   }
   async uploadPoster(endpoint,token,ratingKey,body,contentType){
     if(!/^\d+$/.test(String(ratingKey||'')))throw new Error('Plex poster target is invalid');

@@ -51,6 +51,18 @@ test('Plex poster upload sends one bounded raster body to the matched metadata k
   let call;const service=new PlexService({fetchImpl:async(url,options)=>{call={url,options};return new Response('',{status:200});}}),poster=Buffer.from('jpeg-bytes');await service.uploadPoster('http://plex.local:32400','secret','91',poster,'image/jpeg');assert.equal(call.url,'http://plex.local:32400/library/metadata/91/posters');assert.equal(call.options.method,'POST');assert.equal(call.options.headers['x-plex-token'],'secret');assert.equal(call.options.headers['content-type'],'image/jpeg');assert.equal(call.options.body,poster);await assert.rejects(service.uploadPoster('http://plex.local:32400','secret','../91',poster,'image/jpeg'),/target is invalid/);
 });
 
+test('Plex trailers resolve official extras and proxy ranges without exposing the token',async()=>{
+  const calls=[],service=new PlexService({fetchImpl:async(url,options)=>{calls.push({url,options});if(url.includes('includeExtras=1'))return new Response(JSON.stringify({MediaContainer:{Metadata:[{Extras:{Metadata:[{type:'interview',Media:{Part:{key:'/library/parts/1/interview.mp4'}}},{type:'trailer',Media:[{Part:[{key:'/library/parts/42/trailer.mp4'}]}]}]}}]}}));return new Response('trailer-bytes',{status:206,headers:{'content-type':'video/mp4','content-range':'bytes 0-12/13','accept-ranges':'bytes'}});}});
+  const trailer=await service.trailer('http://plex.local:32400','protected-token','91');assert.deepEqual(trailer,{path:'/library/parts/42/trailer.mp4'});
+  const response=await service.openTrailer('http://plex.local:32400','protected-token',trailer.path,{range:'bytes=0-12'});assert.equal(response.status,206);assert.equal(calls[1].options.headers.range,'bytes=0-12');assert.equal(calls[1].options.headers['x-plex-token'],'protected-token');assert.doesNotMatch(calls[1].url,/protected-token/);
+  await assert.rejects(service.openTrailer('http://plex.local:32400','protected-token','/system/accounts'),/path is invalid/);
+});
+
+test('Plex trailer matching queries connected libraries by authoritative external ID',async()=>{
+  const calls=[],service=new PlexService({fetchImpl:async(url)=>{calls.push(url);return new Response(JSON.stringify({MediaContainer:{Metadata:[{ratingKey:'91',title:'Matched',Guid:[{id:'tmdb://101'}]}]}}));}}),match=await service.findLibraryMatch('http://plex.local:32400','token',{key:'1',type:'movie'},{tmdbId:101,title:'Different title'});
+  assert.equal(match.ratingKey,'91');assert.match(calls[0],/guid=tmdb%3A%2F%2F101/);
+});
+
 test('Plex managed collections are replaced exactly and library refresh is bounded',async()=>{
   const calls=[],service=new PlexService({fetchImpl:async(url,options)=>{calls.push({url,method:options.method||'GET'});if(url.endsWith('/library/sections/1/collections'))return new Response(JSON.stringify({MediaContainer:{Metadata:[{ratingKey:'90',title:'Watch later'}]}}));if(url.includes('/library/collections?'))return new Response(JSON.stringify({MediaContainer:{Metadata:[{ratingKey:'91'}]}}));return new Response('',{status:200});}});
   const result=await service.syncCollection('http://plex.local:32400','token',{libraryKey:'1',libraryType:'movie',machineIdentifier:'server-1',title:'Watch later',ratingKeys:['11','12','12']});

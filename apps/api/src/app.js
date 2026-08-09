@@ -11,6 +11,7 @@ import {
 } from "node:crypto";
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
+import { Readable } from "node:stream";
 import { extname, join, normalize, resolve } from "node:path";
 import { promisify } from "node:util";
 import { gunzip, gzip } from "node:zlib";
@@ -515,6 +516,7 @@ export function createApplication(options = {}) {
     reeltrackPosterBackgroundDir = join(dataDir, "reeltrack-poster-backgrounds"),
     reeltrackArtworkBackupDir = join(dataDir, "reeltrack-artwork-originals");
   const plexService = options.plexService || new PlexService();
+  const plexTrailerCache = new Map();
   const trailerDownloader =
     options.trailerDownloader ||
     new TrailerDownloadService({
@@ -14382,8 +14384,42 @@ export function createApplication(options = {}) {
           const domain = trailerMatch[1],
             permission = domain === "movie" ? "movies" : "tv";
           if (!permitted(res, session, permission)) return;
-          const detail = await mediaDetail(domain, trailerMatch[2]),
-            file = detail?.item
+          const detail = await mediaDetail(domain, trailerMatch[2]);
+          if (detail?.item && typeof plexService.trailer === "function" && typeof plexService.openTrailer === "function") {
+            try {
+              const [settings, token] = await Promise.all([plexSettingsStore.read(), engineSettings.plexCredential()]);
+              if (settings.endpoint && token) {
+                const cacheKey = `${settings.server?.machineIdentifier || settings.endpoint}:${domain}:${trailerMatch[2]}`,
+                  cached = plexTrailerCache.get(cacheKey);
+                let path = cached?.expiresAt > Date.now() ? cached.path : undefined;
+                if (path === undefined) {
+                  const resolvePlex = async () => {
+                    const expectedType = domain === "tv" ? "show" : "movie";
+                    for (const library of (settings.libraries || []).filter(value => value.type === expectedType)) {
+                      const match = typeof plexService.findLibraryMatch === "function"
+                          ? await plexService.findLibraryMatch(settings.endpoint, token, library, detail.item)
+                          : plexService.match([{...detail.item, domain}], await plexService.libraryItems(settings.endpoint, token, library))[0]?.plex?.[0];
+                      if (!match?.ratingKey) continue;
+                      const trailer = await plexService.trailer(settings.endpoint, token, match.ratingKey);
+                      if (trailer?.path) return trailer.path;
+                    }
+                    return null;
+                  };
+                  path = await Promise.race([resolvePlex(), new Promise(resolve => setTimeout(() => resolve(null), 1800))]);
+                  plexTrailerCache.set(cacheKey, {path, expiresAt:Date.now()+(path?10*60_000:60_000)});
+                }
+                if (path) {
+                  const upstream = await plexService.openTrailer(settings.endpoint, token, path, {range:req.headers.range,head:req.method === "HEAD"}),
+                    headers = {"cache-control":"private, max-age=300","content-type":upstream.headers.get("content-type") || "video/mp4","x-content-type-options":"nosniff"};
+                  for (const name of ["accept-ranges","content-length","content-range"]) { const value = upstream.headers.get(name); if (value) headers[name] = value; }
+                  res.writeHead(upstream.status, headers);
+                  if (req.method === "HEAD" || !upstream.body) return res.end();
+                  return Readable.fromWeb(upstream.body).pipe(res);
+                }
+              }
+            } catch {}
+          }
+          const file = detail?.item
               ? await trailerPlayback.find(domain, detail.item.location || detail.item.rootFolder)
               : null;
           if (!file) {

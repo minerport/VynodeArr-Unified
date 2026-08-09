@@ -1496,3 +1496,9 @@ test('movie and television details share lightweight hero trailer playback with 
   assert.match(hero,/Turn sound on/);assert.match(hero,/onError/);assert.match(hero,/youtube-nocookie\.com\/embed/);assert.match(hero,/controls=0&disablekb=1&fs=0/);assert.match(hero,/<iframe/);assert.doesNotMatch(hero,/detail-trailer-fallback/);assert.match(styles,/trailer-ready/);assert.match(styles,/aspect-ratio:16\/9/);assert.match(styles,/pointer-events:none/);
   assert.match(movie,/api\/media\/trailers\/movie/);assert.match(tv,/api\/media\/trailers\/tv/);assert.match(movie,/Watch trailer/);assert.match(tv,/Watch trailer/);
 });
+
+test('detail trailers prefer protected Plex extras before local and TMDB fallbacks',async()=>{
+  const [api,plex,hero]=await Promise.all([read('apps/api/src/app.js'),read('packages/platform/src/plex-service.js'),read('apps/web/client/src/detail-hero-trailer.tsx')]);
+  assert.match(api,/plexService\.openTrailer/);assert.match(api,/trailerPlayback\.find/);assert.ok(api.indexOf('plexService.openTrailer')<api.indexOf('trailerPlayback.find(domain, detail.item.location'));
+  assert.match(plex,/includeExtras=1/);assert.match(plex,/x-plex-token/);assert.match(plex,/headers\.range/);assert.match(api,/content-range/);assert.match(hero,/youtube-nocookie\.com/);
+});
