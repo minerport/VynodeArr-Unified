@@ -21,3 +21,16 @@ test('SQLite library catalog imports projections and supports indexed paging, re
     const snapshot=await store.exportSnapshot();await store.removeDomainItem('movie','movie_1');await store.restoreSnapshot(snapshot);assert.equal(await store.countDomain('movie'),2);
   }finally{await store.close();await rm(directory,{recursive:true,force:true});}
 });
+
+test('catalog paging preserves the selected movie and TV sort when direction changes',async()=>{
+  const directory=await mkdtemp(join(tmpdir(),'vynodearr-sort-')),database=join(directory,'library.sqlite'),store=new LibraryCatalogStore(database);
+  try{
+    await store.initialize();
+    await store.replaceDomain('movie',[{id:'movie_a',title:'Alpha',releaseDate:'2020-01-01'},{id:'movie_z',title:'Zulu',releaseDate:'2025-06-01'},{id:'movie_m',title:'Missing date'}]);
+    await store.replaceDomain('tv',[{id:'series_a',title:'Alpha',firstAired:'2024-08-01'},{id:'series_z',title:'Zulu',firstAired:'2019-03-01'},{id:'series_m',title:'Missing date'}]);
+    assert.deepEqual((await store.queryDomain('movie',{sort:'releaseDate',direction:'ascending'})).items.map(item=>item.id),['movie_a','movie_z','movie_m']);
+    assert.deepEqual((await store.queryDomain('movie',{sort:'releaseDate',direction:'descending'})).items.map(item=>item.id),['movie_z','movie_a','movie_m']);
+    assert.deepEqual((await store.queryDomain('tv',{sort:'releaseDate',direction:'ascending'})).items.map(item=>item.id),['series_z','series_a','series_m']);
+    assert.deepEqual((await store.queryDomain('tv',{sort:'releaseDate',direction:'descending'})).items.map(item=>item.id),['series_a','series_z','series_m']);
+  }finally{await store.close();await rm(directory,{recursive:true,force:true});}
+});

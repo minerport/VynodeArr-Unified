@@ -10,6 +10,7 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 
 - Made trailer actions clickable, normalized their label to **Watch trailer**, and added a muted official YouTube hero fallback when no local trailer exists.
+- Kept Movie and TV library direction changes tied to the selected sort field, including correct release-date and first-aired ordering across paged results.
 
 ## [2.0.39-rc.1] - 2026-08-09
 
