@@ -195,6 +195,16 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
       setBusy("");
     }
   };
+  const makeDefault = async (destination: MediaDestination) => {
+    if (destination.discovered) { setEditingDestination({ ...destination, isDefault: true }); return; }
+    setBusy(`default-${destination.id}`);
+    try {
+      await options.request(`/api/media-destinations/${destination.id}`, { method: "PUT", body: JSON.stringify({ ...destination, isDefault: true }) });
+      options.notify(`${destination.name} is now the default ${domain === "movie" ? "movie" : "television"} destination.`);
+      await load();
+    } catch (reason) { options.notify(message(reason), "error"); }
+    finally { setBusy(""); }
+  };
   const samePath = clean(rootPath) === clean(downloadPath);
   const directMappings = (availableFolders?.folders || []).filter((item) => item.domain === domain), mediaChildren = availableFolders?.mediaChildren || [];
   return (
@@ -378,6 +388,7 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
                   <button className="secondary" onClick={() => setEditingDestination(destination)}>
                     {destination.discovered ? "Set up" : "Edit"}
                   </button>
+                  {!destination.isDefault ? <button className="secondary" disabled={busy === `default-${destination.id}`} onClick={() => void makeDefault(destination)}>{busy === `default-${destination.id}` ? "Saving…" : "Make default"}</button> : null}
                   {!destination.discovered ? (
                     <button className="text-button" disabled={busy === `destination-${destination.id}`} onClick={() => void removeDestination(destination)}>
                       Remove

@@ -19,6 +19,10 @@ test('Reeltrack Lists remains fluid while the viewport is resized',async()=>{
   for(const guidance of ['Keep this list in sync with Plex','1. Turn on automatic management','2','Choose where titles belong','Name it and choose a schedule','Customize artwork','Original Plex artwork is backed up','Last sync results','Save and apply settings'])assert.ok(view.includes(guidance),guidance);
   assert.match(view,/MAP HOST FOLDER/);
   assert.match(view,/Plex, host, and engine paths are mapped independently/);
+  assert.match(view,/VynodeArr movie destination/);
+  assert.match(view,/VynodeArr television destination/);
+  assert.match(view,/movieMediaDestinationId/);
+  assert.match(view,/tvMediaDestinationId/);
   assert.doesNotMatch(view,/Add as Movie root/);
   assert.match(view,/\/api\/reeltrack\/poster\/\$\{item\.domain\}\/\$\{item\.tmdbId\}/);
   assert.match(view,/onError=\{\(\) => setFailed\(true\)\}/);
@@ -399,6 +403,8 @@ test('Discover progressively loads and owns title details and requests through a
   assert.match(request,/export function DiscoverRequest/);
   assert.match(request,/\/api\/discover\/import-options/);
   assert.match(request,/\/api\/discover\/request/);
+  assert.match(request,/Library destination/);
+  assert.match(request,/The selected folder and profile are sent to the media engine/);
   assert.match(request,/Fix movie match/);
   assert.match(request,/discover-match-dialog/);
   assert.match(styles,/\.discover-match-dialog\{[^}]*width:min\(42rem/);
@@ -496,13 +502,14 @@ test('media naming and importing settings use a typed React route without flatte
 });
 
 test('storage folders and import review use a typed React route and analysis boundary',async()=>{
-  const [view,types,analysis,review,islands,legacy]=await Promise.all([
+  const [view,types,analysis,review,islands,legacy,api]=await Promise.all([
     read('apps/web/client/src/root-folders.tsx'),
     read('apps/web/client/src/root-folders-types.ts'),
     read('apps/web/client/src/library-import-analysis.ts'),
     read('apps/web/client/src/library-import-review.tsx'),
     read('apps/web/client/src/react-islands.tsx'),
-    read('apps/web/client/src/app-shell.ts')
+    read('apps/web/client/src/app-shell.ts'),
+    read('apps/api/src/app.js')
   ]);
   assert.match(view,/export function RootFoldersView/);
   assert.match(view,/\/api\/settings\/download-folders/);
@@ -518,6 +525,9 @@ test('storage folders and import review use a typed React route and analysis bou
   assert.match(view,/ModalPortal/);
   assert.match(types,/interface RootFoldersMountOptions/);
   assert.match(types,/interface AvailableLibraryFoldersResponse/);
+  assert.match(view,/Make default/);
+  assert.match(api,/new Set\(\["cdrom", "floppy", "usb"\]\)/);
+  assert.match(api,/!ignoredMediaChildren\.has\(item\.name\.toLowerCase\(\)\)/);
   assert.match(types,/startImport:/);
   assert.match(islands,/mountRootFolders/);
   assert.match(legacy,/showRootFoldersReact/);

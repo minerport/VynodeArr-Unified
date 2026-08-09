@@ -26,6 +26,8 @@ export interface ReeltrackList {
     plexLibraryKey?:string;
     plexMovieLibraryKey?:string;
     plexTvLibraryKey?:string;
+    movieMediaDestinationId?:string;
+    tvMediaDestinationId?:string;
     plexTrailerPath?:string;
     plexLibraryLocations?:{movie?:string;tv?:string};
     movieHostRoot?:string;

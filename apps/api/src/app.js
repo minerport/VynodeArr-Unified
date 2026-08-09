@@ -1420,7 +1420,7 @@ export function createApplication(options = {}) {
         : "This destination is not ready. Review its root folder and quality profile.");
     return mediaDestinations.apply(payload, destination);
   }
-  async function addReeltrackItemsToLibraries(providerItems, preferredRoots = {}) {
+  async function addReeltrackItemsToLibraries(providerItems, preferredRoots = {}, preferredDestinationIds = {}) {
     const summary = { added: 0, existing: 0, failed: 0, errors: [] };
     for (const domain of ["movie", "tv"]) {
       const candidates = (providerItems || [])
@@ -1442,10 +1442,12 @@ export function createApplication(options = {}) {
         );
         continue;
       }
-      const known = Array.isArray(records) ? records : records?.records || [],
-        defaultDestination = destinationContext.destinations.find((item) => item.isDefault && item.ready) || destinationContext.destinations.find((item) => item.ready),
-        profile = (Array.isArray(profiles) ? profiles : []).find((item) => !preferredRoots[domain] && defaultDestination && Number(item.id) === Number(defaultDestination.qualityProfileId)) || (Array.isArray(profiles) ? profiles : [])[0],
-        preferredPath = plexPathValue(preferredRoots[domain]),
+      const requestedDestinationId = String(preferredDestinationIds[domain] || ""),
+        known = Array.isArray(records) ? records : records?.records || [],
+        selectedDestination = destinationContext.destinations.find((item) => item.id === requestedDestinationId && item.ready),
+        defaultDestination = selectedDestination || destinationContext.destinations.find((item) => item.isDefault && item.ready) || destinationContext.destinations.find((item) => item.ready),
+        profile = (Array.isArray(profiles) ? profiles : []).find((item) => defaultDestination && Number(item.id) === Number(defaultDestination.qualityProfileId)) || (Array.isArray(profiles) ? profiles : [])[0],
+        preferredPath = selectedDestination ? "" : plexPathValue(preferredRoots[domain]),
         availableRoots = Array.isArray(roots) ? roots : [],
         root = (!preferredPath && defaultDestination ? availableRoots.find((item) => plexPathValue(item.path) === plexPathValue(defaultDestination.rootFolderPath)) : null) || availableRoots
           .filter((candidate) => {
@@ -1454,6 +1456,11 @@ export function createApplication(options = {}) {
           })
           .sort((left, right) => plexPathValue(right.path).length - plexPathValue(left.path).length)[0]
           || availableRoots[0];
+      if (requestedDestinationId && !selectedDestination) {
+        summary.failed += candidates.length;
+        summary.errors.push(`${domain === "movie" ? "Movies" : "Television"}: choose an available media destination`);
+        continue;
+      }
       let domainAdded = 0;
       if (!profile || !root?.path) {
         summary.failed += candidates.length;
@@ -1777,6 +1784,7 @@ export function createApplication(options = {}) {
       const libraryAdds = await addReeltrackItemsToLibraries(
           providerItems,
           Object.fromEntries(targets.map((target) => [target.domain, target.localRoot])),
+          { movie: automation.movieMediaDestinationId, tv: automation.tvMediaDestinationId },
         ),
         jobs = { ...(automation.jobs || {}) },
         totals = { managedTitles: 0, placeholders: 0, downloaded: 0, removed: 0, realMatches: 0, collectionPosters: 0, titlePosters: 0 },
@@ -8428,7 +8436,8 @@ export function createApplication(options = {}) {
             { path: "/tv-3", label: "Additional television library 2", domain: "tv" },
           ], roots = await Promise.all([management.execute("movie", "rootFolders", "GET", {}).catch(() => []), management.execute("tv", "rootFolders", "GET", {}).catch(() => [])]), normalized = value => String(value || "").replaceAll("\\", "/").replace(/\/+$/, "") || "/", registered = Object.fromEntries(["movie", "tv"].map((domain, index) => [domain, new Set((Array.isArray(roots[index]) ? roots[index] : []).map(item => normalized(item.path)))]));
           const folders = await Promise.all(definitions.map(async item => ({ ...item, configured: await readdir(item.path).then(() => true).catch(() => false), registered: registered[item.domain].has(item.path) })));
-          const mediaChildren = await readdir("/media", { withFileTypes: true }).then(items => items.filter(item => item.isDirectory() && !item.name.startsWith(".")).slice(0, 200).map(item => { const path = `/media/${item.name}`;return { path, label: item.name.replace(/[-_]+/g, " ").replace(/\b\w/g, letter => letter.toUpperCase()), domain: null, configured: true, registeredMovie: registered.movie.has(path), registeredTv: registered.tv.has(path) }; })).catch(() => []);
+          const ignoredMediaChildren = new Set(["cdrom", "floppy", "usb"]);
+          const mediaChildren = await readdir("/media", { withFileTypes: true }).then(items => items.filter(item => item.isDirectory() && !item.name.startsWith(".") && !ignoredMediaChildren.has(item.name.toLowerCase())).slice(0, 200).map(item => { const path = `/media/${item.name}`;return { path, label: item.name.replace(/[-_]+/g, " ").replace(/\b\w/g, letter => letter.toUpperCase()), domain: null, configured: true, registeredMovie: registered.movie.has(path), registeredTv: registered.tv.has(path) }; })).catch(() => []);
           return json(res, 200, { mainMediaConfigured: await readdir("/media").then(() => true).catch(() => false), folders, mediaChildren });
         }
         if (url.pathname === "/api/media-destinations" && req.method === "GET") {
@@ -8888,6 +8897,8 @@ export function createApplication(options = {}) {
                       downloadTrailers: true,
                       plexMovieLibraryKey: String(automationInput.plexMovieLibraryKey || ""),
                       plexTvLibraryKey: String(automationInput.plexTvLibraryKey || ""),
+                      movieMediaDestinationId: String(automationInput.movieMediaDestinationId || ""),
+                      tvMediaDestinationId: String(automationInput.tvMediaDestinationId || ""),
                       movieHostRoot: String(automationInput.movieHostRoot || localLibraryRoot("movie")),
                       tvHostRoot: String(automationInput.tvHostRoot || localLibraryRoot("tv")),
                       collectionName: String(list.name || "Reeltrack").trim().slice(0, 120),
@@ -9051,6 +9062,8 @@ export function createApplication(options = {}) {
             downloadTrailers: input.downloadTrailers !== false,
             plexMovieLibraryKey: String(input.plexMovieLibraryKey || ""),
             plexTvLibraryKey: String(input.plexTvLibraryKey || ""),
+            movieMediaDestinationId: String(input.movieMediaDestinationId || ""),
+            tvMediaDestinationId: String(input.tvMediaDestinationId || ""),
             movieHostRoot: String(input.movieHostRoot || localLibraryRoot("movie")),
             tvHostRoot: String(input.tvHostRoot || localLibraryRoot("tv")),
             collectionName:

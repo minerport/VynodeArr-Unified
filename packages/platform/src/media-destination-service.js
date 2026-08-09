@@ -11,7 +11,8 @@ export class MediaDestinationService {
     if(!['movie','tv'].includes(domain))throw new Error('Choose Movies or Television');
     const state=await this.state(),availableRoots=Array.isArray(roots)?roots:[],availableProfiles=Array.isArray(profiles)?profiles:[],expectedPlexType=domain==='tv'?'show':'movie',libraries=(Array.isArray(plexLibraries)?plexLibraries:[]).filter(item=>item.type===expectedPlexType);
     let records=state.destinations.filter(item=>item.domain===domain);
-    if(!state.initializedDomains.includes(domain))records=availableRoots.map((root,index)=>({id:`discovered:${domain}:${encodeURIComponent(cleanPath(root.path))}`,domain,name:friendlyPath(root.path),rootFolderPath:cleanPath(root.path),qualityProfileId:Number(availableProfiles[0]?.id)||0,isDefault:index===0,administratorOnly:false,monitor:domain==='tv'?'all':undefined,seriesType:domain==='tv'?'standard':undefined,minimumAvailability:domain==='movie'?'announced':undefined,tags:[],plexLibraryKey:null,discovered:true}));
+    const recordedRoots=new Set(records.map(item=>cleanPath(item.rootFolderPath)));
+    for(const [index,root] of availableRoots.entries()){const path=cleanPath(root.path);if(!recordedRoots.has(path))records.push({id:`discovered:${domain}:${encodeURIComponent(path)}`,domain,name:friendlyPath(path),rootFolderPath:path,qualityProfileId:Number(availableProfiles[0]?.id)||0,isDefault:records.length===0&&index===0,administratorOnly:false,monitor:domain==='tv'?'all':undefined,seriesType:domain==='tv'?'standard':undefined,minimumAvailability:domain==='movie'?'announced':undefined,tags:[],plexLibraryKey:null,discovered:true});}
     if(!administrator)records=records.filter(item=>item.administratorOnly!==true);
     const defaultId=records.find(item=>item.isDefault)?.id||records[0]?.id;
     return records.map(item=>{

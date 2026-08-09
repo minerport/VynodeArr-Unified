@@ -92,7 +92,7 @@ export function MovieDetailView({options}:{options:MovieDetailMountOptions}){
     {renamePreview?<ModalPortal><RenamePreview preview={renamePreview} busy={busy==='rename-apply'} onClose={()=>setRenamePreview(null)} onApply={applyRename} onDelete={deletePreviewFile}/></ModalPortal>:null}
     {fixingMatch?<ModalPortal><MatchBrowser domain="movie" title={item.title} busy={busy==='fix-match'} request={options.request} onClose={()=>setFixingMatch(false)} onApply={applyMatch}/></ModalPortal>:null}
     {confirmingRemoval?<ModalPortal><RemoveLibraryItemDialog title={item.title} kind="movie" busy={busy==='delete'} onClose={()=>setConfirmingRemoval(false)} onRemove={remove}/></ModalPortal>:null}
-    {releases?<ModalPortal><ReleaseBrowser title={item.title} items={releases} busy={busy==='grab'} onClose={()=>setReleases(null)} onGrab={grab}/></ModalPortal>:null}
+    {releases?<ModalPortal><ReleaseBrowser title={item.title} items={releases} destination={item.rootFolder||item.location} busy={busy==='grab'} onClose={()=>setReleases(null)} onGrab={grab}/></ModalPortal>:null}
     </div>
   </div>;
 }

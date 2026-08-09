@@ -21,7 +21,7 @@ Existing libraries are supported. Back up /config before upgrades or removal. Ra
   <TemplateURL>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/templates/vynodearr.xml</TemplateURL>
   <Icon>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/assets/branding/VynodeArr.png</Icon>
   <ReadMe>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/README.md</ReadMe>
-  <Changes>2.0.40-rc.3: Added safe multi-library Unraid placeholders and in-app detection, classification, engine registration, destination profiles, and setup guidance without granting the container access to Unraid's saved templates.</Changes>
+  <Changes>2.0.40-rc.4: Added consistent movie and television destination selection for requests, Add Media, interactive-search guidance, and Reeltrack list automation; newly registered roots remain selectable, defaults are easier to set, and synthetic cdrom, floppy, and usb folders are hidden.</Changes>
   <Date>2026-08-09</Date>
   <MinVer>6.12</MinVer>
   <License>Apache-2.0</License>

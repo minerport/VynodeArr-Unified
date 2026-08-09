@@ -80,7 +80,7 @@ export function TvDetailView({options}:{options:TvDetailMountOptions}){
     {renamePreview?<ModalPortal><RenamePreview preview={renamePreview} busy={busy==='rename-apply'} onClose={()=>setRenamePreview(null)} onApply={applyRename} onDelete={deletePreviewFile}/></ModalPortal>:null}
     {fixingMatch?<ModalPortal><MatchBrowser domain="tv" title={item.title} busy={busy==='fix-match'} request={options.request} onClose={()=>setFixingMatch(false)} onApply={applyMatch}/></ModalPortal>:null}
     {confirmingRemoval?<ModalPortal><RemoveLibraryItemDialog title={item.title} kind="series" busy={busy==='delete'} onClose={()=>setConfirmingRemoval(false)} onRemove={remove}/></ModalPortal>:null}
-    {releases?<ModalPortal><ReleaseBrowser title={releases.title} items={releases.items} busy={busy==='grab'} onClose={()=>setReleases(null)} onGrab={grab}/></ModalPortal>:null}
+    {releases?<ModalPortal><ReleaseBrowser title={releases.title} items={releases.items} destination={item.rootFolder} busy={busy==='grab'} onClose={()=>setReleases(null)} onGrab={grab}/></ModalPortal>:null}
     </div>
   </div>;
 }
