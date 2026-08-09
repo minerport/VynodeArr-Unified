@@ -98,6 +98,38 @@ test('poster variables derive friendly values from library metadata',()=>{
   assert.equal(values.file_size,'15 GB');assert.equal(values.completion_percent,'100%');assert.equal(values.tags,'favorite, 4k');assert.equal(values.date_added,'Jul 30');assert.equal(values.added_ago,'3 days ago');assert.equal(values.release_age,'13 days ago');assert.equal(values.download_status,'Downloading');assert.equal(values.download_progress,'63%');assert.equal(values.download_eta,'Tomorrow');assert.equal(values.library_status,'Complete');
 });
 
+test('theatrical artwork icons render as editable overlay layers',()=>{
+  for(const [iconName,path] of [['filmstrip','M3 5h18v14H3z'],['megaphone','M3 10v4h4'],['popcorn','M6 9h12'],['marquee','M3 6h18v12H3z']]){
+    const template=sanitizeOverlayTemplate({layers:[{kind:'icon',iconName,variable:'custom_text',label:'',width:24}]});
+    assert.match(renderOverlaySvg({poster:Buffer.from('poster'),template,item:{title:'Movie'}}).toString(),new RegExp(path));
+  }
+});
+
+test('decorative custom-text artwork does not inherit a visible placeholder label',()=>{
+  const shape=sanitizeOverlayLayer({kind:'shape',variable:'custom_text',label:'Custom text',width:40,height:10}),icon=sanitizeOverlayLayer({kind:'icon',variable:'custom_text',label:'',iconName:'filmstrip'});
+  assert.equal(shape.label,'');assert.equal(icon.label,'');
+  const svg=renderOverlaySvg({poster:Buffer.alloc(0),includePoster:false,template:{enabled:true,layers:[shape,icon]},item:{}}).toString();
+  assert.equal(svg.includes('Custom text'),false);
+});
+
+test('explicit layer heights resize text and icon artwork in exact output',()=>{
+  const template=sanitizeOverlayTemplate({layers:[{kind:'text',variable:'custom_text',label:'COMING SOON',width:70,height:8},{kind:'icon',iconName:'filmstrip',variable:'custom_text',label:'',width:30,height:18}]});
+  const svg=renderOverlaySvg({poster:Buffer.from('poster'),template,item:{title:'Movie'}}).toString();
+  assert.match(svg,/height="72"/);
+  assert.match(svg,/height="162"/);
+});
+
+test('overlay groups persist as editor metadata without changing render order',()=>{
+  const template=sanitizeOverlayTemplate({layers:[{id:'layer_one',groupId:'group_badge',variable:'title'},{id:'layer_two',groupId:'group_badge',kind:'shape',variable:'custom_text'}]});
+  assert.equal(template.layers[0].groupId,'group_badge');
+  assert.equal(template.layers[1].groupId,'group_badge');
+});
+
+test('poster variables expose Reeltrack collection artwork values',()=>{
+  const values=posterVariableValues({collectionName:'Weekend picks',collectionTitleCount:14,collectionMediaType:'Movies',collectionLastSync:'2026-08-08T12:00:00Z'},{now:'2026-08-08T13:00:00Z'});
+  assert.equal(values.collection_name,'Weekend picks');assert.equal(values.collection_title_count,14);assert.equal(values.collection_media_type,'Movies');assert.equal(values.collection_last_sync,'Aug 8');
+});
+
 test('days since added uses Plex metadata for Plex and library metadata for VynodeArr',()=>{
   assert.equal(posterVariableValues({addedAt:'2020-01-01T00:00:00Z'},{now:'2026-08-07T23:59:00Z',plexAddedAt:'2026-08-01T01:00:00Z'}).plex_days_since_added,6);
   assert.equal(posterVariableValues({addedAt:'2026-08-01T00:00:00Z'},{now:'2026-08-07T12:00:00Z'}).plex_days_since_added,6);

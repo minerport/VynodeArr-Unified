@@ -1,0 +1,1088 @@
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
+import { ModalPortal } from "./modal-portal";
+import { overlayClientId, OverlayLayerView, overlayLayerVisible, resolveConditionalLayer } from "./poster-overlay-layer";
+import { PosterIcon, PosterLayerContent, posterIcons } from "./poster-overlay-icons";
+import LayerIdentity from "./poster-overlay-layer-identity";
+import type { OverlayLayer, OverlayTemplate } from "./poster-overlays-types";
+import "./reeltrack-poster-designer.css";
+
+const OverlayConditions = lazy(() => import("./poster-overlay-conditions"));
+const variables = ["custom_text", "collection_name", "collection_title_count", "collection_media_type", "collection_last_sync", "title", "year", "rating", "quality", "resolution", "quality_profile", "video_codec", "audio_codec", "audio_channels", "dynamic_range", "source", "languages", "subtitle_languages", "runtime", "certification", "studio", "network", "genres", "monitored", "availability", "library_status", "completion_percent", "file_size", "tags", "date_added", "added_ago", "plex_days_since_added", "release_date", "release_age", "download_status", "download_progress", "download_eta", "missing_count", "cutoff_status", "season_progress", "episode_progress", "series_type", "next_episode", "requested_by", "request_count", "tmdb_id", "tvdb_id", "imdb_id"];
+const presets = [
+  {
+    name: "Midnight",
+    type: "linear" as const,
+    a: "#07111f",
+    b: "#28466f",
+    angle: 145,
+    accent: "#64d8ff",
+  },
+  {
+    name: "Cinema",
+    type: "radial" as const,
+    a: "#7a241e",
+    b: "#120707",
+    angle: 90,
+    accent: "#ffd166",
+  },
+  {
+    name: "Neon",
+    type: "linear" as const,
+    a: "#35105d",
+    b: "#071b35",
+    angle: 35,
+    accent: "#ea4cff",
+  },
+  {
+    name: "Emerald",
+    type: "linear" as const,
+    a: "#052e2b",
+    b: "#102034",
+    angle: 160,
+    accent: "#56e39f",
+  },
+];
+const titlePresets = [
+  {
+    name: "Coming Soon",
+    text: "COMING SOON",
+    background: "#e90046",
+    foreground: "#ffffff",
+    accent: "#ffd400",
+    shape: "ribbon" as const,
+    font: "condensed" as const,
+    weight: 900 as const,
+    icon: "megaphone",
+    x: 13,
+    y: 37,
+    width: 74,
+    size: 42,
+  },
+  {
+    name: "Feature Trailer",
+    text: "TRAILER",
+    background: "#ffd000",
+    foreground: "#050505",
+    accent: "#050505",
+    shape: "chevron" as const,
+    font: "condensed" as const,
+    weight: 900 as const,
+    icon: "filmstrip",
+    x: 12,
+    y: 9,
+    width: 78,
+    size: 46,
+  },
+  {
+    name: "Upcoming",
+    text: "UPCOMING",
+    background: "#2563eb",
+    foreground: "#ffffff",
+    accent: "#93c5fd",
+    shape: "rounded" as const,
+    font: "sans" as const,
+    weight: 800 as const,
+    icon: "calendar",
+    x: 19,
+    y: 8,
+    width: 62,
+    size: 38,
+  },
+  {
+    name: "Trending Now",
+    text: "TRENDING NOW",
+    background: "#f97316",
+    foreground: "#140a02",
+    accent: "#fff7ed",
+    shape: "chevron" as const,
+    font: "condensed" as const,
+    weight: 900 as const,
+    icon: "flame",
+    x: 9,
+    y: 80,
+    width: 72,
+    size: 40,
+  },
+  {
+    name: "Recently Added",
+    text: "RECENTLY ADDED",
+    background: "#7c3aed",
+    foreground: "#ffffff",
+    accent: "#c4b5fd",
+    shape: "pill" as const,
+    font: "sans" as const,
+    weight: 800 as const,
+    icon: "clapperboard",
+    x: 10,
+    y: 82,
+    width: 80,
+    size: 34,
+  },
+  {
+    name: "New Release",
+    text: "NEW RELEASE",
+    background: "#16a34a",
+    foreground: "#ffffff",
+    accent: "#bbf7d0",
+    shape: "tag" as const,
+    font: "serif" as const,
+    weight: 800 as const,
+    icon: "spotlight",
+    x: 12,
+    y: 8,
+    width: 66,
+    size: 36,
+  },
+  {
+    name: "Leaving Soon",
+    text: "LEAVING SOON",
+    background: "#facc15",
+    foreground: "#111827",
+    accent: "#ef4444",
+    shape: "ticket" as const,
+    font: "monospace" as const,
+    weight: 900 as const,
+    icon: "ticket",
+    x: 16,
+    y: 82,
+    width: 68,
+    size: 34,
+  },
+  {
+    name: "Editor's Pick",
+    text: "EDITOR'S PICK",
+    background: "#db2777",
+    foreground: "#ffffff",
+    accent: "#fbcfe8",
+    shape: "hexagon" as const,
+    font: "serif" as const,
+    weight: 700 as const,
+    icon: "laurel",
+    x: 17,
+    y: 7,
+    width: 66,
+    size: 34,
+  },
+  {
+    name: "Watch Tonight",
+    text: "WATCH TONIGHT",
+    background: "#0891b2",
+    foreground: "#ecfeff",
+    accent: "#67e8f9",
+    shape: "rounded" as const,
+    font: "condensed" as const,
+    weight: 900 as const,
+    icon: "popcorn",
+    x: 12,
+    y: 80,
+    width: 76,
+    size: 38,
+  },
+  {
+    name: "Now Showing",
+    text: "NOW SHOWING",
+    background: "#7f1d1d",
+    foreground: "#fef2f2",
+    accent: "#fbbf24",
+    shape: "ticket" as const,
+    font: "serif" as const,
+    weight: 900 as const,
+    icon: "marquee",
+    x: 14,
+    y: 8,
+    width: 72,
+    size: 38,
+  },
+];
+const layer = (kind: OverlayLayer["kind"] = "text", variable = "title"): OverlayLayer => ({
+  id: `layer_${overlayClientId()}`,
+  label: variable === "custom_text" ? (kind === "text" ? "Custom text" : "") : `{${variable}}`,
+  variable,
+  kind,
+  iconName: "movie",
+  iconColor: "#ffffff",
+  iconSize: 70,
+  contentGap: 12,
+  contentPosition: "none",
+  textFit: "shrink",
+  maxLines: 2,
+  position: "custom",
+  x: 10,
+  y: 72,
+  width: 80,
+  height: kind === "shape" ? 10 : 0,
+  prefix: "",
+  suffix: "",
+  foreground: "#ffffff",
+  background: "#111827",
+  fontSize: 42,
+  fontFamily: "sans",
+  fontWeight: 700,
+  textAlign: "center",
+  textTransform: "none",
+  textOpacity: 1,
+  backgroundOpacity: 0.86,
+  posterAware: false,
+  shape: "rounded",
+  padding: 12,
+  borderRadius: 18,
+  enabled: true,
+  condition: { operator: "truthy", value: "" },
+  conditions: {
+    join: "and",
+    rules: [{ variable, operator: "truthy", value: "" }],
+  },
+  styleMode: "first",
+  styleRules: [],
+});
+const baseTemplate = (mode: "collection" | "title"): OverlayTemplate => {
+  const heading = layer("text", mode === "collection" ? "collection_name" : "title");
+  return {
+    id: `overlay_${overlayClientId()}`,
+    name: mode === "collection" ? "Collection poster" : "Collection title overlay",
+    domain: "all",
+    target: "plex",
+    enabled: true,
+    tvFileAggregation: "most_common",
+    layers: [heading],
+    plexBadges: {
+      monitored: false,
+      availability: false,
+      cutoff: false,
+      rating: false,
+    },
+    canvas: {
+      backgroundType: "linear",
+      colorA: "#07111f",
+      colorB: "#28466f",
+      angle: 145,
+    },
+  };
+};
+const sampleValues = (name: string, count: number, title: string, year?: number | null) =>
+  ({
+    collection_name: name,
+    collection_title_count: String(count),
+    collection_media_type: "Movies",
+    collection_last_sync: "Aug 8",
+    title,
+    year: String(year || 2026),
+    rating: "8.4",
+    quality: "1080p",
+    resolution: "1080p",
+    quality_profile: "HD",
+    video_codec: "HEVC",
+    audio_codec: "EAC3",
+    audio_channels: "5.1",
+    dynamic_range: "HDR",
+    source: "WEB-DL",
+    runtime: "120 min",
+    certification: "PG-13",
+    studio: "Studio",
+    network: "Network",
+    genres: "Action, Drama",
+    monitored: "Monitored",
+    availability: "Available",
+    library_status: "Complete",
+    completion_percent: "100%",
+    file_size: "8 GB",
+    tags: "Featured",
+    date_added: "Aug 8",
+    added_ago: "Today",
+    plex_days_since_added: "1",
+    release_date: "Aug 8",
+    release_age: "Today",
+    download_status: "Downloaded",
+    download_progress: "100%",
+    download_eta: "Today",
+    missing_count: "0",
+    cutoff_status: "At cutoff",
+    season_progress: "3 / 3",
+    episode_progress: "24 / 24",
+    series_type: "Continuing",
+    next_episode: "Next episode in 7 days",
+    requested_by: "Alex",
+    request_count: "4",
+    tmdb_id: "12345",
+    tvdb_id: "67890",
+    imdb_id: "tt1234567",
+    custom_text: "",
+  }) as Record<string, string>;
+
+type Sample = {
+  domain: "movie" | "tv";
+  tmdbId?: number | null;
+  title: string;
+  year?: number | null;
+};
+type Props = {
+  mode: "collection" | "title";
+  template: OverlayTemplate | null;
+  collectionName: string;
+  titleCount: number;
+  sample?: Sample;
+  samples?: Sample[];
+  request: <T = unknown>(path: string, options?: RequestInit) => Promise<T>;
+  onClose: () => void;
+  onSave: (template: OverlayTemplate) => void;
+};
+export function ReeltrackPosterDesigner({ mode, template, collectionName, titleCount, sample, samples = [], request, onClose, onSave }: Props) {
+  const [editing, setEditing] = useState<OverlayTemplate>(() => structuredClone(template || baseTemplate(mode))),
+    [selectedId, setSelectedId] = useState(""),
+    [selectedIds, setSelectedIds] = useState<string[]>([]),
+    [exact, setExact] = useState(""),
+    [tab, setTab] = useState<"content" | "appearance" | "conditions">("content"),
+    [uploading, setUploading] = useState(false),
+    [quadSearch, setQuadSearch] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null),
+    selected = editing.layers.find((item) => item.id === selectedId) || editing.layers.at(-1),
+    values = useMemo(() => sampleValues(collectionName, titleCount, sample?.title || "Example title", sample?.year), [collectionName, titleCount, sample]),
+    canvas = editing.canvas || baseTemplate(mode).canvas!;
+  const change = (id: string, changes: Partial<OverlayLayer> | ((layer: OverlayLayer) => Partial<OverlayLayer>)) =>
+    setEditing((current) => ({
+      ...current,
+      layers: current.layers.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              ...(typeof changes === "function" ? changes(item) : changes),
+            }
+          : item,
+      ),
+    }));
+  const reorder = (id: string, destination: "front" | "forward" | "backward" | "back") =>
+    setEditing((current) => {
+      const index = current.layers.findIndex((item) => item.id === id);
+      if (index < 0) return current;
+      const layers = [...current.layers],
+        removed = layers.splice(index, 1)[0],
+        target = destination === "front" ? layers.length : destination === "back" ? 0 : destination === "forward" ? Math.min(layers.length, index + 1) : Math.max(0, index - 1);
+      layers.splice(target, 0, removed);
+      return { ...current, layers };
+    });
+  const selectLayer = (id: string, additive = false) => {
+    const target = editing.layers.find((item) => item.id === id),
+      related = target?.groupId ? editing.layers.filter((item) => item.groupId === target.groupId).map((item) => item.id) : [id];
+    setSelectedId(id);
+    setSelectedIds((current) => additive ? (related.every((value) => current.includes(value)) ? current.filter((value) => !related.includes(value)) : [...new Set([...current, ...related])]) : related);
+  };
+  const groupSelection = () => {
+    if (selectedIds.length < 2) return;
+    const groupId = `group_${overlayClientId()}`;
+    setEditing((current) => ({ ...current, layers: current.layers.map((item) => selectedIds.includes(item.id) ? { ...item, groupId } : item) }));
+  };
+  const ungroupSelection = () => setEditing((current) => ({ ...current, layers: current.layers.map((item) => selectedIds.includes(item.id) ? { ...item, groupId: undefined } : item) }));
+  const update = (changes: Partial<OverlayLayer> | ((layer: OverlayLayer) => Partial<OverlayLayer>)) => selected && change(selected.id, changes),
+    add = (kind: OverlayLayer["kind"], variable = kind === "text" ? (mode === "collection" ? "collection_name" : "title") : "custom_text") => {
+      const next = layer(kind, variable);
+      if (kind === "icon") {
+        next.iconName = "movie";
+        next.width = 24;
+        next.x = 38;
+        next.contentPosition = "none";
+      }
+      if (kind === "shape") {
+        next.x = 30;
+        next.y = 45;
+        next.width = 40;
+        next.height = 12;
+        next.label = "";
+      }
+      setEditing((current) => ({
+        ...current,
+        layers: [...current.layers, next],
+      }));
+      setSelectedId(next.id);
+      setSelectedIds([next.id]);
+    };
+  const applyPreset = (preset: (typeof presets)[number]) => {
+    const heading = layer("text", mode === "collection" ? "collection_name" : "title"),
+      count = layer("text", mode === "collection" ? "collection_title_count" : "year");
+    const groupId = `group_${overlayClientId()}`;
+    heading.groupId = groupId;
+    count.groupId = groupId;
+    heading.y = 67;
+    heading.fontSize = 52;
+    heading.background = preset.b;
+    heading.foreground = "#ffffff";
+    heading.width = 86;
+    heading.x = 7;
+    count.y = 82;
+    count.width = 42;
+    count.x = 29;
+    count.fontSize = 28;
+    count.background = preset.accent;
+    count.foreground = "#07111f";
+    count.prefix = mode === "collection" ? "" : "Released ";
+    setEditing((current) => ({
+      ...current,
+      canvas: {
+        backgroundType: preset.type,
+        colorA: preset.a,
+        colorB: preset.b,
+        angle: preset.angle,
+      },
+      layers: [heading, count],
+    }));
+    setSelectedId(heading.id);
+    setSelectedIds([heading.id, count.id]);
+  };
+  const applyTitlePreset = (preset: (typeof titlePresets)[number]) => {
+    const accent = layer("shape", "custom_text"),
+      graphic = layer("icon", "custom_text"),
+      badge = layer("text", "custom_text");
+    const groupId = `group_${overlayClientId()}`;
+    accent.groupId = groupId;
+    graphic.groupId = groupId;
+    badge.groupId = groupId;
+    accent.label = "";
+    accent.background = preset.accent;
+    accent.backgroundOpacity = 0.9;
+    accent.shape = preset.shape;
+    accent.x = Math.max(1, preset.x - 3);
+    accent.y = Math.max(1, preset.y - 1.5);
+    accent.width = Math.min(96, preset.width + 6);
+    accent.height = 9;
+    graphic.label = "";
+    graphic.iconName = preset.icon;
+    graphic.iconColor = preset.foreground;
+    graphic.background = preset.background;
+    graphic.backgroundOpacity = 1;
+    graphic.shape = "circle";
+    graphic.x = Math.max(1, preset.x - 7);
+    graphic.y = Math.max(1, preset.y - 2.5);
+    graphic.width = 18;
+    graphic.height = 12;
+    graphic.iconSize = 76;
+    graphic.padding = 5;
+    badge.label = preset.text;
+    badge.background = preset.background;
+    badge.foreground = preset.foreground;
+    badge.shape = preset.shape;
+    badge.fontFamily = preset.font;
+    badge.fontWeight = preset.weight;
+    badge.textTransform = "uppercase";
+    badge.x = preset.x + 5;
+    badge.y = preset.y;
+    badge.width = Math.max(34, preset.width - 5);
+    badge.height = 8;
+    badge.fontSize = preset.size;
+    badge.padding = 10;
+    badge.borderRadius = preset.shape === "pill" ? 50 : 14;
+    setEditing((current) => ({
+      ...current,
+      layers: [...current.layers, accent, graphic, badge],
+    }));
+    setSelectedId(badge.id);
+    setSelectedIds([accent.id, graphic.id, badge.id]);
+  };
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!editing.layers.length) return;
+      void request<{ image: string }>("/api/reeltrack/poster-design/preview", {
+        method: "POST",
+        body: JSON.stringify({
+          mode,
+          template: editing,
+          domain: sample?.domain || "movie",
+          tmdbId: sample?.tmdbId,
+          title: sample?.title,
+          year: sample?.year,
+          collectionName,
+          titleCount,
+        }),
+      })
+        .then((result) => setExact(result.image))
+        .catch(() => setExact(""));
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [editing, mode, sample, collectionName, titleCount, request]);
+  const upload = async (file?: File) => {
+    if (!file) return;
+    setUploading(true);
+    try {
+      const image = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result));
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        }),
+        result = await request<{ asset: string; preview: string }>("/api/reeltrack/poster-design/background", { method: "POST", body: JSON.stringify({ image }) });
+      setEditing((current) => ({
+        ...current,
+        canvas: {
+          ...(current.canvas || canvas),
+          backgroundAsset: result.asset,
+          backgroundPreview: result.preview,
+        },
+      }));
+    } finally {
+      setUploading(false);
+    }
+  };
+  const toggleQuad = (item: Sample) => {
+    if (!item.tmdbId) return;
+    const entry = {
+        domain: item.domain,
+        tmdbId: Number(item.tmdbId),
+        title: item.title,
+      },
+      current = canvas.quadPosters || [],
+      exists = current.some((value) => value.domain === entry.domain && value.tmdbId === entry.tmdbId),
+      next = exists ? current.filter((value) => !(value.domain === entry.domain && value.tmdbId === entry.tmdbId)) : [...current, entry].slice(-4);
+    setEditing({ ...editing, canvas: { ...canvas, quadPosters: next } });
+  };
+  const backgroundPreview = canvas.backgroundPreview || (canvas.backgroundAsset ? `/api/reeltrack/poster-design/background/${canvas.backgroundAsset}` : ""),
+    baseBackground = mode === "title" && sample?.tmdbId ? `url(/api/reeltrack/poster/${sample.domain}/${sample.tmdbId}) center/cover` : backgroundPreview ? `url(${backgroundPreview}) center/cover` : canvas.backgroundType === "radial" ? `radial-gradient(circle,${canvas.colorA},${canvas.colorB})` : canvas.backgroundType === "solid" ? canvas.colorA : `linear-gradient(${canvas.angle}deg,${canvas.colorA},${canvas.colorB})`,
+    quad = (canvas.quadPosters || []).slice(0, 4),
+    quadPositions = ["25% 47%", "75% 47%", "25% 82%", "75% 82%"],
+    background = mode === "collection" && quad.length ? `${quad.map((item, index) => `url(/api/reeltrack/poster/${item.domain}/${item.tmdbId}) ${quadPositions[index]}/35% 31% no-repeat`).join(",")},${baseBackground}` : baseBackground;
+  return (
+    <ModalPortal>
+      <div className="overlay-editor-backdrop">
+        <section className="overlay-editor reeltrack-artwork-designer" style={{ width: "min(1500px,100%)", height: "100%" }} role="dialog" aria-modal="true">
+          <div className="panel-heading reeltrack-designer-heading">
+            <div>
+              <span className="eyebrow">{mode === "collection" ? "COLLECTION POSTER" : "TITLE OVERLAY"}</span>
+              <h2>{mode === "collection" ? "Design collection artwork" : "Design title overlays"}</h2>
+            </div>
+            <button className="secondary" onClick={onClose}>
+              Close
+            </button>
+          </div>
+          {mode === "title" ? (
+            <div className="panel theatrical-preset-panel">
+              <div className="panel-heading">
+                <div>
+                  <span className="eyebrow">THEATRICAL OVERLAY DESIGNS</span>
+                  <small className="muted">Each design adds editable graphic and text layers.</small>
+                </div>
+              </div>
+              <div className="theatrical-preset-grid">
+                {titlePresets.map((preset) => (
+                  <button
+                    type="button"
+                    className="theatrical-preset"
+                    style={
+                      {
+                        "--preset-bg": preset.background,
+                        "--preset-fg": preset.foreground,
+                        "--preset-accent": preset.accent,
+                      } as CSSProperties
+                    }
+                    onClick={() => applyTitlePreset(preset)}
+                    key={preset.name}
+                  >
+                    <span className="theatrical-preset-icon">
+                      <PosterIcon name={preset.icon} />
+                    </span>
+                    <strong
+                      style={{
+                        fontFamily: preset.font === "monospace" ? "monospace" : preset.font === "serif" ? "serif" : "sans-serif",
+                        fontWeight: preset.weight,
+                      }}
+                    >
+                      {preset.text}
+                    </strong>
+                    <small>{preset.name}</small>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          <div className="reeltrack-designer-grid">
+            <aside className="panel" style={{ padding: 12, overflow: "auto" }}>
+              <label>
+                Design name
+                <input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} />
+              </label>
+              {mode === "collection" ? (
+                <>
+                  <div>
+                    <span className="eyebrow">STARTER POSTERS</span>
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr",
+                        gap: 8,
+                        marginTop: 8,
+                      }}
+                    >
+                      {presets.map((p) => (
+                        <button
+                          className="secondary"
+                          style={{
+                            minHeight: 58,
+                            background: p.type === "radial" ? `radial-gradient(circle,${p.a},${p.b})` : `linear-gradient(${p.angle}deg,${p.a},${p.b})`,
+                            color: "white",
+                          }}
+                          onClick={() => applyPreset(p)}
+                          key={p.name}
+                        >
+                          {p.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <fieldset>
+                    <legend>Poster background</legend>
+                    <label>
+                      Style
+                      <select
+                        value={canvas.backgroundType}
+                        onChange={(e) =>
+                          setEditing({
+                            ...editing,
+                            canvas: {
+                              ...canvas,
+                              backgroundType: e.target.value as "solid" | "linear" | "radial",
+                            },
+                          })
+                        }
+                      >
+                        <option value="solid">Solid color</option>
+                        <option value="linear">Linear gradient</option>
+                        <option value="radial">Radial gradient</option>
+                      </select>
+                    </label>
+                    <label>
+                      First color
+                      <input
+                        type="color"
+                        value={canvas.colorA}
+                        onChange={(e) =>
+                          setEditing({
+                            ...editing,
+                            canvas: { ...canvas, colorA: e.target.value },
+                          })
+                        }
+                      />
+                    </label>
+                    {canvas.backgroundType !== "solid" ? (
+                      <label>
+                        Second color
+                        <input
+                          type="color"
+                          value={canvas.colorB}
+                          onChange={(e) =>
+                            setEditing({
+                              ...editing,
+                              canvas: { ...canvas, colorB: e.target.value },
+                            })
+                          }
+                        />
+                      </label>
+                    ) : null}
+                    {canvas.backgroundType === "linear" ? (
+                      <label>
+                        Gradient angle{" "}
+                        <input
+                          type="range"
+                          min="0"
+                          max="360"
+                          value={canvas.angle}
+                          onChange={(e) =>
+                            setEditing({
+                              ...editing,
+                              canvas: {
+                                ...canvas,
+                                angle: Number(e.target.value),
+                              },
+                            })
+                          }
+                        />
+                      </label>
+                    ) : null}
+                    <input ref={fileRef} hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => void upload(e.target.files?.[0])} />
+                    <button className="secondary" disabled={uploading} onClick={() => fileRef.current?.click()}>
+                      {uploading ? "Uploading…" : "Upload custom background"}
+                    </button>
+                    {canvas.backgroundAsset ? (
+                      <button
+                        className="text-button danger"
+                        onClick={() =>
+                          setEditing({
+                            ...editing,
+                            canvas: {
+                              ...canvas,
+                              backgroundAsset: "",
+                              backgroundPreview: "",
+                            },
+                          })
+                        }
+                      >
+                        Remove uploaded background
+                      </button>
+                    ) : null}
+                  </fieldset>
+                  <fieldset>
+                    <legend>Four-poster collage</legend>
+                    <p className="muted">Choose up to four list titles for a 2 × 2 mini-poster section.</p>
+                    <input value={quadSearch} onChange={(event) => setQuadSearch(event.target.value)} placeholder="Find a title" />
+                    <div
+                      style={{
+                        display: "grid",
+                        gap: 6,
+                        maxHeight: 220,
+                        overflow: "auto",
+                        marginTop: 6,
+                      }}
+                    >
+                      {samples
+                        .filter((item) => item.tmdbId && item.title.toLowerCase().includes(quadSearch.trim().toLowerCase()))
+                        .map((item) => {
+                          const active = (canvas.quadPosters || []).some((value) => value.domain === item.domain && value.tmdbId === Number(item.tmdbId));
+                          return (
+                            <button type="button" className={active ? "active secondary" : "secondary"} onClick={() => toggleQuad(item)} key={`${item.domain}:${item.tmdbId}`}>
+                              <span
+                                style={{
+                                  display: "block",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {active ? "✓ " : ""}
+                                {item.title}
+                              </span>
+                            </button>
+                          );
+                        })}
+                    </div>
+                    {canvas.quadPosters?.length ? (
+                      <button
+                        type="button"
+                        className="text-button danger"
+                        onClick={() =>
+                          setEditing({
+                            ...editing,
+                            canvas: { ...canvas, quadPosters: [] },
+                          })
+                        }
+                      >
+                        Clear collage
+                      </button>
+                    ) : null}
+                  </fieldset>
+                </>
+              ) : null}
+              <div className="panel-heading">
+                <strong>Layers</strong>
+              </div>
+              <div className="overlay-layer-list">
+                {editing.layers.map((item, index) => (
+                  <button className={selectedIds.includes(item.id) ? "active secondary" : "secondary"} onClick={(event) => selectLayer(item.id, event.ctrlKey || event.metaKey || event.shiftKey)} key={item.id}>
+                    <span>{index + 1}</span>
+                    <strong>{item.kind === "icon" ? posterIcons.find(([id]) => id === item.iconName)?.[1] || "Icon" : item.kind === "shape" ? `${item.shape} shape` : item.variable.replaceAll("_", " ")}</strong>
+                    <small>{item.enabled ? "On" : "Off"}</small>
+                  </button>
+                ))}
+              </div>
+              <div style={{ display: "grid", gap: 7, marginTop: 10 }}>
+                <button className="secondary" onClick={() => add("text")}>
+                  Add text
+                </button>
+                <button className="secondary" onClick={() => add("shape")}>
+                  Add shape
+                </button>
+                <button className="secondary" onClick={() => add("icon")}>
+                  Add icon
+                </button>
+              </div>
+            </aside>
+            <main className="panel" style={{ padding: 12, overflow: "auto" }}>
+              {selected ? (
+                <>
+                  <div className="layer-order-controls" aria-label="Layer level">
+                    <strong>Layer level</strong>
+                    <small>{selectedIds.length > 1 ? `${selectedIds.length} items selected` : "Ctrl/Cmd-click or Shift-click to select multiple"}</small>
+                    <div>
+                      <button className="secondary" disabled={selectedIds.length < 2} onClick={groupSelection}>Group</button>
+                      <button className="secondary" disabled={!selectedIds.some((id) => editing.layers.find((item) => item.id === id)?.groupId)} onClick={ungroupSelection}>Ungroup</button>
+                    </div>
+                    <div>
+                      <button className="secondary" onClick={() => reorder(selected.id, "front")}>
+                        To front
+                      </button>
+                      <button className="secondary" onClick={() => reorder(selected.id, "forward")}>
+                        Forward
+                      </button>
+                      <button className="secondary" onClick={() => reorder(selected.id, "backward")}>
+                        Backward
+                      </button>
+                      <button className="secondary" onClick={() => reorder(selected.id, "back")}>
+                        To back
+                      </button>
+                    </div>
+                  </div>
+                  <div
+                    role="tablist"
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(3,1fr)",
+                      gap: 6,
+                    }}
+                  >
+                    {(["content", "appearance", "conditions"] as const).map((value) => (
+                      <button className={tab === value ? "active secondary" : "secondary"} onClick={() => setTab(value)} key={value}>
+                        {value[0].toUpperCase() + value.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                  <label>
+                    <input type="checkbox" checked={selected.enabled} onChange={(e) => update({ enabled: e.target.checked })} /> Show this layer
+                  </label>
+                  {tab === "content" ? <LayerIdentity layer={selected} variables={variables} onChange={update} /> : null}
+                  {tab === "appearance" ? (
+                    <div
+                      className="overlay-layer-body"
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(2,minmax(0,1fr))",
+                        gap: 10,
+                      }}
+                    >
+                      <label>
+                        Prefix
+                        <input value={selected.prefix} onChange={(e) => update({ prefix: e.target.value })} />
+                      </label>
+                      <label>
+                        Suffix
+                        <input value={selected.suffix} onChange={(e) => update({ suffix: e.target.value })} />
+                      </label>
+                      <label>
+                        Text color
+                        <input type="color" value={selected.foreground} onChange={(e) => update({ foreground: e.target.value })} />
+                      </label>
+                      <label>
+                        Background
+                        <input type="color" value={selected.background} onChange={(e) => update({ background: e.target.value })} />
+                      </label>
+                      <label>
+                        Font
+                        <select
+                          value={selected.fontFamily}
+                          onChange={(e) =>
+                            update({
+                              fontFamily: e.target.value as OverlayLayer["fontFamily"],
+                            })
+                          }
+                        >
+                          <option value="sans">Sans serif</option>
+                          <option value="serif">Serif</option>
+                          <option value="condensed">Condensed</option>
+                          <option value="monospace">Monospace</option>
+                        </select>
+                      </label>
+                      <label>
+                        Weight
+                        <select
+                          value={selected.fontWeight}
+                          onChange={(e) =>
+                            update({
+                              fontWeight: Number(e.target.value) as OverlayLayer["fontWeight"],
+                            })
+                          }
+                        >
+                          {[400, 500, 600, 700, 800, 900].map((v) => (
+                            <option key={v}>{v}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label>
+                        Font size <input type="range" min="12" max="96" value={selected.fontSize} onChange={(e) => update({ fontSize: Number(e.target.value) })} />
+                      </label>
+                      <label>
+                        Text alignment
+                        <select
+                          value={selected.textAlign}
+                          onChange={(e) =>
+                            update({
+                              textAlign: e.target.value as OverlayLayer["textAlign"],
+                            })
+                          }
+                        >
+                          <option value="left">Left</option>
+                          <option value="center">Center</option>
+                          <option value="right">Right</option>
+                        </select>
+                      </label>
+                      <label>
+                        Capitalization
+                        <select
+                          value={selected.textTransform}
+                          onChange={(e) =>
+                            update({
+                              textTransform: e.target.value as OverlayLayer["textTransform"],
+                            })
+                          }
+                        >
+                          <option value="none">As entered</option>
+                          <option value="uppercase">Uppercase</option>
+                          <option value="lowercase">Lowercase</option>
+                        </select>
+                      </label>
+                      <label>
+                        Text opacity <input type="range" min="0" max="1" step=".05" value={selected.textOpacity} onChange={(e) => update({ textOpacity: Number(e.target.value) })} />
+                      </label>
+                      <label>
+                        Shape opacity{" "}
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step=".05"
+                          value={selected.backgroundOpacity}
+                          onChange={(e) =>
+                            update({
+                              backgroundOpacity: Number(e.target.value),
+                            })
+                          }
+                        />
+                      </label>
+                      <label>
+                        Inner spacing <input type="range" min="2" max="30" value={selected.padding} onChange={(e) => update({ padding: Number(e.target.value) })} />
+                      </label>
+                      <label>
+                        Corner radius <input type="range" min="0" max="50" value={selected.borderRadius} onChange={(e) => update({ borderRadius: Number(e.target.value) })} />
+                      </label>
+                      <label>
+                        <input type="checkbox" checked={selected.posterAware} onChange={(e) => update({ posterAware: e.target.checked })} /> Adaptive poster contrast
+                      </label>
+                    </div>
+                  ) : null}
+                  {tab === "conditions" ? (
+                    <Suspense>
+                      <OverlayConditions layer={selected} variables={variables} onChange={update} />
+                    </Suspense>
+                  ) : null}
+                  <button
+                    className="danger"
+                    style={{ width: "100%", marginTop: 12 }}
+                    onClick={() =>
+                      setEditing((current) => ({ ...current, layers: current.layers.filter((item) => !selectedIds.includes(item.id)) }))
+                    }
+                  >
+                    Remove {selectedIds.length > 1 ? `${selectedIds.length} layers` : "layer"}
+                  </button>
+                </>
+              ) : (
+                <div className="empty compact">Add a layer to begin.</div>
+              )}
+            </main>
+            <aside className="panel" style={{ padding: 12, overflow: "auto", textAlign: "center" }}>
+              <strong>Drag to position · pull corner to resize</strong>
+              <InteractiveCanvas template={editing} values={values} background={background} selectedIds={selectedIds} onSelect={selectLayer} onChange={change} />
+              {exact ? (
+                <details style={{ marginTop: 10 }}>
+                  <summary>Exact rendered Plex output</summary>
+                  <img
+                    src={exact}
+                    alt="Exact rendered preview"
+                    style={{
+                      width: "min(100%,220px)",
+                      borderRadius: 8,
+                      marginTop: 8,
+                    }}
+                  />
+                </details>
+              ) : null}
+            </aside>
+          </div>
+          <div className="overlay-editor-footer">
+            <span className="overlay-save-guidance">The same layer controls and renderer are used by Poster Overlays.</span>
+            <button className="secondary" onClick={onClose}>
+              Cancel
+            </button>
+            <button className="primary" disabled={!editing.layers.length} onClick={() => onSave(editing)}>
+              Use design
+            </button>
+          </div>
+        </section>
+      </div>
+    </ModalPortal>
+  );
+}
+
+function InteractiveCanvas({ template, values, background, selectedIds, onSelect, onChange }: { template: OverlayTemplate; values: Record<string, string>; background: string; selectedIds: string[]; onSelect: (id: string, additive?: boolean) => void; onChange: (id: string, changes: Partial<OverlayLayer>) => void }) {
+  const drag = useRef<{ id: string; sx: number; sy: number; poster: DOMRect; items: Array<{ id: string; x: number; y: number }>; bounds: { x: number; y: number; width: number; height: number } } | null>(null),
+    resolvedLayers = template.layers.map((item) => resolveConditionalLayer(item, values)),
+    selectedLayers = resolvedLayers.filter((item) => selectedIds.includes(item.id)),
+    boundsFor = (items: OverlayLayer[]) => {
+      const left = Math.min(...items.map((item) => item.x)), top = Math.min(...items.map((item) => item.y)), right = Math.max(...items.map((item) => item.x + item.width)), bottom = Math.max(...items.map((item) => item.y + (item.height || 8)));
+      return { x: left, y: top, width: right - left, height: bottom - top };
+    },
+    selectionBounds = selectedLayers.length ? boundsFor(selectedLayers) : null;
+  const beginResize = (event: ReactPointerEvent<HTMLSpanElement>, items: OverlayLayer[], corner: "nw" | "ne" | "sw" | "se") => {
+    event.stopPropagation();
+    const poster = event.currentTarget.parentElement!.parentElement!.getBoundingClientRect(), sx = event.clientX, sy = event.clientY, start = boundsFor(items), snapshots = items.map((item) => ({ ...item, height: item.height || 8 }));
+    const move = (next: PointerEvent) => {
+      const dx = ((next.clientX - sx) / poster.width) * 100, dy = ((next.clientY - sy) / poster.height) * 100, left = corner.endsWith("w"), top = corner.startsWith("n"), width = Math.max(12, Math.min(left ? start.x + start.width : 100 - start.x, start.width + (left ? -dx : dx))), height = Math.max(3, Math.min(top ? start.y + start.height : 100 - start.y, start.height + (top ? -dy : dy))), x = left ? start.x + start.width - width : start.x, y = top ? start.y + start.height - height : start.y, scaleX = width / start.width, scaleY = height / start.height;
+      for (const item of snapshots) onChange(item.id, { position: "custom", x: x + (item.x - start.x) * scaleX, y: y + (item.y - start.y) * scaleY, width: item.width * scaleX, height: item.height * scaleY });
+    };
+    const up = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
+    window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
+  };
+  const corners = ["nw", "ne", "sw", "se"] as const;
+  return (
+    <div
+      className="overlay-preview reeltrack-interactive-canvas"
+      style={{
+        containerType: "inline-size",
+        background,
+        position: "relative",
+        width: "min(100%,360px)",
+        aspectRatio: "2/3",
+        margin: "12px auto",
+        backgroundColor: "#08111f",
+      }}
+    >
+      {template.layers.map((item) => {
+        const resolved = resolveConditionalLayer(item, values),
+          value = resolved.variable === "custom_text" ? resolved.label : values[resolved.variable];
+        if (!overlayLayerVisible(resolved, value, values)) return null;
+        return (
+          <OverlayLayerView
+            key={item.id}
+            layer={resolved}
+            className={`overlay-preview-layer${selectedIds.includes(item.id) ? " selected" : ""}`}
+            style={{
+              cursor: "grab",
+              touchAction: "none",
+              outline: selectedIds.includes(item.id) ? "1px solid #64d8ff" : "none",
+            }}
+            onPointerDown={(event) => {
+              const additive = event.ctrlKey || event.metaKey || event.shiftKey;
+              onSelect(item.id, additive);
+              const related = selectedIds.includes(item.id) ? selectedLayers : (item.groupId ? resolvedLayers.filter((value) => value.groupId === item.groupId) : [resolved]);
+              const poster = event.currentTarget.parentElement!.getBoundingClientRect();
+              drag.current = { id: item.id, sx: event.clientX, sy: event.clientY, poster, items: related.map((value) => ({ id: value.id, x: value.x, y: value.y })), bounds: boundsFor(related) };
+              event.currentTarget.setPointerCapture(event.pointerId);
+            }}
+            onPointerMove={(event) => {
+              if (drag.current?.id !== item.id) return;
+              const active = drag.current, rawX = ((event.clientX - active.sx) / active.poster.width) * 100, rawY = ((event.clientY - active.sy) / active.poster.height) * 100, dx = Math.max(-active.bounds.x, Math.min(100 - active.bounds.x - active.bounds.width, rawX)), dy = Math.max(-active.bounds.y, Math.min(100 - active.bounds.y - active.bounds.height, rawY));
+              for (const start of active.items) onChange(start.id, { position: "custom", x: start.x + dx, y: start.y + dy });
+            }}
+            onPointerUp={() => (drag.current = null)}
+          >
+            <PosterLayerContent layer={resolved} text={`${resolved.prefix}${value || ""}${resolved.suffix}`} />
+          </OverlayLayerView>
+        );
+      })}
+      {selectionBounds && selectedLayers.length ? (
+        <span
+          className="reeltrack-selection-box"
+          data-selection-count={selectedLayers.length}
+          style={{ position: "absolute", zIndex: 20, display: "block", boxSizing: "border-box", border: "2px solid #64d8ff", pointerEvents: "none", left: `${selectionBounds.x}%`, top: `${selectionBounds.y}%`, width: `${selectionBounds.width}%`, height: `${selectionBounds.height}%` }}
+        >
+          {corners.map((corner) => {
+            const north = corner.startsWith("n"), west = corner.endsWith("w");
+            return <span key={corner} className={`overlay-resize-handle overlay-resize-${corner}`} aria-label={`Resize ${corner}`} style={{ pointerEvents: "auto", position: "absolute", width: 14, height: 14, margin: 0, border: "2px solid #fff", borderRadius: "50%", background: "#1688ff", boxShadow: "0 1px 5px #000", zIndex: 9, left: west ? -7 : "auto", right: west ? "auto" : -7, top: north ? -7 : "auto", bottom: north ? "auto" : -7, cursor: corner === "nw" || corner === "se" ? "nwse-resize" : "nesw-resize" }} onPointerDown={(event) => beginResize(event, selectedLayers, corner)} />;
+          })}
+        </span>
+      ) : null}
+    </div>
+  );
+}

@@ -21,6 +21,26 @@ export interface ReeltrackList {
   kind?:string;
   items?:ReeltrackListItem[];
   imported?:boolean;
+  automation?:{
+    enabled:boolean;
+    plexLibraryKey?:string;
+    plexMovieLibraryKey?:string;
+    plexTvLibraryKey?:string;
+    plexTrailerPath?:string;
+    plexLibraryLocations?:{movie?:string;tv?:string};
+    movieHostRoot?:string;
+    tvHostRoot?:string;
+    collectionName?:string;
+    collectionPosterTemplate?:import("./poster-overlays-types").OverlayTemplate|null;
+    titleOverlayTemplate?:import("./poster-overlays-types").OverlayTemplate|null;
+    intervalMinutes?:number;
+    status?:'scheduled'|'ready'|'error'|'disabled';
+    error?:string|null;
+    libraryErrors?:string[];
+    lastRunAt?:string|null;
+    nextRunAt?:string|null;
+    summary?:{providerTitles:number;managedTitles:number;placeholders:number;downloaded:number;removed:number;failed?:number;realMatches:number;libraryAdded?:number;libraryExisting?:number;libraryFailed?:number;collectionPosters?:number;collectionPosterFailures?:number;collectionPosterErrors?:string[];titlePosters?:number;titlePosterFailures?:number;titlePosterErrors?:string[]};
+  }|null;
 }
 export interface ReeltrackListsMountOptions {
   request:<T=unknown>(path:string,options?:RequestInit)=>Promise<T>;

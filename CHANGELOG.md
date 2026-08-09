@@ -7,6 +7,489 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.37] - 2026-08-08
+
+### Added
+
+- Added optional managed Plex collections for imported Reeltrack lists, with scheduled provider refreshes, official trailer downloads through `yt-dlp`, automatic Movie and Television library registration, and cleanup when real media arrives or a title leaves its source list.
+- Added independent Movie and Television Plex targets for mixed lists, explicit host-folder mapping, engine-root compatibility checks, and safe handling when Plex, VynodeArr, and the media engines use different paths for the same storage.
+- Added a complete collection-poster and managed-title-overlay designer with exact Plex previews, custom uploads, gradients, four-title collages, metadata variables, conditions, text, shapes, icons, and illustrated theatrical presets.
+- Added drag positioning, four-corner resizing, multi-selection, persistent grouping, proportional group transforms, and layer-level controls to managed artwork editors.
+- Added integrity-checked original Plex artwork backups, per-list collection and title artwork restoration, and separate artwork success/failure reporting.
+- Added guided recovery for movie-engine warnings caused by removed TMDB titles, including library detection, replacement matching, confirmed rematching that preserves files and settings, and durable dismissal when no action is needed.
+
+### Changed
+
+- Store managed trailers inside normal title folders under the selected media root instead of a separate trailer volume, while confining creation and cleanup to VynodeArr-owned files and empty folders.
+- Register supported missing list titles with the appropriate media engine without forcing an immediate search, and build Plex collections only after their managed placeholders are indexed.
+- Compose every artwork revision from the first captured original so repeated edits never accumulate overlays, and restore native artwork before removal.
+- Condensed Reeltrack automation controls and title cards into responsive multi-column layouts with bounded wrapping and phone-safe controls.
+- Enriched managed overlays with TMDB genre, rating, runtime, certification, studio, and network metadata when Plex placeholders omit those values.
+
+### Fixed
+
+- Fixed incomplete list synchronization, missing Plex collections, stale trailer-job records, delayed Plex indexing, and incorrect root selection.
+- Fixed title overlays applying to only one placeholder, transient Plex artwork failures aborting later titles, and collection-poster failures preventing independent title-overlay work.
+- Fixed original-artwork restore races, stale backup failures, cross-server backup collisions, and poster updates that could leave Plex showing an older or cumulatively overlaid image.
+- Fixed decorative shapes inheriting visible custom-text placeholders and restored reliable selection, pointer movement, and resizing for artwork.
+- Fixed Health recovery mutations being rejected by the API's read-only review fallback.
+
+### Security
+
+- Restricted trailer sources to validated HTTPS YouTube URLs, bounded downloader execution, verified the final `yt-dlp` path, and confined removal to managed files beneath the configured library root.
+
+### Validation
+
+- Passed all 223 automated tests plus TypeScript, production build, bundle, branding, and deployment validation.
+
+## [2.0.36-rc.19] - 2026-08-08
+
+### Added
+
+- Added guided recovery for movie-engine warnings caused by TMDB removing a
+  title: VynodeArr now checks the movie library and searches for a valid
+  replacement match.
+- Added confirmed in-place rematching that retains files and library settings,
+  plus a durable dismiss action when the affected title is absent or no valid
+  replacement exists.
+
+## [2.0.36-rc.18] - 2026-08-08
+
+### Changed
+
+- Condensed imported-list title cards into a denser responsive grid that uses
+  more columns on wide screens while retaining a clean single-column phone view.
+- Reduced poster, metadata, summary, and action sizing so more titles remain
+  visible without sacrificing readability.
+- Wrapped long title text across two lines and constrained summaries and file
+  metadata to prevent card content from overlapping or widening the page.
+
+## [2.0.36-rc.17] - 2026-08-08
+
+### Fixed
+
+- Enriched managed Reeltrack title overlays with TMDB metadata before every
+  render so genre-driven shapes appear on Plex placeholders.
+- Made rating, runtime, certification, studio, and network variables available
+  to list overlays even when Plex trailer placeholders omit that metadata.
+
+## [2.0.36-rc.16] - 2026-08-08
+
+### Fixed
+
+- Prevented decorative theatrical preset shapes and icons from inheriting a
+  visible `Custom text` placeholder when several artwork layers are added.
+- Removed the accidental legacy placeholder from existing non-text custom
+  artwork while preserving intentional labels and normal custom text layers.
+
+## [2.0.36-rc.15] - 2026-08-08
+
+### Added
+
+- Added per-list controls to restore native Plex collection artwork or the
+  original title posters without changing artwork configured for other lists.
+- Added separate collection-poster and title-overlay success and failure
+  reporting to managed-list runs.
+
+### Changed
+
+- Condensed the managed Plex collection panel with tighter controls, inline
+  host-path mapping, compact artwork actions, and a shared summary/save row.
+- Recreate a managed collection immediately when its custom poster is
+  reverted so Plex restores native collection artwork without waiting for the
+  next scheduled synchronization.
+
+### Fixed
+
+- Prevented a newly created Plex collection's temporarily unavailable
+  thumbnail from aborting collection-poster and title-overlay application.
+- Isolated collection-poster failures so title overlays continue applying to
+  every managed placeholder in the list.
+
+## [2.0.36-rc.14] - 2026-08-08
+
+### Changed
+
+- Changed collection and title artwork updates to compose every revision from
+  the first captured original instead of the previously rendered poster.
+- Limited direct original-poster uploads to artwork removal and titles that
+  are no longer targeted by a managed overlay.
+
+### Fixed
+
+- Prevented Plex's asynchronous poster processing from allowing an original
+  restore upload to finish after and replace a newly rendered poster.
+- Ensured active collection-poster and title-overlay updates send Plex one
+  final composite, preventing overlays from disappearing or accumulating.
+
+## [2.0.36-rc.13] - 2026-08-08
+
+### Added
+
+- Added modifier-key multi-selection, persistent groups, and Group/Ungroup
+  controls to the collection-poster and title-overlay designers.
+- Added shared group bounds so selected artwork can be moved and resized
+  proportionally as one composition.
+
+### Changed
+
+- Automatically grouped the related layers created by collection and
+  theatrical presets while retaining independent layer editing.
+- Separated original-artwork backups by Plex server, media domain, artwork
+  type, and item to prevent unrelated poster records from colliding.
+
+### Fixed
+
+- Restored pointer input and visible resize handles for artwork layers that
+  inherited noninteractive poster-preview styling.
+- Recovered safely from stale or unavailable artwork backup files so a failed
+  restore cannot prevent collection posters and title overlays from applying.
+- Ensured the newly rendered JPEG remains Plex's final poster upload after an
+  original is restored during an update.
+
+## [2.0.36-rc.12] - 2026-08-08
+
+### Added
+
+- Added explicit layer-level controls to move selected collection-poster and
+  title-overlay items forward, backward, to the front, or to the back.
+- Added durable, integrity-checked original-artwork backups for managed
+  Reeltrack collection posters and title overlays.
+
+### Changed
+
+- Upgraded theatrical presets into independently editable accent, icon, and
+  text layers with more complete poster-ready compositions.
+- Allowed every artwork layer to grow or shrink horizontally and vertically
+  from all four resize corners in both the editor and exact Plex renderer.
+
+### Fixed
+
+- Restored the first captured Plex artwork before replacing, updating, or
+  removing a managed overlay or collection poster, preventing effects from
+  accumulating across repeated edits and synchronization runs.
+
+## [2.0.36-rc.11] - 2026-08-08
+
+### Added
+
+- Added illustrated theatrical overlay presets for Coming Soon, Feature
+  Trailer, Upcoming, Trending Now, Recently Added, New Release, Leaving Soon,
+  Editor's Pick, Watch Tonight, and Now Showing.
+- Added editable filmstrip, clapperboard, megaphone, popcorn, spotlight,
+  flame, laurel, marquee, and ticket artwork for title overlays.
+
+### Changed
+
+- Reorganized the collection-poster and title-overlay designers with compact
+  preset cards, grouped controls, responsive columns, and clearer settings.
+- Applied the cleaner, full-width control layout to the standard poster
+  overlay inspector.
+
+### Fixed
+
+- Added four-corner resizing so artwork can grow left, right, up, and down
+  while remaining bounded by the poster canvas.
+- Improved vertical icon resizing and prevented editor controls from
+  colliding or overflowing at narrower viewport sizes.
+
+## [2.0.36-rc.10] - 2026-08-08
+
+### Added
+
+- Added editable quick-overlay presets for Coming Soon, Upcoming, Trending
+  Now, Recently Added, New Release, Leaving Soon, Editor's Pick, and Watch
+  Tonight.
+- Gave each preset distinct text, colors, typography, shape, and placement
+  while retaining the complete drag, resize, condition, and appearance editor.
+
+### Changed
+
+- Refreshed the selected Plex library after applying a managed-title overlay
+  batch so every changed poster becomes visible together.
+
+### Fixed
+
+- Retried transient Plex poster-upload failures per title instead of allowing
+  one temporary failure to leave the rest of a synchronized list unchanged.
+- Ensured every managed placeholder is processed independently during title
+  overlay application.
+
+### Validation
+
+- Passed all automated tests plus TypeScript, production build, bundle,
+  branding, and deployment validation.
+
+## [2.0.36-rc.9] - 2026-08-08
+
+### Added
+
+- Added a searchable four-title selector to collection poster designs for a
+  2-by-2 mini-poster collage sourced from synchronized list titles.
+- Added visible title-overlay applied and failure totals, with bounded failure
+  details available from the automation summary.
+
+### Changed
+
+- Rendered the selected mini posters through the exact server-side Plex poster
+  pipeline as well as the interactive design preview.
+- Limited collection collages to four explicitly selected TMDB-backed titles.
+
+### Fixed
+
+- Recovered managed title identities from both Plex GUIDs and the `[tmdb-id]`
+  marker in trailer folder paths when applying individual title overlays.
+- Fell back to the title's provider artwork when Plex had not assigned usable
+  poster art to a newly indexed trailer placeholder.
+- Stopped silently discarding title-overlay errors so failed applications are
+  visible and actionable after an automation run.
+
+### Validation
+
+- Passed all 218 automated tests plus TypeScript, production build, bundle,
+  branding, and deployment validation.
+
+## [2.0.36-rc.8] - 2026-08-08
+
+### Added
+
+- Added starter collection-poster designs and customizable solid, linear,
+  and radial-gradient backgrounds.
+- Added validated custom JPEG, PNG, and WebP poster-background uploads with
+  persistent server-side storage and Plex rendering.
+- Added interactive drag positioning and corner-handle resizing to Reeltrack
+  collection posters and managed-title overlays.
+
+### Changed
+
+- Replaced the reduced Reeltrack artwork controls with the same layer model,
+  variables, icons, shapes, text fitting, appearance controls, conditions,
+  ranked sub-conditions, and adaptive contrast used by Poster Overlays.
+- Removed manual X/Y fields in favor of direct manipulation on the poster.
+- Kept an exact server-rendered Plex output preview alongside the interactive
+  editing canvas.
+
+### Fixed
+
+- Ensured collection previews always have visible starter artwork or a chosen
+  color/gradient background instead of an empty dark canvas.
+- Preserved uploaded backgrounds after reopening the editor and used them for
+  collection creation, updates, and recurring synchronization.
+
+### Validation
+
+- Passed all 218 automated tests plus TypeScript, production build, bundle,
+  branding, and deployment validation.
+
+## [2.0.36-rc.7] - 2026-08-08
+
+### Added
+
+- Added an administrator collection-poster designer for synchronized Reeltrack
+  lists with multiple editable text and shape layers.
+- Added collection name, title count, media type, and last-sync variables for
+  collection artwork.
+- Added optional layered title overlays for the managed Plex titles inside a
+  synchronized collection.
+- Added exact server-rendered artwork previews using the same renderer and
+  dimensions used for Plex uploads.
+
+### Changed
+
+- Reapplied collection posters and managed-title overlays whenever automation
+  creates, synchronizes, or updates a Plex collection.
+- Made the list artwork designer a separate lazy-loaded route chunk and
+  condensed Reeltrack title cards and automation controls.
+
+### Fixed
+
+- Loaded Reeltrack title posters through the authenticated application route
+  and replaced unavailable images with a clean media-type fallback.
+- Preserved explicit removal of saved collection posters and title-overlay
+  designs when automation settings are updated.
+
+### Validation
+
+- Passed all 218 automated tests plus TypeScript, production build, bundle,
+  branding, and deployment validation.
+
+## [2.0.36-rc.6] - 2026-08-08
+
+### Added
+
+- Added explicit Movie and Television host-folder mapping for managed
+  Reeltrack Plex collections, with a bounded folder browser and the Plex
+  library path retained as a reference.
+
+### Changed
+
+- Treated Plex-visible paths, VynodeArr-mounted host paths, and media-engine
+  roots as independent namespaces instead of requiring their strings to match.
+- Refreshed saved Plex library metadata and derived the shared library root
+  when older metadata incorrectly pointed at an individual title folder.
+- Used each engine's own configured root when registering list titles while
+  placing managed trailers in the administrator-selected host mapping.
+
+### Fixed
+
+- Kept the System Status page usable when only one media engine is unavailable,
+  preserving healthy storage information and showing a direct connection link
+  for the failed engine.
+- Prevented Plex container paths from being registered directly as media-engine
+  roots when the services mount the same host storage under different paths.
+
+### Validation
+
+- Passed all 217 automated tests plus TypeScript, production build, bundle,
+  branding, and deployment validation.
+
+## [2.0.36-rc.5] - 2026-08-08
+
+### Added
+
+- Added Movie and Television engine-root compatibility checks for selected
+  Plex libraries.
+- Added administrator actions beside incompatible Plex targets to register the
+  reported Plex location as the corresponding Movie or TV engine root folder.
+
+### Changed
+
+- Selected the most specific compatible engine root when adding Reeltrack
+  titles instead of defaulting to the engine's first root folder.
+- Condensed managed-automation status into readable counters and grouped Plex
+  target compatibility directly with each library selector.
+
+### Fixed
+
+- Detected trailer files and folders deleted outside VynodeArr, discarded their
+  stale completed-job records, and downloaded them again on the next sync.
+- Prevented titles from silently being added beneath an unrelated engine root
+  when the selected Plex library location is not configured in that engine.
+
+### Validation
+
+- Passed all 216 automated tests plus TypeScript, production build, bundle,
+  branding, and deployment validation.
+
+## [2.0.36-rc.4] - 2026-08-08
+
+### Fixed
+
+- Refreshed and polled Plex whenever managed trailer files remain, allowing a
+  later automation run to recover when the initial Plex scan had not finished.
+- Waited up to 30 seconds for all expected managed placeholders before creating
+  or replacing the list collection.
+- Replaced silent collection omission with an actionable error that reports
+  the indexed and expected trailer counts, target library, and Plex-visible
+  library path.
+- Preserved the intended collection state when Plex has not indexed every
+  managed trailer instead of replacing it with an empty collection.
+
+### Validation
+
+- Passed all 215 automated tests plus TypeScript, production build, bundle,
+  branding, and deployment validation.
+
+## [2.0.36-rc.3] - 2026-08-08
+
+### Added
+
+- Added missing Reeltrack movie and television titles to their corresponding
+  VynodeArr libraries during managed-list synchronization without forcing an
+  immediate search.
+- Added separate Movie and Television Plex library selections for mixed-media
+  Reeltrack lists, with independent managed collections and trailer roots.
+
+### Changed
+
+- Derived managed trailer destinations from each selected Plex library rather
+  than accepting a manually entered Plex path.
+- Processed the complete provider list during each synchronization and retried
+  Plex library scans before finalizing managed collections.
+- Required only the Plex library types represented by a list; movie-only and
+  television-only lists need one target, while mixed lists need both.
+- Migrated existing single-library automations automatically according to the
+  selected Plex section type.
+
+### Fixed
+
+- Preserved Plex library locations during discovery so trailer files map to
+  the selected media section correctly.
+- Fixed partial managed-list imports, missing Plex collections, and trailers
+  being written beneath a location unrelated to the selected Plex library.
+- Cleared managed collections from both Plex targets when a mixed list is
+  removed.
+
+### Validation
+
+- Passed all 215 automated tests plus TypeScript, production build, bundle,
+  branding, and deployment validation.
+
+## [2.0.36-rc.2] - 2026-08-08
+
+### Changed
+
+- Created Reeltrack trailer placeholders directly in normal movie folders
+  beneath the configured movie library root instead of a separate `/trailers`
+  staging volume.
+- Defaulted and migrated Plex-visible trailer roots from `/trailers` to
+  `/movies`, while retaining support for alternate Plex path mappings.
+- Removed the dedicated trailer volume from Docker, Unraid, and Windows
+  deployment templates.
+
+### Fixed
+
+- Removed only the VynodeArr-managed trailer after real media arrives and
+  removed its movie folder only when the folder is empty, preserving every
+  real media file.
+- Identified placeholders by their exact managed trailer paths so real movie
+  files in the same library root are never mistaken for placeholders.
+- Fixed a fast automation-run race that could cache a completed reconciliation
+  and delay detection of newly arrived media.
+
+### Security
+
+- Validated the final path reported by `yt-dlp` and confined downloads and
+  cleanup to the configured movie root and managed title folder.
+
+### Validation
+
+- Passed the complete automated test, TypeScript, production build, bundle,
+  branding, and deployment verification suite.
+
+## [2.0.36-rc.1] - 2026-08-08
+
+### Added
+
+- Added optional managed Plex trailer collections for imported Reeltrack lists.
+- Added periodic provider synchronization, Plex collection reconciliation, and
+  automatic cleanup when a real library item arrives or a title leaves its
+  source list.
+- Integrated `yt-dlp` and FFmpeg into Docker and Unraid distributions for
+  bounded official YouTube trailer downloads under the managed `/trailers`
+  storage root.
+- Added per-list Plex library, collection name, Plex-visible trailer path,
+  update interval, run status, error details, and manual run controls.
+
+### Changed
+
+- Preserved Reeltrack automation settings during manual list synchronization.
+- Limited each automation run to a configurable download batch so large lists
+  converge without overwhelming metadata providers, storage, or Plex.
+- Reconciled managed Plex collections by authoritative external IDs and treated
+  any Plex item with media outside the trailer root as real media.
+
+### Security
+
+- Restricted trailer downloads to validated HTTPS YouTube URLs, bounded the
+  downloader process, sanitized managed paths, and limited cleanup to folders
+  owned beneath the configured trailer root.
+
+### Validation
+
+- Passed 215 automated tests, server and web TypeScript checks, production
+  builds, bundle and branding checks, and deployment validation.
+
 ## [2.0.36] - 2026-08-08
 
 ### Added
@@ -1632,7 +2115,13 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.24...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.36-rc.5...HEAD
+[2.0.36-rc.5]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.36-rc.4...v2.0.36-rc.5
+[2.0.36-rc.4]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.36-rc.3...v2.0.36-rc.4
+[2.0.36-rc.3]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.36-rc.2...v2.0.36-rc.3
+[2.0.36-rc.2]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.36-rc.1...v2.0.36-rc.2
+[2.0.36-rc.1]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.36...v2.0.36-rc.1
+[2.0.36]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35...v2.0.36
 [2.0.35-rc.24]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.23...v2.0.35-rc.24
 [2.0.35-rc.23]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.22...v2.0.35-rc.23
 [2.0.35-rc.22]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.35-rc.21...v2.0.35-rc.22
@@ -1647,6 +2136,7 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 [2.0.34-rc.3]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.34-rc.2...v2.0.34-rc.3
 [2.0.34-rc.2]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.34-rc.1...v2.0.34-rc.2
 [2.0.34-rc.1]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33...v2.0.34-rc.1
+[2.0.37]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.36...v2.0.37
 [2.0.33]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.32...v2.0.33
 [2.0.33-rc.5]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33-rc.4...v2.0.33-rc.5
 [2.0.33-rc.4]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.33-rc.3...v2.0.33-rc.4

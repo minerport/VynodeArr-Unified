@@ -31,6 +31,12 @@ export class PlexService{
     const text=await response.text();
     try{return{type:'json',value:JSON.parse(text)}}catch{return{type:'xml',value:text}}
   }
+  async command(endpoint,token,path,{method='POST'}={}){
+    const response=await this.fetch(`${cleanEndpoint(endpoint)}${path}`,{method,headers:{accept:'application/json','x-plex-token':String(token||'')},signal:AbortSignal.timeout(this.timeoutMs)});
+    if(response.status===401)throw new Error('Plex rejected the access token');
+    if(!response.ok)throw new Error(`Plex returned HTTP ${response.status}`);
+    const text=await response.text();let value=null;try{value=text?JSON.parse(text):null}catch{value=text}return{value,location:response.headers.get('location')||''};
+  }
   async inspect(endpoint,token){
     if(!String(token||'').trim())throw new Error('Plex access token is required');
     const [identity,sections]=await Promise.all([this.request(endpoint,token,'/identity'),this.request(endpoint,token,'/library/sections')]);
@@ -41,12 +47,13 @@ export class PlexService{
       version:String(identityContainer?.version||xmlAttribute(identity.value,'version')),
     };
     if(!server.machineIdentifier)throw new Error('The endpoint did not identify itself as a Plex Media Server');
-    const directoryValue=sections.value?.MediaContainer?.Directory,directories=sections.type==='json'?(Array.isArray(directoryValue)?directoryValue:directoryValue?[directoryValue]:[]):[...String(sections.value).matchAll(/<Directory\b[^>]*\/>/gi)].map(match=>match[0]);
+    const directoryValue=sections.value?.MediaContainer?.Directory,directories=sections.type==='json'?(Array.isArray(directoryValue)?directoryValue:directoryValue?[directoryValue]:[]):[...String(sections.value).matchAll(/<Directory\b[^>]*(?:\/>|>[\s\S]*?<\/Directory>)/gi)].map(match=>match[0]);
     const libraries=directories.map(item=>({
       key:String(item.key??xmlAttribute(item,'key')),
       title:decodeXml(item.title??xmlAttribute(item,'title')),
       type:String(item.type??xmlAttribute(item,'type')),
       uuid:String(item.uuid??xmlAttribute(item,'uuid')),
+      locations:[...new Set((sections.type==='json'?(Array.isArray(item.Location)?item.Location:item.Location?[item.Location]:[]).map(location=>location?.path):[...String(item).matchAll(/<Location\b[^>]*\bpath="([^"]+)"[^>]*\/>/gi)].map(match=>decodeXml(match[1]))).filter(Boolean).map(String))],
     })).filter(item=>item.key&&['movie','show'].includes(item.type));
     return{endpoint:cleanEndpoint(endpoint),server,libraries};
   }
@@ -68,6 +75,9 @@ export class PlexService{
     if(!response.ok)throw new Error(`Plex poster upload returned HTTP ${response.status}`);
     return true;
   }
+  async refreshLibrary(endpoint,token,libraryKey){if(!/^\d+$/.test(String(libraryKey||'')))throw new Error('Plex library target is invalid');await this.command(endpoint,token,`/library/sections/${libraryKey}/refresh`,{method:'GET'});return true;}
+  async libraryCollections(endpoint,token,libraryKey){if(!/^\d+$/.test(String(libraryKey||'')))throw new Error('Plex library target is invalid');const response=await this.request(endpoint,token,`/library/sections/${libraryKey}/collections`),metadata=response.value?.MediaContainer?.Metadata,items=response.type==='json'?(Array.isArray(metadata)?metadata:metadata?[metadata]:[]):[...String(response.value).matchAll(/<Directory\b[^>]*(?:\/>|>[\s\S]*?<\/Directory>)/gi)].map(match=>match[0]);return items.map(item=>({ratingKey:String(item.ratingKey??xmlAttribute(item,'ratingKey')),title:decodeXml(item.title??xmlAttribute(item,'title'))})).filter(item=>item.ratingKey);}
+  async syncCollection(endpoint,token,{libraryKey,libraryType,machineIdentifier,title,ratingKeys}){if(!/^\d+$/.test(String(libraryKey||''))||!String(machineIdentifier||'').trim())throw new Error('Plex collection target is incomplete');const name=String(title||'').trim().slice(0,120);if(!name)throw new Error('Plex collection name is required');const existing=(await this.libraryCollections(endpoint,token,libraryKey)).filter(item=>item.title.toLowerCase()===name.toLowerCase());for(const item of existing)await this.command(endpoint,token,`/library/metadata/${encodeURIComponent(item.ratingKey)}`,{method:'DELETE'});const ids=[...new Set((ratingKeys||[]).map(String).filter(value=>/^\d+$/.test(value)))];if(!ids.length)return{ratingKey:null,title:name,itemCount:0};const query=new URLSearchParams({type:libraryType==='show'?'2':'1',title:name,smart:'0',sectionId:String(libraryKey),uri:`server://${machineIdentifier}/com.plexapp.plugins.library/library/metadata/${ids.join(',')}`});const created=await this.command(endpoint,token,`/library/collections?${query}`,{method:'POST'}),ratingKey=String(created.value?.MediaContainer?.Metadata?.[0]?.ratingKey||created.value?.MediaContainer?.Metadata?.ratingKey||created.location.match(/\/library\/metadata\/(\d+)/)?.[1]||'')||null;return{ratingKey,title:name,itemCount:ids.length};}
   match(vynodeItems,plexItems){
     const index=new Map();for(const item of plexItems)for(const id of itemExternalIds(item)){const values=index.get(id)||[];values.push(item);index.set(id,values);}
     return vynodeItems.map(item=>{const ids=itemExternalIds(item),matches=[...new Map(ids.flatMap(id=>index.get(id)||[]).map(value=>[value.ratingKey,value])).values()];return{domain:item.domain,id:item.id,title:item.title,year:item.year||null,externalIds:ids,status:!ids.length?'unmatched':matches.length===1?'matched':matches.length>1?'ambiguous':'unmatched',plex:matches.map(value=>({ratingKey:value.ratingKey,title:value.title,year:value.year,type:value.type,thumb:value.thumb,addedAt:value.addedAt}))};});

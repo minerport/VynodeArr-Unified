@@ -27,30 +27,24 @@ consistent experience and account system.
 
 ## Current release
 
-Version **2.0.36** is the current production release for Unraid, Windows, and
-standard Docker installations and is published as the `latest` image.
+Version **2.0.37** is the current production release for Unraid, Windows, and
+standard Docker installations. It adds managed Reeltrack-to-Plex collections,
+official trailer placeholders, automatic Movie and Television registration,
+mixed-list Plex targets, and explicit host-path mapping when Plex and the media
+engines mount the same storage differently.
 
-This release adds imported Reeltrack lists with secure server-side credentials,
-durable external-ID matching, availability filters, synchronization, and direct
-requests for missing titles. Poster Overlay Studio now provides a bounded,
-responsive layer editor with centered new layers, direct preview selection,
-independently collapsible settings, representative missing-data previews, and
-destination-correct added dates. Plex poster workflows support variable filters,
-whole-library selection, scoped application, and filtered restoration.
+Each synchronized list can have its own collection poster and title overlay.
+The artwork studio supports exact Plex previews, uploaded or gradient
+backgrounds, four-poster collages, metadata variables, conditions, theatrical
+presets, drag and four-corner resize controls, multi-selection, grouping, and
+layer ordering. Original Plex artwork is captured once and integrity checked,
+so designs can be updated or reverted per list without accumulating effects.
 
-The new administrator **Library Review** page displays Plex titles, VynodeArr
-titles, and scanned movie folders in independent, left-aligned columns. Each
-column can be searched, filtered, and scrolled through its complete result set.
-The review includes filenames, paths, TMDB identities, match and mismatch
-highlighting, TMDB/IMDb correction, Plex-assisted matching, scanned-folder
-imports, and rename-and-organize actions that use the configured naming
-standards.
-
-Version 2.0.36 also fixes incomplete library pagination, stale entries and file
-locations after match correction, folder scanning from Movie and Television
-details, malformed legacy overlay layers, oversized overlay dialogs, and
-incorrect Plex or VynodeArr added-date calculations. See
-[CHANGELOG.md](CHANGELOG.md) for the complete release summary.
+Health now recognizes warnings for TMDB titles removed upstream. VynodeArr
+checks whether the title remains in the Movie library, proposes a valid
+replacement when available, preserves files and settings during a confirmed
+rematch, and allows irrelevant or unresolved warnings to be dismissed. This
+stable release is published as the `latest` image.
 
 The administrator Validation Center checks
 engine connectivity, storage, acquisition providers, scheduled automation,
@@ -315,6 +309,38 @@ See the [changelog](CHANGELOG.md) for the detailed list of changes.
 - Bulk profile, root-folder, availability, refresh, and removal actions
 - Native Movie and Television Import Lists with guided provider setup, testing,
   enable/disable controls, manual synchronization, editing, and removal
+
+### Managed Reeltrack trailer collections
+
+Administrators can import Reeltrack lists and optionally turn each imported
+list into a managed Plex trailer collection. VynodeArr periodically refreshes
+the source list, downloads official YouTube trailers through `yt-dlp`, asks Plex
+to scan the selected library, and keeps the Plex collection limited to managed
+placeholders for titles that are not yet present as real media. When a title is
+removed from Reeltrack or the real Plex item appears, VynodeArr removes its
+owned trailer folder and removes the placeholder from the managed collection.
+
+VynodeArr creates each placeholder directly beneath the configured `/movies`
+root using a normal title folder and places only the downloaded trailer inside
+it. VynodeArr derives the Plex-visible root from the location reported by the
+selected Plex library, including installations where Plex uses a different
+container path for the same storage. The same synchronization also registers
+every missing TMDB-backed title with the appropriate VynodeArr Movie or
+Television engine using its configured root folder and quality profile; these
+entries are monitored without forcing an immediate search. When real media arrives, VynodeArr removes only its
+managed trailer file and removes the title folder only when it is empty, so a
+real movie file is never deleted. Each list stores its own collection name,
+Plex library, update interval, last and next run, reconciliation summary, and
+actionable error state. Each synchronization processes every missing title and
+reports any trailer failures that still need attention.
+
+Each imported list can independently apply a custom Plex collection poster and
+an overlay to its managed titles. The shared artwork editor provides uploaded,
+solid, linear-gradient, and radial-gradient backgrounds; optional four-title
+poster collages; editable metadata text, shapes, and icons; theatrical presets;
+conditions; drag and resize; grouping; and layer ordering. VynodeArr renders an
+exact server preview, applies designs during synchronization, and retains the
+first original Plex artwork for safe per-list restoration.
 
 ### Personal interface presentation
 

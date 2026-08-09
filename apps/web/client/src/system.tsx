@@ -87,7 +87,13 @@ function DomainSection({
     </section>
   );
 }
-function Status({ disks }: { disks: Record<SystemDomain, DiskSpace[]> }) {
+function Status({
+  disks,
+  errors,
+}: {
+  disks: Record<SystemDomain, DiskSpace[]>;
+  errors: Partial<Record<SystemDomain, string>>;
+}) {
   return (
     <div className="system-domain-grid system-status-grid">
       {domains.map((domain) => {
@@ -103,7 +109,18 @@ function Status({ disks }: { disks: Record<SystemDomain, DiskSpace[]> }) {
 
         return (
           <DomainSection domain={domain} count={items.length} key={domain}>
-            <div className="storage-summary">
+            {errors[domain] ? (
+              <div className="notice danger">
+                <strong>{label(domain)} service unavailable</strong>
+                <p>{errors[domain]}</p>
+                <a className="button-link secondary" href="#service/engine-management">
+                  Review engine connection
+                </a>
+              </div>
+            ) : null}
+            {!items.length && errors[domain] ? null : (
+              <>
+                <div className="storage-summary">
               <div>
                 <span className="storage-summary-label">Free space</span>
                 <strong>{storageSize(free)}</strong>
@@ -142,7 +159,9 @@ function Status({ disks }: { disks: Record<SystemDomain, DiskSpace[]> }) {
                   </span>
                 </div>
               ))}
-            </div>
+                </div>
+              </>
+            )}
           </DomainSection>
         );
       })}
@@ -1471,6 +1490,7 @@ export function SystemView({ options }: { options: SystemMountOptions }) {
       movie: [],
       tv: [],
     }),
+    [domainErrors, setDomainErrors] = useState<Partial<Record<SystemDomain, string>>>({}),
     [update, setUpdate] = useState<ApplicationUpdate | null>(null),
     [engineUpdates, setEngineUpdates] = useState<EngineUpdateCatalog | null>(
       null,
@@ -1483,17 +1503,32 @@ export function SystemView({ options }: { options: SystemMountOptions }) {
     try {
       if (view === "status") {
         const values = await Promise.all(
-          domains.map(async (domain) => ({
-            domain,
-            value: await options.request<{ result: DiskSpace[] }>(
-              `/api/manage/${domain}/diskSpace`,
-            ),
-          })),
+          domains.map(async (domain) => {
+            try {
+              const value = await options.request<{ result: DiskSpace[] }>(
+                `/api/manage/${domain}/diskSpace`,
+              );
+              return { domain, value, error: "" };
+            } catch (reason) {
+              return {
+                domain,
+                value: { result: [] as DiskSpace[] },
+                error: errorText(reason),
+              };
+            }
+          }),
         );
         setDisks(
           Object.fromEntries(
             values.map((item) => [item.domain, item.value.result]),
           ) as Record<SystemDomain, DiskSpace[]>,
+        );
+        setDomainErrors(
+          Object.fromEntries(
+            values
+              .filter((item) => item.error)
+              .map((item) => [item.domain, item.error]),
+          ),
         );
       } else if (view === "performance")
         setPerformance(
@@ -1628,7 +1663,7 @@ export function SystemView({ options }: { options: SystemMountOptions }) {
           </button>
         </div>
       ) : view === "status" ? (
-        <Status disks={disks} />
+        <Status disks={disks} errors={domainErrors} />
       ) : view === "performance" && performance ? (
         <Suspense fallback={<div className="panel skeleton">Loading performance diagnostics…</div>}><SystemPerformancePanel report={performance} options={options} reload={() => void load()} /></Suspense>
       ) : view === "validation" && validation ? (

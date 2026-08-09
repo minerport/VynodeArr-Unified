@@ -5,15 +5,41 @@ import test from 'node:test';
 const read=(path)=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
 test('Reeltrack Lists remains fluid while the viewport is resized',async()=>{
-  const [styles,view]=await Promise.all([read('apps/web/client/src/react-reeltrack-lists.css'),read('apps/web/client/src/reeltrack-lists.tsx')]);
-  assert.match(styles,/\.react-reeltrack-lists>\.reeltrack-hero\{[^}]*position:static[^}]*height:auto[^}]*min-height:0/);
-  assert.match(styles,/\.reeltrack-key-form input\{[^}]*min-width:0[^}]*width:100%/);
-  assert.match(styles,/\.reeltrack-list-nav\{[^}]*display:flex[^}]*max-height:calc\(100dvh - 8rem\)[^}]*flex-direction:column[^}]*overflow-y:auto/);
-  assert.match(styles,/@media\(max-width:900px\)\{[\s\S]*?\.reeltrack-workspace\{grid-template-columns:minmax\(0,1fr\)/);
-  assert.match(styles,/@media\(max-width:480px\)\{[^}]*\.react-reeltrack-lists\{gap:\.85rem/);
+  const [styles,view,designer,artStyles]=await Promise.all([read('apps/web/client/src/react-reeltrack-lists.css'),read('apps/web/client/src/reeltrack-lists.tsx'),read('apps/web/client/src/reeltrack-poster-designer.tsx'),read('apps/web/client/src/reeltrack-poster-designer.css')]);
+  assert.match(styles,/\.react-reeltrack-lists\s*>\s*\.reeltrack-hero\s*\{[^}]*position:\s*static[^}]*height:\s*auto[^}]*min-height:\s*0/);
+  assert.match(styles,/\.reeltrack-key-form input\s*\{[^}]*min-width:\s*0[^}]*width:\s*100%/);
+  assert.match(styles,/\.reeltrack-list-nav\s*\{[^}]*display:\s*flex[^}]*max-height:\s*calc\(100dvh - 8rem\)[^}]*flex-direction:\s*column[^}]*overflow-y:\s*auto/);
+  assert.match(styles,/@media\s*\(max-width:\s*900px\)\s*\{[\s\S]*?\.reeltrack-workspace\s*\{\s*grid-template-columns:\s*minmax\(0,\s*1fr\)/);
+  assert.match(styles,/@media\s*\(max-width:\s*480px\)\s*\{[^}]*\.react-reeltrack-lists\s*\{\s*gap:\s*0?\.85rem/);
   assert.doesNotMatch(view,/Manage integrations/);
-  assert.match(view,/This is the only place in VynodeArr where your Reeltrack key is entered/);
+  assert.match(view,/This is the only place in VynodeArr where your Reeltrack key\s+is entered/);
   assert.match(view,/Replace API key/);
+  assert.match(view,/Choose host folder/);
+  assert.match(view,/MAP HOST FOLDER/);
+  assert.match(view,/Plex, host, and engine paths are mapped independently/);
+  assert.doesNotMatch(view,/Add as Movie root/);
+  assert.match(view,/\/api\/reeltrack\/poster\/\$\{item\.domain\}\/\$\{item\.tmdbId\}/);
+  assert.match(view,/onError=\{\(\) => setFailed\(true\)\}/);
+  assert.match(styles,/\.reeltrack-automation-fields\s*\{[^}]*align-items:\s*start/);
+  assert.match(styles,/\.reeltrack-item-grid\s*\{[^}]*grid-template-columns:\s*repeat\(auto-fill,\s*minmax\(min\(100%,\s*260px\),\s*1fr\)\)/);
+  assert.match(styles,/\.reeltrack-item-grid article\s*\{[^}]*grid-template-columns:\s*68px[^}]*min-height:\s*126px/);
+  assert.match(styles,/\.reeltrack-item-copy h3\s*\{[^}]*overflow-wrap:\s*anywhere[^}]*-webkit-line-clamp:\s*2/);
+  assert.match(designer,/Drag to position · pull corner to resize/);assert.match(designer,/overlay-resize-handle/);assert.match(designer,/onPointerMove/);
+  assert.doesNotMatch(designer,/>X \(%\)</);assert.doesNotMatch(designer,/>Y \(%\)</);
+  for(const label of ['STARTER POSTERS','Solid color','Linear gradient','Radial gradient','Gradient angle','Upload custom background','Add icon','Adaptive poster contrast','Conditions','Exact rendered Plex output'])assert.ok(designer.includes(label),label);
+  assert.match(designer,/poster-overlay-layer-identity/);assert.match(designer,/poster-overlay-conditions/);
+  assert.match(designer,/Four-poster collage/);assert.match(designer,/quadPosters/);assert.match(designer,/Find a title/);
+  for(const label of ['THEATRICAL OVERLAY DESIGNS','Coming Soon','Feature Trailer','Upcoming','Trending Now','Recently Added','New Release','Leaving Soon',"Editor's Pick",'Watch Tonight','Now Showing'])assert.ok(designer.includes(label),label);
+  for(const corner of ['nw','ne','sw','se'])assert.ok(designer.includes(`"${corner}"`),corner);
+  assert.match(artStyles,/\.reeltrack-interactive-canvas \.poster-overlay-layer\{pointer-events:auto!important\}/);
+  assert.match(designer,/selectedIds\.includes\(item\.id\)/);assert.match(designer,/className="reeltrack-selection-box"/);assert.match(designer,/zIndex:\s*20/);assert.match(designer,/pointerEvents:\s*"auto"/);
+  for(const label of ['Group','Ungroup','items selected'])assert.ok(designer.includes(label),label);
+  assert.match(designer,/scaleX\s*=\s*width\s*\/\s*start\.width/);assert.match(designer,/scaleY\s*=\s*height\s*\/\s*start\.height/);
+  for(const control of ['Layer level','To front','Forward','Backward','To back'])assert.ok(designer.includes(control),control);
+  assert.match(designer,/for\s*\(const item of snapshots\)\s*onChange\(item\.id,\s*\{\s*position:\s*"custom"/);
+  assert.match(designer,/layers:\s*\[\.\.\.current\.layers,\s*accent,\s*graphic,\s*badge\]/);
+  assert.match(view,/overlays applied/);assert.match(view,/overlay failures/);
+  assert.match(view,/artwork\/\$\{kind\}\/restore/);assert.match(view,/Revert in Plex/);assert.match(view,/saved only for \$\{selected\.name\}/);
 });
 
 test('loaded Action Center records cannot widen the mobile viewport',async()=>{
@@ -24,6 +50,15 @@ test('loaded Action Center records cannot widen the mobile viewport',async()=>{
   assert.match(styles,/\.operations-action > header \{[\s\S]*?position: static;[\s\S]*?height: auto;[\s\S]*?background: transparent;/);
   assert.match(navigation,/addEventListener\('pageshow',onPageShow\)/);
   assert.match(navigation,/persisted&&void options\.route\(\)/);
+});
+
+test('health recovery mutations are handled before the read-only API fallback',async()=>{
+  const server=await read('apps/api/src/app.js');
+  const action=server.indexOf('const healthActionMatch = url.pathname.match');
+  const fallback=server.indexOf('if (req.method !== "GET")');
+  assert.ok(action>=0,'health action route');
+  assert.ok(fallback>=0,'read-only fallback');
+  assert.ok(action<fallback,'health action route must precede the read-only fallback');
 });
 
 test('library titles can be attributed to a user without creating another download request',async()=>{
@@ -160,6 +195,9 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(system,/Find events/);
   assert.match(system,/storageSize/);
   assert.match(system,/TB/);
+  assert.match(system,/domainErrors/);
+  assert.match(system,/Review engine connection/);
+  assert.match(system,/values\s*\.filter\(\(item\) => item\.error\)/);
   assert.match(systemTypes,/SystemMountOptions/);
   assert.match(app,/showSystemReact/);
   assert.match(library,/Filter titles/);
@@ -272,6 +310,10 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(health,/export function HealthView/);
   assert.match(health,/Review root folders/);
   assert.match(health,/Review download clients/);
+  assert.match(health,/Update match/);
+  assert.match(health,/\/api\/system\/health\/\$\{encodeURIComponent\(item\.id\)\}\/dismiss/);
+  assert.match(health,/\/api\/system\/health\/\$\{encodeURIComponent\(item\.id\)\}\/rematch/);
+  assert.match(healthTypes,/kind:'removed-tmdb'/);
   assert.match(healthTypes,/interface HealthMountOptions/);
   assert.match(app,/showHealthReact/);
   assert.doesNotMatch(app,/function healthFix/);
@@ -1224,7 +1266,7 @@ test('poster overlay sub-conditions are ranked and expose inherited appearance o
   assert.match(editor,/setEditing\(current=>current\?/);
   assert.match(editor,/typeof changes==="function"\?changes\(layer\):changes/);
   for(const label of ['Shape / background color','Text color','Font size','Font weight','Text alignment','Capitalization','Shape opacity','Inner spacing','Corner radius','Adaptive contrast'])assert.match(source,new RegExp(label.replace(/[\/]/g,'\\$&')));
-  assert.match(types,/rank: number/);assert.match(service,/sort\(\(a,b\)=>a\.rank-b\.rank\)/);
+  assert.match(types,/rank: number/);assert.match(service,/sort\(\(a,\s*b\)\s*=>\s*a\.rank\s*-\s*b\.rank\)/);
 });
 
 test('icon and shape editors keep artwork separate from optional variables',async()=>{

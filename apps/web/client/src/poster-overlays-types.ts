@@ -9,6 +9,8 @@ export type OverlayPosition =
   | "custom";
 export interface OverlayLayer {
   id: string;
+  /** Optional editor grouping identifier. Rendering order remains layer based. */
+  groupId?: string;
   label: string;
   variable: string;
   kind: "text" | "icon" | "shape";
@@ -72,6 +74,16 @@ export interface OverlayTemplate {
     availability: boolean;
     cutoff: boolean;
     rating: boolean;
+  };
+  canvas?: {
+    backgroundType: "solid" | "linear" | "radial";
+    colorA: string;
+    colorB: string;
+    angle: number;
+    backgroundAsset?: string;
+    backgroundPreview?: string;
+    /** Up to four TMDB posters displayed as a 2 x 2 collection collage. */
+    quadPosters?: Array<{ domain: "movie" | "tv"; tmdbId: number; title?: string }>;
   };
   createdAt?: string;
   updatedAt?: string;

@@ -27,7 +27,7 @@ LABEL org.opencontainers.image.title="VynodeArr" \
       org.opencontainers.image.source="https://github.com/minerport/VynodeArr-Unified" \
       org.opencontainers.image.version="${VYNODEARR_VERSION}" \
       org.opencontainers.image.licenses="Apache-2.0"
-RUN apk add --no-cache icu-libs sqlite-libs libgcc libstdc++ tzdata tini font-dejavu
+RUN apk add --no-cache icu-libs sqlite-libs libgcc libstdc++ tzdata tini font-dejavu ffmpeg yt-dlp
 WORKDIR /app
 COPY package.json ./
 RUN npm install --omit=dev --no-audit --no-fund
@@ -51,7 +51,7 @@ ENV NODE_ENV=production PORT=8686 VYNODEARR_DATA_DIR=/config/vynodearr \
     MOVIE_ENGINE_HOST=127.0.0.1 \
     MOVIE_ENGINE_PORT=7878 TV_ENGINE_HOST=127.0.0.1 TV_ENGINE_PORT=8989 \
     MOVIE_ENGINE_CONFIG_PATH=/config/movies/config.xml \
-    TV_ENGINE_CONFIG_PATH=/config/television/config.xml
+    TV_ENGINE_CONFIG_PATH=/config/television/config.xml VYNODEARR_TRAILER_DIR=/movies
 VOLUME ["/config", "/movies", "/tv", "/downloads"]
 EXPOSE 8686
 HEALTHCHECK --interval=30s --timeout=5s --start-period=45s --retries=3 \

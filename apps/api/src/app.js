@@ -1,4 +1,4 @@
-import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rename, unlink, writeFile } from "node:fs/promises";
 import { watch } from "node:fs";
 import {
   createCipheriv,
@@ -35,6 +35,7 @@ import {
   sanitizePlexEndpoint,
 } from "../../../packages/platform/src/plex-service.js";
 import { JsonStore } from "../../../packages/platform/src/json-store.js";
+import { TrailerDownloadService } from "../../../packages/platform/src/trailer-download-service.js";
 import {
   GuideTemplateService,
   formatForMovieEngine,
@@ -509,8 +510,17 @@ export function createApplication(options = {}) {
       version: 1,
       applications: [],
     });
-  const plexPosterBackupDir = join(dataDir, "plex-poster-backups");
+  const plexPosterBackupDir = join(dataDir, "plex-poster-backups"),
+    reeltrackPosterBackgroundDir = join(dataDir, "reeltrack-poster-backgrounds"),
+    reeltrackArtworkBackupDir = join(dataDir, "reeltrack-artwork-originals");
   const plexService = options.plexService || new PlexService();
+  const trailerDownloader =
+    options.trailerDownloader ||
+    new TrailerDownloadService({
+      binary: env.VYNODEARR_YTDLP_BINARY || "yt-dlp",
+      movieRoot: env.VYNODEARR_TRAILER_DIR || env.VYNODEARR_MOVIE_LIBRARY_PATH || "/movies",
+      tvRoot: env.VYNODEARR_TV_LIBRARY_PATH || "/tv",
+    });
   const requestStore =
     options.requestStore ||
     new JsonStore(join(dataDir, "user-requests.json"), {
@@ -542,6 +552,7 @@ export function createApplication(options = {}) {
     new JsonStore(join(dataDir, "operations-center.json"), {
       version: 1,
       dismissed: {},
+      healthDismissed: {},
     });
   const guideTemplateStore =
     options.guideTemplateStore ||
@@ -1306,6 +1317,709 @@ export function createApplication(options = {}) {
       }),
     }));
   }
+  const reeltrackAutomationRuns = new Map();
+  const reeltrackItemIdentity = (item) => {
+    const domain =
+        String(item?.type || item?.domain || "").toLowerCase() === "tv" ||
+        String(item?.type || item?.domain || "").toLowerCase() === "series"
+          ? "tv"
+          : "movie",
+      tmdbId = Number(item?.tmdbId) ||
+        (String(item?.source || "").toLowerCase() === "tmdb"
+          ? Number(item?.externalId)
+          : 0);
+    return { domain, tmdbId: Number.isInteger(tmdbId) && tmdbId > 0 ? tmdbId : null };
+  };
+  const plexPathValue = (value) =>
+    String(value || "").replaceAll("\\", "/").replace(/\/+$/, "").toLowerCase();
+  const plexLibraryLocation = (library, items = []) => {
+    const reported = String(library?.locations?.[0] || "").trim().replaceAll("\\", "/").replace(/\/+$/, ""),
+      directories = (items || [])
+        .flatMap((item) => item?.files || [])
+        .map((file) => String(file || "").replaceAll("\\", "/").replace(/\/+$/, ""))
+        .filter(Boolean)
+        .map((file) => file.slice(0, file.lastIndexOf("/")))
+        .filter(Boolean);
+    if (!reported || directories.length < 2) return reported;
+    const first = directories[0].split("/"),
+      compared = directories.map((path) => path.toLowerCase().split("/"));
+    let length = first.length;
+    for (let index = 1; index < compared.length; index += 1) {
+      length = Math.min(length, compared[index].length);
+      while (length > 0 && compared[index].slice(0, length).join("/") !== compared[0].slice(0, length).join("/")) length -= 1;
+    }
+    const shared = first.slice(0, length).join("/") || "/",
+      reportedValue = plexPathValue(reported),
+      sharedValue = plexPathValue(shared);
+    return sharedValue && reportedValue.startsWith(`${sharedValue}/`) ? shared : reported;
+  };
+  const localLibraryRoot = (domain) => domain === "tv"
+    ? env.VYNODEARR_TV_LIBRARY_PATH || "/tv"
+    : env.VYNODEARR_TRAILER_DIR || env.VYNODEARR_MOVIE_LIBRARY_PATH || "/movies";
+  const mappedLibraryRoot = (domain, automation = {}) => {
+    const configured = resolve(localLibraryRoot(domain)),
+      requested = resolve(String(domain === "tv" ? automation.tvHostRoot || configured : automation.movieHostRoot || configured));
+    if (requested !== configured && !requested.startsWith(`${configured}${process.platform === "win32" ? "\\" : "/"}`))
+      throw new Error(`The mapped ${domain === "tv" ? "television" : "movie"} host folder is outside VynodeArr's configured library root.`);
+    return requested;
+  };
+  const plexMovieRootValue = (value) => {
+    const path = String(value || "").trim();
+    return !path || plexPathValue(path) === "/trailers" ? "/movies" : path;
+  };
+  async function addReeltrackItemsToLibraries(providerItems, preferredRoots = {}) {
+    const summary = { added: 0, existing: 0, failed: 0, errors: [] };
+    for (const domain of ["movie", "tv"]) {
+      const candidates = (providerItems || [])
+        .map((item) => ({ item, identity: reeltrackItemIdentity(item) }))
+        .filter(({ identity }) => identity.domain === domain && identity.tmdbId);
+      if (!candidates.length) continue;
+      let records, profiles, roots;
+      try {
+        [records, profiles, roots] = await Promise.all([
+          management.execute(domain, "library", "GET", {}),
+          management.execute(domain, "profiles", "GET", {}),
+          management.execute(domain, "rootFolders", "GET", {}),
+        ]);
+      } catch (error) {
+        summary.failed += candidates.length;
+        summary.errors.push(
+          `${domain === "movie" ? "Movies" : "Television"}: ${error?.message || "engine settings are unavailable"}`,
+        );
+        continue;
+      }
+      const known = Array.isArray(records) ? records : records?.records || [],
+        profile = (Array.isArray(profiles) ? profiles : [])[0],
+        preferredPath = plexPathValue(preferredRoots[domain]),
+        availableRoots = Array.isArray(roots) ? roots : [],
+        root = availableRoots
+          .filter((candidate) => {
+            const rootPath = plexPathValue(candidate?.path);
+            return !preferredPath || preferredPath === rootPath || preferredPath.startsWith(`${rootPath}/`);
+          })
+          .sort((left, right) => plexPathValue(right.path).length - plexPathValue(left.path).length)[0]
+          || availableRoots[0];
+      let domainAdded = 0;
+      if (!profile || !root?.path) {
+        summary.failed += candidates.length;
+        summary.errors.push(
+          preferredPath
+            ? `${domain === "movie" ? "Movies" : "Television"}: add ${preferredRoots[domain]} as an engine root folder before synchronizing this Plex library`
+            : `${domain === "movie" ? "Movies" : "Television"}: configure a root folder and quality profile first`,
+        );
+        continue;
+      }
+      for (const { item, identity } of candidates) {
+        try {
+          if (
+            known.some(
+              (record) => Number(record.tmdbId) === Number(identity.tmdbId),
+            )
+          ) {
+            summary.existing += 1;
+            continue;
+          }
+          const metadata = await discovery.details(domain, identity.tmdbId),
+            engineIdentity = {
+              tmdbId: identity.tmdbId,
+              tvdbId: metadata?.tvdbId || null,
+              imdbId: metadata?.imdbId || null,
+            },
+            duplicate = known.find(
+              (record) =>
+                (domain === "tv" &&
+                  engineIdentity.tvdbId &&
+                  Number(record.tvdbId) === Number(engineIdentity.tvdbId)) ||
+                (engineIdentity.imdbId &&
+                  String(record.imdbId || "").toLowerCase() ===
+                    String(engineIdentity.imdbId).toLowerCase()),
+            );
+          if (duplicate) {
+            summary.existing += 1;
+            continue;
+          }
+          let match;
+          for (const term of lookupTermsForIdentity(domain, engineIdentity)) {
+            const matches = await management.execute(domain, "lookup", "GET", {
+              query: { term },
+            });
+            match = exactEngineMatch(
+              domain,
+              engineIdentity,
+              Array.isArray(matches) ? matches : [],
+            );
+            if (match) break;
+          }
+          if (!match) throw new Error("the media engine could not resolve its external ID");
+          const payload = {
+            ...match,
+            rootFolderPath: root.path,
+            qualityProfileId: Number(profile.id),
+            monitored: true,
+            ...(domain === "movie"
+              ? {
+                  minimumAvailability:
+                    match.minimumAvailability === "tba"
+                      ? "announced"
+                      : match.minimumAvailability || "announced",
+                  addOptions: { searchForMovie: false },
+                }
+              : {
+                  seasonFolder: true,
+                  addOptions: {
+                    monitor: "all",
+                    searchForMissingEpisodes: false,
+                    searchForCutoffUnmetEpisodes: false,
+                  },
+                }),
+          };
+          const added = await management.execute(domain, "library", "POST", {
+            payload: domain === "tv" ? televisionAddPayload(payload) : payload,
+          });
+          known.push(added || payload);
+          summary.added += 1;
+          domainAdded += 1;
+        } catch (error) {
+          summary.failed += 1;
+          if (summary.errors.length < 10)
+            summary.errors.push(
+              `${item.title || `${domain} ${identity.tmdbId}`}: ${error?.message || "could not be added"}`,
+            );
+        }
+      }
+      if (domainAdded) {
+        sync.invalidate(domain);
+        const refreshTimer = setTimeout(
+          () => sync.synchronize(domain).catch(() => {}),
+          1e4,
+        );
+        refreshTimer.unref?.();
+      }
+    }
+    return summary;
+  }
+  const reeltrackPosterTemplate = (value, domain = "all") => {
+    if (!value || typeof value !== "object") return null;
+    const template = sanitizeOverlayTemplate({
+      ...value,
+      id: value.id || `overlay_${randomUUID()}`,
+      name: value.name || "Reeltrack collection artwork",
+      domain,
+      target: "plex",
+      enabled: value.enabled !== false,
+    });
+    const canvas = value.canvas || {}, color = (input, fallback) => /^#[0-9a-f]{6}$/i.test(String(input || "")) ? String(input).toLowerCase() : fallback;
+    template.canvas = {
+      backgroundType: ["solid", "linear", "radial"].includes(canvas.backgroundType) ? canvas.backgroundType : "linear",
+      colorA: color(canvas.colorA, "#08111f"),
+      colorB: color(canvas.colorB, "#243b65"),
+      angle: Math.max(0, Math.min(360, Number(canvas.angle) || 135)),
+      backgroundAsset: /^[a-f0-9-]{36}\.(?:jpe?g|png|webp)$/i.test(String(canvas.backgroundAsset || "")) ? String(canvas.backgroundAsset) : "",
+      quadPosters: (Array.isArray(canvas.quadPosters) ? canvas.quadPosters : [])
+        .map((item) => ({
+          domain: item?.domain === "tv" ? "tv" : "movie",
+          tmdbId: Number(item?.tmdbId),
+          title: String(item?.title || "").slice(0, 160),
+        }))
+        .filter((item) => Number.isInteger(item.tmdbId) && item.tmdbId > 0)
+        .slice(0, 4),
+    };
+    return template;
+  };
+  const reeltrackPosterItem = ({ list, domain, count, syncedAt, title }) => ({
+    title: title || list.name,
+    collection: title || list.name,
+    collectionName: title || list.name,
+    collectionTitleCount: count,
+    collectionMediaType: domain === "tv" ? "Television" : domain === "movie" ? "Movies" : "Movies & Television",
+    collectionLastSync: syncedAt || new Date().toISOString(),
+  });
+  async function remotePosterBuffer(domain, tmdbId) {
+    if (!Number.isInteger(Number(tmdbId)) || Number(tmdbId) < 1) return null;
+    const metadata = await discovery.details(domain === "tv" ? "tv" : "movie", Number(tmdbId)).catch(() => null);
+    if (!metadata?.poster) return null;
+    const response = await fetch(metadata.poster, { signal: AbortSignal.timeout(10000) }).catch(() => null);
+    if (!response?.ok || !String(response.headers.get("content-type") || "").startsWith("image/")) return null;
+    const body = Buffer.from(await response.arrayBuffer());
+    return body.length && body.length <= 20_000_000 ? body : null;
+  }
+  async function renderedReeltrackArtwork(template, item, poster = null) {
+    const sharp = (await import("sharp")).default,
+      overlay = renderOverlaySvg({
+        poster: Buffer.alloc(0),
+        template,
+        item,
+        includePoster: false,
+      }),
+      canvas = template.canvas || {}, uploaded = !poster?.length && canvas.backgroundAsset
+        ? await readFile(join(reeltrackPosterBackgroundDir, canvas.backgroundAsset)).catch(() => null)
+        : null,
+      gradient = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="900"><defs>${canvas.backgroundType === "radial" ? `<radialGradient id="g"><stop stop-color="${canvas.colorA || "#08111f"}"/><stop offset="1" stop-color="${canvas.colorB || "#243b65"}"/></radialGradient>` : `<linearGradient id="g" gradientTransform="rotate(${canvas.angle || 135} .5 .5)"><stop stop-color="${canvas.colorA || "#08111f"}"/><stop offset="1" stop-color="${canvas.backgroundType === "solid" ? canvas.colorA || "#08111f" : canvas.colorB || "#243b65"}"/></linearGradient>`}</defs><rect width="600" height="900" fill="url(#g)"/></svg>`,
+      base = poster?.length
+        ? sharp(poster).rotate().resize(600, 900, { fit: "cover", position: "centre" })
+        : uploaded?.length
+          ? sharp(uploaded).rotate().resize(600, 900, { fit: "cover", position: "centre" })
+          : sharp(Buffer.from(gradient)),
+      quadPosters = await Promise.all((canvas.quadPosters || []).map(async (entry) => {
+        const body = await remotePosterBuffer(entry.domain, entry.tmdbId);
+        return body ? sharp(body).rotate().resize(180, 270, { fit: "cover", position: "centre" }).jpeg().toBuffer() : null;
+      })),
+      quadInputs = quadPosters.filter(Boolean).map((input, index) => ({
+        input,
+        left: 108 + (index % 2) * 204,
+        top: 320 + Math.floor(index / 2) * 282,
+      }));
+    return base
+      .composite([...quadInputs, { input: overlay, top: 0, left: 0 }])
+      .jpeg({ quality: 92, chromaSubsampling: "4:4:4" })
+      .toBuffer();
+  }
+  async function reeltrackOriginalArtwork({ automation, endpoint, token, machineIdentifier, ratingKey, artworkPath, domain, kind }) {
+    automation.artworkOriginals ||= {};
+    const key = `${machineIdentifier}:${domain}:${kind}:${ratingKey}`,
+      legacyKey = `${machineIdentifier}:${ratingKey}`,
+      legacy = automation.artworkOriginals[legacyKey],
+      existing = automation.artworkOriginals[key] || (legacy?.machineIdentifier === machineIdentifier && legacy?.domain === domain && legacy?.kind === kind ? legacy : null);
+    if (existing?.backupFile && /^[a-f0-9-]{36}\.poster$/i.test(existing.backupFile)) {
+      const body = await readFile(join(reeltrackArtworkBackupDir, existing.backupFile)).catch(() => null);
+      if (body?.length && createHash("sha256").update(body).digest("hex") === existing.sha256) {
+        automation.artworkOriginals[key] = existing;
+        if (legacy === existing) delete automation.artworkOriginals[legacyKey];
+        return { body, contentType: existing.contentType, key, captured: false, synthetic: Boolean(existing.synthetic) };
+      }
+      delete automation.artworkOriginals[key];
+      if (legacy === existing) delete automation.artworkOriginals[legacyKey];
+    }
+    const synthetic = typeof plexService.artwork !== "function",
+      current = !synthetic
+        ? await plexService.artwork(endpoint, token, artworkPath || `/library/metadata/${ratingKey}/thumb`)
+        : { body: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="600" height="900"><rect width="600" height="900" fill="#08111f"/></svg>'), contentType: "image/svg+xml" },
+      original = await originalPlexPoster({ server: { machineIdentifier } }, ratingKey, current),
+      backupFile = `${randomUUID()}.poster`;
+    await mkdir(reeltrackArtworkBackupDir, { recursive: true });
+    await writeFile(join(reeltrackArtworkBackupDir, backupFile), original.body, { mode: 384, flag: "wx" });
+    automation.artworkOriginals[key] = { backupFile, contentType: original.contentType, sha256: createHash("sha256").update(original.body).digest("hex"), machineIdentifier, ratingKey: String(ratingKey), domain, kind, synthetic, capturedAt: new Date().toISOString() };
+    return { ...original, key, captured: true };
+  }
+  async function restoreReeltrackArtwork({ automation, endpoint, token, machineIdentifier, domain, kind, exceptRatingKeys = [] }) {
+    const restored = [];
+    const retained = new Set(exceptRatingKeys.map(String)),
+      records = Object.values(automation.artworkOriginals || {}).filter((item, index, all) => !item.synthetic && item.machineIdentifier === machineIdentifier && item.domain === domain && item.kind === kind && !retained.has(String(item.ratingKey)) && all.indexOf(item) === index);
+    for (const record of records) {
+      if (!/^[a-f0-9-]{36}\.poster$/i.test(String(record.backupFile || ""))) continue;
+      const body = await readFile(join(reeltrackArtworkBackupDir, record.backupFile)).catch(() => null);
+      if (!body?.length || createHash("sha256").update(body).digest("hex") !== record.sha256) continue;
+      await plexService.uploadPoster(endpoint, token, record.ratingKey, body, record.contentType).then(() => restored.push(record.ratingKey)).catch(() => {});
+    }
+    return restored;
+  }
+  async function applyReeltrackTitleArtwork({ template, endpoint, token, machineIdentifier, automation, items, ratingKeys, list, domain, syncedAt }) {
+    if (!template?.enabled || !template.layers?.length) return { applied: 0, failed: 0, errors: [] };
+    let applied = 0, failed = 0;
+    const errors = [];
+    for (const plexItem of items.filter((item) => ratingKeys.includes(String(item.ratingKey)))) {
+      try {
+        const identity = plexExternalIds(plexItem).find((value) => value.startsWith("tmdb:")),
+          pathTmdbId = (plexItem.files || []).map((file) => String(file).match(/\[tmdb-(\d+)\]/i)?.[1]).find(Boolean),
+          tmdbId = Number(identity?.split(":")[1] || pathTmdbId || 0),
+          source = (list.items || []).find((value) => String(value.tmdbId || "") === String(tmdbId || "")) || {},
+          metadata = tmdbId ? await discovery.details(domain, tmdbId).catch(() => null) : null,
+          original = await reeltrackOriginalArtwork({ automation, endpoint, token, machineIdentifier, ratingKey: plexItem.ratingKey, artworkPath: plexItem.thumb, domain, kind: "title" }).catch(() => null),
+          poster = original?.body || await remotePosterBuffer(domain, tmdbId);
+        if (!poster?.length) throw new Error("No Plex or provider poster was available");
+        const
+          rendered = await renderedReeltrackArtwork(template, {
+            ...(metadata || {}),
+            ...source,
+            ...plexItem,
+            genres: source.genres?.length ? source.genres : metadata?.genres || plexItem.genres || [],
+            rating: source.rating || metadata?.rating || plexItem.rating || null,
+            runtimeMinutes: source.runtimeMinutes || source.runtime || metadata?.runtimeMinutes || metadata?.runtime || null,
+            certification: source.certification || metadata?.certification || plexItem.certification || "",
+            studio: source.studio || metadata?.studio || plexItem.studio || "",
+            network: source.network || metadata?.network || plexItem.network || "",
+            collection: list.automation?.collectionName || list.name,
+            collectionName: list.automation?.collectionName || list.name,
+            collectionTitleCount: ratingKeys.length,
+            collectionMediaType: domain === "tv" ? "Television" : "Movies",
+            collectionLastSync: syncedAt,
+          }, poster);
+        let uploadError = null;
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+          try {
+            await plexService.uploadPoster(endpoint, token, plexItem.ratingKey, rendered, "image/jpeg");
+            uploadError = null;
+            break;
+          } catch (error) {
+            uploadError = error;
+            if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 350 * (attempt + 1)));
+          }
+        }
+        if (uploadError) throw uploadError;
+        applied += 1;
+      } catch (error) {
+        failed += 1;
+        if (errors.length < 10) errors.push(`${plexItem.title || `Plex item ${plexItem.ratingKey}`}: ${error?.message || "overlay failed"}`);
+      }
+    }
+    return { applied, failed, errors };
+  }
+  async function runReeltrackPlexAutomation(userId, listId, { refreshProvider = true } = {}) {
+    const runKey = `${userId}:${listId}`;
+    if (reeltrackAutomationRuns.has(runKey)) return reeltrackAutomationRuns.get(runKey);
+    const task = (async () => {
+      const runStartedAt = new Date().toISOString();
+      let [apiKey, current, plexSettings, plexToken] = await Promise.all([
+        engineSettings.reeltrackCredential(userId),
+        reeltrackSnapshotForUser(userId),
+        plexSettingsStore.read(),
+        engineSettings.plexCredential(),
+      ]);
+      const index = (current.importedLists || []).findIndex(
+        (item) => String(item.id) === String(listId),
+      );
+      if (index < 0) throw new Error("The imported Reeltrack list no longer exists.");
+      const original = current.importedLists[index],
+        automation = { ...(original.automation || {}) };
+      if (!automation.enabled) throw new Error("Plex automation is not enabled for this list.");
+      if (!apiKey) throw new Error("Reconnect Reeltrack before running this automation.");
+      if (!plexSettings.endpoint || !plexToken)
+        throw new Error("Connect Plex before running this automation.");
+      const remoteProviderList = refreshProvider
+          ? (await reeltrackAvailableLists(apiKey)).find((item) => String(item.id) === String(listId))
+          : original,
+        providerList = remoteProviderList || original,
+        providerItems = refreshProvider && remoteProviderList
+          ? await reeltrackListItems(apiKey, listId)
+          : refreshProvider ? [] : original.items || [],
+        list = { ...original, ...providerList, items: providerItems },
+        requiredDomains = new Set([
+          ...providerItems.map(reeltrackItemIdentity).filter((item) => item.tmdbId).map((item) => item.domain),
+          ...Object.values(automation.jobs || {}).map((job) => job?.domain === "tv" ? "tv" : "movie"),
+        ]);
+      if ((plexSettings.libraries || []).some((item) => !item.locations?.length)) {
+        const inspection = await plexService.inspect(plexSettings.endpoint, plexToken);
+        plexSettings = { version: 1, ...inspection, updatedAt: new Date().toISOString() };
+        await plexSettingsStore.write(plexSettings);
+      }
+      const libraries = plexSettings.libraries || [],
+        legacyLibrary = libraries.find((item) => String(item.key) === String(automation.plexLibraryKey)),
+        selectedKeys = {
+          movie: automation.plexMovieLibraryKey || (legacyLibrary?.type === "movie" ? legacyLibrary.key : ""),
+          tv: automation.plexTvLibraryKey || (legacyLibrary?.type === "show" ? legacyLibrary.key : ""),
+        },
+        targets = await Promise.all([...requiredDomains].map(async (domain) => {
+          const expectedType = domain === "tv" ? "show" : "movie",
+            library = libraries.find((item) => String(item.key) === String(selectedKeys[domain]) && item.type === expectedType);
+          if (!library) throw new Error(`Choose a Plex ${domain === "tv" ? "television" : "movie"} library for this list.`);
+          if (!String(library.locations?.[0] || "").trim()) throw new Error(`The selected Plex ${domain === "tv" ? "television" : "movie"} library does not report a media location. Reconnect Plex and try again.`);
+          const plexItems = await plexService.libraryItems(plexSettings.endpoint, plexToken, library),
+            libraryLocation = plexLibraryLocation(library, plexItems);
+          return { domain, library, libraryLocation, localRoot: mappedLibraryRoot(domain, automation), plexItems };
+        }));
+      const libraryAdds = await addReeltrackItemsToLibraries(
+          providerItems,
+          Object.fromEntries(targets.map((target) => [target.domain, target.localRoot])),
+        ),
+        jobs = { ...(automation.jobs || {}) },
+        totals = { managedTitles: 0, placeholders: 0, downloaded: 0, removed: 0, realMatches: 0, collectionPosters: 0, titlePosters: 0 },
+        collectionRatingKeys = { ...(automation.collectionRatingKeys || {}) },
+        plexLibraryLocations = {};
+      for (const { domain, library, libraryLocation, localRoot, plexItems } of targets) {
+        plexLibraryLocations[domain] = libraryLocation;
+        const trailerPrefix = plexPathValue(libraryLocation),
+        localTrailerPrefix = plexPathValue(localRoot),
+        managedPlexPaths = new Set(
+          Object.values(jobs)
+            .filter((job) => (job?.domain === "tv" ? "tv" : "movie") === domain)
+            .map((job) => plexPathValue(job?.path))
+            .filter(Boolean)
+            .map((path) =>
+              path === localTrailerPrefix || path.startsWith(`${localTrailerPrefix}/`)
+                ? `${trailerPrefix}${path.slice(localTrailerPrefix.length)}`
+                : path,
+            ),
+        ),
+        placeholders = plexItems.filter((item) =>
+          (item.files || []).length > 0 &&
+          (item.files || []).every((file) => {
+            const path = plexPathValue(file);
+            return managedPlexPaths.has(path);
+          }),
+        ),
+        realItems = plexItems.filter((item) => !placeholders.includes(item)),
+        realIds = new Set(
+          realItems.flatMap((item) =>
+            plexExternalIds(item).map((identity) => `${domain}:${identity}`),
+          ),
+        ),
+        wanted = new Map();
+      for (const item of providerItems) {
+        const identity = reeltrackItemIdentity(item);
+        if (identity.domain === domain && identity.tmdbId)
+          wanted.set(`${domain}:tmdb:${identity.tmdbId}`, { ...item, ...identity });
+      }
+      let removed = 0,
+        downloaded = 0;
+      if (typeof trailerDownloader.exists === "function")
+        for (const [key, job] of Object.entries(jobs))
+          if (
+            job?.path &&
+            (job?.domain === "tv" ? "tv" : "movie") === domain &&
+            !(await trailerDownloader.exists(job))
+          ) {
+            delete jobs[key];
+            removed += 1;
+          }
+      for (const [key, job] of Object.entries(jobs)) {
+        if ((job?.domain === "tv" ? "tv" : "movie") === domain && (!wanted.has(key) || realIds.has(key))) {
+          await trailerDownloader.remove(job).catch(() => {});
+          delete jobs[key];
+          removed += 1;
+        }
+      }
+      for (const [key, item] of wanted) {
+        if (realIds.has(key) || jobs[key]?.folder) continue;
+        try {
+          const metadata = await discovery.details(domain, item.tmdbId);
+          if (!metadata?.trailer?.url) throw new Error("TMDB does not list a YouTube trailer.");
+          jobs[key] = await trailerDownloader.download({
+            url: metadata.trailer.url,
+            title: metadata.title || item.title,
+            year: metadata.year || item.year,
+            domain,
+            tmdbId: item.tmdbId,
+            root: localRoot,
+          });
+          downloaded += 1;
+        } catch (error) {
+          jobs[key] = {
+            tmdbId: item.tmdbId,
+            domain,
+            title: item.title,
+            error: error?.message || "Trailer download failed.",
+            failedAt: new Date().toISOString(),
+          };
+        }
+      }
+      const managedDomainDownloads = Object.values(jobs).filter(
+        (job) => job?.path && (job?.domain === "tv" ? "tv" : "movie") === domain,
+      ).length;
+      if (downloaded || removed || managedDomainDownloads)
+        await plexService.refreshLibrary(
+          plexSettings.endpoint,
+          plexToken,
+          library.key,
+        );
+      const currentManagedPlexPaths = () =>
+          new Set(
+            Object.values(jobs)
+              .filter((job) => (job?.domain === "tv" ? "tv" : "movie") === domain)
+              .map((job) => plexPathValue(job?.path))
+              .filter(Boolean)
+              .map((path) =>
+                path === localTrailerPrefix || path.startsWith(`${localTrailerPrefix}/`)
+                  ? `${trailerPrefix}${path.slice(localTrailerPrefix.length)}`
+                  : path,
+              ),
+          ),
+        managedDownloadCount = Object.values(jobs).filter((job) => job?.path && (job?.domain === "tv" ? "tv" : "movie") === domain).length;
+      let refreshedItems = plexItems;
+      if (downloaded || removed || managedDomainDownloads) {
+        for (let scanAttempt = 0; scanAttempt < 11; scanAttempt += 1) {
+          refreshedItems = await plexService.libraryItems(
+            plexSettings.endpoint,
+            plexToken,
+            library,
+          );
+          const indexedPaths = new Set(
+            refreshedItems.flatMap((item) => (item.files || []).map(plexPathValue)),
+          );
+          if (
+            [...currentManagedPlexPaths()].filter((path) => indexedPaths.has(path)).length >=
+              managedDownloadCount ||
+            scanAttempt === 10
+          )
+            break;
+          await new Promise((resolve) => setTimeout(resolve, 3000));
+        }
+      }
+      const refreshedPlaceholders = refreshedItems.filter((item) =>
+          (item.files || []).length > 0 &&
+          (item.files || []).every((file) => {
+            const path = plexPathValue(file);
+            return currentManagedPlexPaths().has(path);
+          }),
+        ),
+        placeholderKeys = refreshedPlaceholders
+          .filter((item) => {
+            const identities = plexExternalIds(item).map(
+                (identity) => `${domain}:${identity}`,
+              ),
+              pathIdentities = (item.files || [])
+                .map((file) => String(file).match(/\[tmdb-(\d+)\]/i)?.[1])
+                .filter(Boolean)
+                .map((id) => `${domain}:tmdb:${id}`),
+              candidates = [...identities, ...pathIdentities];
+            return candidates.some(
+              (identity) => wanted.has(identity) && !realIds.has(identity),
+            );
+          })
+          .map((item) => item.ratingKey),
+        expectedPlaceholderCount = [...wanted.keys()].filter(
+          (key) => !realIds.has(key) && Boolean(jobs[key]?.path),
+        ).length;
+      if (placeholderKeys.length < expectedPlaceholderCount)
+        throw new Error(
+          `Plex indexed ${placeholderKeys.length} of ${expectedPlaceholderCount} managed ${domain === "tv" ? "television" : "movie"} trailers in ${library.title}. Verify that ${libraryLocation} is the selected library's container path, then run the automation again.`,
+        );
+      await restoreReeltrackArtwork({ automation, endpoint: plexSettings.endpoint, token: plexToken, machineIdentifier: plexSettings.server?.machineIdentifier || "", domain, kind: "title", exceptRatingKeys: placeholderKeys });
+      const collection = await plexService.syncCollection(
+          plexSettings.endpoint,
+          plexToken,
+          {
+            libraryKey: library.key,
+            libraryType: library.type,
+            machineIdentifier: plexSettings.server?.machineIdentifier,
+            title: automation.collectionName || list.name,
+            ratingKeys: placeholderKeys,
+          },
+        );
+        collectionRatingKeys[domain] = collection.ratingKey;
+        const collectionTemplate = reeltrackPosterTemplate(automation.collectionPosterTemplate, domain),
+          titleTemplate = reeltrackPosterTemplate(automation.titleOverlayTemplate, domain);
+        if (collection.ratingKey && collectionTemplate?.enabled && collectionTemplate.layers?.length) {
+          try {
+            // syncCollection creates a fresh Plex collection, whose generated thumbnail is
+            // commonly unavailable for several seconds. There is no prior collection poster
+            // to preserve on that new rating key, so render and upload the selected design
+            // directly instead of failing the entire artwork pass on a thumbnail HTTP 404.
+            const rendered = await renderedReeltrackArtwork(
+              collectionTemplate,
+              reeltrackPosterItem({
+                list,
+                domain,
+                count: placeholderKeys.length,
+                syncedAt: runStartedAt,
+                title: automation.collectionName || list.name,
+              }),
+            );
+            await plexService.uploadPoster(plexSettings.endpoint, plexToken, collection.ratingKey, rendered, "image/jpeg");
+            totals.collectionPosters += 1;
+          } catch (error) {
+            totals.collectionPosterFailures = (totals.collectionPosterFailures || 0) + 1;
+            totals.collectionPosterErrors = [...(totals.collectionPosterErrors || []), error?.message || "collection poster failed"].slice(0, 10);
+          }
+        }
+        const titleArtwork = await applyReeltrackTitleArtwork({
+          template: titleTemplate,
+          endpoint: plexSettings.endpoint,
+          token: plexToken,
+          machineIdentifier: plexSettings.server?.machineIdentifier || "",
+          automation,
+          items: refreshedItems,
+          ratingKeys: placeholderKeys,
+          list,
+          domain,
+          syncedAt: runStartedAt,
+        });
+        totals.titlePosters += titleArtwork.applied;
+        totals.titlePosterFailures = (totals.titlePosterFailures || 0) + titleArtwork.failed;
+        totals.titlePosterErrors = [...(totals.titlePosterErrors || []), ...titleArtwork.errors].slice(0, 10);
+        if (titleArtwork.applied)
+          await plexService.refreshLibrary(plexSettings.endpoint, plexToken, library.key);
+        totals.managedTitles += wanted.size;
+        totals.placeholders += placeholderKeys.length;
+        totals.downloaded += downloaded;
+        totals.removed += removed;
+        totals.realMatches += [...wanted.keys()].filter((key) => realIds.has(key)).length;
+      }
+      const now = new Date(),
+        intervalMinutes = Math.max(15, Math.min(1440, Number(automation.intervalMinutes) || 60));
+      list.automation = {
+        ...automation,
+        enabled: Boolean(remoteProviderList),
+        plexMovieLibraryKey: String(selectedKeys.movie || ""),
+        plexTvLibraryKey: String(selectedKeys.tv || ""),
+        plexLibraryLocations,
+        jobs,
+        intervalMinutes,
+        collectionRatingKeys,
+        lastRunAt: now.toISOString(),
+        nextRunAt: new Date(now.getTime() + intervalMinutes * 6e4).toISOString(),
+        status: remoteProviderList ? "ready" : "disabled",
+        error: remoteProviderList ? null : "The source list was removed from Reeltrack; managed trailers and the Plex collection were cleared.",
+        summary: {
+          providerTitles: providerItems.length,
+          managedTitles: totals.managedTitles,
+          placeholders: totals.placeholders,
+          downloaded: totals.downloaded,
+          removed: totals.removed,
+          failed: Object.values(jobs).filter((job) => job?.error).length,
+          realMatches: totals.realMatches,
+          libraryAdded: libraryAdds.added,
+          libraryExisting: libraryAdds.existing,
+          libraryFailed: libraryAdds.failed,
+          collectionPosters: totals.collectionPosters,
+          collectionPosterFailures: totals.collectionPosterFailures || 0,
+          collectionPosterErrors: totals.collectionPosterErrors || [],
+          titlePosters: totals.titlePosters,
+          titlePosterFailures: totals.titlePosterFailures || 0,
+          titlePosterErrors: totals.titlePosterErrors || [],
+        },
+        libraryErrors: libraryAdds.errors,
+      };
+      const latest = await reeltrackSnapshotForUser(userId),
+        latestIndex = (latest.importedLists || []).findIndex(
+          (item) => String(item.id) === String(listId),
+        );
+      if (latestIndex >= 0) {
+        latest.importedLists[latestIndex] = list;
+        latest.updatedAt = now.toISOString();
+        await saveReeltrackSnapshot(userId, latest);
+      }
+      return list;
+    })().catch(async (error) => {
+      const current = await reeltrackSnapshotForUser(userId),
+        index = (current.importedLists || []).findIndex(
+          (item) => String(item.id) === String(listId),
+        );
+      if (index >= 0 && current.importedLists[index].automation?.enabled) {
+        current.importedLists[index].automation = {
+          ...current.importedLists[index].automation,
+          status: "error",
+          error: error?.message || "Automation failed.",
+          lastRunAt: new Date().toISOString(),
+          nextRunAt: new Date(Date.now() + 15 * 6e4).toISOString(),
+        };
+        await saveReeltrackSnapshot(userId, current);
+      }
+      throw error;
+    });
+    let run;
+    run = (async () => {
+      try {
+        return await task;
+      } finally {
+        if (reeltrackAutomationRuns.get(runKey) === run)
+          reeltrackAutomationRuns.delete(runKey);
+      }
+    })();
+    reeltrackAutomationRuns.set(runKey, run);
+    return run;
+  }
+  async function runDueReeltrackAutomations() {
+    const stored = await reeltrackListStore.read(),
+      due = [];
+    for (const [userId, snapshot] of Object.entries(stored.users || {}))
+      for (const list of snapshot.importedLists || [])
+        if (
+          list.automation?.enabled &&
+          (!list.automation.nextRunAt || Date.parse(list.automation.nextRunAt) <= Date.now())
+        )
+          due.push(runReeltrackPlexAutomation(userId, list.id).catch(() => {}));
+    await Promise.allSettled(due);
+  }
   const operationTime = (value) =>
     String(
       value?.timestamp ||
@@ -1695,6 +2409,7 @@ export function createApplication(options = {}) {
   let initialized = false,
     queueCompletionTimer = null,
     operationalNotificationTimer = null,
+    reeltrackAutomationTimer = null,
     liveQueueRun = null,
     liveQueueSnapshot = [],
     liveQueueSnapshotAt = 0,
@@ -4229,6 +4944,8 @@ export function createApplication(options = {}) {
         if (operationalNotificationTimer)
           clearInterval(operationalNotificationTimer);
         operationalNotificationTimer = null;
+        if (reeltrackAutomationTimer) clearInterval(reeltrackAutomationTimer);
+        reeltrackAutomationTimer = null;
         for (const timer of libraryWatchTimers.values()) clearTimeout(timer);
         libraryWatchTimers.clear();
         libraryWatchLastSync.clear();
@@ -4279,6 +4996,22 @@ export function createApplication(options = {}) {
       operationalNotificationTimer.unref?.();
       const initialPoll = setTimeout(poll, 2e3);
       initialPoll.unref?.();
+    }
+    if (!reeltrackAutomationTimer) {
+      const interval = Math.max(
+        3e4,
+        Number(env.VYNODEARR_REELTRACK_AUTOMATION_POLL_MS || 6e4),
+      );
+      reeltrackAutomationTimer = setInterval(
+        () => runDueReeltrackAutomations().catch(() => {}),
+        interval,
+      );
+      reeltrackAutomationTimer.unref?.();
+      const initialAutomationPoll = setTimeout(
+        () => runDueReeltrackAutomations().catch(() => {}),
+        1e4,
+      );
+      initialAutomationPoll.unref?.();
     }
     initialized = true;
     const automaticValidation = setTimeout(() => {
@@ -6315,6 +7048,17 @@ export function createApplication(options = {}) {
     variableValues: value.variableValues || {},
     status: value.restoredAt ? "restored" : "applied",
   });
+  async function originalPlexPoster(settings, ratingKey, fallbackPoster) {
+    const stored = await plexPosterApplicationStore.read(),
+      prior = (stored.applications || [])
+        .filter((item) => !item.restoredAt && String(item.ratingKey) === String(ratingKey) && item.serverMachineIdentifier === settings.server?.machineIdentifier)
+        .sort((a, b) => String(a.appliedAt || "").localeCompare(String(b.appliedAt || "")))[0];
+    if (!prior) return { ...fallbackPoster, managed: false };
+    if (!/^plex_poster_[A-Za-z0-9-]+\.poster$/.test(String(prior.backupFile || ""))) throw new Error("The original Plex poster record is invalid");
+    const body = await readFile(join(plexPosterBackupDir, prior.backupFile));
+    if (createHash("sha256").update(body).digest("hex") !== prior.backupSha256) throw new Error("The original Plex poster failed integrity validation");
+    return { body, contentType: prior.backupContentType, managed: true };
+  }
   async function renderedPlexPoster(target, template, session) {
     const rawPlexAddedAt=target.plex.addedAt,numericPlexAddedAt=Number(rawPlexAddedAt),plexAddedDate=Number.isFinite(numericPlexAddedAt)&&numericPlexAddedAt>0?new Date(numericPlexAddedAt<(1e12)?numericPlexAddedAt*1000:numericPlexAddedAt):new Date(rawPlexAddedAt||'');
     const { item: item, context: context } = await overlayRenderContext(
@@ -6360,8 +7104,9 @@ export function createApplication(options = {}) {
         mediaId: mediaId,
         libraryKey: libraryKey,
         ratingKey: ratingKey,
-      }),
-      rendered = await renderedPlexPoster(target, template, session),
+      });
+    target.poster = await originalPlexPoster(target.settings, target.plex.ratingKey, target.poster);
+    const rendered = await renderedPlexPoster(target, template, session),
       id = `plex_poster_${randomUUID()}`,
       backupFile = `${id}.poster`,
       backupPath = join(plexPosterBackupDir, backupFile);
@@ -7666,6 +8411,203 @@ export function createApplication(options = {}) {
             mappings: mappings || [],
           });
         }
+        if (
+          url.pathname.match(/^\/api\/reeltrack\/poster\/(movie|tv)\/(\d+)$/) &&
+          req.method === "GET"
+        ) {
+          if (!permitted(res, session, "discover")) return;
+          const match = url.pathname.match(/^\/api\/reeltrack\/poster\/(movie|tv)\/(\d+)$/),
+            metadata = await discovery.details(match[1], Number(match[2]));
+          if (!metadata?.poster) return json(res, 404, { message: "Poster unavailable" });
+          res.writeHead(302, {
+            location: metadata.poster,
+            "cache-control": "private, max-age=21600",
+          });
+          return res.end();
+        }
+        if (
+          url.pathname === "/api/reeltrack/poster-design/preview" &&
+          req.method === "POST"
+        ) {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          const input = await body(req),
+            domain = input.domain === "tv" ? "tv" : "movie",
+            template = reeltrackPosterTemplate(input.template, domain);
+          if (!template?.layers?.length) throw new Error("Add at least one poster layer.");
+          let poster = null;
+          if (input.mode === "title" && Number(input.tmdbId) > 0) {
+            const metadata = await discovery.details(domain, Number(input.tmdbId));
+            if (metadata?.poster) {
+              const response = await fetch(metadata.poster, { signal: AbortSignal.timeout(10000) });
+              if (response.ok) poster = Buffer.from(await response.arrayBuffer());
+            }
+          }
+          const rendered = await renderedReeltrackArtwork(
+            template,
+            {
+              title: input.title || "Example title",
+              year: input.year || new Date().getUTCFullYear(),
+              collection: input.collectionName || "My collection",
+              collectionName: input.collectionName || "My collection",
+              collectionTitleCount: Number(input.titleCount) || 12,
+              collectionMediaType: domain === "tv" ? "Television" : "Movies",
+              collectionLastSync: new Date().toISOString(),
+            },
+            poster,
+          );
+          return json(res, 200, {
+            image: `data:image/jpeg;base64,${rendered.toString("base64")}`,
+          });
+        }
+        if (
+          url.pathname === "/api/reeltrack/poster-design/background" &&
+          req.method === "POST"
+        ) {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          const input = await body(req, 8e6), match = String(input.image || "").match(/^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/i);
+          if (!match) throw new Error("Choose a JPEG, PNG, or WebP background image.");
+          const image = Buffer.from(match[2], "base64");
+          if (!image.length || image.length > 5e6) throw new Error("Background images must be 5 MB or smaller.");
+          const sharp = (await import("sharp")).default, metadata = await sharp(image).metadata();
+          if (!metadata.width || !metadata.height || metadata.width < 300 || metadata.height < 450)
+            throw new Error("Background images must be at least 300 × 450 pixels.");
+          const extension = match[1].toLowerCase() === "jpeg" ? "jpg" : match[1].toLowerCase(), asset = `${randomUUID()}.${extension}`;
+          await mkdir(reeltrackPosterBackgroundDir, { recursive: true });
+          await writeFile(join(reeltrackPosterBackgroundDir, asset), image, { mode: 384, flag: "wx" });
+          return json(res, 201, { asset, preview: `/api/reeltrack/poster-design/background/${asset}` });
+        }
+        const reeltrackBackgroundMatch = url.pathname.match(/^\/api\/reeltrack\/poster-design\/background\/([a-f0-9-]{36}\.(?:jpe?g|png|webp))$/i);
+        if (reeltrackBackgroundMatch && req.method === "GET") {
+          if (!administrator(res, session)) return;
+          const asset = reeltrackBackgroundMatch[1], image = await readFile(join(reeltrackPosterBackgroundDir, asset)).catch(() => null);
+          if (!image) return json(res, 404, { message: "Background unavailable" });
+          const extension = asset.split(".").at(-1)?.toLowerCase();
+          res.writeHead(200, { "content-type": extension === "png" ? "image/png" : extension === "webp" ? "image/webp" : "image/jpeg", "cache-control": "private, max-age=86400", "content-length": String(image.length) });
+          return res.end(image);
+        }
+        if (
+          url.pathname === "/api/reeltrack/trailers/folders" &&
+          req.method === "GET"
+        ) {
+          if (!administrator(res, session)) return;
+          const domain = url.searchParams.get("domain") === "tv" ? "tv" : "movie",
+            root = resolve(localLibraryRoot(domain)),
+            requested = resolve(String(url.searchParams.get("path") || root));
+          if (requested !== root && !requested.startsWith(`${root}${process.platform === "win32" ? "\\" : "/"}`))
+            throw new Error("Choose a folder inside the configured VynodeArr library root.");
+          const directories = (await readdir(requested, { withFileTypes: true }))
+            .filter((entry) => entry.isDirectory())
+            .map((entry) => ({ name: entry.name, path: join(requested, entry.name) }))
+            .sort((left, right) => left.name.localeCompare(right.name));
+          return json(res, 200, { root, path: requested, directories });
+        }
+        if (
+          url.pathname === "/api/reeltrack/trailers/status" &&
+          req.method === "GET"
+        ) {
+          if (!administrator(res, session)) return;
+          const [downloader, storedPlexSettings, plexToken, movieRoots, tvRoots] = await Promise.all([
+            trailerDownloader.status(),
+            plexSettingsStore.read(),
+            engineSettings.plexCredential(),
+            management.execute("movie", "rootFolders", "GET", {}).catch(() => []),
+            management.execute("tv", "rootFolders", "GET", {}).catch(() => []),
+          ]);
+          let plexSettings = storedPlexSettings;
+          if (storedPlexSettings.endpoint && plexToken)
+            try {
+              const inspection = await plexService.inspect(storedPlexSettings.endpoint, plexToken);
+              plexSettings = { version: 1, ...inspection, updatedAt: new Date().toISOString() };
+              await plexSettingsStore.write(plexSettings);
+            } catch {}
+          return json(res, 200, {
+            ...downloader,
+            plexConfigured: Boolean(plexSettings.endpoint && plexToken),
+            plexServer: plexSettings.server || null,
+            libraries: plexSettings.libraries || [],
+            engineRoots: { movie: movieRoots || [], tv: tvRoots || [] },
+            hostRoots: { movie: localLibraryRoot("movie"), tv: localLibraryRoot("tv") },
+          });
+        }
+        if (
+          url.pathname === "/api/reeltrack/trailers/root-folder" &&
+          req.method === "POST"
+        ) {
+          if (!administrator(res, session) || !requireCsrf(req, res, session))
+            return;
+          const input = await body(req),
+            domain = input.domain === "tv" ? "tv" : "movie",
+            expectedType = domain === "tv" ? "show" : "movie",
+            settings = await plexSettingsStore.read(),
+            library = (settings.libraries || []).find(
+              (item) => item.type === expectedType && String(item.key) === String(input.libraryKey),
+            ),
+            path = String(library?.locations?.[0] || "").trim();
+          if (!library || !path)
+            throw new Error(`Choose a Plex ${domain === "tv" ? "television" : "movie"} library with a reported location.`);
+          const existing = await management.execute(domain, "rootFolders", "GET", {}),
+            present = (existing || []).find((root) => plexPathValue(root.path) === plexPathValue(path));
+          const root = present || await management.execute(domain, "rootFolders", "POST", { payload: { path } });
+          await recordAudit(session, {
+            category: "configuration",
+            action: "reeltrack.root_folder_added",
+            target: path,
+            domain,
+            summary: `${present ? "Confirmed" : "Added"} the selected Plex location as a ${domain === "tv" ? "television" : "movie"} root folder.`,
+            metadata: { libraryKey: library.key },
+          });
+          return json(res, present ? 200 : 201, { root, existing: Boolean(present) });
+        }
+        if (
+          url.pathname === "/api/reeltrack/trailers/download" &&
+          req.method === "POST"
+        ) {
+          if (!administrator(res, session) || !requireCsrf(req, res, session))
+            return;
+          const input = await body(req),
+            domain = input.domain === "tv" ? "tv" : "movie",
+            tmdbId = Number(input.tmdbId),
+            listId = String(input.listId || ""),
+            snapshot = await reeltrackSnapshotForUser(session.user.id),
+            list = (snapshot.importedLists || []).find(
+              (item) => String(item.id) === listId,
+            ),
+            sourceItem = (list?.items || []).find((item) => {
+              const itemDomain =
+                String(item.domain || item.type).toLowerCase().includes("tv") ||
+                String(item.type).toLowerCase().includes("show")
+                  ? "tv"
+                  : "movie";
+              const itemTmdbId =
+                Number(item.tmdbId) ||
+                (String(item.source).toLowerCase() === "tmdb"
+                  ? Number(item.externalId)
+                  : 0);
+              return itemDomain === domain && itemTmdbId === tmdbId;
+            });
+          if (!list || !sourceItem || !Number.isInteger(tmdbId) || tmdbId < 1)
+            throw new Error("Choose a TMDB-backed title from an imported Reeltrack list.");
+          const metadata = await discovery.details(domain, tmdbId);
+          if (!metadata?.trailer?.url)
+            throw new Error("TMDB does not list a YouTube trailer for this title.");
+          const trailer = await trailerDownloader.download({
+            url: metadata.trailer.url,
+            title: metadata.title || sourceItem.title,
+            year: metadata.year || sourceItem.year,
+            domain: domain,
+            tmdbId: tmdbId,
+            root: mappedLibraryRoot(domain, list.automation || {}),
+          });
+          await recordAudit(session, {
+            category: "integration",
+            action: "reeltrack.trailer_downloaded",
+            target: trailer.title,
+            domain: domain,
+            summary: `Downloaded a Reeltrack trailer into its managed movie folder.`,
+            metadata: { listId: listId, tmdbId: tmdbId, path: trailer.path },
+          });
+          return json(res, 201, { trailer: trailer });
+        }
         if (url.pathname === "/api/reeltrack/status" && req.method === "GET") {
           if (!permitted(res, session, "discover")) return;
           const [credential, snapshot] = await Promise.all([
@@ -7789,24 +8731,70 @@ export function createApplication(options = {}) {
             selected = new Set(
               (Array.isArray(input.listIds) ? input.listIds : []).map(String),
             ),
-            apiKey = await engineSettings.reeltrackCredential(session.user.id);
+            automationInput = input.automation || {},
+            automationEnabled =
+              session.user.role === "administrator" && automationInput.enabled === true,
+            [apiKey, previous, plexSettings, plexToken] = await Promise.all([
+              engineSettings.reeltrackCredential(session.user.id),
+              reeltrackSnapshotForUser(session.user.id),
+              plexSettingsStore.read(),
+              engineSettings.plexCredential(),
+            ]);
           if (!apiKey) throw new Error("Connect Reeltrack before importing lists.");
           if (!selected.size) throw new Error("Choose at least one Reeltrack list.");
+          if (automationEnabled) {
+            if (!plexSettings.endpoint || !plexToken)
+              throw new Error("Connect Plex before enabling list automation.");
+          }
           const available = await reeltrackAvailableLists(apiKey),
-            chosen = available.filter((item) => selected.has(String(item.id)));
+            chosen = available.filter((item) => selected.has(String(item.id))),
+            previousById = new Map(
+              (previous.importedLists || []).map((item) => [String(item.id), item]),
+            );
           if (!chosen.length) throw new Error("The selected Reeltrack lists are no longer available.");
           const importedLists = await Promise.all(
-              chosen.map(async (list) => ({
+              chosen.map(async (list) => {
+                const items = await reeltrackListItems(apiKey, list.id),
+                  domains = new Set(items.map(reeltrackItemIdentity).filter((item) => item.tmdbId).map((item) => item.domain)),
+                  movieLibrary = (plexSettings.libraries || []).find((item) => item.type === "movie" && String(item.key) === String(automationInput.plexMovieLibraryKey)),
+                  tvLibrary = (plexSettings.libraries || []).find((item) => item.type === "show" && String(item.key) === String(automationInput.plexTvLibraryKey));
+                if (automationEnabled && domains.has("movie") && !movieLibrary) throw new Error(`Choose a Plex movie library for ${list.name}.`);
+                if (automationEnabled && domains.has("tv") && !tvLibrary) throw new Error(`Choose a Plex television library for ${list.name}.`);
+                if (automationEnabled && domains.has("movie")) mappedLibraryRoot("movie", automationInput);
+                if (automationEnabled && domains.has("tv")) mappedLibraryRoot("tv", automationInput);
+                return {
                 ...list,
-                items: await reeltrackListItems(apiKey, list.id),
+                items,
                 importedAt: new Date().toISOString(),
-              })),
+                automation: automationEnabled
+                  ? {
+                      ...(previousById.get(String(list.id))?.automation || {}),
+                      enabled: true,
+                      downloadTrailers: true,
+                      plexMovieLibraryKey: String(automationInput.plexMovieLibraryKey || ""),
+                      plexTvLibraryKey: String(automationInput.plexTvLibraryKey || ""),
+                      movieHostRoot: String(automationInput.movieHostRoot || localLibraryRoot("movie")),
+                      tvHostRoot: String(automationInput.tvHostRoot || localLibraryRoot("tv")),
+                      collectionName: String(list.name || "Reeltrack").trim().slice(0, 120),
+                      intervalMinutes: Math.max(
+                        15,
+                        Math.min(1440, Number(automationInput.intervalMinutes) || 60),
+                      ),
+                      status: "scheduled",
+                      error: null,
+                      nextRunAt: new Date().toISOString(),
+                    }
+                  : previousById.get(String(list.id))?.automation || null,
+              };}),
             ),
             snapshot = {
               importedLists,
               updatedAt: new Date().toISOString(),
             };
           await saveReeltrackSnapshot(session.user.id, snapshot);
+          for (const list of importedLists)
+            if (list.automation?.enabled)
+              void runReeltrackPlexAutomation(session.user.id, list.id).catch(() => {});
           await recordAudit(session, {
             category: "integration",
             action: "reeltrack.lists_imported",
@@ -7833,24 +8821,162 @@ export function createApplication(options = {}) {
           const wanted = new Set(
               (current.importedLists || []).map((item) => String(item.id)),
             ),
+            currentById = new Map(
+              (current.importedLists || []).map((item) => [String(item.id), item]),
+            ),
             available = await reeltrackAvailableLists(apiKey),
-            importedLists = await Promise.all(
+            availableIds = new Set(available.map((item) => String(item.id))),
+            synchronizedLists = await Promise.all(
               available
                 .filter((item) => wanted.has(String(item.id)))
                 .map(async (list) => ({
                   ...list,
                   items: await reeltrackListItems(apiKey, list.id),
                   importedAt: new Date().toISOString(),
+                  automation: currentById.get(String(list.id))?.automation || null,
                 })),
             ),
+            importedLists = [
+              ...synchronizedLists,
+              ...(current.importedLists || []).filter(
+                (item) => item.automation?.enabled && !availableIds.has(String(item.id)),
+              ),
+            ],
             snapshot = {
               importedLists,
               updatedAt: new Date().toISOString(),
             };
           await saveReeltrackSnapshot(session.user.id, snapshot);
+          for (const list of importedLists)
+            if (list.automation?.enabled)
+              void runReeltrackPlexAutomation(session.user.id, list.id).catch(() => {});
           return json(res, 200, {
             items: await matchedReeltrackLists(session, importedLists),
             updatedAt: snapshot.updatedAt,
+          });
+        }
+        const reeltrackAutomationMatch = url.pathname.match(
+          /^\/api\/reeltrack\/imported-lists\/([^/]+)\/automation(?:\/(run))?$/,
+        );
+        const reeltrackArtworkRestoreMatch = url.pathname.match(
+          /^\/api\/reeltrack\/imported-lists\/([^/]+)\/artwork\/(collection|titles)\/restore$/,
+        );
+        if (reeltrackArtworkRestoreMatch && req.method === "POST") {
+          if (!administrator(res, session) || !requireCsrf(req, res, session))
+            return;
+          await body(req);
+          const listId = decodeURIComponent(reeltrackArtworkRestoreMatch[1]),
+            artwork = reeltrackArtworkRestoreMatch[2],
+            activeRun = reeltrackAutomationRuns.get(`${session.user.id}:${listId}`);
+          if (activeRun) await activeRun.catch(() => {});
+          const current = await reeltrackSnapshotForUser(session.user.id),
+            index = (current.importedLists || []).findIndex((item) => String(item.id) === listId);
+          if (index < 0) throw new Error("The imported Reeltrack list no longer exists.");
+          const list = current.importedLists[index], automation = list.automation || {},
+            [settings, token] = await Promise.all([plexSettingsStore.read(), engineSettings.plexCredential()]);
+          if (!settings.endpoint || !token) throw new Error("Reconnect Plex before restoring artwork.");
+          const kind = artwork === "collection" ? "collection" : "title", restored = [];
+          for (const domain of ["movie", "tv"])
+            restored.push(...await restoreReeltrackArtwork({ automation, endpoint: settings.endpoint, token, machineIdentifier: settings.server?.machineIdentifier || "", domain, kind }));
+          if (artwork === "collection") automation.collectionPosterTemplate = null;
+          else automation.titleOverlayTemplate = null;
+          current.importedLists[index].automation = automation;
+          current.updatedAt = new Date().toISOString();
+          await saveReeltrackSnapshot(session.user.id, current);
+          let restoredList = current.importedLists[index];
+          if (artwork === "collection" && automation.enabled)
+            restoredList = await runReeltrackPlexAutomation(session.user.id, listId, { refreshProvider: false });
+          await recordAudit(session, {
+            category: "automation",
+            action: artwork === "collection" ? "reeltrack.collection_poster_restored" : "reeltrack.title_overlays_restored",
+            target: list.name,
+            summary: `Restored ${restored.length} original Plex poster${restored.length === 1 ? "" : "s"} for this Reeltrack list.`,
+            metadata: { listId, artwork, restored },
+          });
+          return json(res, 200, {
+            restored: restored.length,
+            item: (await matchedReeltrackLists(session, [restoredList]))[0],
+          });
+        }
+        if (
+          reeltrackAutomationMatch &&
+          req.method === "PUT" &&
+          !reeltrackAutomationMatch[2]
+        ) {
+          if (!administrator(res, session) || !requireCsrf(req, res, session))
+            return;
+          const listId = decodeURIComponent(reeltrackAutomationMatch[1]),
+            input = await body(req),
+            current = await reeltrackSnapshotForUser(session.user.id),
+            index = (current.importedLists || []).findIndex(
+              (item) => String(item.id) === listId,
+            );
+          if (index < 0) throw new Error("The imported Reeltrack list no longer exists.");
+          const enabled = input.enabled === true;
+          if (enabled) {
+            const [settings, token, downloader] = await Promise.all([
+              plexSettingsStore.read(),
+              engineSettings.plexCredential(),
+              trailerDownloader.status(),
+            ]);
+            if (!settings.endpoint || !token)
+              throw new Error("Connect Plex before enabling list automation.");
+            if (!downloader.available) throw new Error(downloader.message || "yt-dlp is unavailable.");
+            const domains = new Set((current.importedLists[index].items || []).map(reeltrackItemIdentity).filter((item) => item.tmdbId).map((item) => item.domain));
+            if (domains.has("movie") && !(settings.libraries || []).some((item) => item.type === "movie" && String(item.key) === String(input.plexMovieLibraryKey)))
+              throw new Error("Choose a discovered Plex movie library.");
+            if (domains.has("tv") && !(settings.libraries || []).some((item) => item.type === "show" && String(item.key) === String(input.plexTvLibraryKey)))
+              throw new Error("Choose a discovered Plex television library.");
+            if (domains.has("movie")) mappedLibraryRoot("movie", input);
+            if (domains.has("tv")) mappedLibraryRoot("tv", input);
+          }
+          current.importedLists[index].automation = {
+            ...(current.importedLists[index].automation || {}),
+            enabled,
+            downloadTrailers: input.downloadTrailers !== false,
+            plexMovieLibraryKey: String(input.plexMovieLibraryKey || ""),
+            plexTvLibraryKey: String(input.plexTvLibraryKey || ""),
+            movieHostRoot: String(input.movieHostRoot || localLibraryRoot("movie")),
+            tvHostRoot: String(input.tvHostRoot || localLibraryRoot("tv")),
+            collectionName:
+              String(input.collectionName || current.importedLists[index].name || "Reeltrack").trim().slice(0, 120),
+            collectionPosterTemplate: Object.hasOwn(input, "collectionPosterTemplate")
+              ? reeltrackPosterTemplate(input.collectionPosterTemplate)
+              : current.importedLists[index].automation?.collectionPosterTemplate || null,
+            titleOverlayTemplate: Object.hasOwn(input, "titleOverlayTemplate")
+              ? reeltrackPosterTemplate(input.titleOverlayTemplate)
+              : current.importedLists[index].automation?.titleOverlayTemplate || null,
+            intervalMinutes: Math.max(15, Math.min(1440, Number(input.intervalMinutes) || 60)),
+            status: enabled ? "scheduled" : "disabled",
+            error: null,
+            nextRunAt: enabled ? new Date().toISOString() : null,
+          };
+          current.updatedAt = new Date().toISOString();
+          await saveReeltrackSnapshot(session.user.id, current);
+          await recordAudit(session, {
+            category: "automation",
+            action: enabled ? "reeltrack.plex_automation_enabled" : "reeltrack.plex_automation_disabled",
+            target: current.importedLists[index].name,
+            summary: `${enabled ? "Enabled" : "Disabled"} managed Plex trailer collection automation.`,
+            metadata: { listId, plexMovieLibraryKey: input.plexMovieLibraryKey || null, plexTvLibraryKey: input.plexTvLibraryKey || null },
+          });
+          if (enabled)
+            void runReeltrackPlexAutomation(session.user.id, listId).catch(() => {});
+          return json(res, 200, {
+            item: (await matchedReeltrackLists(session, [current.importedLists[index]]))[0],
+          });
+        }
+        if (
+          reeltrackAutomationMatch &&
+          req.method === "POST" &&
+          reeltrackAutomationMatch[2] === "run"
+        ) {
+          if (!administrator(res, session) || !requireCsrf(req, res, session))
+            return;
+          const listId = decodeURIComponent(reeltrackAutomationMatch[1]),
+            item = await runReeltrackPlexAutomation(session.user.id, listId);
+          return json(res, 200, {
+            item: (await matchedReeltrackLists(session, [item]))[0],
           });
         }
         const reeltrackListMatch = url.pathname.match(
@@ -7864,12 +8990,36 @@ export function createApplication(options = {}) {
             return;
           const listId = decodeURIComponent(reeltrackListMatch[1]),
             current = await reeltrackSnapshotForUser(session.user.id),
+            removedList = (current.importedLists || []).find(
+              (item) => String(item.id) === listId,
+            ),
             snapshot = {
               importedLists: (current.importedLists || []).filter(
                 (item) => String(item.id) !== listId,
               ),
               updatedAt: new Date().toISOString(),
             };
+          if (removedList?.automation?.enabled) {
+            if (!administrator(res, session)) return;
+            for (const job of Object.values(removedList.automation.jobs || {}))
+              await trailerDownloader.remove(job).catch(() => {});
+            const [settings, token] = await Promise.all([
+              plexSettingsStore.read(),
+              engineSettings.plexCredential(),
+            ]), legacyLibrary = (settings.libraries || []).find((item) => String(item.key) === String(removedList.automation.plexLibraryKey)),
+              keys = new Set([removedList.automation.plexMovieLibraryKey, removedList.automation.plexTvLibraryKey, legacyLibrary?.key].filter(Boolean).map(String));
+            if (settings.endpoint && token)
+              for (const library of (settings.libraries || []).filter((item) => keys.has(String(item.key)))) {
+                await plexService.syncCollection(settings.endpoint, token, {
+                  libraryKey: library.key,
+                  libraryType: library.type,
+                  machineIdentifier: settings.server?.machineIdentifier,
+                  title: removedList.automation.collectionName || removedList.name,
+                  ratingKeys: [],
+                });
+                await plexService.refreshLibrary(settings.endpoint, token, library.key);
+              }
+          }
           await saveReeltrackSnapshot(session.user.id, snapshot);
           return json(res, 200, { removed: true });
         }
@@ -12973,6 +14123,30 @@ export function createApplication(options = {}) {
           const audit = await auditStore.read();
           return json(res, 200, { items: audit.entries || [] });
         }
+        const healthActionMatch = url.pathname.match(/^\/api\/system\/health\/([^/]+)\/(dismiss|rematch)$/);
+        if (healthActionMatch && req.method === "POST") {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          const [, id, action] = healthActionMatch;
+          if (action === "dismiss") {
+            await operationsCenterStore.update((current) => {
+              current.healthDismissed = current.healthDismissed || {};
+              current.healthDismissed[id] = new Date().toISOString();
+              return current;
+            });
+            return json(res, 200, { dismissed: true, id });
+          }
+          const input = await body(req), result = await rematchMedia({
+            domain: "movie",
+            mediaId: Number(input.mediaId),
+            tmdbId: Number(input.tmdbId),
+          });
+          await operationsCenterStore.update((current) => {
+            current.healthDismissed = current.healthDismissed || {};
+            current.healthDismissed[id] = new Date().toISOString();
+            return current;
+          });
+          return json(res, 200, { matched: true, result });
+        }
         if (req.method !== "GET")
           return json(res, 405, {
             error: { code: "read_only", message: "Read-only review mode" },
@@ -13394,10 +14568,53 @@ export function createApplication(options = {}) {
         }
         if (url.pathname === "/api/system/health") {
           if (!administrator(res, session)) return;
-          return json(res, 200, {
-            items: await sync.operations("health"),
-            sync: sync.snapshot(),
-          });
+          const [reported, state, movies] = await Promise.all([
+              sync.operations("health"),
+              operationsCenterStore.read(),
+              sync.list("movie").catch(() => []),
+            ]),
+            healthDismissed = state.healthDismissed || {},
+            normalizedTitle = (value) =>
+              String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, ""),
+            items = [];
+          for (const raw of reported) {
+            const stableId = `health_${createHash("sha1")
+              .update(`${raw.domain || "media"}:${raw.source || ""}:${raw.message || ""}`)
+              .digest("hex")
+              .slice(0, 20)}`;
+            if (healthDismissed[stableId]) continue;
+            const item = { ...raw, id: stableId };
+            if (raw.domain === "movie" && /RemovedMovieCheck/i.test(String(raw.source || ""))) {
+              const oldTmdbId = Number(String(raw.message || "").match(/tmdbid\s*(\d+)/i)?.[1] || 0),
+                warningTitle = String(raw.message || "")
+                  .replace(/\s*\(tmdbid\s*\d+\).*$/i, "")
+                  .replace(/\s+was removed from TMDb.*$/i, "")
+                  .trim(),
+                warningKey = normalizedTitle(warningTitle),
+                libraryItem = movies.find((movie) =>
+                  (oldTmdbId > 0 && Number(movie.tmdbId) === oldTmdbId) ||
+                  (warningKey && normalizedTitle(movie.title) === warningKey));
+              let replacement = null;
+              if (libraryItem && discovery.configured())
+                replacement = await discovery.enrich("movie", { title: libraryItem.title, year: libraryItem.year }).catch(() => null);
+              item.recovery = {
+                kind: "removed-tmdb",
+                oldTmdbId: oldTmdbId || null,
+                libraryItem: libraryItem ? {
+                  id: Number(String(libraryItem.id || "").match(/(\d+)$/)?.[1]),
+                  title: libraryItem.title,
+                  year: libraryItem.year || null,
+                } : null,
+                replacement: replacement && Number(replacement.tmdbId) !== oldTmdbId ? {
+                  tmdbId: Number(replacement.tmdbId),
+                  title: replacement.title,
+                  year: replacement.year || null,
+                } : null,
+              };
+            }
+            items.push(item);
+          }
+          return json(res, 200, { items, sync: sync.snapshot() });
         }
         if (url.pathname === "/api/dashboard") {
           if (!permitted(res, session, "dashboard")) return;
