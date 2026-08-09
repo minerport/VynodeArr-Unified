@@ -7,6 +7,26 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.40-rc.3] - 2026-08-09
+
+### Changed
+
+- Expanded the default Unraid template with blank optional placeholders for a
+  shared `/media` parent, two additional movie libraries, and two additional
+  television libraries while preserving the existing `/movies` and `/tv`
+  mappings for compatibility.
+- Added installation helper text explaining unified-parent and separate-share
+  layouts and warning against registering the same library through two paths.
+- Storage settings now detect the fixed optional container paths and direct
+  children of `/media`, show whether each is configured or registered, and let
+  administrators classify visible folders for the movie or television engine.
+
+### Removed
+
+- Removed in-app Unraid XML editing, its pending-edit API, and access to the
+  Unraid template directory. Host-to-container mappings remain owned by Unraid;
+  VynodeArr now provides detection, engine registration, and setup guidance.
+
 ## [2.0.40-rc.2] - 2026-08-09
 
 ### Added
@@ -2301,7 +2321,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.40-rc.2...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.40-rc.3...HEAD
+[2.0.40-rc.3]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.40-rc.2...v2.0.40-rc.3
 [2.0.40-rc.2]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.40-rc.1...v2.0.40-rc.2
 [2.0.40-rc.1]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.39...v2.0.40-rc.1
 [2.0.39]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.38...v2.0.39

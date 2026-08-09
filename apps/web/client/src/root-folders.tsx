@@ -1,12 +1,8 @@
-import { lazy, Suspense, useCallback, useEffect, useState } from "react";
-import type { Directory, DownloadFolders, MediaDestination, MediaDestinationResponse, RootFolder, RootFoldersMountOptions, StorageDomain, UnraidStorageResponse } from "./root-folders-types";
+import { useCallback, useEffect, useState } from "react";
+import type { AvailableLibraryFoldersResponse, Directory, DownloadFolders, MediaDestination, MediaDestinationResponse, RootFolder, RootFoldersMountOptions, StorageDomain } from "./root-folders-types";
 import { ServiceTabs } from "./service-tabs";
 import { LibraryImportReview } from "./library-import-review";
 import { ModalPortal } from "./modal-portal";
-
-const UnraidMappingEditor=lazy(()=>import('./unraid-mapping-editor').then(module=>({default:module.UnraidMappingEditor})));
-const PendingUnraidMappings=lazy(()=>import('./unraid-mapping-editor').then(module=>({default:module.PendingUnraidMappings})));
-const DestinationFolderActions=lazy(()=>import('./unraid-mapping-editor').then(module=>({default:module.DestinationFolderActions})));
 
 const clean = (value: string) => (value === "/" ? "/" : value.replace(/\/+$/, "") || "/");
 const parent = (value: string) => clean(value).split("/").slice(0, -1).join("/") || "/";
@@ -22,12 +18,7 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
     [destinations, setDestinations] = useState<MediaDestination[]>([]),
     [destinationData, setDestinationData] = useState<MediaDestinationResponse | null>(null),
     [editingDestination, setEditingDestination] = useState<MediaDestination | null>(null),
-    [unraid, setUnraid] = useState<UnraidStorageResponse | null>(null),
-    [mapping, setMapping] = useState<{
-      name: string;
-      hostPath: string;
-      containerPath: string;
-    } | null>(null),
+    [availableFolders, setAvailableFolders] = useState<AvailableLibraryFoldersResponse | null>(null),
     [rootPath, setRootPath] = useState("/movies"),
     [downloadPath, setDownloadPath] = useState("/downloads"),
     [loading, setLoading] = useState(true),
@@ -42,12 +33,12 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
     setLoading(true);
     setError("");
     try {
-      const [rootValue, downloadValue, destinationValue, unraidValue] = await Promise.all([options.request<{ result: RootFolder[] }>(`/api/manage/${domain}/rootFolders`), options.request<DownloadFolders>("/api/settings/download-folders"), options.request<MediaDestinationResponse>(`/api/media-destinations?domain=${domain}&includeUsage=true`), options.request<UnraidStorageResponse>("/api/unraid/storage-mappings").catch(() => null)]);
+      const [rootValue, downloadValue, destinationValue, availableValue] = await Promise.all([options.request<{ result: RootFolder[] }>(`/api/manage/${domain}/rootFolders`), options.request<DownloadFolders>("/api/settings/download-folders"), options.request<MediaDestinationResponse>(`/api/media-destinations?domain=${domain}&includeUsage=true`), options.request<AvailableLibraryFoldersResponse>("/api/storage/available-library-folders")]);
       setRoots(rootValue.result || []);
       setDownloads(downloadValue || {});
       setDestinationData(destinationValue);
       setDestinations(destinationValue.destinations || []);
-      setUnraid(unraidValue);
+      setAvailableFolders(availableValue);
       setDownloadPath(clean(downloadValue?.[domain]?.path || "/downloads"));
     } catch (reason) {
       setError(message(reason));
@@ -113,6 +104,18 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
       setEditingDestination((value) => (value ? { ...value, rootFolderPath: path } : value));
       setBrowser(null);
       options.notify("Library folder added. Finish the destination settings, then save.");
+      await load();
+    } catch (reason) {
+      options.notify(message(reason), "error");
+    } finally {
+      setBusy("");
+    }
+  };
+  const registerAvailableFolder = async (path: string) => {
+    setBusy(`available-${path}`);
+    try {
+      await options.request(`/api/manage/${domain}/rootFolders`, { method: "POST", body: JSON.stringify({ path }) });
+      options.notify(`${path} registered with the ${domain === "movie" ? "movie" : "television"} engine. Set up its Media Destination below.`);
       await load();
     } catch (reason) {
       options.notify(message(reason), "error");
@@ -193,6 +196,7 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
     }
   };
   const samePath = clean(rootPath) === clean(downloadPath);
+  const directMappings = (availableFolders?.folders || []).filter((item) => item.domain === domain), mediaChildren = availableFolders?.mediaChildren || [];
   return (
     <div className="root-folders-react-route">
       <div className="hero storage-hero">
@@ -325,7 +329,14 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
           </section>
         </div>
       )}
-      {unraid?.mappings?.length ? <Suspense fallback={null}><PendingUnraidMappings domain={domain} items={unraid.mappings} options={options} onCompleted={load}/></Suspense> : null}
+      <section className="panel available-library-mappings">
+        <div className="panel-heading"><div><span className="eyebrow">UNRAID CONTAINER PATHS</span><h2>Configured library mappings</h2><p className="muted">Unraid controls which host folders are visible here. VynodeArr only registers visible folders with the selected engine; it never edits the container configuration.</p></div></div>
+        <div className="available-mapping-list">
+          {directMappings.map(item=><article className="storage-path-row" key={item.path}><span className={`storage-path-state ${item.registered?'available':item.configured?'pending':'unavailable'}`}/><div className="storage-path-copy"><strong>{item.label}</strong><small>{item.path}</small><small>{item.registered?'Ready and registered with this engine.':item.configured?'Visible to VynodeArr and ready to register.':'Not configured. Assign this optional path in the VynodeArr container settings and click Apply.'}</small></div>{item.configured&&!item.registered?<button className="primary" disabled={busy===`available-${item.path}`} onClick={()=>void registerAvailableFolder(item.path)}>{busy===`available-${item.path}`?'Registering…':`Use for ${domain==='movie'?'Movies':'Television'}`}</button>:null}</article>)}
+        </div>
+        <div className="main-media-folders"><div className="panel-heading"><div><h3>Main media folder</h3><p className="muted">{availableFolders?.mainMediaConfigured?'Choose what each direct child folder contains. A folder can belong to only one engine.':'The optional /media mapping is not configured in Unraid.'}</p></div><span className="badge">/media</span></div>{availableFolders?.mainMediaConfigured?(mediaChildren.length?<div className="available-mapping-list">{mediaChildren.map(item=>{const registeredHere=domain==='movie'?item.registeredMovie:item.registeredTv,registeredElsewhere=domain==='movie'?item.registeredTv:item.registeredMovie;return <article className="storage-path-row" key={item.path}><span className={`storage-path-state ${registeredHere?'available':registeredElsewhere?'unavailable':'pending'}`}/><div className="storage-path-copy"><strong>{item.label}</strong><small>{item.path}</small><small>{registeredHere?'Registered with this engine.':registeredElsewhere?`Already registered with the ${domain==='movie'?'television':'movie'} engine.`:`Choose ${domain==='movie'?'Movies':'Television'} to classify and register this folder.`}</small></div>{!registeredHere&&!registeredElsewhere?<button className="secondary" disabled={busy===`available-${item.path}`} onClick={()=>void registerAvailableFolder(item.path)}>{busy===`available-${item.path}`?'Registering…':`Use for ${domain==='movie'?'Movies':'Television'}`}</button>:null}</article>;})}</div>:<div className="empty compact"><p>No direct child folders were found beneath /media.</p></div>):null}</div>
+        <div className="notice"><strong>Need another host folder?</strong><p>Open the VynodeArr container in Unraid, fill an unused optional library field, and click Apply. Return here after the container starts; the mapping will appear automatically.</p></div>
+      </section>
       <section className="panel media-destinations-panel">
         <div className="panel-heading">
           <div>
@@ -359,7 +370,7 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
                   <small>{destination.plexLibrary ? `Plex: ${destination.plexLibrary.title}` : destination.suggestedPlexLibrary ? `Suggested Plex match: ${destination.suggestedPlexLibrary.title}` : "Plex association optional"}</small>
                   {destination.restartRequired ? (
                     <p className="destination-restart">
-                      <strong>Restart required after mapping</strong> Add this folder to the Unraid container, restart it from Unraid, then return here to verify access.
+                      <strong>Container update required</strong> Assign this folder in the Unraid container settings, click Apply, then return here after VynodeArr starts.
                     </p>
                   ) : null}
                 </div>
@@ -434,7 +445,7 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
                     ))}
                   </select>
                 </label>
-                <Suspense fallback={null}><DestinationFolderActions available={Boolean(unraid?.template.available)} domain={domain} name={editingDestination.name||''} onVisible={()=>openBrowser('destination')} onMap={setMapping}/></Suspense>
+                <button type="button" className="secondary" onClick={()=>openBrowser('destination')}>Use another visible folder</button><small>Only folders already exposed through the Unraid container configuration can be registered here.</small>
               </div>
               <label>
                 Quality profile
@@ -568,9 +579,6 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
           </div>
         </ModalPortal>
       ) : null}
-      {mapping ? (
-        <Suspense fallback={null}><UnraidMappingEditor domain={domain} value={mapping} options={options} onChange={setMapping} onClose={()=>setMapping(null)} onSaved={async()=>{setMapping(null);setEditingDestination(null);await load();}}/></Suspense>
-      ) : null}
       {browser ? (
         <ModalPortal>
           <div
@@ -585,7 +593,7 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
                 <div>
                   <span className="eyebrow">CHOOSE A FOLDER</span>
                   <h2>{current}</h2>
-                  <p className="muted">Only folders visible inside this container are shown. On Unraid, add a Path mapping and restart the container first if a storage location is missing.</p>
+                  <p className="muted">Only folders visible inside this container are shown. If one is missing, assign an optional library path in the Unraid container settings and click Apply.</p>
                 </div>
                 <button className="secondary" onClick={() => setBrowser(null)}>
                   Cancel

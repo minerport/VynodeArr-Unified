@@ -26,6 +26,10 @@ test('Unraid template has required mappings, self-contained image, and upstream 
   assert.match(text,/GPLv3/);assert.match(text,/Apache 2\.0/);
   assert.match(text,/<License>Apache-2\.0<\/License>/);
   assert.match(text,/<ReadMe>https:\/\/raw\.githubusercontent\.com\/minerport\/VynodeArr-Unified\/main\/README\.md<\/ReadMe>/);
+  for(const target of ['/media','/movies-2','/movies-3','/tv-2','/tv-3'])assert.match(text,new RegExp(`<Config Name="[^"]+" Target="${target}" Default=""[^>]+Required="false"[^>]*><\\/Config>`));
+  assert.match(text,/do not register the same library through two container paths/i);
+  assert.doesNotMatch(text,/Target="\/unraid-template"/);
+  assert.doesNotMatch(text,/templates-user/);
 });
 test('production image is non-root and has a health check',async()=>{
   const text=await readFile(new URL('../Dockerfile',import.meta.url),'utf8');assert.match(text,/USER vynodearr/);assert.match(text,/HEALTHCHECK/);assert.match(text,/VYNODEARR_DATA_DIR=\/data/);
