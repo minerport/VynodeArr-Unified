@@ -17,7 +17,7 @@
   <TemplateURL>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/templates/vynodearr.xml</TemplateURL>
   <Icon>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/assets/branding/VynodeArr.png</Icon>
   <ReadMe>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/README.md</ReadMe>
-  <Changes>2.0.40-rc.5: Requests now explicitly start and track engine searches after applying the selected destination. New Unraid installs use one optional /media parent whose direct child folders can be assigned to Movies or Television, while optional /movies and /tv mappings preserve existing installations.</Changes>
+  <Changes>2.0.40-rc.6: Storage scans detect when a new /media child and a legacy /movies or /tv mapping point to the same Unraid folder. Administrators can preview and update existing engine paths without moving files, or deliberately continue scanning.</Changes>
   <Date>2026-08-09</Date>
   <MinVer>6.12</MinVer>
   <License>Apache-2.0</License>
@@ -27,7 +27,7 @@
   <PostArgs/>
   <CPUset/>
   <DateInstalled>0</DateInstalled>
-  <Requires>Requires an x86-64 Unraid server with Docker. Appdata, movie, television, and completed-download paths must be writable by nobody:users (99:100). The optional main media folder exposes one shared parent so its direct child folders can be assigned to the movie or television engine inside VynodeArr. Keep /movies and /tv for compatibility; do not expose the same library through both a legacy path and /media. The download-client remote path must match the path reported by that client so VynodeArr can translate it to /downloads.</Requires>
+  <Requires>Requires an x86-64 Unraid server with Docker. Appdata, movie, television, and completed-download paths must be writable by nobody:users (99:100). The optional main media folder exposes one shared parent so its direct child folders can be assigned to the movie or television engine inside VynodeArr. Existing installations may temporarily keep /movies or /tv mapped to the same physical folder while migrating to /media; use the guarded path update in Storage Folders before removing the legacy mapping. The download-client remote path must match the path reported by that client so VynodeArr can translate it to /downloads.</Requires>
   <Config Name="Web UI port" Target="8686" Default="8686" Mode="tcp" Description="Host port used to open the VynodeArr web interface and compatibility APIs." Type="Port" Display="always" Required="true" Mask="false">8686</Config>
   <Config Name="Appdata" Target="/config" Default="/mnt/user/appdata/vynodearr" Mode="rw" Description="Persistent VynodeArr accounts, settings, backups, and isolated engine databases. Back up this folder before removal." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/vynodearr</Config>
   <Config Name="Main media folder (optional)" Target="/media" Default="" Mode="rw" Description="Recommended for multiple libraries beneath one parent share. Example host path: /mnt/user/media. VynodeArr scans only direct child folders such as /media/movies, /media/movies-4k, /media/tv, or /media/anime-tv and lets you assign each one to Movies or Television under Service Settings. Leave blank to use only the legacy /movies and /tv mappings." Type="Path" Display="always" Required="false" Mask="false"></Config>

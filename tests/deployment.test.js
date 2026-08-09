@@ -28,7 +28,8 @@ test('Unraid template has required mappings, self-contained image, and upstream 
   assert.match(text,/<ReadMe>https:\/\/raw\.githubusercontent\.com\/minerport\/VynodeArr-Unified\/main\/README\.md<\/ReadMe>/);
   assert.match(text,new RegExp(`<Config Name="[^"]+" Target="/media" Default=""[^>]+Required="false"[^>]*><\\/Config>`));
   for(const target of ['/movies-2','/movies-3','/tv-2','/tv-3'])assert.doesNotMatch(text,new RegExp(`Target="${target}"`));
-  assert.match(text,/do not expose the same library through both a legacy path and \/media/i);
+  assert.match(text,/temporarily keep \/movies or \/tv mapped to the same physical folder/i);
+  assert.match(text,/guarded path update.*before removing the legacy mapping/i);
   assert.doesNotMatch(text,/Target="\/unraid-template"/);
   assert.doesNotMatch(text,/templates-user/);
 });

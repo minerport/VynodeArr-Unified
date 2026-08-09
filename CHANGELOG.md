@@ -7,6 +7,16 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.40-rc.6] - 2026-08-09
+
+### Added
+
+- Storage scans now detect when a newly registered engine root points to the
+  same physical Unraid folder as an existing root. Administrators can preview
+  every affected title, deliberately scan anyway, or update the engine's saved
+  paths to the new container location without moving, renaming, or deleting
+  any media files.
+
 ## [2.0.40-rc.5] - 2026-08-09
 
 ### Changed
@@ -2348,7 +2358,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.40-rc.5...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.40-rc.6...HEAD
+[2.0.40-rc.6]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.40-rc.5...v2.0.40-rc.6
 [2.0.40-rc.5]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.40-rc.4...v2.0.40-rc.5
 [2.0.40-rc.4]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.40-rc.3...v2.0.40-rc.4
 [2.0.40-rc.3]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.40-rc.2...v2.0.40-rc.3

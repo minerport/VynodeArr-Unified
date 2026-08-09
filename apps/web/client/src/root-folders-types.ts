@@ -8,6 +8,9 @@ export interface MediaDestination{id:string;domain:StorageDomain;name:string;roo
 export interface MediaDestinationResponse{destinations:MediaDestination[];profiles:Record<StorageDomain,DestinationProfile[]>;plexLibraries:DestinationPlexLibrary[]}
 export interface AvailableLibraryFolder{path:string;label:string;domain:StorageDomain|null;configured:boolean;registered?:boolean;registeredMovie?:boolean;registeredTv?:boolean}
 export interface AvailableLibraryFoldersResponse{mainMediaConfigured:boolean;folders:AvailableLibraryFolder[];mediaChildren:AvailableLibraryFolder[]}
+export interface PathMigrationItem{id:number;title:string;oldPath:string;newPath:string}
+export interface PathMigrationMatch{sourceRoot:string;targetRoot:string;affected:PathMigrationItem[]}
+export interface PathMigrationPreview{domain:StorageDomain;targetRoot:string;equivalent:boolean;matches:PathMigrationMatch[];match:PathMigrationMatch|null}
 export interface RootFoldersMountOptions{
   request:<T=unknown>(path:string,options?:RequestInit)=>Promise<T>;
   notify:(message:string,tone?:string)=>void;

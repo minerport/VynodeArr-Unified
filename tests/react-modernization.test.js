@@ -502,9 +502,11 @@ test('media naming and importing settings use a typed React route without flatte
 });
 
 test('storage folders and import review use a typed React route and analysis boundary',async()=>{
-  const [view,types,analysis,review,islands,legacy,api]=await Promise.all([
+  const [view,types,migration,migrationApi,analysis,review,islands,legacy,api]=await Promise.all([
     read('apps/web/client/src/root-folders.tsx'),
     read('apps/web/client/src/root-folders-types.ts'),
+    read('apps/web/client/src/root-folder-migration-dialog.tsx'),
+    read('apps/web/client/src/root-folder-migration.ts'),
     read('apps/web/client/src/library-import-analysis.ts'),
     read('apps/web/client/src/library-import-review.tsx'),
     read('apps/web/client/src/react-islands.tsx'),
@@ -514,6 +516,9 @@ test('storage folders and import review use a typed React route and analysis bou
   assert.match(view,/export function RootFoldersView/);
   assert.match(view,/\/api\/settings\/download-folders/);
   assert.match(view,/\/api\/storage\/available-library-folders/);
+  assert.match(migrationApi,/\/api\/storage\/path-migration\/preview/);
+  assert.match(migration,/Ignore and scan anyway/);
+  assert.match(migration,/Update .* existing locations/);
   assert.match(view,/\/rootFolders/);
   assert.match(view,/\/filesystem\?/);
   assert.match(view,/Download and library paths match/);

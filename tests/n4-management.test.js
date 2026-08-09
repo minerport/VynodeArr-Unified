@@ -5,7 +5,16 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { EngineManagementService } from '../.server-build/packages/platform/src/engine-management-service.js';
 import { EngineSettingsService } from '../.server-build/packages/platform/src/engine-settings-service.js';
-import { televisionAddPayload } from '../.server-build/apps/api/src/app.js';
+import { filesystemLocationIdentity, televisionAddPayload } from '../.server-build/apps/api/src/app.js';
+
+test('filesystem location identity recognizes repeated paths to the same folder',async()=>{
+  const directory=await mkdtemp(join(tmpdir(),'vynodearr-location-'));
+  try{
+    assert.equal(await filesystemLocationIdentity(directory),await filesystemLocationIdentity(directory));
+  }finally{
+    await rm(directory,{recursive:true,force:true});
+  }
+});
 
 test('television adds preserve monitoring and immediate automatic-search options',()=>{
   assert.deepEqual(televisionAddPayload({title:'Series',monitor:'future',monitored:true,addOptions:{searchForMissingEpisodes:true}}).addOptions,{monitor:'future',searchForMissingEpisodes:true,searchForCutoffUnmetEpisodes:false});
@@ -90,6 +99,7 @@ test('native interaction workflows replace an upstream-shaped generic shell',asy
   assert.doesNotMatch(releaseBrowser,/grabbing!==null\|\|!isAccepted/);
   for(const workflow of ['/api/media-match','rematchMedia','imdb:${imdbId}','hasImdbId','addImportExclusion:false','addImportListExclusion:false','The original match was restored when possible',"already in the ${domain==='movie'?'Movies':'Television'} library",'Fix match'])assert.ok(script.includes(workflow)||apiSource.includes(workflow),workflow);
   for(const workflow of ['correctedFolder','correctedPath','query: { moveFiles: true }','oldPublicId !== newPublicId','sync.reconcileItem(domain, oldPublicId)'])assert.ok(apiSource.includes(workflow),'fixed matches must move files to the corrected engine path and remove the prior catalog projection: '+workflow);
+  for(const workflow of ['/api/storage/path-migration/preview','filesystemLocationIdentity','library_paths.migrated','moveFiles: false'])assert.ok(apiSource.includes(workflow),'same-folder migrations must be previewed and must never move media files: '+workflow);
   for(const workflow of ['quality-range-track','data-control="range"','qualityDefinitionLimits','data-dirty="true"','Save limits to engine',"`/api/manage/${domain.value}/qualityDefinitions/${payload.id}`","method:'PUT'"])assert.ok(script.includes(workflow),workflow);
   for(const workflow of ['liveQueue','includeMovie:true','includeSeries:true','includeEpisode:true','trackedDownloadState','clientStatus','clientFilename','/api/activity/queue/live'])assert.ok(apiSource.includes(workflow));
   assert.match(queueSource,/if\(requestPending\.current\)return/);

@@ -1,4 +1,4 @@
-import { mkdir, readFile, readdir, rename, unlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, realpath, rename, stat, unlink, writeFile } from "node:fs/promises";
 import { watch } from "node:fs";
 import {
   createCipheriv,
@@ -114,6 +114,11 @@ export function televisionAddPayload(input = {}) {
         addOptions.searchForCutoffUnmetEpisodes === true,
     },
   };
+}
+export async function filesystemLocationIdentity(path) {
+  const resolved = await realpath(String(path || "")),
+    details = await stat(resolved);
+  return `${details.dev}:${details.ino}`;
 }
 async function staticResponse(
   req,
@@ -3703,6 +3708,69 @@ export function createApplication(options = {}) {
     String(value || "")
       .replaceAll("\\", "/")
       .replace(/\/+$/, "");
+  async function mediaPathMigrationPreview(domain, targetPath, requestedSource = "") {
+    if (!["movie", "tv"].includes(domain))
+      throw new Error("Choose Movies or Television");
+    const targetRoot = normalizeMediaPath(targetPath),
+      sourceFilter = normalizeMediaPath(requestedSource),
+      [rootsValue, libraryValue] = await Promise.all([
+        management.execute(domain, "rootFolders", "GET", {}),
+        management.execute(domain, "library", "GET", {}),
+      ]),
+      roots = Array.isArray(rootsValue) ? rootsValue : [],
+      library = Array.isArray(libraryValue)
+        ? libraryValue
+        : libraryValue?.records || [];
+    if (!roots.some((root) => normalizeMediaPath(root.path) === targetRoot))
+      throw new Error("Choose a library folder registered with this engine");
+    let targetIdentity;
+    try {
+      targetIdentity = await filesystemLocationIdentity(targetRoot);
+    } catch {
+      throw new Error("The new library folder is not accessible");
+    }
+    const matches = [];
+    for (const root of roots) {
+      const sourceRoot = normalizeMediaPath(root.path);
+      if (
+        !sourceRoot ||
+        sourceRoot === targetRoot ||
+        (sourceFilter && sourceRoot !== sourceFilter)
+      )
+        continue;
+      let sourceIdentity;
+      try {
+        sourceIdentity = await filesystemLocationIdentity(sourceRoot);
+      } catch {
+        continue;
+      }
+      if (sourceIdentity !== targetIdentity) continue;
+      const affected = library
+        .filter((item) => {
+          const path = normalizeMediaPath(item.path || item.rootFolderPath);
+          return path === sourceRoot || path.startsWith(`${sourceRoot}/`);
+        })
+        .map((item) => {
+          const oldPath = normalizeMediaPath(item.path || item.rootFolderPath);
+          return {
+            id: Number(item.id),
+            title: item.title || item.name || oldPath,
+            oldPath,
+            newPath: `${targetRoot}${oldPath.slice(sourceRoot.length)}`,
+          };
+        })
+        .filter((item) => Number.isFinite(item.id));
+      matches.push({ sourceRoot, targetRoot, affected });
+    }
+    matches.sort((left, right) => right.affected.length - left.affected.length);
+    return {
+      domain,
+      targetRoot,
+      equivalent: matches.length > 0,
+      matches,
+      match: matches[0] || null,
+    };
+  }
   const parentMediaPath = (value) => {
     const path = normalizeMediaPath(value),
       index = path.lastIndexOf("/");
@@ -8446,6 +8514,50 @@ export function createApplication(options = {}) {
               path: saved.tv?.path || defaultDownloadFolder("tv"),
               remotePath: downloadClientRemotePath("tv"),
             },
+          });
+        }
+        if (url.pathname === "/api/storage/path-migration/preview" && req.method === "GET") {
+          if (!administrator(res, session)) return;
+          const domain = String(url.searchParams.get("domain") || ""),
+            targetRoot = String(url.searchParams.get("targetRoot") || "");
+          return json(res, 200, await mediaPathMigrationPreview(domain, targetRoot));
+        }
+        if (url.pathname === "/api/storage/path-migration" && req.method === "POST") {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          const input = await body(req),
+            domain = String(input.domain || ""),
+            sourceRoot = normalizeMediaPath(input.sourceRoot),
+            targetRoot = normalizeMediaPath(input.targetRoot),
+            preview = await mediaPathMigrationPreview(domain, targetRoot, sourceRoot),
+            match = preview.matches.find((item) => item.sourceRoot === sourceRoot);
+          if (!match)
+            throw new Error("The old and new paths no longer point to the same folder");
+          const ids = match.affected.map((item) => item.id),
+            idKey = domain === "movie" ? "movieIds" : "seriesIds";
+          for (let index = 0; index < ids.length; index += 100)
+            await management.execute(domain, "libraryEditor", "PUT", {
+              payload: {
+                [idKey]: ids.slice(index, index + 100),
+                rootFolderPath: targetRoot,
+                moveFiles: false,
+              },
+            });
+          if (ids.length) await sync.synchronize(domain);
+          await recordAudit(session, {
+            category: "configuration",
+            action: "library_paths.migrated",
+            target: `${sourceRoot} to ${targetRoot}`,
+            domain,
+            summary: `Updated ${ids.length} ${domain === "movie" ? "movie" : "television"} path${ids.length === 1 ? "" : "s"} without moving files.`,
+            metadata: { sourceRoot, targetRoot, updated: ids.length, moveFiles: false },
+          });
+          return json(res, 200, {
+            migrated: true,
+            domain,
+            sourceRoot,
+            targetRoot,
+            updated: ids.length,
+            affected: match.affected,
           });
         }
         if (url.pathname === "/api/storage/available-library-folders" && req.method === "GET") {

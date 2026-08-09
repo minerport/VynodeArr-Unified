@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import type { AvailableLibraryFoldersResponse, Directory, DownloadFolders, MediaDestination, MediaDestinationResponse, RootFolder, RootFoldersMountOptions, StorageDomain } from "./root-folders-types";
+import type { ComponentType } from "react";
+import type { MigrationDialogProps } from "./root-folder-migration-dialog";
+import type { AvailableLibraryFoldersResponse, Directory, DownloadFolders, MediaDestination, MediaDestinationResponse, PathMigrationPreview, RootFolder, RootFoldersMountOptions, StorageDomain } from "./root-folders-types";
 import { ServiceTabs } from "./service-tabs";
 import { LibraryImportReview } from "./library-import-review";
 import { ModalPortal } from "./modal-portal";
@@ -26,6 +28,8 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
     [error, setError] = useState(""),
     [browser, setBrowser] = useState<null | "root" | "download" | "destination">(null),
     [scanRoot, setScanRoot] = useState<RootFolder | null>(null),
+    [migration, setMigration] = useState<{ root: RootFolder; preview: PathMigrationPreview } | null>(null),
+    [MigrationDialog, setMigrationDialog] = useState<ComponentType<MigrationDialogProps> | null>(null),
     [current, setCurrent] = useState("/"),
     [directories, setDirectories] = useState<Directory[]>([]),
     [browseError, setBrowseError] = useState("");
@@ -205,6 +209,39 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
     } catch (reason) { options.notify(message(reason), "error"); }
     finally { setBusy(""); }
   };
+  const reviewScan = async (root: RootFolder) => {
+    setBusy(`scan-${root.id}`);
+    try {
+      const { reviewPathMigration } = await import("./root-folder-migration");
+      const preview = await reviewPathMigration(options, domain, root);
+      if (preview.equivalent && preview.match) {
+        const dialog = await import("./root-folder-migration-dialog");
+        setMigrationDialog(() => dialog.default);
+        setMigration({ root, preview });
+      }
+      else setScanRoot(root);
+    } catch (reason) {
+      options.notify(message(reason), "error");
+    } finally {
+      setBusy("");
+    }
+  };
+  const migratePaths = async () => {
+    const match = migration?.preview.match;
+    if (!migration || !match) return;
+    setBusy("migration");
+    try {
+      const { applyPathMigration } = await import("./root-folder-migration");
+      const result = await applyPathMigration(options, domain, match);
+      options.notify(`${result.updated} existing ${domain === "movie" ? "movie" : "television"} location${result.updated === 1 ? "" : "s"} updated. No files were moved.`);
+      setMigration(null);
+      await load();
+    } catch (reason) {
+      options.notify(message(reason), "error");
+    } finally {
+      setBusy("");
+    }
+  };
   const samePath = clean(rootPath) === clean(downloadPath);
   const directMappings = (availableFolders?.folders || []).filter((item) => item.domain === domain), mediaChildren = availableFolders?.mediaChildren || [];
   return (
@@ -319,8 +356,8 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
                     </div>
                     <div className="storage-path-actions">
                       {root.accessible ? (
-                        <button className="secondary" onClick={() => setScanRoot(root)}>
-                          Scan library
+                        <button className="secondary" disabled={busy === `scan-${root.id}`} onClick={() => void reviewScan(root)}>
+                          {busy === `scan-${root.id}` ? "Checking…" : "Scan library"}
                         </button>
                       ) : null}
                       <button className="text-button" disabled={busy === String(root.id)} onClick={() => void remove(root)}>
@@ -653,6 +690,7 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
         </ModalPortal>
       ) : null}
       {scanRoot ? <LibraryImportReview domain={domain} initialRoot={scanRoot} options={options} onClose={() => setScanRoot(null)} onImported={load} /> : null}
+      {migration?.preview.match && MigrationDialog ? <MigrationDialog busy={busy === "migration"} domain={domain} migration={migration} onClose={() => setMigration(null)} onIgnore={(root) => { setMigration(null); setScanRoot(root); }} onMigrate={() => void migratePaths()} /> : null}
     </div>
   );
 }
