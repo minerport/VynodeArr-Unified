@@ -44,12 +44,18 @@ consistent experience and account system.
 
 ## Current release
 
-Version **2.0.38** is the current stable release and is published as the
-`latest` image. It adds a cleaner guided Reeltrack collection setup, clearer
-Plex and VynodeArr overlay workflows, saved style-card preview posters,
-stackable VynodeArr overlay templates, compact Plex poster history, mobile
-interactive-search filtering and sorting, and submission-ready Unraid
-Community Applications metadata.
+Version **2.0.39** is the current stable release and is published as the
+`latest` image. Movie and television details now support lightweight cinematic
+hero trailers, preferring a securely proxied matched Plex extra before a local
+trailer, an official TMDB/YouTube trailer, and finally the existing artwork.
+The release also fixes full-library release-date and first-aired sorting,
+preserves the selected sort when its direction changes, restores the exact
+library position after viewing details, and refreshes the GitHub product tour.
+
+Trailer playback remains optional. Plex credentials stay on the VynodeArr
+server, local files are streamed with byte-range support without transcoding,
+reduced-motion and reduced-data preferences are respected, and the hero artwork
+remains available whenever no playable trailer source can be resolved.
 
 The administrator Validation Center checks
 engine connectivity, storage, acquisition providers, scheduled automation,

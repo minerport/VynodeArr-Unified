@@ -7,6 +7,30 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.39] - 2026-08-09
+
+### Changed
+
+- Promoted the tested 2.0.39 release-candidate series with cinematic Movie and
+  TV hero trailers, prioritizing securely proxied matched Plex extras before
+  local trailers, official TMDB/YouTube trailers, and permanent artwork fallback.
+- Replaced the outdated GitHub and Unraid screenshots with the current six-view
+  product tour and linked walkthrough video.
+
+### Fixed
+
+- Corrected paged Movie release-date and TV first-aired sorting so reversing
+  direction retains the selected field and undated titles remain last.
+- Restored the exact Movie or TV library position, loaded page depth, filters,
+  search, sorting, and layout after returning from title details.
+- Made the **Watch trailer** action reliable and removed embedded-player controls
+  from cinematic hero playback.
+
+### Validation
+
+- Passed all 232 automated tests plus TypeScript, production build, bundle,
+  branding, deployment, and Community Applications metadata validation.
+
 ## [2.0.39-rc.4] - 2026-08-09
 
 ### Changed
@@ -2223,7 +2247,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.39-rc.4...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.39...HEAD
+[2.0.39]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.38...v2.0.39
 [2.0.39-rc.4]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.39-rc.3...v2.0.39-rc.4
 [2.0.39-rc.3]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.39-rc.2...v2.0.39-rc.3
 [2.0.39-rc.2]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.39-rc.1...v2.0.39-rc.2
