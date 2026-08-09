@@ -7,10 +7,17 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.39-rc.2] - 2026-08-09
+
 ### Fixed
 
 - Made trailer actions clickable, normalized their label to **Watch trailer**, and added a muted official YouTube hero fallback when no local trailer exists.
 - Kept Movie and TV library direction changes tied to the selected sort field, including correct release-date and first-aired ordering across paged results.
+
+### Validation
+
+- Passed all 229 automated tests plus TypeScript, production build, bundle,
+  branding, and deployment validation.
 
 ## [2.0.39-rc.1] - 2026-08-09
 
@@ -2190,7 +2197,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.39-rc.1...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.39-rc.2...HEAD
+[2.0.39-rc.2]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.39-rc.1...v2.0.39-rc.2
 [2.0.39-rc.1]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.38...v2.0.39-rc.1
 [2.0.36-rc.5]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.36-rc.4...v2.0.36-rc.5
 [2.0.36-rc.4]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.36-rc.3...v2.0.36-rc.4
