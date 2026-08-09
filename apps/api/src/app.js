@@ -3713,14 +3713,20 @@ export function createApplication(options = {}) {
       throw new Error("Choose Movies or Television");
     const targetRoot = normalizeMediaPath(targetPath),
       sourceFilter = normalizeMediaPath(requestedSource),
-      [rootsValue, libraryValue] = await Promise.all([
+      [rootsValue, libraryValue, collectionsValue] = await Promise.all([
         management.execute(domain, "rootFolders", "GET", {}),
         management.execute(domain, "library", "GET", {}),
+        domain === "movie"
+          ? management.execute("movie", "collections", "GET", {}).catch(() => [])
+          : Promise.resolve([]),
       ]),
       roots = Array.isArray(rootsValue) ? rootsValue : [],
       library = Array.isArray(libraryValue)
         ? libraryValue
-        : libraryValue?.records || [];
+        : libraryValue?.records || [],
+      collections = Array.isArray(collectionsValue)
+        ? collectionsValue
+        : collectionsValue?.records || [];
     if (!roots.some((root) => normalizeMediaPath(root.path) === targetRoot))
       throw new Error("Choose a library folder registered with this engine");
     let targetIdentity;
@@ -3760,7 +3766,16 @@ export function createApplication(options = {}) {
           };
         })
         .filter((item) => Number.isFinite(item.id));
-      matches.push({ sourceRoot, targetRoot, affected });
+      const affectedCollections = collections
+        .filter((item) => normalizeMediaPath(item.rootFolderPath) === sourceRoot)
+        .map((item) => ({
+          id: Number(item.id),
+          title: item.title || item.name || `Collection ${item.id}`,
+          oldPath: sourceRoot,
+          newPath: targetRoot,
+        }))
+        .filter((item) => Number.isFinite(item.id));
+      matches.push({ sourceRoot, targetRoot, affected, affectedCollections });
     }
     matches.sort((left, right) => right.affected.length - left.affected.length);
     return {
@@ -5646,24 +5661,76 @@ export function createApplication(options = {}) {
       );
     }
     if (record.domain === "movie" && searchRequested) {
-      const command = await management.execute("movie", "commands", "POST", {
-        payload: { name: "MoviesSearch", movieIds: [result.id] },
-      });
-      await createSearchActivity(
-        record.userId,
-        { name: "MoviesSearch", movieIds: [result.id] },
-        command,
-        {
-          domain: "movie",
+      const query = { movieId: Number(result.id) };
+      let grabbed = false;
+      try {
+        const releases = await management.execute("movie", "releases", "GET", {
+            query: query,
+          }),
+          candidates = Array.isArray(releases) ? releases : [],
+          accepted = candidates.filter(eligibleRelease);
+        await recordDownloadDecisions(record.userId, "movie", query, candidates, {
           source: "request",
-          scope: "movie",
-          movieId: result.id,
-          title: result.title || metadata.title || record.title,
-          status: "searching",
-          message:
-            "Request added to the library; searching for an accepted movie release.",
-        },
-      );
+        });
+        if (accepted.length) {
+          accepted.sort(compareReleases);
+          const selected = accepted[0],
+            grab = await management.execute("movie", "releases", "POST", {
+              payload: await reacquireRelease("movie", selected),
+            });
+          await recordDownloadDecisions(record.userId, "movie", query, candidates, {
+            source: "request",
+            selected: releaseIdentity(selected),
+          });
+          await createSearchActivity(
+            record.userId,
+            { name: "MoviesSearch", movieIds: [result.id] },
+            grab,
+            {
+              domain: "movie",
+              source: "request",
+              scope: "movie",
+              movieId: result.id,
+              title: result.title || metadata.title || record.title,
+              status: "grabbed",
+              message:
+                "Request added and an accepted release was sent to the download client.",
+              selection: {
+                title: selected.title,
+                quality:
+                  selected.quality?.quality?.name ||
+                  selected.quality?.name ||
+                  "Unknown",
+                size: Number(selected.size || 0),
+              },
+            },
+          );
+          clearReleaseCache("movie");
+          grabbed = true;
+        }
+      } catch {
+        // Older engines may not enumerate releases immediately after a movie is added.
+      }
+      if (!grabbed) {
+        const command = await management.execute("movie", "commands", "POST", {
+          payload: { name: "MoviesSearch", movieIds: [result.id] },
+        });
+        await createSearchActivity(
+          record.userId,
+          { name: "MoviesSearch", movieIds: [result.id] },
+          command,
+          {
+            domain: "movie",
+            source: "request",
+            scope: "movie",
+            movieId: result.id,
+            title: result.title || metadata.title || record.title,
+            status: "searching",
+            message:
+              "Request added to the library; searching for an accepted movie release.",
+          },
+        );
+      }
     }
     const updatedAt = new Date().toISOString();
     await requestStore.update((current) => {
@@ -8546,14 +8613,26 @@ export function createApplication(options = {}) {
                 moveFiles: false,
               },
             });
+          let collectionsUpdated = 0;
+          if (domain === "movie" && input.final !== false) {
+            const collections = await management.execute("movie", "collections", "GET", {}).catch(() => []);
+            for (const collection of Array.isArray(collections) ? collections : collections?.records || []) {
+              if (!Number.isFinite(Number(collection.id)) || normalizeMediaPath(collection.rootFolderPath) !== sourceRoot) continue;
+              await management.execute("movie", "collections", "PUT", {
+                id: Number(collection.id),
+                payload: { ...collection, rootFolderPath: targetRoot },
+              });
+              collectionsUpdated += 1;
+            }
+          }
           if (ids.length && input.final !== false) await sync.synchronize(domain);
           await recordAudit(session, {
             category: "configuration",
             action: "library_paths.migrated",
             target: `${sourceRoot} to ${targetRoot}`,
             domain,
-            summary: `Updated ${ids.length} ${domain === "movie" ? "movie" : "television"} path${ids.length === 1 ? "" : "s"} without moving files.`,
-            metadata: { sourceRoot, targetRoot, updated: ids.length, moveFiles: false },
+            summary: `Updated ${ids.length} ${domain === "movie" ? "movie" : "television"} path${ids.length === 1 ? "" : "s"}${collectionsUpdated ? ` and ${collectionsUpdated} collection path${collectionsUpdated === 1 ? "" : "s"}` : ""} without moving files.`,
+            metadata: { sourceRoot, targetRoot, updated: ids.length, collectionsUpdated, moveFiles: false },
           });
           return json(res, 200, {
             migrated: true,
@@ -8561,7 +8640,9 @@ export function createApplication(options = {}) {
             sourceRoot,
             targetRoot,
             updated: ids.length,
+            collectionsUpdated,
             affected: match.affected,
+            affectedCollections: match.affectedCollections || [],
           });
         }
         if (url.pathname === "/api/storage/available-library-folders" && req.method === "GET") {

@@ -413,6 +413,11 @@ test('Discover progressively loads and owns title details and requests through a
   assert.match(request,/tmdbId:resolvedItem\.tmdbId/);
   assert.match(discover,/onRequested=\{requested=>/);
   assert.match(discover,/libraryKeys\(requested\.domain,requested\.title,requested\.year\)/);
+  assert.match(discover,/changeDomain\(value\)/);
+  assert.match(discover,/Hide titles already in library/);
+  assert.match(discover,/Highest rated/);
+  assert.match(discover,/streamingProviderIds/);
+  assert.match(styles,/\.discover-results-filters/);
   assert.doesNotMatch(detail,/vynodearr:discover-request/);
   assert.match(islands,/mountDiscover/);
   assert.match(islands,/preloadRoute/);
@@ -521,6 +526,9 @@ test('storage folders and import review use a typed React route and analysis bou
   assert.match(migration,/Ignore and scan anyway/);
   assert.match(migration,/Update .* existing locations/);
   assert.match(migration,/Updated .* of .* locations/);
+  assert.match(migration,/movie collections use the old root/);
+  assert.match(types,/affectedCollections/);
+  assert.match(migrationApi,/collectionsUpdated/);
   assert.match(migration,/estimated time remaining|Estimating time remaining/i);
   assert.match(view,/index \+= 100/);
   assert.match(view,/\/rootFolders/);

@@ -26,6 +26,15 @@ test('TMDB browse uses category parameters and fixed Seerr category counts',asyn
   assert.equal(studios.length,11);assert.equal(networks.length,22);
 });
 
+test('TMDB browse filters movie and television catalogs by streaming provider',async()=>{
+  const requested=[];
+  const service=new TmdbDiscoveryService({token:'test-token',fetcher:async url=>{requested.push(String(url));return response({page:1,total_pages:1,total_results:0,results:[]});}});
+  await service.browse({domain:'movie',provider:8});
+  await service.browse({domain:'tv',provider:8});
+  assert.equal(requested.length,2);
+  for(const url of requested){assert.match(url,/with_watch_providers=8/);assert.match(url,/watch_region=US/);}
+});
+
 test('TMDB studio and network categories use official brand logos',async()=>{
   const service=new TmdbDiscoveryService({token:'test-token',fetcher:async url=>{
     const path=new URL(url).pathname;

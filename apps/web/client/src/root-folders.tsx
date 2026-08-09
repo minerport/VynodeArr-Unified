@@ -242,17 +242,17 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
     const match = migration?.preview.match;
     if (!migration || !match) return;
     setBusy("migration");
-    const ids = match.affected.map((item) => item.id), total = ids.length;
+    const ids = match.affected.map((item) => item.id), total = ids.length + (match.affectedCollections?.length || 0);
     setMigrationProgress({ completed: 0, total, startedAt: Date.now() });
     try {
       const { applyPathMigration } = await import("./root-folder-migration");
       let updated = 0;
-      for (let index = 0; index < ids.length; index += 100) {
+      for (let index = 0; index < Math.max(ids.length, 1); index += 100) {
         const batch = ids.slice(index, index + 100), result = await applyPathMigration(options, domain, match, batch, index + batch.length >= ids.length);
-        updated += result.updated;
+        updated += result.updated + (result.collectionsUpdated || 0);
         setMigrationProgress((current) => current ? { ...current, completed: Math.min(total, updated) } : current);
       }
-      options.notify(`${updated} existing ${domain === "movie" ? "movie" : "television"} location${updated === 1 ? "" : "s"} updated. No files were moved.`);
+      options.notify(`${updated} location${updated === 1 ? "" : "s"} updated. No files were moved.`);
       setMigration(null);
       setMigrationProgress(null);
       await load();

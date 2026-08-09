@@ -7,6 +7,26 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.40-rc.8] - 2026-08-09
+
+### Fixed
+
+- Same-folder root migrations now update movie-engine collection root paths in
+  addition to individual movie locations, preventing stale legacy-root health
+  warnings after switching from `/movies` to a `/media` path.
+
+- Discover movie requests now explicitly grab the highest-ranked accepted
+  release and send it to the download client, with native background search as
+  a compatibility fallback when immediate release enumeration is unavailable.
+
+- Discover's Movies and TV buttons now reload matching genre and supported
+  streaming-service results instead of changing only the selected button.
+
+### Added
+
+- Genre and service result grids can hide titles already available in the
+  library and sort loaded results by recommendation, rating, year, or title.
+
 ## [2.0.40-rc.7] - 2026-08-09
 
 ### Added
@@ -2369,7 +2389,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.40-rc.7...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.40-rc.8...HEAD
+[2.0.40-rc.8]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.40-rc.7...v2.0.40-rc.8
 [2.0.40-rc.7]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.40-rc.6...v2.0.40-rc.7
 [2.0.40-rc.6]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.40-rc.5...v2.0.40-rc.6
 [2.0.40-rc.5]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.40-rc.4...v2.0.40-rc.5

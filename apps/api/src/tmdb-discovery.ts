@@ -2,7 +2,7 @@ const IMAGE_ROOT='https://image.tmdb.org/t/p/';
 type MediaDomain='movie'|'tv';
 type JsonRecord=Record<string,any>;
 type CacheEntry={expires:number,value:any};
-type BrowseOptions={domain:MediaDomain;genre?:number|string;company?:number|string;network?:number|string;page?:number;query?:string};
+type BrowseOptions={domain:MediaDomain;genre?:number|string;company?:number|string;network?:number|string;provider?:number|string;page?:number;query?:string};
 type DiscoveryOptions={token?:string;fetcher?:typeof fetch;language?:string};
 
 export const studios=[
@@ -73,7 +73,7 @@ export class TmdbDiscoveryService{
     const route=routes[kind];if(!route)throw new Error('Unknown discovery feed');
     return this.page(await this.request(route[0],{...route[1],page:asPage(page)}),route[2]);
   }
-  async browse({domain,genre,company,network,page=1,query}:BrowseOptions){
+  async browse({domain,genre,company,network,provider,page=1,query}:BrowseOptions){
     if(!['movie','tv'].includes(domain))throw new Error('Choose movies or television');
     if(query){
       const path=domain==='movie'?'/search/movie':'/search/tv';
@@ -81,8 +81,9 @@ export class TmdbDiscoveryService{
     }
     const params:JsonRecord={page:asPage(page),sort_by:'popularity.desc',include_adult:false};
     if(genre)params.with_genres=genre;
-    if(company&&domain==='movie')params.with_companies=company;
+    if(company)params.with_companies=company;
     if(network&&domain==='tv')params.with_networks=network;
+    if(provider){params.with_watch_providers=provider;params.watch_region='US';}
     return this.page(await this.request(`/discover/${domain}`,params),domain);
   }
   async genres(domain:MediaDomain){

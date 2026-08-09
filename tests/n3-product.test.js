@@ -359,6 +359,34 @@ test('user page permissions are enforced by APIs and update active sessions imme
   assert.ok(audit.some(item=>item.action==='user.permissions'&&item.metadata.targetUserId===created.id));
   assert.ok(audit.some(item=>item.action==='user.request_limits_removed'&&item.metadata.targetUserId===created.id));
 }));
+test('Discover movie requests explicitly grab the highest-ranked accepted release',()=>{
+  const library=[],commands=[],grabs=[];
+  const release={guid:'release-guid',indexerId:7,movieId:99,title:'Requested.Movie.2026.1080p',size:4_000_000_000,rejected:false,quality:{quality:{name:'Bluray-1080p'}}};
+  const movieClient={
+    get:async(path)=>{
+      if(path==='qualityprofile')return[{id:1,name:'HD'}];
+      if(path==='rootfolder')return[{id:1,path:'/movies'}];
+      if(path==='movie')return library;
+      if(path==='release')return[release];
+      if(path==='queue'||path==='history')return{records:[]};
+      throw new Error(`Unexpected movie GET ${path}`);
+    },
+    post:async(path,payload)=>{
+      if(path==='command'){commands.push(payload);return{id:501,name:payload.name,status:'queued'};}
+      if(path==='release'){grabs.push(payload);return{id:700};}
+      assert.equal(path,'movie');const result={...payload,id:99,title:'Requested Film',year:2026,hasFile:false};library.push(result);return result;
+    },
+    delete:async()=>({})
+  };
+  const discovery={token:'test-discovery-token',configured:()=>true,setToken:()=>{},details:async(_domain,id)=>({tmdbId:Number(id),tvdbId:null,title:'Requested Film',year:2026,poster:null,backdrop:null,overview:'A direct Discover request.',rating:8,genres:['Drama'],runtime:100,certification:'PG-13'})};
+  return appSession({movie:Object.assign(new MovieFixtureAdapter(),{client:movieClient,listMovies:async()=>library}),tv:new TvFixtureAdapter(),discovery},async({base,cookie,csrf})=>{
+    const requested=await fetch(`${base}/api/discover/request`,{method:'POST',headers:{cookie,'content-type':'application/json','x-vynodearr-csrf':csrf},body:JSON.stringify({domain:'movie',tmdbId:321,payload:{tmdbId:321,title:'Requested Film',year:2026,rootFolderPath:'/movies',qualityProfileId:1,monitored:true,addOptions:{searchForMovie:true}}})}),value=await requested.json();
+    assert.equal(requested.status,201,JSON.stringify(value));
+    assert.equal(grabs.length,1);assert.equal(grabs[0].guid,'release-guid');assert.deepEqual(commands,[]);
+    const activities=(await (await fetch(`${base}/api/search-activities`,{headers:{cookie}})).json()).items;
+    assert.ok(activities.some(item=>item.source==='request'&&item.status==='grabbed'&&item.movieId===99));
+  });
+});
 test('approval-required Discover requests stay out of the engine until an administrator approves them',()=>{
   const library=[],posts=[],commands=[];
   const movieClient={

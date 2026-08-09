@@ -35,7 +35,10 @@ const mergeUnique=(pages:DiscoverPage[])=>{
   const seen=new Set<string>();
   return pages.flatMap(page=>page.results).filter(item=>!seen.has(item.id)&&Boolean(seen.add(item.id)));
 };
-type BrowseContext={domain:DiscoverDomain;returnDomain:'all'|DiscoverDomain;parameter:'genre'|'company'|'network';id:number;page:number;totalPages:number;totalResults:number;loading:boolean};
+type BrowseParameter='genre'|'company'|'network'|'provider';
+type BrowseContext={domain:'all'|DiscoverDomain;returnDomain:'all'|DiscoverDomain;parameter:BrowseParameter;id:number;name:string;taxonomy:'genre'|'studio'|'network';page:number;totalPages:number;totalResults:number;loading:boolean};
+type BrowseSort='recommended'|'rating'|'newest'|'oldest'|'title';
+const streamingProviderIds:Record<string,number>={'netflix':8,'disney+':337,'prime video':119,'apple tv+':350,'hulu':15,'hbo':1899,'discovery+':510,'showtime':37,'starz':43,'paramount+':531,'peacock':386};
 const libraryStatus=(domain:DiscoverDomain,item:LibraryItem):DiscoverLibraryStatus=>{
   if(domain==='movie')return item.hasFile||Number(item.sizeOnDisk||0)>0?'available':'pending';
   return Number.parseInt(item.episodeProgress||'0',10)>0||Number(item.sizeOnDisk||0)>0?'available':'pending';
@@ -84,6 +87,7 @@ export function DiscoverView({options}:{options:DiscoverMountOptions}){
   const [searchResults,setSearchResults]=useState<DiscoverItem[]|null>(null);
   const [resultTitle,setResultTitle]=useState('');
   const [browseContext,setBrowseContext]=useState<BrowseContext|null>(null);
+  const [hideLibrary,setHideLibrary]=useState(false),[browseSort,setBrowseSort]=useState<BrowseSort>('recommended');
   const [error,setError]=useState(''),[allowance,setAllowance]=useState<RequestAllowance|null>(null);
   const browseRequest=useRef(0);
 
@@ -140,9 +144,14 @@ export function DiscoverView({options}:{options:DiscoverMountOptions}){
 
   const featured=rows.trending?.find(item=>item.backdrop)||rows.trending?.[0];
   const visible=useMemo(()=>feeds.filter(([kind])=>domain==='all'||(domain==='movie'&&kind.includes('movie'))||(domain==='tv'&&kind.includes('tv'))),[domain]);
+  const displayedResults=useMemo(()=>{
+    const values=(searchResults||[]).filter(item=>(domain==='all'||item.domain===domain)&&(!browseContext||!hideLibrary||findLibraryStatus(library,item)!=='available'));
+    if(!browseContext||browseSort==='recommended')return values;
+    return [...values].sort((left,right)=>browseSort==='rating'?right.rating-left.rating:browseSort==='newest'?(right.year||0)-(left.year||0):browseSort==='oldest'?(left.year||9999)-(right.year||9999):left.title.localeCompare(right.title));
+  },[searchResults,domain,hideLibrary,browseSort,library,browseContext]);
   const open=useCallback((item:DiscoverItem)=>setSelected(item),[]);
   const loadBrowsePages=useCallback(async(context:BrowseContext,start:number,count:number,replace=false)=>{
-    if(context.loading||start>context.totalPages)return;
+    if(context.domain==='all'||context.loading||start>context.totalPages)return;
     const requestId=++browseRequest.current,end=Math.min(context.totalPages,start+count-1);
     setBrowseContext(current=>current?{...current,loading:true}:current);
     try{
@@ -162,17 +171,43 @@ export function DiscoverView({options}:{options:DiscoverMountOptions}){
     }
   },[options]);
   const browse=useCallback((item:DiscoverCategory&{taxonomy:'genre'|'studio'|'network'})=>{
-    const parameter=item.taxonomy==='genre'?'genre':item.taxonomy==='studio'?'company':'network',requestId=++browseRequest.current;
+    const providerId=item.taxonomy==='network'?streamingProviderIds[item.name.toLowerCase()]:undefined,
+      parameter:BrowseParameter=item.taxonomy==='genre'?'genre':item.taxonomy==='studio'?'company':providerId?'provider':'network',requestId=++browseRequest.current,
+      browseId=providerId||item.id;
     setQuery('');setDomain(item.domain);setResultTitle(item.name);setSearchResults([]);
-    const firstPath=`/api/discover/browse?domain=${item.domain}&${parameter}=${item.id}&page=1`;
-    void cachedRequest(`discover:browse:${item.domain}:${parameter}:${item.id}:1`,()=>options.request<DiscoverPage>(firstPath),5*60_000).then(first=>{
+    const firstPath=`/api/discover/browse?domain=${item.domain}&${parameter}=${browseId}&page=1`;
+    void cachedRequest(`discover:browse:${item.domain}:${parameter}:${browseId}:1`,()=>options.request<DiscoverPage>(firstPath),5*60_000).then(first=>{
       if(requestId!==browseRequest.current)return;
-      const context:BrowseContext={domain:item.domain,returnDomain:domain,parameter,id:item.id,page:0,totalPages:first.totalPages,totalResults:first.totalResults,loading:false};
+      const context:BrowseContext={domain:item.domain,returnDomain:domain,parameter,id:browseId,name:item.name,taxonomy:item.taxonomy,page:0,totalPages:first.totalPages,totalResults:first.totalResults,loading:false};
       setBrowseContext(context);
       if(first.totalPages<=1){setSearchResults(first.results);setBrowseContext({...context,page:1});return;}
       void loadBrowsePages(context,1,5,true);
     }).catch(reason=>options.notify(reason instanceof Error?reason.message:'Collection unavailable.','error'));
   },[domain,loadBrowsePages,options]);
+  const browseSelection=useCallback((context:BrowseContext,target:DiscoverDomain):{parameter:BrowseParameter;id:number}|null=>{
+    if(context.taxonomy==='genre'){
+      const match=taxonomies[target].find(item=>item.name.toLowerCase()===context.name.toLowerCase());
+      return match?{parameter:'genre',id:match.id}:null;
+    }
+    if(context.taxonomy==='studio')return{parameter:'company',id:context.id};
+    const providerId=streamingProviderIds[context.name.toLowerCase()];
+    if(providerId)return{parameter:'provider',id:providerId};
+    return target==='tv'?{parameter:'network',id:context.id}:null;
+  },[taxonomies]);
+  const changeDomain=useCallback((value:'all'|DiscoverDomain)=>{
+    if(!browseContext){setDomain(value);return;}
+    const requestId=++browseRequest.current,targets:DiscoverDomain[]=value==='all'?['movie','tv']:[value],selections=targets.map(target=>({target,selection:browseSelection(browseContext,target)})).filter((entry):entry is {target:DiscoverDomain;selection:{parameter:BrowseParameter;id:number}}=>Boolean(entry.selection));
+    if(!selections.length){options.notify(`${browseContext.name} does not have a matching ${value==='movie'?'movie':'television'} catalog.`,'error');return;}
+    setDomain(value);setSearchResults([]);setBrowseContext(current=>current?{...current,domain:value,loading:true}:current);
+    void Promise.all(selections.map(async({target,selection})=>{
+      const first=await cachedRequest(`discover:browse:${target}:${selection.parameter}:${selection.id}:1`,()=>options.request<DiscoverPage>(`/api/discover/browse?domain=${target}&${selection.parameter}=${selection.id}&page=1`),5*60_000),end=Math.min(first.totalPages,5),rest=await Promise.all(Array.from({length:Math.max(0,end-1)},(_,index)=>{const page=index+2;return cachedRequest(`discover:browse:${target}:${selection.parameter}:${selection.id}:${page}`,()=>options.request<DiscoverPage>(`/api/discover/browse?domain=${target}&${selection.parameter}=${selection.id}&page=${page}`),5*60_000);}));
+      return{target,selection,pages:[first,...rest]};
+    })).then(groups=>{
+      if(requestId!==browseRequest.current)return;
+      const results=mergeUnique(groups.flatMap(group=>group.pages)),totalResults=groups.reduce((sum,group)=>sum+group.pages[0].totalResults,0),single=groups.length===1?groups[0]:null;
+      setSearchResults(results);setBrowseContext(current=>current?{...current,domain:value,parameter:single?.selection.parameter||current.parameter,id:single?.selection.id||current.id,page:single?Math.min(single.pages[0].totalPages,5):1,totalPages:single?.pages[0].totalPages||1,totalResults,loading:false}:current);
+    }).catch(reason=>{if(requestId===browseRequest.current){setBrowseContext(current=>current?{...current,loading:false}:current);options.notify(reason instanceof Error?reason.message:'Collection unavailable.','error');}});
+  },[browseContext,browseSelection,options]);
   const closeBrowse=useCallback(()=>{
     browseRequest.current+=1;
     const returnDomain=browseContext?.returnDomain||'all';
@@ -191,10 +226,11 @@ export function DiscoverView({options}:{options:DiscoverMountOptions}){
     }}/>:null}
     {allowance?.enabled?<div className="request-allowance-banner"><strong>Your request allowance</strong><span>{allowance.movie.limit==null?'Movies unlimited':`${allowance.movie.remaining} of ${allowance.movie.limit} movies remaining`} · {allowance.tv.limit==null?'TV unlimited':`${allowance.tv.remaining} of ${allowance.tv.limit} TV series remaining`} · {allowance.pending.limit==null?'Pending unlimited':`${allowance.pending.remaining} pending slots available`} · Resets {allowance.period}</span></div>:null}
     {featured?<section className="discover-hero"><div className="discover-hero-backdrop">{(featured.backdrop||featured.poster)?<img src={featured.backdrop||featured.poster||''} alt=""/>:null}</div><div className="discover-hero-shade"/><div className="discover-hero-copy"><span className="eyebrow">TRENDING TODAY</span><h1>{featured.title}</h1><p>{featured.overview}</p><div className="discover-meta"><span>★ {featured.rating.toFixed(1)}</span><span>{featured.year||'TBA'}</span></div><button className="primary" onClick={()=>open(featured)}>View details</button></div></section>:<section className="discover-hero skeleton"><div className="discover-hero-copy"><span className="eyebrow">DISCOVER</span><h1>Loading trending titles…</h1></div></section>}
-    <section className="discover-toolbar"><label className="discover-search"><span>⌕</span><input type="search" value={query} onChange={event=>setQuery(event.target.value)} placeholder="Search all TMDB movies and television"/></label><div className="discover-domain-filter">{(['all','movie','tv'] as const).map(value=><button className={`chip${domain===value?' selected':''}`} onClick={()=>setDomain(value)} key={value}>{value==='all'?'Everything':value==='movie'?'Movies':'TV'}</button>)}</div><span className="discover-source">Live TMDB discovery · no Plex dependency</span></section>
+    <section className="discover-toolbar"><label className="discover-search"><span>⌕</span><input type="search" value={query} onChange={event=>setQuery(event.target.value)} placeholder="Search all TMDB movies and television"/></label><div className="discover-domain-filter">{(['all','movie','tv'] as const).map(value=><button className={`chip${domain===value?' selected':''}`} onClick={()=>changeDomain(value)} key={value}>{value==='all'?'Everything':value==='movie'?'Movies':'TV'}</button>)}</div><span className="discover-source">Live TMDB discovery · no Plex dependency</span></section>
+    {browseContext?<section className="discover-results-filters" aria-label="Browse result filters"><label><input type="checkbox" checked={hideLibrary} onChange={event=>setHideLibrary(event.target.checked)}/> Hide titles already in library</label><label>Sort results<select value={browseSort} onChange={event=>setBrowseSort(event.target.value as BrowseSort)}><option value="recommended">Recommended</option><option value="rating">Highest rated</option><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="title">Title A–Z</option></select></label></section>:null}
     <div id="discover-rows">
       {error&&!Object.keys(rows).length?<div className="empty error-state"><h2>Connect Discover to TMDB</h2><p>{error}</p>{options.administrator?<a className="primary button-link" href="#service/discover">Configure Discover</a>:null}</div>:null}
-      {searchResults?<Row title={resultTitle||'Browse results'} subtitle={browseContext?`${searchResults.length.toLocaleString()} of ${browseContext.totalResults.toLocaleString()} TMDB titles`:'Live TMDB title search'} items={searchResults} library={library} onOpen={open} grid={Boolean(browseContext)} onBack={browseContext?closeBrowse:undefined} onMore={browseContext&&browseContext.page<browseContext.totalPages&&!browseContext.loading?()=>void loadBrowsePages(browseContext,browseContext.page+1,3):undefined}/>:visible.map(([kind,title,subtitle])=>{
+      {searchResults?<Row title={resultTitle||'Browse results'} subtitle={browseContext?`${displayedResults.length.toLocaleString()} shown · ${searchResults.length.toLocaleString()} loaded of ${browseContext.totalResults.toLocaleString()} TMDB titles`:'Live TMDB title search'} items={displayedResults} library={library} onOpen={open} grid={Boolean(browseContext)} onBack={browseContext?closeBrowse:undefined} onMore={browseContext&&browseContext.domain!=='all'&&browseContext.page<browseContext.totalPages&&!browseContext.loading?()=>void loadBrowsePages(browseContext,browseContext.page+1,3):undefined}/>:visible.map(([kind,title,subtitle])=>{
         const items=rows[kind]||[];if(!items.length)return <section className="discover-row skeleton" key={kind}><div className="discover-row-heading"><h2>{title}</h2></div></section>;
         return <div key={kind}><Row title={title} subtitle={subtitle} items={items} library={library} onOpen={open} onMore={()=>loadFeed(kind,(pages[kind]||1)+1).catch(()=>{})}/>
           {kind==='popular_movies'?<><Taxonomy title="Movie genres" kind="genre" items={taxonomies.movie} onSelect={browse}/><Taxonomy title="Studios" kind="studio" items={taxonomies.studios} onSelect={browse}/></>:null}

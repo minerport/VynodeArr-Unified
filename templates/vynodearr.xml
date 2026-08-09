@@ -17,7 +17,7 @@
   <TemplateURL>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/templates/vynodearr.xml</TemplateURL>
   <Icon>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/assets/branding/VynodeArr.png</Icon>
   <ReadMe>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/README.md</ReadMe>
-  <Changes>2.0.40-rc.7: Same-folder migrations show real batch progress, percentage, elapsed time, and estimated time remaining. Main /media folders can be expanded recursively so administrators can register deeper movie or television library locations.</Changes>
+  <Changes>2.0.40-rc.8: Discover requests explicitly send accepted movie releases to the download client. Genre and service views support working media filters, library exclusion, and sorting. Same-folder migrations now update movie collection roots as well as individual titles.</Changes>
   <Date>2026-08-09</Date>
   <MinVer>6.12</MinVer>
   <License>Apache-2.0</License>
