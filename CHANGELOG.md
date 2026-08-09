@@ -7,9 +7,16 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.39-rc.4] - 2026-08-09
+
 ### Changed
 
 - Prefer matched Plex trailer extras when Plex is connected, proxying protected range requests through VynodeArr before falling back to a local trailer, TMDB, and finally hero artwork.
+
+### Validation
+
+- Passed all 231 automated tests plus TypeScript, production build, bundle,
+  branding, and deployment validation.
 
 ## [2.0.39-rc.3] - 2026-08-09
 
@@ -2212,7 +2219,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.39-rc.3...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.39-rc.4...HEAD
+[2.0.39-rc.4]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.39-rc.3...v2.0.39-rc.4
 [2.0.39-rc.3]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.39-rc.2...v2.0.39-rc.3
 [2.0.39-rc.2]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.39-rc.1...v2.0.39-rc.2
 [2.0.39-rc.1]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.38...v2.0.39-rc.1
