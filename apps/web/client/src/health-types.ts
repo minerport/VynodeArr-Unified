@@ -6,6 +6,12 @@ export interface HealthItem {
   severity?:string|null;
   message:string;
   source?:string|null;
+  recovery?:{
+    kind:'removed-tmdb';
+    oldTmdbId:number|null;
+    libraryItem:{id:number;title:string;year:number|null}|null;
+    replacement:{tmdbId:number;title:string;year:number|null}|null;
+  }|null;
 }
 
 export interface HealthMountOptions {

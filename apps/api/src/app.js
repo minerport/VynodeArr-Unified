@@ -552,6 +552,7 @@ export function createApplication(options = {}) {
     new JsonStore(join(dataDir, "operations-center.json"), {
       version: 1,
       dismissed: {},
+      healthDismissed: {},
     });
   const guideTemplateStore =
     options.guideTemplateStore ||
@@ -14543,10 +14544,77 @@ export function createApplication(options = {}) {
         }
         if (url.pathname === "/api/system/health") {
           if (!administrator(res, session)) return;
-          return json(res, 200, {
-            items: await sync.operations("health"),
-            sync: sync.snapshot(),
+          const [reported, state, movies] = await Promise.all([
+              sync.operations("health"),
+              operationsCenterStore.read(),
+              sync.list("movie").catch(() => []),
+            ]),
+            healthDismissed = state.healthDismissed || {},
+            normalizedTitle = (value) =>
+              String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, ""),
+            items = [];
+          for (const raw of reported) {
+            const stableId = `health_${createHash("sha1")
+              .update(`${raw.domain || "media"}:${raw.source || ""}:${raw.message || ""}`)
+              .digest("hex")
+              .slice(0, 20)}`;
+            if (healthDismissed[stableId]) continue;
+            const item = { ...raw, id: stableId };
+            if (raw.domain === "movie" && /RemovedMovieCheck/i.test(String(raw.source || ""))) {
+              const oldTmdbId = Number(String(raw.message || "").match(/tmdbid\s*(\d+)/i)?.[1] || 0),
+                warningTitle = String(raw.message || "")
+                  .replace(/\s*\(tmdbid\s*\d+\).*$/i, "")
+                  .replace(/\s+was removed from TMDb.*$/i, "")
+                  .trim(),
+                warningKey = normalizedTitle(warningTitle),
+                libraryItem = movies.find((movie) =>
+                  (oldTmdbId > 0 && Number(movie.tmdbId) === oldTmdbId) ||
+                  (warningKey && normalizedTitle(movie.title) === warningKey));
+              let replacement = null;
+              if (libraryItem && discovery.configured())
+                replacement = await discovery.enrich("movie", { title: libraryItem.title, year: libraryItem.year }).catch(() => null);
+              item.recovery = {
+                kind: "removed-tmdb",
+                oldTmdbId: oldTmdbId || null,
+                libraryItem: libraryItem ? {
+                  id: Number(String(libraryItem.id || "").match(/(\d+)$/)?.[1]),
+                  title: libraryItem.title,
+                  year: libraryItem.year || null,
+                } : null,
+                replacement: replacement && Number(replacement.tmdbId) !== oldTmdbId ? {
+                  tmdbId: Number(replacement.tmdbId),
+                  title: replacement.title,
+                  year: replacement.year || null,
+                } : null,
+              };
+            }
+            items.push(item);
+          }
+          return json(res, 200, { items, sync: sync.snapshot() });
+        }
+        const healthActionMatch = url.pathname.match(/^\/api\/system\/health\/([^/]+)\/(dismiss|rematch)$/);
+        if (healthActionMatch && req.method === "POST") {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          const [, id, action] = healthActionMatch;
+          if (action === "dismiss") {
+            await operationsCenterStore.update((current) => {
+              current.healthDismissed = current.healthDismissed || {};
+              current.healthDismissed[id] = new Date().toISOString();
+              return current;
+            });
+            return json(res, 200, { dismissed: true, id });
+          }
+          const input = await body(req), result = await rematchMedia({
+            domain: "movie",
+            mediaId: Number(input.mediaId),
+            tmdbId: Number(input.tmdbId),
           });
+          await operationsCenterStore.update((current) => {
+            current.healthDismissed = current.healthDismissed || {};
+            current.healthDismissed[id] = new Date().toISOString();
+            return current;
+          });
+          return json(res, 200, { matched: true, result });
         }
         if (url.pathname === "/api/dashboard") {
           if (!permitted(res, session, "dashboard")) return;

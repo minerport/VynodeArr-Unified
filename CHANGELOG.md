@@ -7,6 +7,17 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.36-rc.19] - 2026-08-08
+
+### Added
+
+- Added guided recovery for movie-engine warnings caused by TMDB removing a
+  title: VynodeArr now checks the movie library and searches for a valid
+  replacement match.
+- Added confirmed in-place rematching that retains files and library settings,
+  plus a durable dismiss action when the affected title is absent or no valid
+  replacement exists.
+
 ## [2.0.36-rc.18] - 2026-08-08
 
 ### Changed

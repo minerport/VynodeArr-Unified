@@ -301,6 +301,10 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(health,/export function HealthView/);
   assert.match(health,/Review root folders/);
   assert.match(health,/Review download clients/);
+  assert.match(health,/Update match/);
+  assert.match(health,/\/api\/system\/health\/\$\{encodeURIComponent\(item\.id\)\}\/dismiss/);
+  assert.match(health,/\/api\/system\/health\/\$\{encodeURIComponent\(item\.id\)\}\/rematch/);
+  assert.match(healthTypes,/kind:'removed-tmdb'/);
   assert.match(healthTypes,/interface HealthMountOptions/);
   assert.match(app,/showHealthReact/);
   assert.doesNotMatch(app,/function healthFix/);
