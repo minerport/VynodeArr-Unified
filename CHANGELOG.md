@@ -7,6 +7,11 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- Replaced the outdated GitHub and Unraid listing screenshots with a current
+  six-view product tour and added a linked VynodeArr walkthrough video.
+
 ## [2.0.38] - 2026-08-09
 
 ### Changed

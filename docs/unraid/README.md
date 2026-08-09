@@ -16,7 +16,6 @@ Before upgrading or uninstalling, create and download both configuration
 backups. The `/config` mapping contains all persistent application and engine
 state.
 
-Screenshots:
-
-- `first-run.png` — initial administrator wizard.
-- `dashboard.png` — post-login product dashboard.
+Current product screenshots are maintained in `../screenshots/`. The Unraid
+Community Applications listing highlights the dashboard and television library;
+the GitHub README includes the complete current product tour and walkthrough.

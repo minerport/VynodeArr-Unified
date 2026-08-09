@@ -21,8 +21,8 @@ Existing libraries are supported. Back up /config before upgrades or removal. Ra
   <Icon>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/assets/branding/VynodeArr.png</Icon>
   <ReadMe>https://github.com/minerport/VynodeArr-Unified#readme</ReadMe>
   <License>Apache-2.0; bundled Radarr and Sonarr engines GPL-3.0</License>
-  <Screenshot>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/docs/unraid/first-run.png</Screenshot>
-  <Screenshot>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/docs/unraid/dashboard.png</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/docs/screenshots/dashboard.png</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/docs/screenshots/tv-library.png</Screenshot>
   <ExtraParams>--user 99:100 --stop-timeout 60</ExtraParams>
   <PostArgs/>
   <CPUset/>

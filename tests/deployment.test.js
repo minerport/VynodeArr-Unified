@@ -53,11 +53,17 @@ test('1.0 release includes self-contained Unraid and Windows distributions',asyn
   assert.match(template,/Target="VYNODEARR_SECURE_COOKIES".*Default="false"/);
   assert.match(windows,/VYNODEARR_SECURE_COOKIES:\s*"false"/);
 });
-test('Unraid installation includes first-run and dashboard screenshots',async()=>{
-  await access(new URL('../docs/unraid/first-run.png',import.meta.url));
-  await access(new URL('../docs/unraid/dashboard.png',import.meta.url));
-  const text=await readFile(new URL('../docs/unraid/README.md',import.meta.url),'utf8');
-  assert.match(text,/first-run\.png/);assert.match(text,/dashboard\.png/);assert.match(text,/automatic file-schema migrations/i);
+test('README and Unraid metadata use the current product tour assets',async()=>{
+  const assets=['dashboard.png','discover.png','my-requests.png','collections.png','tv-library.png','poster-overlay-studio.png','vynodearr-walkthrough.mp4'];
+  await Promise.all(assets.map(asset=>access(new URL(`../docs/screenshots/${asset}`,import.meta.url))));
+  const [readme,unraid,template]=await Promise.all([
+    readFile(new URL('../README.md',import.meta.url),'utf8'),
+    readFile(new URL('../docs/unraid/README.md',import.meta.url),'utf8'),
+    readFile(new URL('../templates/vynodearr.xml',import.meta.url),'utf8')
+  ]);
+  for(const asset of assets)assert.match(readme,new RegExp(asset.replaceAll('.','\\.')));
+  assert.match(unraid,/current product screenshots/i);assert.match(unraid,/automatic file-schema migrations/i);
+  assert.match(template,/docs\/screenshots\/dashboard\.png/);assert.match(template,/docs\/screenshots\/tv-library\.png/);
 });
 
 test('bundled engines require authentication from every address by default',async()=>{

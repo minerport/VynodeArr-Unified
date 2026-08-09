@@ -23,27 +23,26 @@ and television engines; VynodeArr brings their library management, discovery,
 monitoring, acquisition, activity, and administration workflows into one
 consistent experience and account system.
 
-![VynodeArr movie library](docs/screenshots/movie-library.png)
+## Product tour
+
+<table>
+  <tr>
+    <td width="50%"><a href="docs/screenshots/dashboard.png"><img src="docs/screenshots/dashboard.png" alt="VynodeArr dashboard"></a><br><strong>Dashboard</strong> — library health, downloads, storage, and engine activity.</td>
+    <td width="50%"><a href="docs/screenshots/discover.png"><img src="docs/screenshots/discover.png" alt="VynodeArr discovery page"></a><br><strong>Discover</strong> — search TMDB and browse current movies and television.</td>
+  </tr>
+  <tr>
+    <td width="50%"><a href="docs/screenshots/tv-library.png"><img src="docs/screenshots/tv-library.png" alt="VynodeArr television library"></a><br><strong>Television library</strong> — filter, sort, and manage every series in one view.</td>
+    <td width="50%"><a href="docs/screenshots/collections.png"><img src="docs/screenshots/collections.png" alt="VynodeArr collections"></a><br><strong>Collections</strong> — build curated and rule-driven media collections.</td>
+  </tr>
+  <tr>
+    <td width="50%"><a href="docs/screenshots/my-requests.png"><img src="docs/screenshots/my-requests.png" alt="VynodeArr request tracking"></a><br><strong>My Requests</strong> — follow each request through approval, download, and import.</td>
+    <td width="50%"><a href="docs/screenshots/poster-overlay-studio.png"><img src="docs/screenshots/poster-overlay-studio.png" alt="VynodeArr poster overlay studio"></a><br><strong>Poster overlay studio</strong> — create reusable, conditional artwork styles with a live preview.</td>
+  </tr>
+</table>
+
+[Watch the current VynodeArr walkthrough (MP4)](docs/screenshots/vynodearr-walkthrough.mp4)
 
 ## Current release
-
-Version **2.0.37** is the current production release for Unraid, Windows, and
-standard Docker installations. It adds managed Reeltrack-to-Plex collections,
-official trailer placeholders, automatic Movie and Television registration,
-mixed-list Plex targets, and explicit host-path mapping when Plex and the media
-engines mount the same storage differently.
-
-Each synchronized list can have its own collection poster and title overlay.
-The artwork studio supports exact Plex previews, uploaded or gradient
-backgrounds, four-poster collages, metadata variables, conditions, theatrical
-presets, drag and four-corner resize controls, multi-selection, grouping, and
-layer ordering. Original Plex artwork is captured once and integrity checked,
-so designs can be updated or reverted per list without accumulating effects.
-
-Health now recognizes warnings for TMDB titles removed upstream. VynodeArr
-checks whether the title remains in the Movie library, proposes a valid
-replacement when available, preserves files and settings during a confirmed
-rematch, and allows irrelevant or unresolved warnings to be dismissed.
 
 Version **2.0.38** is the current stable release and is published as the
 `latest` image. It adds a cleaner guided Reeltrack collection setup, clearer
@@ -399,8 +398,6 @@ password, sessions, and interface preferences.
 ### Flexible collections
 
 Build hand-picked collections or combine smart rules such as title, year, decade, genre, monitoring state, file availability, and an existing movie collection. Preview matches, keep earlier selections while trying new rules, and remove individual movies before saving.
-
-![VynodeArr collections](docs/screenshots/collections.png)
 
 ### Administration without configuration files
 
