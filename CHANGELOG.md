@@ -7,6 +7,36 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.40-rc.2] - 2026-08-09
+
+### Added
+
+- Added a guided Unraid storage-mapping workflow for additional movie and
+  television roots. Administrators can enter friendly, host, and container
+  paths, apply the updated container configuration in Unraid, then verify and
+  register the new root with the correct bundled engine.
+- Added persistent pending-mapping status and application-backup coverage so
+  the setup survives the required Unraid container recreation.
+
+### Changed
+
+- Media Destination setup now distinguishes folders already visible inside the
+  container from new Unraid mappings and provides first-use helper text.
+- The Community Applications template now offers guarded access to VynodeArr's
+  own user template for optional in-app path configuration.
+
+### Security
+
+- Unraid template changes are administrator-only and CSRF protected. Host and
+  container paths, reserved targets, duplicate mappings, template identity, and
+  complete XML structure are validated before an atomic replacement that
+  preserves every existing setting.
+
+### Validation
+
+- Passed all 238 automated tests plus TypeScript, production build, bundle,
+  branding, and deployment validation.
+
 ## [2.0.40-rc.1] - 2026-08-09
 
 ### Added
@@ -2271,7 +2301,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.40-rc.1...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.40-rc.2...HEAD
+[2.0.40-rc.2]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.40-rc.1...v2.0.40-rc.2
 [2.0.40-rc.1]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.39...v2.0.40-rc.1
 [2.0.39]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.38...v2.0.39
 [2.0.39-rc.4]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.39-rc.3...v2.0.39-rc.4

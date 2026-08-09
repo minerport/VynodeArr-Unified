@@ -37,6 +37,7 @@ import {
 } from "../../../packages/platform/src/plex-service.js";
 import { JsonStore } from "../../../packages/platform/src/json-store.js";
 import { MediaDestinationService } from "../../../packages/platform/src/media-destination-service.js";
+import { UnraidTemplateService } from "../../../packages/platform/src/unraid-template-service.js";
 import { TrailerDownloadService } from "../../../packages/platform/src/trailer-download-service.js";
 import { TrailerPlaybackService } from "../../../packages/platform/src/trailer-playback-service.js";
 import {
@@ -636,6 +637,20 @@ export function createApplication(options = {}) {
     });
   const mediaDestinations =
     options.mediaDestinations || new MediaDestinationService(mediaDestinationStore);
+  const unraidMappingStore =
+    options.unraidMappingStore ||
+    new JsonStore(join(dataDir, "unraid-storage-mappings.json"), {
+      version: 1,
+      mappings: [],
+      updatedAt: null,
+    });
+  const unraidTemplates =
+    options.unraidTemplates ||
+    new UnraidTemplateService({
+      directory: env.VYNODEARR_UNRAID_TEMPLATE_DIRECTORY || "/unraid-template",
+      templateName: env.VYNODEARR_UNRAID_TEMPLATE_NAME || "",
+      enabled: String(env.VYNODEARR_UNRAID_TEMPLATE_EDITING || "true") === "true",
+    });
   const engineUpdateReview =
     options.engineUpdateReview ||
     new EngineUpdateReviewService({
@@ -661,6 +676,7 @@ export function createApplication(options = {}) {
     "engine-authentication.json",
     "download-folders.json",
     "media-destinations.json",
+    "unraid-storage-mappings.json",
     "performance-settings.json",
     "projections.json",
   ];
@@ -8435,6 +8451,31 @@ export function createApplication(options = {}) {
             profiles: Object.fromEntries(domains.map((domain, index) => [domain, contexts[index].profiles])),
             plexLibraries: [...new Map(contexts.flatMap((value) => value.plexLibraries).map((item) => [String(item.key), item])).values()],
           });
+        }
+        if (url.pathname === "/api/unraid/storage-mappings" && req.method === "GET") {
+          if (!administrator(res, session)) return;
+          const [template, saved] = await Promise.all([unraidTemplates.status(), unraidMappingStore.read()]);
+          const mappings = await Promise.all((saved.mappings || []).map(async(item) => ({ ...item, accessible: await unraidTemplates.accessible(item.containerPath) })));
+          return json(res, 200, { template, mappings });
+        }
+        if (url.pathname === "/api/unraid/storage-mappings" && req.method === "POST") {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          const input = await body(req), mapping = await unraidTemplates.addMapping(input), record = { id: `mapping_${randomUUID()}`, ...mapping, status: "awaiting_apply", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+          await unraidMappingStore.update(current => { current.version = 1; current.mappings = Array.isArray(current.mappings) ? current.mappings : []; current.mappings.push(record); current.updatedAt = record.updatedAt; return record; });
+          await recordAudit(session, { category: "configuration", action: "unraid_mapping.created", target: record.name, domain: record.domain, summary: `Added only ${record.containerPath} to the VynodeArr Unraid template. Unraid must apply the container update.`, metadata: { hostPath: record.hostPath, containerPath: record.containerPath, template: record.template } });
+          return json(res, 201, { mapping: record });
+        }
+        const unraidMappingMatch = url.pathname.match(/^\/api\/unraid\/storage-mappings\/(mapping_[A-Za-z0-9_-]+)\/complete$/);
+        if (unraidMappingMatch && req.method === "POST") {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          const saved = await unraidMappingStore.read(), mapping = (saved.mappings || []).find(item => item.id === unraidMappingMatch[1]);
+          if (!mapping) return json(res, 404, { error: { code: "not_found", message: "Pending storage mapping not found." } });
+          if (!(await unraidTemplates.accessible(mapping.containerPath))) throw new Error("The folder is not visible yet. Open VynodeArr in Unraid, click Edit, then Apply and wait for the container to return.");
+          const existing = await management.execute(mapping.domain, "rootFolders", "GET", {}), present = (Array.isArray(existing) ? existing : []).find(item => String(item.path || "").replace(/\/+$/, "") === mapping.containerPath);
+          if (!present) await management.execute(mapping.domain, "rootFolders", "POST", { payload: { path: mapping.containerPath } });
+          const updatedAt = new Date().toISOString();await unraidMappingStore.update(current => { const item = (current.mappings || []).find(value => value.id === mapping.id);if (item){item.status = "ready";item.updatedAt = updatedAt;}current.updatedAt = updatedAt;return item; });
+          await recordAudit(session, { category: "configuration", action: "unraid_mapping.completed", target: mapping.name, domain: mapping.domain, summary: `Verified ${mapping.containerPath} and registered it with the media engine.`, metadata: { containerPath: mapping.containerPath } });
+          return json(res, 200, { ready: true, containerPath: mapping.containerPath });
         }
         if (url.pathname === "/api/media-destinations" && req.method === "POST") {
           if (!administrator(res, session) || !requireCsrf(req, res, session)) return;

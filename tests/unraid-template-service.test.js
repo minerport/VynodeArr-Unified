@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {mkdtemp,readFile,readdir,rm,writeFile} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {UnraidTemplateService,validateUnraidTemplate} from '../packages/platform/src/unraid-template-service.js';
+
+const original='<?xml version="1.0"?>\n<Container version="2">\n  <Name>VynodeArr</Name>\n  <Repository>example/image:latest</Repository>\n  <Config Name="Movies" Target="/movies" Default="/mnt/user/movies" Mode="rw" Type="Path">/mnt/user/movies</Config>\n</Container>\n';
+
+test('Unraid mapping editor preserves every existing setting and atomically adds one validated path',async()=>{const directory=await mkdtemp(join(tmpdir(),'vynodearr-unraid-')),path=join(directory,'my-VynodeArr.xml');try{await writeFile(path,original);const service=new UnraidTemplateService({directory}),result=await service.addMapping({name:'4K Movies',domain:'movie',hostPath:'/mnt/user/Movies-4K',containerPath:'/movies-4k'}),updated=await readFile(path,'utf8');assert.equal(result.restartRequired,true);assert.equal(updated.replace(/  <Config Name="Additional movie library[^\n]+\n/,'') ,original);assert.match(updated,/Target="\/movies-4k"/);assert.match(updated,/Default="\/mnt\/user\/Movies-4K"/);assert.deepEqual(await readdir(directory),['my-VynodeArr.xml']);validateUnraidTemplate(updated);await assert.rejects(service.addMapping({name:'Duplicate',domain:'movie',hostPath:'/mnt/user/other',containerPath:'/movies-4k'}),/already mapped/);}finally{await rm(directory,{recursive:true,force:true});}});
+
+test('Unraid mapping editor refuses unsafe paths and unrelated or malformed templates',async()=>{const directory=await mkdtemp(join(tmpdir(),'vynodearr-unraid-invalid-')),path=join(directory,'my-Other.xml');try{await writeFile(path,'<Container><Name>Other</Name></Container>');const service=new UnraidTemplateService({directory});assert.equal((await service.status()).available,false);await assert.rejects(service.addMapping({name:'Bad',domain:'movie',hostPath:'/etc',containerPath:'/bad'}),/start with \/mnt\//);assert.throws(()=>validateUnraidTemplate('<Container><Name>VynodeArr</Name>'),/not the VynodeArr|malformed/);assert.throws(()=>validateUnraidTemplate('<!DOCTYPE x><Container><Name>VynodeArr</Name></Container>'),/Unsafe/);}finally{await rm(directory,{recursive:true,force:true});}});
