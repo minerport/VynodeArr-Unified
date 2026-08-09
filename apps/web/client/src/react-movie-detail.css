@@ -3,7 +3,6 @@
 .vynode-detail-surface{position:relative;max-height:94vh;overflow:auto;border:1px solid rgba(77,213,207,.2);border-radius:1.15rem;background:linear-gradient(155deg,#0b1220 0%,#080d17 55%,#0c1020 100%);box-shadow:0 35px 100px #000d,0 0 0 1px rgba(124,92,255,.08)}
 .vynode-detail-surface>.detail-backdrop{position:absolute;z-index:0;inset:0 0 auto;height:24rem;border-radius:1.15rem 1.15rem 0 0;overflow:hidden}
 .vynode-detail-surface>.detail-backdrop img{width:100%;height:100%;object-fit:cover;object-position:center 25%;opacity:.62}
-.vynode-detail-surface>.detail-backdrop:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(5,9,16,.82),rgba(5,9,16,.2) 55%,rgba(5,9,16,.58)),linear-gradient(0deg,#0b111d 0,transparent 75%)}
 .vynode-detail-surface>.back-link{position:sticky;z-index:8;top:1rem;float:right;margin:1rem 1rem 0 0;padding:.5rem .75rem;border:1px solid #394862;border-radius:.6rem;background:#0a111ee8;color:#dce6f7;backdrop-filter:blur(10px)}
 .vynode-detail-surface>.detail-hero{position:relative;z-index:1;min-height:24rem;margin:0;padding:8.5rem 2rem 1.5rem;grid-template-columns:10rem minmax(0,1fr);gap:1.5rem;align-items:end}
 .vynode-detail-surface .detail-art{width:10rem;border:1px solid #34435d;border-radius:.8rem;box-shadow:0 18px 45px #000b}
@@ -55,11 +54,9 @@
 /* Keep the identity content visually attached to the artwork rather than boxed over it. */
 .vynode-detail-surface .detail-copy{padding:.65rem 0;border:0;border-radius:0;background:transparent;box-shadow:none;backdrop-filter:none;text-shadow:0 2px 12px #000,0 1px 2px #000}
 .vynode-detail-surface .detail-copy .lede{max-width:52rem;color:#e0e7f2;text-shadow:0 2px 10px #000}
-.vynode-detail-surface>.detail-hero:after{content:"";position:absolute;z-index:-1;inset:35% 0 0;background:linear-gradient(0deg,rgba(5,9,16,.96),rgba(5,9,16,.72) 58%,transparent);pointer-events:none}
 
 /* Final hero treatment: edge-to-edge fanart with no rectangular content layer. */
 .vynode-detail-surface>.detail-backdrop img{object-fit:cover;object-position:center}
-.vynode-detail-surface>.detail-hero:after{content:none}
 .vynode-detail-surface .detail-copy{background:none!important}
 @media(max-width:720px){
   .vynode-detail-modal-host{padding:0}
