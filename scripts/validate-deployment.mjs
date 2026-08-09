@@ -11,6 +11,7 @@ if(!image.includes('USER vynodearr'))failures.push('Production image does not us
 if(!image.includes('HEALTHCHECK'))failures.push('Production image health check missing');
 for(const marker of ['<Name>VynodeArr</Name>','ghcr.io/minerport/vynodearr-unified:latest','Target="8686"','Target="/config"','Target="/movies"','Target="/tv"','Target="/downloads"'])if(!unraid.includes(marker))failures.push(`Unraid marker missing: ${marker}`);
 for(const marker of ['<CommunityApplications>','<Profile>','<Icon>','<WebPage>','<Forum>'])if(!profile.includes(marker))failures.push(`Community Applications profile marker missing: ${marker}`);
+for(const marker of ['<Registry>https://ghcr.io/minerport/vynodearr-unified</Registry>','<License>Apache-2.0</License>','<ReadMe>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/README.md</ReadMe>'])if(!unraid.includes(marker))failures.push(`Community Applications canonical field missing: ${marker}`);
 if(!unraid.includes('main/templates/vynodearr.xml'))failures.push('Canonical Community Applications template URL is missing');
 if(!unraid.includes('<Screenshot>'))failures.push('Community Applications screenshots are missing');
 try{JSON.parse(JSON.stringify({compose:true,image:true,unraid:true}));}catch{failures.push('Deployment metadata invalid');}

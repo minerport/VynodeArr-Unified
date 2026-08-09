@@ -2,7 +2,7 @@
 <Container version="2">
   <Name>VynodeArr</Name>
   <Repository>ghcr.io/minerport/vynodearr-unified:latest</Repository>
-  <Registry>https://github.com/minerport/VynodeArr-Unified/pkgs/container/vynodearr-unified</Registry>
+  <Registry>https://ghcr.io/minerport/vynodearr-unified</Registry>
   <Network>bridge</Network>
   <Shell>sh</Shell>
   <Privileged>false</Privileged>
@@ -19,8 +19,11 @@ Existing libraries are supported. Back up /config before upgrades or removal. Ra
   <WebUI>http://[IP]:[PORT:8686]/</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/templates/vynodearr.xml</TemplateURL>
   <Icon>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/assets/branding/VynodeArr.png</Icon>
-  <ReadMe>https://github.com/minerport/VynodeArr-Unified#readme</ReadMe>
-  <License>Apache-2.0; bundled Radarr and Sonarr engines GPL-3.0</License>
+  <ReadMe>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/README.md</ReadMe>
+  <Changes>2.0.39: Added lightweight Plex-first hero video previews with fallback providers, corrected movie and television sorting, restored library scroll position after viewing details, and refreshed Community Applications metadata.</Changes>
+  <Date>2026-08-09</Date>
+  <MinVer>6.12</MinVer>
+  <License>Apache-2.0</License>
   <Screenshot>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/docs/screenshots/dashboard.png</Screenshot>
   <Screenshot>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/docs/screenshots/tv-library.png</Screenshot>
   <ExtraParams>--user 99:100 --stop-timeout 60</ExtraParams>

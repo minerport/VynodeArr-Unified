@@ -20,10 +20,12 @@ test('local Compose persists random engine keys and shares them with VynodeArr',
 });
 test('Unraid template has required mappings, self-contained image, and upstream attribution',async()=>{
   const text=await readFile(new URL('../templates/vynodearr.xml',import.meta.url),'utf8');
-  for(const value of ['<Name>VynodeArr</Name>','ghcr.io/minerport/vynodearr-unified:latest','Target="8686"','Target="/config"','Target="/movies"','Target="/tv"','Target="/downloads"'])assert.match(text,new RegExp(value));
+  for(const value of ['<Name>VynodeArr</Name>','ghcr.io/minerport/vynodearr-unified:latest','<Registry>https://ghcr.io/minerport/vynodearr-unified</Registry>','Target="8686"','Target="/config"','Target="/movies"','Target="/tv"','Target="/downloads"'])assert.match(text,new RegExp(value));
   const overview=text.match(/<Overview>(.*?)<\/Overview>/s)?.[1]||'';
   assert.match(overview,/\bRadarr\b/);assert.match(overview,/\bSonarr\b/);
   assert.match(text,/GPLv3/);assert.match(text,/Apache 2\.0/);
+  assert.match(text,/<License>Apache-2\.0<\/License>/);
+  assert.match(text,/<ReadMe>https:\/\/raw\.githubusercontent\.com\/minerport\/VynodeArr-Unified\/main\/README\.md<\/ReadMe>/);
 });
 test('production image is non-root and has a health check',async()=>{
   const text=await readFile(new URL('../Dockerfile',import.meta.url),'utf8');assert.match(text,/USER vynodearr/);assert.match(text,/HEALTHCHECK/);assert.match(text,/VYNODEARR_DATA_DIR=\/data/);
@@ -45,6 +47,8 @@ test('1.0 release includes self-contained Unraid and Windows distributions',asyn
   for(const value of ['ghcr.io/minerport/vynodearr-unified:latest','Target="8686"','Target="/config"','Target="/movies"','Target="/tv"','Target="/downloads"'])assert.match(template,new RegExp(value));
   assert.match(profile,/<CommunityApplications>/);
   assert.match(profile,/<Profile>[^<]+<\/Profile>/);
+  assert.equal((template.match(/<Container\b/g)||[]).length,1);
+  assert.equal((profile.match(/<CommunityApplications\b/g)||[]).length,1);
   assert.match(template,/main\/templates\/vynodearr\.xml/);
   assert.equal((template.match(/<Screenshot>/g)||[]).length,2);
   assert.match(template,/<ExtraSearchTerms>[^<]*radarr[^<]*sonarr/i);
