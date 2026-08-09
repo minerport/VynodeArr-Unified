@@ -1502,3 +1502,8 @@ test('detail trailers prefer protected Plex extras before local and TMDB fallbac
   assert.match(api,/plexService\.openTrailer/);assert.match(api,/trailerPlayback\.find/);assert.ok(api.indexOf('plexService.openTrailer')<api.indexOf('trailerPlayback.find(domain, detail.item.location'));
   assert.match(plex,/includeExtras=1/);assert.match(plex,/x-plex-token/);assert.match(plex,/headers\.range/);assert.match(api,/content-range/);assert.match(hero,/youtube-nocookie\.com/);
 });
+
+test('movie and television details return to the exact saved library position',async()=>{
+  const library=await read('apps/web/client/src/library.tsx');
+  assert.match(library,/lastLibraryScroll/);assert.match(library,/leavingForDetail/);assert.match(library,/rememberLibraryPosition/);assert.match(library,/onClickCapture/);assert.match(library,/scrollY:lastLibraryScroll\.current/);
+});

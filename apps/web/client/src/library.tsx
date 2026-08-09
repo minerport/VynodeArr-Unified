@@ -140,6 +140,7 @@ function LibraryCard({
   priority,
   administrator,
   onMonitor,
+  onOpen,
 }: {
   item: LibraryItem;
   kind: LibraryMountOptions["kind"];
@@ -147,6 +148,7 @@ function LibraryCard({
   priority: boolean;
   administrator: boolean;
   onMonitor: (item: LibraryItem) => Promise<void>;
+  onOpen: () => void;
 }) {
   const movie = kind === "movies",
     href = `#${movie ? "movie" : "series"}/${item.id}`;
@@ -187,6 +189,9 @@ function LibraryCard({
       data-library-letter={titleLetter(item)}
       onPointerEnter={prefetch}
       onFocus={prefetch}
+      onClickCapture={(event) => {
+        if ((event.target as Element).closest(`a[href="${href}"]`)) onOpen();
+      }}
     >
       <a className="poster" href={href}>
         {item.artwork?.url ? (
@@ -309,6 +314,7 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
           direction?: SortDirection;
           query?: string;
           scrollY?: number;
+          limit?: number;
         };
       } catch {
         return {};
@@ -316,6 +322,7 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
     }, [storageKey]);
   const initialSort: LibrarySort =
     saved.sort && isLibrarySort(saved.sort) ? saved.sort : "title";
+  const initialLimit = Math.max(60, Math.min(5000, Number(saved.limit) || 60));
   const [items, setItems] = useState(options.items),
     [attention, setAttention] = useState<{
       missing: number;
@@ -338,7 +345,7 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
     [debouncedQuery, setDebouncedQuery] = useState(saved.query || ""),
     [view, setView] = useState(options.initialView),
     [batchSize, setBatchSize] = useState(60),
-    [limit, setLimit] = useState(60),
+    [limit, setLimit] = useState(initialLimit),
     [total, setTotal] = useState(options.items.length),
     [letterIndex, setLetterIndex] = useState<
       Record<string, { offset: number; count: number }>
@@ -354,6 +361,10 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const gridRef = useRef<HTMLDivElement | null>(null);
   const alphabetRef = useRef<HTMLElement | null>(null);
+  const lastLibraryScroll = useRef(Number(saved.scrollY || 0));
+  const leavingForDetail = useRef(false);
+  const restoredLibraryScroll = useRef(false);
+  const initialLimitReset = useRef(true);
   const [railTop, setRailTop] = useState(120);
   const [activeLetter, setActiveLetter] = useState("#");
   useEffect(() => {
@@ -513,11 +524,15 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
     return () => window.clearTimeout(timer);
   }, [query]);
   useEffect(() => {
+    if (initialLimitReset.current) {
+      initialLimitReset.current = false;
+      return;
+    }
     setLoadingPage(true);
     setLimit(batchSize);
   }, [filter, sort, debouncedQuery, view, batchSize]);
   useEffect(() => {
-    const persist = () =>
+    const persist = (scrollY = lastLibraryScroll.current) =>
       sessionStorage.setItem(
         storageKey,
         JSON.stringify({
@@ -525,20 +540,28 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
           sort,
           direction,
           query,
-          scrollY: window.scrollY,
+          scrollY,
+          limit,
         }),
       );
+    const track = () => {
+      if (leavingForDetail.current) return;
+      lastLibraryScroll.current = window.scrollY;
+      persist();
+    };
     persist();
-    window.addEventListener("scroll", persist, { passive: true });
+    window.addEventListener("scroll", track, { passive: true });
     return () => {
       persist();
-      window.removeEventListener("scroll", persist);
+      window.removeEventListener("scroll", track);
     };
-  }, [storageKey, filter, sort, direction, query]);
+  }, [storageKey, filter, sort, direction, query, limit]);
   useEffect(() => {
+    if (loading || restoredLibraryScroll.current) return;
+    restoredLibraryScroll.current = true;
     const y = Number(saved.scrollY || 0);
-    if (y) requestAnimationFrame(() => window.scrollTo({ top: y }));
-  }, []);
+    if (y) requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo({ top: y })));
+  }, [loading, saved.scrollY]);
   const visible = useMemo(
     () =>
       sortLibraryItems(
@@ -874,6 +897,14 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
     setDirection(defaultSortDirection(kind, next));
     if (next === "random") setRandomSeed(Date.now());
   }
+  function rememberLibraryPosition() {
+    lastLibraryScroll.current = window.scrollY;
+    leavingForDetail.current = true;
+    sessionStorage.setItem(
+      storageKey,
+      JSON.stringify({filter,sort,direction,query,scrollY:lastLibraryScroll.current,limit}),
+    );
+  }
   if (loading && !items.length)
     return (
       <div className="panel skeleton react-route-loading">
@@ -1078,6 +1109,7 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
             priority={priorityIds.has(item.id)}
             administrator={options.administrator}
             onMonitor={monitor}
+            onOpen={rememberLibraryPosition}
           />
         ))}
       </div>

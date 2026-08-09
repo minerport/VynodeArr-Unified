@@ -13,6 +13,10 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Prefer matched Plex trailer extras when Plex is connected, proxying protected range requests through VynodeArr before falling back to a local trailer, TMDB, and finally hero artwork.
 
+### Fixed
+
+- Restore Movie and TV libraries to the exact prior scroll position after closing a title detail instead of returning to the top.
+
 ### Validation
 
 - Passed all 231 automated tests plus TypeScript, production build, bundle,
