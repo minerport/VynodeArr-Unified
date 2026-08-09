@@ -7,6 +7,30 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.40-rc.1] - 2026-08-09
+
+### Added
+
+- Added friendly Media Destinations backed by multiple root folders in the
+  existing single Radarr and Sonarr engines. Each destination can define its
+  folder, quality profile, monitoring behavior, availability, series type,
+  administrator access, default status, and optional Plex library.
+- Added destination selection to Add Media, Discover requests, administrator
+  approvals, and Reeltrack automation while retaining the current single-root
+  behavior for installations that have not configured destinations.
+
+### Changed
+
+- Storage settings now discover existing engine roots, classify existing titles
+  without moving them, suggest matching Plex libraries, and explain when an
+  Unraid path mapping and container restart are required.
+- Application backups now include Media Destination configuration.
+
+### Validation
+
+- Passed all 236 automated tests plus TypeScript, production build, bundle,
+  branding, and deployment validation.
+
 ## [2.0.39] - 2026-08-09
 
 ### Changed
@@ -2247,7 +2271,8 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.39...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.40-rc.1...HEAD
+[2.0.40-rc.1]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.39...v2.0.40-rc.1
 [2.0.39]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.38...v2.0.39
 [2.0.39-rc.4]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.39-rc.3...v2.0.39-rc.4
 [2.0.39-rc.3]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.39-rc.2...v2.0.39-rc.3

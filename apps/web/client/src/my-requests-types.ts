@@ -6,6 +6,7 @@ export interface UserRequest {
   runtime?:number|null;certification?:string|null;
   status:RequestStatus;statusLabel:string;message:string;rejectionReason?:string|null;canCorrect:boolean;canCancel:boolean;
   canApprove?:boolean;canReject?:boolean;
+  mediaDestinationId?:string|null;destinationName?:string|null;
   user?:{id:string;name:string;username:string};
 }
 export interface MyRequestsMountOptions {

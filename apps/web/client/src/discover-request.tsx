@@ -9,7 +9,8 @@ type EngineMatch=Record<string,unknown>&{
 };
 type EngineProfile={id:number;name:string};
 type EngineRoot={path:string};
-type ImportOptions={match:EngineMatch|null;identity:{tmdbId:number;tvdbId:number|null};profiles:EngineProfile[];roots:EngineRoot[]};
+type MediaDestination={id:string;name:string;rootFolderPath:string;qualityProfileId:number;isDefault?:boolean;ready?:boolean;qualityProfile?:EngineProfile|null;plexLibrary?:{title?:string}|null};
+type ImportOptions={match:EngineMatch|null;identity:{tmdbId:number;tvdbId:number|null};profiles:EngineProfile[];roots:EngineRoot[];destinations:MediaDestination[]};
 const posterFor=(source:EngineMatch,item:DiscoverItem)=>
   source.remotePoster
   ||source.images?.find(value=>String(value.coverType||'').toLowerCase()==='poster')?.remoteUrl
@@ -28,6 +29,7 @@ export function DiscoverRequest({item,options,onClose,onRequested}:{item:Discove
   const [submitting,setSubmitting]=useState(false);
   const [rootFolderPath,setRootFolderPath]=useState('');
   const [qualityProfileId,setQualityProfileId]=useState(0);
+  const [destinationId,setDestinationId]=useState('');
   const [minimumAvailability,setMinimumAvailability]=useState('announced');
   const [monitor,setMonitor]=useState('all');
   const [seriesType,setSeriesType]=useState('standard');
@@ -42,8 +44,10 @@ export function DiscoverRequest({item,options,onClose,onRequested}:{item:Discove
       .then(value=>{
         if(!active)return;
         setData(value);
-        setRootFolderPath(value.roots[0]?.path||'');
-        setQualityProfileId(Number(value.profiles[0]?.id||0));
+        const destination=value.destinations?.find(item=>item.isDefault&&item.ready)||value.destinations?.find(item=>item.ready);
+        setDestinationId(destination?.id||'');
+        setRootFolderPath(destination?.rootFolderPath||value.roots[0]?.path||'');
+        setQualityProfileId(Number(destination?.qualityProfileId||value.profiles[0]?.id||0));
         if(!value.match)setError(`The ${resolvedItem.domain==='movie'?'movie':'TV'} engine could not resolve the exact external ID for this title. Nothing was added.`);
       })
       .catch(reason=>{if(active)setError(reason instanceof Error?reason.message:'Title options could not be loaded.');});
@@ -57,7 +61,7 @@ export function DiscoverRequest({item,options,onClose,onRequested}:{item:Discove
     const movie=resolvedItem.domain==='movie';
     const payload={
       ...source,
-      rootFolderPath,
+      mediaDestinationId:destinationId||undefined,rootFolderPath,
       qualityProfileId,
       monitored:movie||monitor!=='none',
       addOptions:movie?{searchForMovie:searchNow}:{monitor,searchForMissingEpisodes:searchNow,searchForCutoffUnmetEpisodes:false},
@@ -94,6 +98,7 @@ export function DiscoverRequest({item,options,onClose,onRequested}:{item:Discove
   };
 
   const ready=Boolean(source&&rootFolderPath&&qualityProfileId);
+  const selectedDestination=data?.destinations?.find(item=>item.id===destinationId);
   const domainLabel=resolvedItem.domain==='movie'?'movie':'series';
   return createPortal(<dialog ref={dialog} className={`discover-add-dialog${correcting?' discover-match-dialog':''}`} onClose={onClose} onCancel={event=>{event.preventDefault();close();}}>
     {!data&&!error?<div className="discover-add-loading"><div className="skeleton"/><h2>Finding the engine match…</h2><p>Loading library folders and quality profiles.</p></div>:null}
@@ -102,12 +107,12 @@ export function DiscoverRequest({item,options,onClose,onRequested}:{item:Discove
     {data&&source&&!error&&!correcting?<form className="discover-add-form" onSubmit={submit}>
       <div className="discover-add-heading">{posterFor(source,resolvedItem)?<img src={posterFor(source,resolvedItem)||''} alt=""/>:<span className="discover-poster-fallback">?</span>}<div><span className="eyebrow">{resolvedItem.domain==='movie'?'MOVIE ENGINE':'TV ENGINE'} ID MATCH</span><h2>Request {source.title||resolvedItem.title}</h2><p>{String(source.overview||resolvedItem.overview||'')}</p><div className="discover-meta"><span>{Number(source.year||resolvedItem.year)||'TBA'}</span><span>TMDB {data.identity.tmdbId}</span>{data.identity.tvdbId?<span>TVDB {data.identity.tvdbId}</span>:null}</div>{resolvedItem.domain==='movie'?<button className="secondary" type="button" onClick={()=>{setCorrecting(true);void findMatches();}}>Fix movie match</button>:null}</div></div>
       <div className="discover-add-fields">
-        <label>Library folder<select required value={rootFolderPath} onChange={event=>setRootFolderPath(event.target.value)}>{data.roots.map(root=><option value={root.path} key={root.path}>{root.path}</option>)}</select></label>
-        <label>Quality profile<select required value={qualityProfileId} onChange={event=>setQualityProfileId(Number(event.target.value))}>{data.profiles.map(profile=><option value={profile.id} key={profile.id}>{profile.name}</option>)}</select></label>
-        {resolvedItem.domain==='movie'?<label>Availability<select value={minimumAvailability} onChange={event=>setMinimumAvailability(event.target.value)}><option value="announced">Announced</option><option value="inCinemas">In cinemas</option><option value="released">Released</option></select></label>:<>
+        {data.destinations.length>1?<label>Add to<select required value={destinationId} onChange={event=>{const next=data.destinations.find(item=>item.id===event.target.value);setDestinationId(event.target.value);if(next){setRootFolderPath(next.rootFolderPath);setQualityProfileId(next.qualityProfileId);}}}>{data.destinations.map(destination=><option value={destination.id} key={destination.id} disabled={!destination.ready}>{destination.name}{destination.ready?'':' — unavailable'}</option>)}</select></label>:null}
+        {selectedDestination?<p className="destination-summary"><strong>{selectedDestination.name}</strong><span>{selectedDestination.rootFolderPath} · {selectedDestination.qualityProfile?.name||'Profile unavailable'}{selectedDestination.plexLibrary?.title?` · Plex: ${selectedDestination.plexLibrary.title}`:''}</span></p>:null}
+        {!selectedDestination?(resolvedItem.domain==='movie'?<label>Availability<select value={minimumAvailability} onChange={event=>setMinimumAvailability(event.target.value)}><option value="announced">Announced</option><option value="inCinemas">In cinemas</option><option value="released">Released</option></select></label>:<>
           <label>Monitor<select value={monitor} onChange={event=>setMonitor(event.target.value)}><option value="all">All episodes</option><option value="future">Future episodes</option><option value="missing">Missing episodes</option><option value="none">None</option></select></label>
           <label>Series type<select value={seriesType} onChange={event=>setSeriesType(event.target.value)}><option value="standard">Standard</option><option value="daily">Daily</option><option value="anime">Anime</option></select></label>
-        </>}
+        </>):null}
         <label className="check"><input type="checkbox" checked={searchNow} onChange={event=>setSearchNow(event.target.checked)}/> Search for available releases immediately</label>
       </div>
       {!data.roots.length?<p className="form-error">Add a root folder in Service Settings before requesting this title.</p>:null}

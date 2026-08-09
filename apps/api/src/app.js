@@ -36,6 +36,7 @@ import {
   sanitizePlexEndpoint,
 } from "../../../packages/platform/src/plex-service.js";
 import { JsonStore } from "../../../packages/platform/src/json-store.js";
+import { MediaDestinationService } from "../../../packages/platform/src/media-destination-service.js";
 import { TrailerDownloadService } from "../../../packages/platform/src/trailer-download-service.js";
 import { TrailerPlaybackService } from "../../../packages/platform/src/trailer-playback-service.js";
 import {
@@ -624,6 +625,17 @@ export function createApplication(options = {}) {
       report: null,
       updatedAt: null,
     });
+  const mediaDestinationStore =
+    options.mediaDestinationStore ||
+    new JsonStore(join(dataDir, "media-destinations.json"), {
+      version: 2,
+      initialized: false,
+      initializedDomains: [],
+      destinations: [],
+      updatedAt: null,
+    });
+  const mediaDestinations =
+    options.mediaDestinations || new MediaDestinationService(mediaDestinationStore);
   const engineUpdateReview =
     options.engineUpdateReview ||
     new EngineUpdateReviewService({
@@ -648,6 +660,7 @@ export function createApplication(options = {}) {
     "guide-templates.json",
     "engine-authentication.json",
     "download-folders.json",
+    "media-destinations.json",
     "performance-settings.json",
     "projections.json",
   ];
@@ -1381,6 +1394,32 @@ export function createApplication(options = {}) {
     const path = String(value || "").trim();
     return !path || plexPathValue(path) === "/trailers" ? "/movies" : path;
   };
+  async function mediaDestinationContext(domain, administrator = true) {
+    const [roots, profiles, plexSettings] = await Promise.all([
+      management.execute(domain, "rootFolders", "GET", {}).catch(() => []),
+      management.execute(domain, "profiles", "GET", {}).catch(() => []),
+      plexSettingsStore.read().catch(() => ({ libraries: [] })),
+    ]);
+    const destinations = await mediaDestinations.context(domain, {
+      roots,
+      profiles,
+      plexLibraries: plexSettings.libraries || [],
+      administrator,
+    });
+    return { destinations, roots, profiles, plexLibraries: plexSettings.libraries || [] };
+  }
+  async function applyMediaDestination(domain, payload, administrator = true) {
+    const destinationId = String(payload?.mediaDestinationId || "");
+    if (!destinationId) return payload;
+    const context = await mediaDestinationContext(domain, administrator),
+      destination = context.destinations.find((item) => item.id === destinationId);
+    if (!destination) throw new Error("Choose an available media destination");
+    if (!destination.ready)
+      throw new Error(destination.restartRequired
+        ? "This destination needs container access. Update the Unraid path mapping, restart the container, and verify it again."
+        : "This destination is not ready. Review its root folder and quality profile.");
+    return mediaDestinations.apply(payload, destination);
+  }
   async function addReeltrackItemsToLibraries(providerItems, preferredRoots = {}) {
     const summary = { added: 0, existing: 0, failed: 0, errors: [] };
     for (const domain of ["movie", "tv"]) {
@@ -1388,12 +1427,13 @@ export function createApplication(options = {}) {
         .map((item) => ({ item, identity: reeltrackItemIdentity(item) }))
         .filter(({ identity }) => identity.domain === domain && identity.tmdbId);
       if (!candidates.length) continue;
-      let records, profiles, roots;
+      let records, profiles, roots, destinationContext;
       try {
-        [records, profiles, roots] = await Promise.all([
+        [records, profiles, roots, destinationContext] = await Promise.all([
           management.execute(domain, "library", "GET", {}),
           management.execute(domain, "profiles", "GET", {}),
           management.execute(domain, "rootFolders", "GET", {}),
+          mediaDestinationContext(domain, true),
         ]);
       } catch (error) {
         summary.failed += candidates.length;
@@ -1403,10 +1443,11 @@ export function createApplication(options = {}) {
         continue;
       }
       const known = Array.isArray(records) ? records : records?.records || [],
-        profile = (Array.isArray(profiles) ? profiles : [])[0],
+        defaultDestination = destinationContext.destinations.find((item) => item.isDefault && item.ready) || destinationContext.destinations.find((item) => item.ready),
+        profile = (Array.isArray(profiles) ? profiles : []).find((item) => !preferredRoots[domain] && defaultDestination && Number(item.id) === Number(defaultDestination.qualityProfileId)) || (Array.isArray(profiles) ? profiles : [])[0],
         preferredPath = plexPathValue(preferredRoots[domain]),
         availableRoots = Array.isArray(roots) ? roots : [],
-        root = availableRoots
+        root = (!preferredPath && defaultDestination ? availableRoots.find((item) => plexPathValue(item.path) === plexPathValue(defaultDestination.rootFolderPath)) : null) || availableRoots
           .filter((candidate) => {
             const rootPath = plexPathValue(candidate?.path);
             return !preferredPath || preferredPath === rootPath || preferredPath.startsWith(`${rootPath}/`);
@@ -1467,6 +1508,7 @@ export function createApplication(options = {}) {
           if (!match) throw new Error("the media engine could not resolve its external ID");
           const payload = {
             ...match,
+            mediaDestinationId: !preferredPath ? defaultDestination?.id : undefined,
             rootFolderPath: root.path,
             qualityProfileId: Number(profile.id),
             monitored: true,
@@ -1487,10 +1529,11 @@ export function createApplication(options = {}) {
                   },
                 }),
           };
-          const added = await management.execute(domain, "library", "POST", {
-            payload: domain === "tv" ? televisionAddPayload(payload) : payload,
+          const destinationPayload = !preferredPath && defaultDestination ? mediaDestinations.apply(payload, defaultDestination) : payload,
+            added = await management.execute(domain, "library", "POST", {
+            payload: domain === "tv" ? televisionAddPayload(destinationPayload) : destinationPayload,
           });
-          known.push(added || payload);
+          known.push(added || destinationPayload);
           summary.added += 1;
           domainAdded += 1;
         } catch (error) {
@@ -5443,13 +5486,14 @@ export function createApplication(options = {}) {
       typeof payload !== "object"
     )
       throw new Error("Choose a valid movie or television title");
-    const metadata = await discovery.details(domain, tmdbId),
+    const resolvedPayload = await applyMediaDestination(domain, payload, true),
+      metadata = await discovery.details(domain, tmdbId),
       identity = {
         tmdbId: tmdbId,
         tvdbId: metadata.tvdbId,
         imdbId: metadata.imdbId,
       };
-    if (!payloadMatchesIdentity(domain, identity, payload))
+    if (!payloadMatchesIdentity(domain, identity, resolvedPayload))
       throw new Error(
         "The engine match does not have the requested external ID. Reopen Discover and try again.",
       );
@@ -5463,17 +5507,17 @@ export function createApplication(options = {}) {
     ]);
     if (
       !roots.some(
-        (root) => String(root.path) === String(payload.rootFolderPath),
+        (root) => String(root.path) === String(resolvedPayload.rootFolderPath),
       )
     )
       throw new Error("Choose a configured library folder");
     if (
       !profiles.some(
-        (profile) => Number(profile.id) === Number(payload.qualityProfileId),
+        (profile) => Number(profile.id) === Number(resolvedPayload.qualityProfileId),
       )
     )
       throw new Error("Choose a configured quality profile");
-    return { metadata: metadata, payload: payload };
+    return { metadata: metadata, payload: resolvedPayload };
   }
   async function addRequestToEngine(record) {
     const { metadata: metadata, payload: payload } =
@@ -8373,6 +8417,49 @@ export function createApplication(options = {}) {
             },
           });
         }
+        if (url.pathname === "/api/media-destinations" && req.method === "GET") {
+          const requestedDomain = url.searchParams.get("domain"),
+            domains = requestedDomain ? [requestedDomain] : ["movie", "tv"];
+          if (domains.some((value) => !["movie", "tv"].includes(value)))
+            throw new Error("Choose Movies or Television");
+          const administratorSession = session.user.role === "administrator";
+          for (const domain of domains)
+            if (!administratorSession && !session.user.permissions?.[domain === "movie" ? "movies" : "tv"])
+              return json(res, 403, { error: { code: "forbidden", message: "This library is not available to your account." } });
+          const contexts = await Promise.all(domains.map((domain) => mediaDestinationContext(domain, administratorSession)));
+          if (administratorSession && url.searchParams.get("includeUsage") === "true")
+            await Promise.all(domains.map(async(domain,index)=>{const raw=await management.execute(domain,"library","GET",{}).catch(()=>[]),items=Array.isArray(raw)?raw:raw?.records||[];contexts[index].destinations=contexts[index].destinations.map(destination=>{const root=String(destination.rootFolderPath||"").replaceAll("\\","/").replace(/\/+$/,"").toLowerCase(),titleCount=items.filter(item=>{const path=String(item.path||item.rootFolderPath||"").replaceAll("\\","/").toLowerCase();return path===root||path.startsWith(`${root}/`);}).length;return{...destination,titleCount};});}));
+          return json(res, 200, {
+            destinations: contexts.flatMap((value) => value.destinations),
+            roots: Object.fromEntries(domains.map((domain, index) => [domain, contexts[index].roots])),
+            profiles: Object.fromEntries(domains.map((domain, index) => [domain, contexts[index].profiles])),
+            plexLibraries: [...new Map(contexts.flatMap((value) => value.plexLibraries).map((item) => [String(item.key), item])).values()],
+          });
+        }
+        if (url.pathname === "/api/media-destinations" && req.method === "POST") {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          const input = await body(req),domain = input.domain === "tv" ? "tv" : input.domain === "movie" ? "movie" : null;
+          if (!domain) throw new Error("Choose Movies or Television");
+          const context = await mediaDestinationContext(domain, true),record = await mediaDestinations.save(input, context);
+          await recordAudit(session, { category: "configuration", action: "media_destination.created", target: record.name, domain, summary: `Created the ${record.name} media destination.`, metadata: { destinationId: record.id, rootFolderPath: record.rootFolderPath } });
+          return json(res, 201, { destination: record });
+        }
+        const mediaDestinationMatch = url.pathname.match(/^\/api\/media-destinations\/(destination_[A-Za-z0-9_-]+)$/);
+        if (mediaDestinationMatch && req.method === "PUT") {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          const input = await body(req),stored = await mediaDestinations.state(),existing = stored.destinations.find((item) => item.id === mediaDestinationMatch[1]);
+          if (!existing) return json(res, 404, { error: { code: "not_found", message: "Media destination not found." } });
+          const context = await mediaDestinationContext(existing.domain, true),record = await mediaDestinations.save({ ...existing, ...input, id: existing.id, domain: existing.domain }, context);
+          await recordAudit(session, { category: "configuration", action: "media_destination.updated", target: record.name, domain: record.domain, summary: `Updated the ${record.name} media destination.`, metadata: { destinationId: record.id, rootFolderPath: record.rootFolderPath } });
+          return json(res, 200, { destination: record });
+        }
+        if (mediaDestinationMatch && req.method === "DELETE") {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          const removed = await mediaDestinations.remove(mediaDestinationMatch[1]);
+          if (!removed) return json(res, 404, { error: { code: "not_found", message: "Media destination not found." } });
+          await recordAudit(session, { category: "configuration", action: "media_destination.removed", target: removed.name, domain: removed.domain, summary: `Removed the ${removed.name} media destination without moving or deleting media.`, metadata: { destinationId: removed.id } });
+          return json(res, 200, { removed: true });
+        }
         if (
           url.pathname === "/api/settings/download-folders" &&
           req.method === "PUT"
@@ -9325,15 +9412,18 @@ export function createApplication(options = {}) {
             );
             if (match) break;
           }
-          const [profiles, roots] = await Promise.all([
-            management.execute(domain, "profiles", "GET", {}),
-            management.execute(domain, "rootFolders", "GET", {}),
-          ]);
+          const destinationContext = await mediaDestinationContext(
+              domain,
+              session.user.role === "administrator",
+            ),
+            profiles = destinationContext.profiles,
+            roots = destinationContext.roots;
           return json(res, 200, {
             match: match || null,
             identity: { tmdbId: tmdbId, tvdbId: metadata.tvdbId || null },
             profiles: Array.isArray(profiles) ? profiles : [],
             roots: Array.isArray(roots) ? roots : [],
+            destinations: destinationContext.destinations,
           });
         }
         if (url.pathname === "/api/discover/request" && req.method === "POST") {
@@ -9346,6 +9436,11 @@ export function createApplication(options = {}) {
             domain = String(input.domain || ""),
             tmdbId = Number(input.tmdbId),
             payload = input.payload;
+          if (session.user.role !== "administrator" && payload?.mediaDestinationId) {
+            const allowed = await mediaDestinationContext(domain, false);
+            if (!allowed.destinations.some((item) => item.id === String(payload.mediaDestinationId)))
+              throw new Error("Choose an available media destination");
+          }
           if (["movie", "tv"].includes(domain)) {
             const allowance = await requestAllowance(session.user),
               limitMessage = requestLimitMessage(allowance, domain);
@@ -9364,11 +9459,11 @@ export function createApplication(options = {}) {
               });
             }
           }
-          const { metadata: metadata } = await validatedDiscoverRequest(
+          const validated = await validatedDiscoverRequest(
               domain,
               tmdbId,
               payload,
-            ),
+            ),metadata = validated.metadata,resolvedPayload = validated.payload,
             approvalRequired =
               session.user.role !== "administrator" &&
               session.user.requestApprovalRequired === true;
@@ -9385,12 +9480,16 @@ export function createApplication(options = {}) {
               requestedAt: now,
               updatedAt: now,
               ...requestMetadata(metadata),
+              mediaDestinationId: resolvedPayload.mediaDestinationId || null,
+              destinationName: resolvedPayload.mediaDestinationId
+                ? (await mediaDestinationContext(domain, true)).destinations.find((item) => item.id === resolvedPayload.mediaDestinationId)?.name || null
+                : null,
               searchNow:
                 domain === "movie"
-                  ? payload.addOptions?.searchForMovie !== false
-                  : payload.addOptions?.searchForMissingEpisodes !== false,
+                  ? resolvedPayload.addOptions?.searchForMovie !== false
+                  : resolvedPayload.addOptions?.searchForMissingEpisodes !== false,
               status: approvalRequired ? "pending_approval" : "approving",
-              payload: payload,
+              payload: resolvedPayload,
             };
           await requestStore.update((current) => {
             current.requests = current.requests || [];
@@ -9968,6 +10067,9 @@ export function createApplication(options = {}) {
             });
             return json(res, 200, { rejected: true });
           }
+          const approvalInput = await body(req),approvalRecord = approvalInput.mediaDestinationId
+            ? { ...record, mediaDestinationId: String(approvalInput.mediaDestinationId), payload: { ...record.payload, mediaDestinationId: String(approvalInput.mediaDestinationId) } }
+            : record;
           const claimed = await requestStore.update((current) => {
             const item = (current.requests || []).find(
               (value) => value.id === record.id,
@@ -9987,12 +10089,12 @@ export function createApplication(options = {}) {
               },
             });
           try {
-            const result = await addRequestToEngine(record);
+            const result = await addRequestToEngine(approvalRecord);
             await requestStore.update((current) => {
               const item = (current.requests || []).find(
                 (value) => value.id === record.id,
               );
-              if (item) Object.assign(item, { approvedBy: session.user.id });
+              if (item) Object.assign(item, { approvedBy: session.user.id, mediaDestinationId: approvalRecord.mediaDestinationId || item.mediaDestinationId });
             });
             await recordAudit(session, {
               category: "request",
@@ -13831,7 +13933,7 @@ export function createApplication(options = {}) {
               { source: "interactive" },
             );
           } else {
-            const payload =
+            let payload =
               managementMatch[2] === "releases" && method === "POST"
                 ? await reacquireRelease(managementMatch[1], input)
                 : managementMatch[1] === "tv" &&
@@ -13839,6 +13941,10 @@ export function createApplication(options = {}) {
                     method === "POST"
                   ? televisionAddPayload(input)
                   : input;
+            if (managementMatch[2] === "library" && method === "POST") {
+              payload = await applyMediaDestination(managementMatch[1], payload, true);
+              if (managementMatch[1] === "tv") payload = televisionAddPayload(payload);
+            }
             result = await management.execute(
               managementMatch[1],
               managementMatch[2],
