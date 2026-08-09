@@ -52,6 +52,15 @@ test('loaded Action Center records cannot widen the mobile viewport',async()=>{
   assert.match(navigation,/persisted&&void options\.route\(\)/);
 });
 
+test('health recovery mutations are handled before the read-only API fallback',async()=>{
+  const server=await read('apps/api/src/app.js');
+  const action=server.indexOf('const healthActionMatch = url.pathname.match');
+  const fallback=server.indexOf('if (req.method !== "GET")');
+  assert.ok(action>=0,'health action route');
+  assert.ok(fallback>=0,'read-only fallback');
+  assert.ok(action<fallback,'health action route must precede the read-only fallback');
+});
+
 test('library titles can be attributed to a user without creating another download request',async()=>{
   const [detail,collections,server,queue,history,wanted,notifications,libraryCss]=await Promise.all([read('apps/web/client/src/discover-detail.tsx'),read('apps/web/client/src/collections.tsx'),read('apps/api/src/app.js'),read('apps/web/client/src/queue.tsx'),read('apps/web/client/src/history.tsx'),read('apps/web/client/src/wanted.tsx'),read('apps/web/client/src/notifications.tsx'),read('apps/web/public/library-enhancements.css')]);
   assert.match(detail,/Add to my collection/);assert.match(detail,/\/api\/user-collections\/items/);assert.match(detail,/\/api\/user-collections\/contains/);

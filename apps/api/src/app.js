@@ -14123,6 +14123,30 @@ export function createApplication(options = {}) {
           const audit = await auditStore.read();
           return json(res, 200, { items: audit.entries || [] });
         }
+        const healthActionMatch = url.pathname.match(/^\/api\/system\/health\/([^/]+)\/(dismiss|rematch)$/);
+        if (healthActionMatch && req.method === "POST") {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          const [, id, action] = healthActionMatch;
+          if (action === "dismiss") {
+            await operationsCenterStore.update((current) => {
+              current.healthDismissed = current.healthDismissed || {};
+              current.healthDismissed[id] = new Date().toISOString();
+              return current;
+            });
+            return json(res, 200, { dismissed: true, id });
+          }
+          const input = await body(req), result = await rematchMedia({
+            domain: "movie",
+            mediaId: Number(input.mediaId),
+            tmdbId: Number(input.tmdbId),
+          });
+          await operationsCenterStore.update((current) => {
+            current.healthDismissed = current.healthDismissed || {};
+            current.healthDismissed[id] = new Date().toISOString();
+            return current;
+          });
+          return json(res, 200, { matched: true, result });
+        }
         if (req.method !== "GET")
           return json(res, 405, {
             error: { code: "read_only", message: "Read-only review mode" },
@@ -14591,30 +14615,6 @@ export function createApplication(options = {}) {
             items.push(item);
           }
           return json(res, 200, { items, sync: sync.snapshot() });
-        }
-        const healthActionMatch = url.pathname.match(/^\/api\/system\/health\/([^/]+)\/(dismiss|rematch)$/);
-        if (healthActionMatch && req.method === "POST") {
-          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
-          const [, id, action] = healthActionMatch;
-          if (action === "dismiss") {
-            await operationsCenterStore.update((current) => {
-              current.healthDismissed = current.healthDismissed || {};
-              current.healthDismissed[id] = new Date().toISOString();
-              return current;
-            });
-            return json(res, 200, { dismissed: true, id });
-          }
-          const input = await body(req), result = await rematchMedia({
-            domain: "movie",
-            mediaId: Number(input.mediaId),
-            tmdbId: Number(input.tmdbId),
-          });
-          await operationsCenterStore.update((current) => {
-            current.healthDismissed = current.healthDismissed || {};
-            current.healthDismissed[id] = new Date().toISOString();
-            return current;
-          });
-          return json(res, 200, { matched: true, result });
         }
         if (url.pathname === "/api/dashboard") {
           if (!permitted(res, session, "dashboard")) return;
