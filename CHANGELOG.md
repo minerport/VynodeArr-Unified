@@ -7,6 +7,10 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- Made official fallback trailers fill the detail hero as a cropped cinematic background without embedded-player controls; the separate **Watch trailer** action remains available.
+
 ## [2.0.39-rc.2] - 2026-08-09
 
 ### Fixed

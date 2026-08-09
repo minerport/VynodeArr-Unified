@@ -1493,6 +1493,6 @@ test('movie library review keeps Plex and VynodeArr lists independent while allo
 test('movie and television details share lightweight hero trailer playback with artwork fallback',async()=>{
   const [hero,movie,tv,styles]=await Promise.all([read('apps/web/client/src/detail-hero-trailer.tsx'),read('apps/web/client/src/movie-detail.tsx'),read('apps/web/client/src/tv-detail.tsx'),read('apps/web/client/src/detail-hero-trailer.css')]);
   assert.match(hero,/muted autoPlay playsInline preload="metadata"/);assert.match(hero,/prefers-reduced-motion/);assert.match(hero,/saveData/);
-  assert.match(hero,/Turn sound on/);assert.match(hero,/onError/);assert.match(hero,/youtube-nocookie\.com\/embed/);assert.match(hero,/<iframe/);assert.doesNotMatch(hero,/detail-trailer-fallback/);assert.match(styles,/trailer-ready/);
+  assert.match(hero,/Turn sound on/);assert.match(hero,/onError/);assert.match(hero,/youtube-nocookie\.com\/embed/);assert.match(hero,/controls=0&disablekb=1&fs=0/);assert.match(hero,/<iframe/);assert.doesNotMatch(hero,/detail-trailer-fallback/);assert.match(styles,/trailer-ready/);assert.match(styles,/aspect-ratio:16\/9/);assert.match(styles,/pointer-events:none/);
   assert.match(movie,/api\/media\/trailers\/movie/);assert.match(tv,/api\/media\/trailers\/tv/);assert.match(movie,/Watch trailer/);assert.match(tv,/Watch trailer/);
 });

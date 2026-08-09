@@ -3,7 +3,7 @@ import './detail-hero-trailer.css';
 
 type DetailHeroTrailerProps={artwork?:string;title:string;source:string;fallbackTrailer?:{name?:string;url:string}|null};
 
-const youtubeEmbed=(value?:string)=>{try{const url=new URL(String(value||''));const host=url.hostname.toLowerCase();const id=host==='youtu.be'?url.pathname.slice(1):host.endsWith('youtube.com')?url.searchParams.get('v'):'';return id&&/^[A-Za-z0-9_-]{6,20}$/.test(id)?`https://www.youtube-nocookie.com/embed/${id}?autoplay=1&mute=1&playsinline=1&rel=0`:'';}catch{return '';}};
+const youtubeEmbed=(value?:string)=>{try{const url=new URL(String(value||''));const host=url.hostname.toLowerCase();const id=host==='youtu.be'?url.pathname.slice(1):host.endsWith('youtube.com')?url.searchParams.get('v'):'';return id&&/^[A-Za-z0-9_-]{6,20}$/.test(id)?`https://www.youtube-nocookie.com/embed/${id}?autoplay=1&mute=1&playsinline=1&controls=0&disablekb=1&fs=0&rel=0`:'';}catch{return '';}};
 
 export function DetailHeroTrailer({artwork,title,source,fallbackTrailer}:DetailHeroTrailerProps){
   const video=useRef<HTMLVideoElement|null>(null),[enabled,setEnabled]=useState(false),[ready,setReady]=useState(false),[playing,setPlaying]=useState(false),[muted,setMuted]=useState(true),[failed,setFailed]=useState(false);
