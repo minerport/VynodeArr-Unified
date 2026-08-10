@@ -7,6 +7,23 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.40] - 2026-08-09
+
+### Added
+
+- Added flexible movie and television library destinations beneath an optional main media mapping while preserving the legacy `/movies` and `/tv` paths.
+- Added guarded root-folder migration that updates both VynodeArr and its media engines, reports progress, and verifies title and collection references before declaring success.
+- Added destination selection and defaults across requests, interactive search, and imported lists.
+
+### Improved
+
+- Improved library browsing, trailer heroes, Discover filtering and sorting, poster-overlay workflows, mobile interactive search, and Reeltrack list guidance.
+- Updated Unraid Community Applications metadata, repository assets, and deployment validation.
+
+### Fixed
+
+- Fixed stale movie-engine root and collection mappings, health warnings that would not clear, and failed automatic searches that could leave unusable releases marked as already downloading.
+
 ## [2.0.40-rc.11] - 2026-08-09
 
 ### Fixed

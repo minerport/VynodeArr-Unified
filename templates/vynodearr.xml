@@ -17,7 +17,7 @@
   <TemplateURL>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/templates/vynodearr.xml</TemplateURL>
   <Icon>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/assets/branding/VynodeArr.png</Icon>
   <ReadMe>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/README.md</ReadMe>
-  <Changes>2.0.40-rc.8: Discover requests explicitly send accepted movie releases to the download client. Genre and service views support working media filters, library exclusion, and sorting. Same-folder migrations now update movie collection roots as well as individual titles.</Changes>
+  <Changes>2.0.40: Added flexible movie and television library destinations under an optional main media mapping while retaining legacy paths. Root migrations now update and verify engine title and collection mappings. Improved Discover filters, automatic search recovery, trailers, overlays, lists, and mobile search.</Changes>
   <Date>2026-08-09</Date>
   <MinVer>6.12</MinVer>
   <License>Apache-2.0</License>
