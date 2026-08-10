@@ -1438,6 +1438,11 @@ test('activity surfaces separate actionable problems from durable history withou
   assert.match(styles,/\.operations-view-help/);
   assert.match(notificationsCss,/\.notification-operations-link/);
 });
+test('failed zero-file grabs are cleared before another automatic search',async()=>{
+  const [server,queue]=await Promise.all([read('apps/api/src/app.js'),read('apps/web/client/src/queue.tsx')]);
+  for(const value of ['grabReleaseWithImportGuard','terminalZeroFileFailure','removeFromClient: "true"','blocklist: "true"','clearReleaseCache(domain)'])assert.ok(server.includes(value),value);
+  for(const value of ['failedDownload','blocklist=${blocklist}','Failed release removed and blocklisted','Search is ready to try another result'])assert.ok(queue.includes(value),value);
+});
 
 test('external notification template builder is previewable and phone safe',async()=>{
   const [notifications,types,server,styles]=await Promise.all([read('apps/web/client/src/notifications.tsx'),read('apps/web/client/src/notification-types.ts'),read('apps/api/src/app.js'),read('apps/web/public/search-activity.css')]);

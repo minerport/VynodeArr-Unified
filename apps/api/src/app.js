@@ -3412,6 +3412,59 @@ export function createApplication(options = {}) {
       );
     return match;
   }
+  const queueRecords = (value) =>
+    Array.isArray(value) ? value : Array.isArray(value?.records) ? value.records : [];
+  const queueMediaId = (domain, item) =>
+    Number(
+      domain === "movie"
+        ? item.movieId || item.movie?.id
+        : item.episodeId || item.episode?.id,
+    );
+  const queueFailureText = (item) =>
+    [
+      item.status,
+      item.trackedDownloadStatus,
+      item.trackedDownloadState,
+      ...(Array.isArray(item.statusMessages)
+        ? item.statusMessages.flatMap((entry) => entry?.messages || [])
+        : []),
+    ]
+      .filter(Boolean)
+      .join(" ");
+  async function grabReleaseWithImportGuard(domain, release, mediaId) {
+    const result = await management.execute(domain, "releases", "POST", {
+      payload: await reacquireRelease(domain, release),
+    });
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      if (attempt) await new Promise((resolve) => setTimeout(resolve, 250));
+      const queueValue = await management
+          .execute(domain, "queue", "GET", {
+            query: { page: 1, pageSize: 100, includeUnknownMovieItems: true, includeUnknownSeriesItems: true },
+          })
+          .catch(() => []),
+        item = queueRecords(queueValue).find(
+          (entry) => queueMediaId(domain, entry) === Number(mediaId),
+        );
+      if (!item) continue;
+      const failure = queueFailureText(item),
+        terminalZeroFileFailure =
+          Number(item.size || 0) === 0 &&
+          /completed|complete/i.test(String(item.status || item.trackedDownloadStatus || "")) &&
+          /no files found are eligible for import|no files.*eligible|import.*failed/i.test(failure);
+      if (!terminalZeroFileFailure) return result;
+      if (item.id != null)
+        await management.execute(domain, "queue", "DELETE", {
+          id: String(item.id),
+          query: { removeFromClient: "true", blocklist: "true" },
+          payload: {},
+        });
+      clearReleaseCache(domain);
+      throw new Error(
+        "The download client produced an immediate zero-file import failure. The failed release was removed and blocklisted so another release can be searched.",
+      );
+    }
+    return result;
+  }
   async function explainEmptyTelevisionSearch(query, result) {
     if (!query.episodeId || !Array.isArray(result) || result.length)
       return result;
@@ -5675,9 +5728,11 @@ export function createApplication(options = {}) {
         if (accepted.length) {
           accepted.sort(compareReleases);
           const selected = accepted[0],
-            grab = await management.execute("movie", "releases", "POST", {
-              payload: await reacquireRelease("movie", selected),
-            });
+            grab = await grabReleaseWithImportGuard(
+              "movie",
+              selected,
+              result.id,
+            );
           await recordDownloadDecisions(record.userId, "movie", query, candidates, {
             source: "request",
             selected: releaseIdentity(selected),
@@ -14146,9 +14201,11 @@ export function createApplication(options = {}) {
             );
           accepted.sort(compareReleases);
           const selected = accepted[0],
-            result = await management.execute(domain, "releases", "POST", {
-              payload: await reacquireRelease(domain, selected),
-            });
+            result = await grabReleaseWithImportGuard(
+              domain,
+              selected,
+              query.movieId ?? query.episodeId,
+            );
           await recordDownloadDecisions(
             session.user.id,
             domain,
@@ -14226,7 +14283,7 @@ export function createApplication(options = {}) {
                 id: String(item.id),
                 query: {
                   removeFromClient: String(input.removeFromClient !== false),
-                  blocklist: String(input.blocklist === true),
+                  blocklist: String(item.blocklist === true || input.blocklist === true),
                 },
                 payload: {},
               });
@@ -14260,6 +14317,8 @@ export function createApplication(options = {}) {
               blocklist: input.blocklist === true,
             },
           });
+          clearReleaseCache("movie");
+          clearReleaseCache("tv");
           return json(res, failed.length ? 207 : 200, {
             removed: removed,
             failed: failed,
@@ -14511,6 +14570,7 @@ export function createApplication(options = {}) {
                 "delayProfiles",
                 "restrictions",
                 "releaseProfiles",
+                "queue",
               ].includes(managementMatch[2])
             )
               clearReleaseCache(managementMatch[1]);

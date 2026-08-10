@@ -7,6 +7,13 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.40-rc.11] - 2026-08-09
+
+### Fixed
+
+- Discover and automatic movie searches now detect immediate completed zero-byte import failures, remove and blocklist the unusable release, and fall back to a fresh native search instead of leaving the title permanently rejected as already downloading.
+- Removing a failed Queue item now blocklists that release and invalidates cached search results immediately, allowing automatic and interactive searches to try another candidate.
+
 ## [2.0.40-rc.10] - 2026-08-09
 
 ### Fixed
