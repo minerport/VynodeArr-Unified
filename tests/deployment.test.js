@@ -20,16 +20,13 @@ test('local Compose persists random engine keys and shares them with VynodeArr',
 });
 test('Unraid template has required mappings, self-contained image, and upstream attribution',async()=>{
   const text=await readFile(new URL('../templates/vynodearr.xml',import.meta.url),'utf8');
-  for(const value of ['<Name>VynodeArr</Name>','ghcr.io/minerport/vynodearr-unified:latest','<Registry>https://github.com/minerport/VynodeArr-Unified/pkgs/container/vynodearr-unified</Registry>','<MyIP/>','Target="8686"','Target="/config"','Target="/movies"','Target="/tv"','Target="/downloads"'])assert.match(text,new RegExp(value));
+  for(const value of ['<Name>VynodeArr</Name>','ghcr.io/minerport/vynodearr-unified:latest','<Registry>https://github.com/minerport/VynodeArr-Unified/pkgs/container/vynodearr-unified</Registry>','<Network>bridge</Network>','<Shell>sh</Shell>','<Privileged>false</Privileged>','Target="8686"','Target="/config"','Target="/movies"','Target="/tv"','Target="/downloads"'])assert.match(text,new RegExp(value));
   const overview=text.match(/<Overview>(.*?)<\/Overview>/s)?.[1]||'';
   assert.match(overview,/\bRadarr\b/);assert.match(overview,/\bSonarr\b/);
   assert.match(text,/GPLv3/);assert.match(text,/Apache 2\.0/);
-  assert.match(text,/<License>Apache-2\.0<\/License>/);
-  assert.match(text,/<ReadMe>https:\/\/raw\.githubusercontent\.com\/minerport\/VynodeArr-Unified\/main\/README\.md<\/ReadMe>/);
   assert.match(text,new RegExp(`<Config Name="[^"]+" Target="/media" Default=""[^>]+Required="false"[^>]*><\\/Config>`));
   for(const target of ['/movies-2','/movies-3','/tv-2','/tv-3'])assert.doesNotMatch(text,new RegExp(`Target="${target}"`));
-  assert.match(text,/temporarily keep \/movies or \/tv mapped to the same physical folder/i);
-  assert.match(text,/guarded path update.*before removing the legacy mapping/i);
+  for(const field of ['MyIP','Description','ExtraSearchTerms','WebUI','ReadMe','Changes','Date','MinVer','License','Screenshot','ExtraParams','PostArgs','CPUset','DateInstalled','Requires'])assert.doesNotMatch(text,new RegExp(`<${field}(?:[ >/])`));
   assert.doesNotMatch(text,/Target="\/unraid-template"/);
   assert.doesNotMatch(text,/templates-user/);
 });
@@ -56,8 +53,6 @@ test('1.0 release includes self-contained Unraid and Windows distributions',asyn
   assert.equal((template.match(/<Container\b/g)||[]).length,1);
   assert.equal((profile.match(/<CommunityApplications\b/g)||[]).length,1);
   assert.match(template,/main\/templates\/vynodearr\.xml/);
-  assert.equal((template.match(/<Screenshot>/g)||[]).length,2);
-  assert.match(template,/<ExtraSearchTerms>[^<]*radarr[^<]*sonarr/i);
   assert.match(windows,/ghcr\.io\/minerport\/vynodearr-unified/);
   assert.match(image,/VYNODEARR_SECURE_COOKIES=false/);
   assert.match(template,/Target="VYNODEARR_SECURE_COOKIES".*Default="false"/);
@@ -73,7 +68,7 @@ test('README and Unraid metadata use the current product tour assets',async()=>{
   ]);
   for(const asset of assets)assert.match(readme,new RegExp(asset.replaceAll('.','\\.')));
   assert.match(unraid,/current product screenshots/i);assert.match(unraid,/automatic file-schema migrations/i);
-  assert.match(template,/docs\/screenshots\/dashboard\.png/);assert.match(template,/docs\/screenshots\/tv-library\.png/);
+  assert.doesNotMatch(template,/<Screenshot>/);
 });
 
 test('bundled engines require authentication from every address by default',async()=>{

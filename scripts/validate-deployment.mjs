@@ -14,9 +14,9 @@ if(!new RegExp(`<Config Name="[^"]+" Target="/media" Default=""[^>]+Required="fa
 for(const target of ['/movies-2','/movies-3','/tv-2','/tv-3'])if(unraid.includes(`Target="${target}"`))failures.push(`Obsolete numbered Unraid mapping remains: ${target}`);
 for(const forbidden of ['Target="/unraid-template"','templates-user'])if(unraid.includes(forbidden))failures.push(`Unsafe Unraid template access remains: ${forbidden}`);
 for(const marker of ['<CommunityApplications>','<Profile>','<Icon>','<WebPage>','<Forum>'])if(!profile.includes(marker))failures.push(`Community Applications profile marker missing: ${marker}`);
-for(const marker of ['<Registry>https://github.com/minerport/VynodeArr-Unified/pkgs/container/vynodearr-unified</Registry>','<MyIP/>','<License>Apache-2.0</License>','<ReadMe>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/README.md</ReadMe>'])if(!unraid.includes(marker))failures.push(`Community Applications canonical field missing: ${marker}`);
+for(const marker of ['<Registry>https://github.com/minerport/VynodeArr-Unified/pkgs/container/vynodearr-unified</Registry>','<Network>bridge</Network>','<Shell>sh</Shell>','<Privileged>false</Privileged>','<Project>https://github.com/minerport/VynodeArr-Unified</Project>','<Support>https://github.com/minerport/VynodeArr-Unified/issues</Support>','<Category>MediaApp:Video</Category>'])if(!unraid.includes(marker))failures.push(`Community Applications canonical field missing: ${marker}`);
 if(!unraid.includes('main/templates/vynodearr.xml'))failures.push('Canonical Community Applications template URL is missing');
-if(!unraid.includes('<Screenshot>'))failures.push('Community Applications screenshots are missing');
+for(const field of ['MyIP','Description','ExtraSearchTerms','WebUI','ReadMe','Changes','Date','MinVer','License','Screenshot','ExtraParams','PostArgs','CPUset','DateInstalled','Requires'])if(new RegExp(`<${field}(?:[ >/])`).test(unraid))failures.push(`Unsupported Community Applications field remains: ${field}`);
 try{JSON.parse(JSON.stringify({compose:true,image:true,unraid:true}));}catch{failures.push('Deployment metadata invalid');}
 if(failures.length){console.error(failures.join('\n'));process.exit(1);}
 console.log('Deployment validation passed.');
