@@ -29,6 +29,11 @@ test('Reeltrack Lists remains fluid while the viewport is resized',async()=>{
   assert.match(styles,/\.reeltrack-automation-fields\s*\{[^}]*align-items:\s*start/);
   assert.match(styles,/\.reeltrack-item-grid\s*\{[^}]*grid-template-columns:\s*repeat\(auto-fill,\s*minmax\(min\(100%,\s*260px\),\s*1fr\)\)/);
   assert.match(styles,/\.reeltrack-item-grid article\s*\{[^}]*grid-template-columns:\s*68px[^}]*min-height:\s*126px/);
+  assert.match(view,/reeltrack-media-sections/);
+  assert.match(view,/MOVIE ENGINE/);
+  assert.match(view,/TELEVISION ENGINE/);
+  assert.match(view,/listCounts\(list\)\.movie/);
+  assert.match(styles,/\.reeltrack-media-section-heading\s*\{/);
   assert.match(styles,/\.reeltrack-item-copy h3\s*\{[^}]*overflow-wrap:\s*anywhere[^}]*-webkit-line-clamp:\s*2/);
   assert.match(designer,/Drag to position · pull corner to resize/);assert.match(designer,/overlay-resize-handle/);assert.match(designer,/onPointerMove/);
   assert.doesNotMatch(designer,/>X \(%\)</);assert.doesNotMatch(designer,/>Y \(%\)</);
@@ -699,7 +704,8 @@ test('engine management uses a typed React route with complete capability owners
   assert.match(view,/navigator\.clipboard\.writeText/);
   assert.match(view,/\/api\/settings\/engines\/\$\{engine\.domain\}\/api-key/);
   assert.match(view,/\/api\/settings\/engines\/repair/);
-  assert.match(view,/\/api\/settings\/engines\/\$\{domain\}\/test/);
+  assert.match(view,/\/api\/settings\/engines\/external\/\$\{domain\}\/test/);
+  assert.match(view,/\/api\/settings\/engines\/mode/);
   assert.match(view,/method:'PUT'/);
   assert.match(types,/interface EngineManagementMountOptions/);
   assert.match(islands,/mountEngineManagement/);

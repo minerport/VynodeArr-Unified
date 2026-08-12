@@ -451,6 +451,7 @@ export function createApplication(options = {}) {
       vaultPath: join(dataDir, "credentials.enc"),
       masterKey: masterKeyService.resolve(),
       defaults: baseConfig,
+      bundled: String(env.VYNODEARR_BUNDLED_ENGINES || "false") === "true",
     });
   const projectionStore =
     options.projectionStore ||
@@ -1270,6 +1271,16 @@ export function createApplication(options = {}) {
       return snapshot;
     });
   }
+  const reeltrackItemDomain = (item) => {
+    const type = String(
+      item?.domain || item?.type || item?.mediaType || item?.media_type || "",
+    )
+      .trim()
+      .toLowerCase();
+    return ["tv", "series", "show", "television", "episode"].includes(type)
+      ? "tv"
+      : "movie";
+  };
   async function matchedReeltrackLists(session, lists) {
     const [movies, television] = await Promise.all([
         sync.list("movie"),
@@ -1294,11 +1305,7 @@ export function createApplication(options = {}) {
     return lists.map((list) => ({
       ...list,
       items: (list.items || []).map((sourceItem) => {
-        const domain =
-            String(sourceItem.type || "").toLowerCase() === "tv" ||
-            String(sourceItem.type || "").toLowerCase() === "series"
-              ? "tv"
-              : "movie",
+        const domain = reeltrackItemDomain(sourceItem),
           source = String(sourceItem.source || "").toLowerCase(),
           externalId = String(
             sourceItem.externalId ||
@@ -1353,11 +1360,7 @@ export function createApplication(options = {}) {
   }
   const reeltrackAutomationRuns = new Map();
   const reeltrackItemIdentity = (item) => {
-    const domain =
-        String(item?.type || item?.domain || "").toLowerCase() === "tv" ||
-        String(item?.type || item?.domain || "").toLowerCase() === "series"
-          ? "tv"
-          : "movie",
+    const domain = reeltrackItemDomain(item),
       tmdbId = Number(item?.tmdbId) ||
         (String(item?.source || "").toLowerCase() === "tmdb"
           ? Number(item?.externalId)
@@ -2464,6 +2467,7 @@ export function createApplication(options = {}) {
       : null;
   const enginesConfigured = () =>
     mode === "fixture" || engineSettings.configured();
+  const bundledEnginesActive = () => engineSettings.mode() === "bundled";
   const management = new EngineManagementService(registry);
   const importJobs = new Map(),
     searchJobs = new Map(),
@@ -4790,6 +4794,7 @@ export function createApplication(options = {}) {
   async function ensureBundledRootFolders() {
     if (
       String(env.VYNODEARR_BOOTSTRAP_ROOT_FOLDERS || "false") !== "true" ||
+      !bundledEnginesActive() ||
       mode !== "engine"
     )
       return;
@@ -4806,6 +4811,7 @@ export function createApplication(options = {}) {
   async function ensureBundledDownloadPathMappings(selectedDomain = null) {
     if (
       String(env.VYNODEARR_BUNDLED_ENGINES || "false") !== "true" ||
+      !bundledEnginesActive() ||
       mode !== "engine"
     )
       return;
@@ -4976,6 +4982,7 @@ export function createApplication(options = {}) {
   async function ensureBundledAuthenticationDefault() {
     if (
       String(env.VYNODEARR_BUNDLED_ENGINES || "false") !== "true" ||
+      !bundledEnginesActive() ||
       mode !== "engine"
     )
       return;
@@ -4993,7 +5000,10 @@ export function createApplication(options = {}) {
     await engineAuthenticationStore.write(value);
   }
   async function restoreBundledCredentials() {
-    if (String(env.VYNODEARR_BUNDLED_ENGINES || "false") !== "true")
+    if (
+      String(env.VYNODEARR_BUNDLED_ENGINES || "false") !== "true" ||
+      !bundledEnginesActive()
+    )
       return false;
     const configured = await engineSettings.runtime(),
       readKey = async (domain) => {
@@ -5023,7 +5033,8 @@ export function createApplication(options = {}) {
   async function ensureEngineWebhook(domain) {
     if (
       mode !== "engine" ||
-      String(env.VYNODEARR_BUNDLED_ENGINES || "false") !== "true"
+      String(env.VYNODEARR_BUNDLED_ENGINES || "false") !== "true" ||
+      !bundledEnginesActive()
     )
       return;
     const name = "VynodeArr Catalog Events",
@@ -5107,6 +5118,7 @@ export function createApplication(options = {}) {
       (resourceSettings.integrityIntervalMinutes || 360) * 6e4,
     );
     await masterKeyService.initialize(engineSettings);
+    await engineSettings.applyPendingMode();
     const storedDiscoveryCredential =
       await engineSettings.discoveryCredential();
     if (storedDiscoveryCredential)
@@ -5271,7 +5283,10 @@ export function createApplication(options = {}) {
     };
   }
   async function repairBundledConnections() {
-    if (String(env.VYNODEARR_BUNDLED_ENGINES || "false") !== "true")
+    if (
+      String(env.VYNODEARR_BUNDLED_ENGINES || "false") !== "true" ||
+      !bundledEnginesActive()
+    )
       throw new Error(
         "Automatic connection repair is only available for bundled engines",
       );
@@ -10989,6 +11004,76 @@ export function createApplication(options = {}) {
           return json(res, 200, engineSettings.public());
         }
         if (
+          url.pathname === "/api/settings/engines/mode" &&
+          req.method === "PUT"
+        ) {
+          if (!administrator(res, session) || !requireCsrf(req, res, session))
+            return;
+          const input = await body(req),
+            requested = String(input.mode || "");
+          if (requested === "external") {
+            const runtime = await engineSettings.externalRuntime();
+            if (!runtime)
+              return json(res, 422, {
+                error: {
+                  code: "external_engines_incomplete",
+                  message:
+                    "Validate and save both external engines before switching modes.",
+                },
+              });
+            const checks = await Promise.all(
+              ["movie", "tv"].map((domain) => testEngine(domain, runtime[domain])),
+            );
+            if (checks.some((check) => !check.validated))
+              return json(res, 422, {
+                error: {
+                  code: "external_engines_unavailable",
+                  message:
+                    "Both external engines must be reachable and compatible before activation.",
+                },
+              });
+          }
+          const settings = await engineSettings.requestMode(requested);
+          await recordAudit(session, {
+            category: "configuration",
+            action: "engine.mode_requested",
+            target: "Engine mode",
+            summary: `Scheduled ${requested} engine mode for the next restart.`,
+          });
+          return json(res, 200, { settings, restartRequired: settings.restartRequired });
+        }
+        const externalEngineSave = url.pathname.match(
+          /^\/api\/settings\/engines\/external\/(movie|tv)$/,
+        );
+        const externalEngineTest = url.pathname.match(
+          /^\/api\/settings\/engines\/external\/(movie|tv)\/test$/,
+        );
+        if (externalEngineTest && req.method === "POST") {
+          if (!administrator(res, session) || !requireCsrf(req, res, session))
+            return;
+          const input = await body(req),
+            existing = await engineSettings.externalRuntime(),
+            credential = String(input.apiCredential || existing?.[externalEngineTest[1]]?.apiCredential || "");
+          return json(res, 200, await testEngine(externalEngineTest[1], { ...input, apiCredential: credential }));
+        }
+        if (externalEngineSave && req.method === "PUT") {
+          if (!administrator(res, session) || !requireCsrf(req, res, session))
+            return;
+          const input = await body(req),
+            existing = await engineSettings.externalRuntime(),
+            credential = String(input.apiCredential || existing?.[externalEngineSave[1]]?.apiCredential || ""),
+            result = await testEngine(externalEngineSave[1], { ...input, apiCredential: credential });
+          if (!result.validated)
+            return json(res, 422, {
+              error: {
+                code: "engine_validation_failed",
+                message: result.connection.safeError || "Engine validation did not succeed.",
+              },
+            });
+          await engineSettings.saveExternal(externalEngineSave[1], input, String(input.apiCredential || ""));
+          return json(res, 200, { saved: true, settings: engineSettings.public(), validation: result });
+        }
+        if (
           url.pathname === "/api/settings/engines/repair" &&
           req.method === "POST"
         ) {
@@ -15432,8 +15517,10 @@ export function createApplication(options = {}) {
           const publicSettings = engineSettings.public();
           return json(res, 200, {
             mode: mode,
-            managed:
-              String(env.VYNODEARR_BUNDLED_ENGINES || "false") === "true",
+            engineMode: engineSettings.mode(),
+            pendingMode: engineSettings.pendingMode(),
+            restartRequired: Boolean(engineSettings.pendingMode()),
+            managed: bundledEnginesActive(),
             configured: engineSettings.configured(),
             engines: [
               {

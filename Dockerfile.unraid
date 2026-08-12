@@ -55,5 +55,5 @@ ENV NODE_ENV=production PORT=8686 VYNODEARR_DATA_DIR=/config/vynodearr \
 VOLUME ["/config", "/movies", "/tv", "/downloads"]
 EXPOSE 8686
 HEALTHCHECK --interval=30s --timeout=5s --start-period=45s --retries=3 \
-  CMD node -e "Promise.all([8686,7878,8989].map(p=>fetch('http://127.0.0.1:'+p+(p===8686?'/healthz':'/ping')))).then(rs=>{if(rs.some(r=>!r.ok))process.exit(1)}).catch(()=>process.exit(1))"
+  CMD node -e "fetch('http://127.0.0.1:8686/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
 ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/vynodearr-entrypoint"]
