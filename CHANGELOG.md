@@ -7,6 +7,18 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.42-rc.2] - 2026-08-12
+
+### Changed
+
+- Reeltrack Plex automation now updates regular collections in place, adds only missing members, and refuses to modify smart collections.
+- Managed movie and television trailers are retained as Plex local extras when real media arrives instead of being deleted.
+- Scheduled list synchronization is additive and leaves trailers, collection members, and artwork in place unless an administrator explicitly removes the managed list.
+
+### Fixed
+
+- Preserved collection-poster and individual-title overlay application while reconciling additive Plex collection membership.
+
 ## [2.0.42-rc.1] - 2026-08-12
 
 ### Added
