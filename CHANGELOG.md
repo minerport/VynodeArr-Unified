@@ -7,6 +7,23 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.40-rc.12] - 2026-08-11
+
+### Added
+
+- Movie and television libraries now provide React-native bulk selection, bounded batch rename, and refresh-and-scan actions for visual testing.
+
+### Changed
+
+- Calendar, Queue, Wanted, Engine Management, Discover settings, Quality Profiles, first-run engine setup, and authentication now use their typed React implementations exclusively while preserving their existing workflows.
+- Poster-overlay presentation now loads from static stylesheets, and background imports use a single React monitor instead of duplicate legacy controllers.
+- Mobile release-profile and notification activity layouts are clearer, with persistent notification clearing behavior across activity sections.
+
+### Fixed
+
+- Missing React route initialization now presents an actionable reload state instead of silently switching to a second implementation.
+- Library parity tests now protect bulk editing, destructive removal, and Quick Details until those remaining workflows are migrated.
+
 ## [2.0.40] - 2026-08-09
 
 ### Added

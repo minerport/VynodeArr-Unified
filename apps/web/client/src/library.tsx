@@ -141,6 +141,8 @@ function LibraryCard({
   administrator,
   onMonitor,
   onOpen,
+  selected,
+  onSelect,
 }: {
   item: LibraryItem;
   kind: LibraryMountOptions["kind"];
@@ -149,6 +151,8 @@ function LibraryCard({
   administrator: boolean;
   onMonitor: (item: LibraryItem) => Promise<void>;
   onOpen: () => void;
+  selected: boolean;
+  onSelect: (item: LibraryItem,selected:boolean) => void;
 }) {
   const movie = kind === "movies",
     href = `#${movie ? "movie" : "series"}/${item.id}`;
@@ -193,6 +197,7 @@ function LibraryCard({
         if ((event.target as Element).closest(`a[href="${href}"]`)) onOpen();
       }}
     >
+      {administrator ? <label className="library-select" onClick={event=>event.stopPropagation()}><input type="checkbox" checked={selected} onChange={event=>onSelect(item,event.target.checked)}/><span>Select {item.title}</span></label> : null}
       <a className="poster" href={href}>
         {item.artwork?.url ? (
           <img
@@ -358,6 +363,7 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
     [syncing, setSyncing] = useState(false),
     [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null),
     [loadError, setLoadError] = useState("");
+  const [selected,setSelected]=useState<Set<string>>(()=>new Set()),[bulkBusy,setBulkBusy]=useState("");
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const gridRef = useRef<HTMLDivElement | null>(null);
   const alphabetRef = useRef<HTMLElement | null>(null);
@@ -815,6 +821,26 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
       );
     }
   }
+  const selectedItems=items.filter(item=>selected.has(item.id));
+  const engineId=(item:LibraryItem)=>Number(item.id.replace(movie?/^movie_/ : /^series_/,''));
+  const toggleVisible=(checked:boolean)=>setSelected(current=>{const next=new Set(current);for(const item of visible.slice(0,limit))checked?next.add(item.id):next.delete(item.id);return next;});
+  async function renameSelected(){
+    const targets=selectedItems.map(engineId).filter(Number.isFinite);if(!targets.length)return;
+    setBulkBusy('rename');let completed=0,failed=0,index=0;
+    const worker=async()=>{while(index<targets.length){const mediaId=targets[index++];try{await request('/api/media-files/rename',{method:'POST',body:JSON.stringify({domain:movie?'movie':'tv',mediaId})});completed++;}catch{failed++;}}};
+    await Promise.all(Array.from({length:Math.min(2,targets.length)},worker));
+    setSelected(new Set());setBulkBusy('');notify(`${completed} ${movie?'movie':'series'} record${completed===1?'':'s'} organized${failed?` · ${failed} failed`:''}.`,failed?'error':'success');
+  }
+  async function scanSelected(){
+    const targets=selectedItems.map(engineId).filter(Number.isFinite);if(!targets.length)return;
+    setBulkBusy('scan');
+    try{
+      if(movie)await request('/api/manage/movie/commands',{method:'POST',body:JSON.stringify({name:'RefreshMovie',movieIds:targets})});
+      else for(const seriesId of targets)await request('/api/manage/tv/commands',{method:'POST',body:JSON.stringify({name:'RefreshSeries',seriesId})});
+      setSelected(new Set());notify(`Refresh and folder scan queued for ${targets.length} ${movie?'movie':'series'} record${targets.length===1?'':'s'}.`);
+    }catch(error){notify(error instanceof Error?error.message:'Refresh and folder scan could not be queued.','error');}
+    finally{setBulkBusy('');}
+  }
   async function searchAllMissing() {
     const ids = visible
       .filter((item) => item.state === "missing" && item.monitoring !== "none")
@@ -1099,6 +1125,12 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
           ))}
         </div>
       </div>
+      {options.administrator ? <div className="bulk-library-toolbar">
+        <label className="check"><input type="checkbox" checked={Boolean(visible.slice(0,limit).length)&&visible.slice(0,limit).every(item=>selected.has(item.id))} onChange={event=>toggleVisible(event.target.checked)}/> Select visible</label>
+        <strong className="bulk-selected-count">{selectedItems.length} selected</strong>
+        <button className="secondary" disabled={!selectedItems.length||Boolean(bulkBusy)} onClick={()=>void renameSelected()}>{bulkBusy==='rename'?'Organizing…':'Rename selected'}</button>
+        <button className="secondary" disabled={!selectedItems.length||Boolean(bulkBusy)} onClick={()=>void scanSelected()}>{bulkBusy==='scan'?'Queueing scan…':'Refresh & scan selected'}</button>
+      </div> : null}
       <div ref={gridRef} className={`grid view-${view} library-results-grid`}>
         {visible.slice(0, limit).map((item) => (
           <LibraryCard
@@ -1110,6 +1142,8 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
             administrator={options.administrator}
             onMonitor={monitor}
             onOpen={rememberLibraryPosition}
+            selected={selected.has(item.id)}
+            onSelect={(value,checked)=>setSelected(current=>{const next=new Set(current);checked?next.add(value.id):next.delete(value.id);return next;})}
           />
         ))}
       </div>

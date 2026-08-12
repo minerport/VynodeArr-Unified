@@ -554,12 +554,14 @@ export function createApplication(options = {}) {
       version: 1,
       events: [],
       reads: {},
+      dismissed: {},
     });
   const searchActivityStore =
     options.searchActivityStore ||
     new JsonStore(join(dataDir, "search-activity.json"), {
       version: 1,
       activities: [],
+      dismissed: {},
     });
   const downloadDecisionStore =
     options.downloadDecisionStore ||
@@ -2631,6 +2633,7 @@ export function createApplication(options = {}) {
   async function reconcileSearchActivities(userId, providedSnapshots = null) {
     const stored = await searchActivityStore.read(),
       items = (stored.activities || [])
+        .filter((item) => !stored.dismissed?.[item.id])
         .filter((item) => userId == null || item.userId === userId)
         .slice(0, 75),
       active = items.filter(
@@ -6481,8 +6484,10 @@ export function createApplication(options = {}) {
         ...(legacy.notificationReads?.[session.user.id] || {}),
         ...(stored.reads?.[session.user.id] || {}),
       };
+    const dismissed = stored.dismissed?.[session.user.id] || {};
     return (stored.events || [])
       .filter((item) => item.recipientUserId === session.user.id)
+      .filter((item) => !dismissed[item.id])
       .sort((left, right) =>
         String(right.timestamp).localeCompare(String(left.timestamp)),
       )
@@ -8448,6 +8453,28 @@ export function createApplication(options = {}) {
           });
           return json(res, 200, { cleared: true });
         }
+        if (
+          url.pathname === "/api/search-activities" &&
+          req.method === "DELETE"
+        ) {
+          if (!administrator(res, session) || !requireCsrf(req, res, session))
+            return;
+          let cleared = 0;
+          await searchActivityStore.update((current) => {
+            current.dismissed = current.dismissed || {};
+            const timestamp = new Date().toISOString();
+            for (const item of current.activities || []) {
+              current.dismissed[item.id] = timestamp;
+              cleared += 1;
+            }
+            current.activities = [];
+            current.dismissed = Object.fromEntries(
+              Object.entries(current.dismissed).slice(-1e3),
+            );
+            return cleared;
+          });
+          return json(res, 200, { cleared });
+        }
         const searchActivityMatch = url.pathname.match(
           /^\/api\/search-activities\/([^/]+)$/,
         );
@@ -8456,21 +8483,20 @@ export function createApplication(options = {}) {
             return;
           let removed = false;
           await searchActivityStore.update((current) => {
+            current.dismissed = current.dismissed || {};
+            current.dismissed[searchActivityMatch[1]] =
+              new Date().toISOString();
             const before = (current.activities || []).length;
             current.activities = (current.activities || []).filter(
               (item) => item.id !== searchActivityMatch[1],
             );
             removed = current.activities.length < before;
-            return removed;
+            current.dismissed = Object.fromEntries(
+              Object.entries(current.dismissed).slice(-1e3),
+            );
+            return true;
           });
-          return removed
-            ? json(res, 204)
-            : json(res, 404, {
-                error: {
-                  code: "not_found",
-                  message: "Search activity was not found",
-                },
-              });
+          return json(res, 200, { dismissed: true, removed });
         }
         if (url.pathname === "/api/search-jobs" && req.method === "POST") {
           if (!administrator(res, session) || !requireCsrf(req, res, session))
@@ -10387,6 +10413,30 @@ export function createApplication(options = {}) {
             );
           });
           return json(res, 200, { read: ids });
+        }
+        if (
+          url.pathname === "/api/notifications" &&
+          req.method === "DELETE"
+        ) {
+          if (!requireCsrf(req, res, session)) return;
+          const input = await body(req),
+            available = await requestNotifications(session),
+            requested = Array.isArray(input.ids)
+              ? new Set(input.ids.map(String))
+              : null,
+            ids = available
+              .filter((item) => !requested || requested.has(item.id))
+              .map((item) => item.id),
+            dismissedAt = new Date().toISOString();
+          await notificationStore.update((current) => {
+            current.dismissed = current.dismissed || {};
+            const dismissed = current.dismissed[session.user.id] || {};
+            for (const id of ids) dismissed[id] = dismissedAt;
+            current.dismissed[session.user.id] = Object.fromEntries(
+              Object.entries(dismissed).slice(-1e3),
+            );
+          });
+          return json(res, 200, { dismissed: ids });
         }
         if (
           url.pathname === "/api/notifications/review-requests" &&

@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import type { OverlayDomain, OverlayLayer, OverlayTemplate } from "./poster-overlays-types";
 import { PosterIcon, posterIcons } from "./poster-overlay-icons";
-import "./poster-overlay-editor-layout";
+import "./poster-overlay-editor-layout.css";
 
 const shapes: Array<[OverlayLayer["shape"], string, CSSProperties]> = [
   ["rounded", "Rounded", { borderRadius: 6 }],
