@@ -7,6 +7,18 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.42-rc.1] - 2026-08-12
+
+### Added
+
+- Added a restart-gated external engine mode that securely validates and connects existing movie and television engine instances while disabling the bundled engines.
+- Imported mixed-media Reeltrack lists now keep one list and present separate Movies and Television sections with independent counts and correct engine routing.
+
+### Changed
+
+- Bundled engine setup, authentication, webhook, and root-folder operations are limited to bundled mode so external instances remain under their owners' control.
+- Unraid startup and health checks now support both bundled and external engine configurations without exposing or unnecessarily starting bundled services.
+
 ## [2.0.40-rc.12] - 2026-08-11
 
 ### Added
