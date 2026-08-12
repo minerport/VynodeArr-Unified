@@ -1868,10 +1868,14 @@ export function createApplication(options = {}) {
             removed += 1;
           }
       for (const [key, job] of Object.entries(jobs)) {
-        if ((job?.domain === "tv" ? "tv" : "movie") === domain && (!wanted.has(key) || realIds.has(key))) {
-          await trailerDownloader.remove(job).catch(() => {});
-          delete jobs[key];
-          removed += 1;
+        if ((job?.domain === "tv" ? "tv" : "movie") !== domain || !realIds.has(key) || job?.state === "extra" || typeof trailerDownloader.promote !== "function") continue;
+        const realItem = realItems.find((item) => plexExternalIds(item).some((identity) => `${domain}:${identity}` === key)),
+          realFile = (realItem?.files || []).find((file) => !/(?:^|[\\/])(?:trailer|[^\\/]*-trailer)\.[a-z0-9]+$/i.test(String(file)));
+        if (!realFile) continue;
+        try {
+          jobs[key] = await trailerDownloader.promote(job, { realFile, libraryRoot: libraryLocation, localRoot });
+        } catch (error) {
+          jobs[key] = { ...job, promotionError: error?.message || "Trailer could not be converted to a Plex extra.", promotionFailedAt: new Date().toISOString() };
         }
       }
       for (const [key, item] of wanted) {
@@ -1899,7 +1903,7 @@ export function createApplication(options = {}) {
         }
       }
       const managedDomainDownloads = Object.values(jobs).filter(
-        (job) => job?.path && (job?.domain === "tv" ? "tv" : "movie") === domain,
+        (job) => job?.path && job?.state !== "extra" && (job?.domain === "tv" ? "tv" : "movie") === domain,
       ).length;
       if (downloaded || removed || managedDomainDownloads)
         await plexService.refreshLibrary(
@@ -1927,7 +1931,7 @@ export function createApplication(options = {}) {
             plexToken,
             library,
           );
-          const expectedManagedDownloads = Object.values(jobs).filter((job) => job?.path && (job?.domain === "tv" ? "tv" : "movie") === domain).length;
+          const expectedManagedDownloads = Object.values(jobs).filter((job) => job?.path && job?.state !== "extra" && (job?.domain === "tv" ? "tv" : "movie") === domain).length;
           if (refreshedItems.filter((item) => isManagedPlaceholder(item, currentManagedPlexPaths())).length >= expectedManagedDownloads || scanAttempt === 10)
             break;
           await new Promise((resolve) => setTimeout(resolve, 3000));
@@ -1980,10 +1984,9 @@ export function createApplication(options = {}) {
           titleTemplate = reeltrackPosterTemplate(automation.titleOverlayTemplate, domain);
         if (collection.ratingKey && collectionTemplate?.enabled && collectionTemplate.layers?.length) {
           try {
-            // syncCollection creates a fresh Plex collection, whose generated thumbnail is
-            // commonly unavailable for several seconds. There is no prior collection poster
-            // to preserve on that new rating key, so render and upload the selected design
-            // directly instead of failing the entire artwork pass on a thumbnail HTTP 404.
+            // Render the configured collection design after membership is reconciled. Existing
+            // regular collections retain their rating key; newly created collections may not
+            // expose a generated thumbnail immediately, so this upload remains self-contained.
             const rendered = await renderedReeltrackArtwork(
               collectionTemplate,
               reeltrackPosterItem({
@@ -2039,7 +2042,7 @@ export function createApplication(options = {}) {
         lastRunAt: now.toISOString(),
         nextRunAt: new Date(now.getTime() + intervalMinutes * 6e4).toISOString(),
         status: remoteProviderList ? "ready" : "disabled",
-        error: remoteProviderList ? null : "The source list was removed from Reeltrack; managed trailers and the Plex collection were cleared.",
+        error: remoteProviderList ? null : "The source list was removed from Reeltrack. Automatic management was disabled; Plex media, trailers, and collections were left unchanged.",
         summary: {
           providerTitles: providerItems.length,
           managedTitles: totals.managedTitles,
@@ -9617,6 +9620,7 @@ export function createApplication(options = {}) {
                   machineIdentifier: settings.server?.machineIdentifier,
                   title: removedList.automation.collectionName || removedList.name,
                   ratingKeys: [],
+                  replace: true,
                 });
                 await plexService.refreshLibrary(settings.endpoint, token, library.key);
               }
