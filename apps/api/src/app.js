@@ -1369,6 +1369,11 @@ export function createApplication(options = {}) {
   };
   const plexPathValue = (value) =>
     String(value || "").replaceAll("\\", "/").replace(/\/+$/, "").toLowerCase();
+  const relativeLibraryPath = (value, root) => {
+    const path = plexPathValue(value), prefix = plexPathValue(root);
+    if (!path || !prefix || (path !== prefix && !path.startsWith(`${prefix}/`))) return "";
+    return path.slice(prefix.length).replace(/^\/+/, "");
+  };
   const plexLibraryLocation = (library, items = []) => {
     const reported = String(library?.locations?.[0] || "").trim().replaceAll("\\", "/").replace(/\/+$/, ""),
       directories = (items || [])
@@ -1815,12 +1820,28 @@ export function createApplication(options = {}) {
                 : path,
             ),
         ),
+        isManagedPlaceholder = (item, paths = managedPlexPaths) => {
+          const files = item.files || [];
+          if (!files.length) return false;
+          const managedTmdbIds = new Set(
+              Object.values(jobs)
+                .filter((job) => job?.path && (job?.domain === "tv" ? "tv" : "movie") === domain && Number(job.tmdbId) > 0)
+                .map((job) => Number(job.tmdbId)),
+            ),
+            exactPathMatch = files.every((file) => paths.has(plexPathValue(file))),
+            relativePathMatch = files.every((file) => {
+              const relative = relativeLibraryPath(file, libraryLocation);
+              return relative && [...paths].some((path) => relativeLibraryPath(path, libraryLocation) === relative);
+            }),
+            itemTmdbIds = new Set([
+              ...plexExternalIds(item).filter((identity) => identity.startsWith("tmdb:")).map((identity) => Number(identity.slice(5))),
+              ...files.map((file) => Number(String(file).match(/\[tmdb-(\d+)\]/i)?.[1])).filter((value) => value > 0),
+            ]);
+          return exactPathMatch || relativePathMatch || (files.every((file) => /(?:^|[\\/])(?:trailer|[^\\/]*-trailer)\.[a-z0-9]+$/i.test(String(file))) && [...itemTmdbIds].some((id) => managedTmdbIds.has(id)));
+        },
         placeholders = plexItems.filter((item) =>
           (item.files || []).length > 0 &&
-          (item.files || []).every((file) => {
-            const path = plexPathValue(file);
-            return managedPlexPaths.has(path);
-          }),
+          isManagedPlaceholder(item),
         ),
         realItems = plexItems.filter((item) => !placeholders.includes(item)),
         realIds = new Set(
@@ -1897,8 +1918,7 @@ export function createApplication(options = {}) {
                   ? `${trailerPrefix}${path.slice(localTrailerPrefix.length)}`
                   : path,
               ),
-          ),
-        managedDownloadCount = Object.values(jobs).filter((job) => job?.path && (job?.domain === "tv" ? "tv" : "movie") === domain).length;
+          );
       let refreshedItems = plexItems;
       if (downloaded || removed || managedDomainDownloads) {
         for (let scanAttempt = 0; scanAttempt < 11; scanAttempt += 1) {
@@ -1907,24 +1927,15 @@ export function createApplication(options = {}) {
             plexToken,
             library,
           );
-          const indexedPaths = new Set(
-            refreshedItems.flatMap((item) => (item.files || []).map(plexPathValue)),
-          );
-          if (
-            [...currentManagedPlexPaths()].filter((path) => indexedPaths.has(path)).length >=
-              managedDownloadCount ||
-            scanAttempt === 10
-          )
+          const expectedManagedDownloads = Object.values(jobs).filter((job) => job?.path && (job?.domain === "tv" ? "tv" : "movie") === domain).length;
+          if (refreshedItems.filter((item) => isManagedPlaceholder(item, currentManagedPlexPaths())).length >= expectedManagedDownloads || scanAttempt === 10)
             break;
           await new Promise((resolve) => setTimeout(resolve, 3000));
         }
       }
-      const refreshedPlaceholders = refreshedItems.filter((item) =>
-          (item.files || []).length > 0 &&
-          (item.files || []).every((file) => {
-            const path = plexPathValue(file);
-            return currentManagedPlexPaths().has(path);
-          }),
+      const refreshedManagedPaths = currentManagedPlexPaths(),
+        refreshedPlaceholders = refreshedItems.filter((item) =>
+          (item.files || []).length > 0 && isManagedPlaceholder(item, refreshedManagedPaths),
         ),
         placeholderKeys = refreshedPlaceholders
           .filter((item) => {
@@ -1944,10 +1955,14 @@ export function createApplication(options = {}) {
         expectedPlaceholderCount = [...wanted.keys()].filter(
           (key) => !realIds.has(key) && Boolean(jobs[key]?.path),
         ).length;
-      if (placeholderKeys.length < expectedPlaceholderCount)
-        throw new Error(
-          `Plex indexed ${placeholderKeys.length} of ${expectedPlaceholderCount} managed ${domain === "tv" ? "television" : "movie"} trailers in ${library.title}. Verify that ${libraryLocation} is the selected library's container path, then run the automation again.`,
-        );
+      const placeholderWarning = placeholderKeys.length < expectedPlaceholderCount
+          ? `Plex indexed ${placeholderKeys.length} of ${expectedPlaceholderCount} managed ${domain === "tv" ? "television" : "movie"} trailers in ${library.title}. Verify that ${libraryLocation} and ${localRoot} point to the same host folder.`
+          : null,
+        refreshedRealItems = refreshedItems.filter((item) => !refreshedPlaceholders.includes(item)),
+        realRatingKeys = refreshedRealItems.filter((item) =>
+          plexExternalIds(item).some((identity) => wanted.has(`${domain}:${identity}`)),
+        ).map((item) => item.ratingKey),
+        collectionMemberKeys = [...new Set([...realRatingKeys, ...placeholderKeys])];
       await restoreReeltrackArtwork({ automation, endpoint: plexSettings.endpoint, token: plexToken, machineIdentifier: plexSettings.server?.machineIdentifier || "", domain, kind: "title", exceptRatingKeys: placeholderKeys });
       const collection = await plexService.syncCollection(
           plexSettings.endpoint,
@@ -1957,7 +1972,7 @@ export function createApplication(options = {}) {
             libraryType: library.type,
             machineIdentifier: plexSettings.server?.machineIdentifier,
             title: automation.collectionName || list.name,
-            ratingKeys: placeholderKeys,
+            ratingKeys: collectionMemberKeys,
           },
         );
         collectionRatingKeys[domain] = collection.ratingKey;
@@ -1974,7 +1989,7 @@ export function createApplication(options = {}) {
               reeltrackPosterItem({
                 list,
                 domain,
-                count: placeholderKeys.length,
+                count: collectionMemberKeys.length,
                 syncedAt: runStartedAt,
                 title: automation.collectionName || list.name,
               }),
@@ -2008,6 +2023,7 @@ export function createApplication(options = {}) {
         totals.downloaded += downloaded;
         totals.removed += removed;
         totals.realMatches += [...wanted.keys()].filter((key) => realIds.has(key)).length;
+        if (placeholderWarning) totals.placeholderErrors = [...(totals.placeholderErrors || []), placeholderWarning].slice(0, 10);
       }
       const now = new Date(),
         intervalMinutes = Math.max(15, Math.min(1440, Number(automation.intervalMinutes) || 60));
@@ -2028,6 +2044,7 @@ export function createApplication(options = {}) {
           providerTitles: providerItems.length,
           managedTitles: totals.managedTitles,
           placeholders: totals.placeholders,
+          placeholderErrors: totals.placeholderErrors || [],
           downloaded: totals.downloaded,
           removed: totals.removed,
           failed: Object.values(jobs).filter((job) => job?.error).length,
