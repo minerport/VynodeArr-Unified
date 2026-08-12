@@ -120,7 +120,7 @@ test('Reeltrack lists keep API keys server-side and match library titles only by
     if(url.includes('/api/v1/lists/5/items'))return new Response(JSON.stringify({data:[
       {mediaId:123,title:'Durable match',type:'movie',year:2026,tmdbId:1003598,source:'tmdb',externalId:'1003598',rank:1},
       {mediaId:124,title:'Durable match',type:'movie',year:2026,tmdbId:9999999,source:'tmdb',externalId:'9999999',rank:2},
-      {mediaId:125,title:'TV match',type:'tv',year:2026,source:'tvdb',externalId:'4567',tmdbId:7654,rank:3},
+      {mediaId:125,title:'TV match',type:'show',year:2026,source:'tvdb',externalId:'4567',tmdbId:7654,rank:3},
       {mediaId:126,title:'Durable match',type:'movie',year:2026,tmdbId:null,source:'plex',externalId:'1003598',rank:4},
       {mediaId:127,title:'Durable match',type:'movie',year:2026,tmdbId:null,source:'jellyfin',externalId:'1003598',rank:5}
     ]}),{status:200,headers:{'content-type':'application/json'}});
@@ -146,6 +146,7 @@ test('Reeltrack lists keep API keys server-side and match library titles only by
     assert.equal(items[1].library,null,'an identical title must not bypass the external-ID mismatch');
     assert.equal(items[1].canRequest,true);
     assert.equal(items[2].library.id,'series_durable');
+    assert.equal(items[2].domain,'tv','provider show labels must route to the television engine');
     assert.equal(items[3].library,null,'a Plex identity must not be interpreted as a TMDB identity');
     assert.equal(items[3].tmdbId,null);assert.equal(items[3].canRequest,false);
     assert.equal(items[4].library,null,'a Jellyfin identity must not be interpreted as a TMDB identity');

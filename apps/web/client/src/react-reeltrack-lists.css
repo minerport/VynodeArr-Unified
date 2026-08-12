@@ -466,6 +466,45 @@
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
   gap: 0.6rem;
 }
+.reeltrack-media-sections {
+  display: grid;
+  gap: 1.25rem;
+}
+.reeltrack-media-section {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--line);
+}
+.reeltrack-media-section:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+.reeltrack-media-section-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+}
+.reeltrack-media-section-heading h3,
+.reeltrack-media-section-heading p {
+  margin: 0;
+}
+.reeltrack-media-section-heading p {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.reeltrack-media-section-heading > strong {
+  display: grid;
+  flex: 0 0 2.5rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--panel-strong);
+}
 .reeltrack-item-grid article {
   display: grid;
   grid-template-columns: 68px minmax(0, 1fr);

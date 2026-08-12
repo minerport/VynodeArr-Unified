@@ -400,6 +400,14 @@ export function ReeltrackListsView({
       ),
     [selected, filter, query],
   );
+  const mediaSections = useMemo(
+    () => [
+      {domain:"movie" as const,title:"Movies",description:"Movie titles use the selected movie destination, quality profile, and engine.",items:items.filter((item)=>item.domain==="movie")},
+      {domain:"tv" as const,title:"Television",description:"Series use the selected television destination, quality profile, and engine.",items:items.filter((item)=>item.domain==="tv")},
+    ].filter((section)=>section.items.length),
+    [items],
+  );
+  const listCounts=(list:ReeltrackList)=>({movie:(list.items||[]).filter((item)=>item.domain==="movie").length,tv:(list.items||[]).filter((item)=>item.domain==="tv").length});
   return (
     <div className="react-reeltrack-lists">
       <header className="hero reeltrack-hero">
@@ -668,7 +676,7 @@ export function ReeltrackListsView({
                 onClick={() => setSelectedId(String(list.id))}
               >
                 <strong>{list.name}</strong>
-                <small>{list.items?.length || 0} titles</small>
+                <small>{listCounts(list).movie} movies · {listCounts(list).tv} TV</small>
               </button>
             ))}
           </aside>
@@ -809,8 +817,11 @@ export function ReeltrackListsView({
                 </button>
               </div>
             </div>
-            <div className="reeltrack-item-grid">
-              {items.map((item) => (
+            <div className="reeltrack-media-sections">
+              {mediaSections.map((section) => <section className={`reeltrack-media-section ${section.domain}`} key={section.domain}>
+                <div className="reeltrack-media-section-heading"><div><span className="eyebrow">{section.domain === "movie" ? "MOVIE ENGINE" : "TELEVISION ENGINE"}</span><h3>{section.title}</h3><p>{section.description}</p></div><strong>{section.items.length}</strong></div>
+                <div className="reeltrack-item-grid">
+              {section.items.map((item) => (
                 <article key={`${item.source}:${item.externalId}`}>
                   <div className="reeltrack-poster">
                     <ReeltrackPoster item={item} />
@@ -883,6 +894,8 @@ export function ReeltrackListsView({
                   </footer>
                 </article>
               ))}
+                </div>
+              </section>)}
             </div>
             {!items.length ? (
               <div className="empty compact">

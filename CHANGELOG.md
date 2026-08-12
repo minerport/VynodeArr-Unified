@@ -7,6 +7,24 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.41] - 2026-08-12
+
+### Added
+
+- Added a restart-safe choice between VynodeArr's bundled media engines and user-managed external movie and television engines.
+- Added encrypted staging and validation for both external engine connections before activation.
+- Mixed lists imported from Reeltrack and compatible services now remain one synchronized list while displaying separate Movies and Television sections.
+
+### Improved
+
+- Every existing VynodeArr management surface follows the active engines through the same private gateway, including requests, searches, queues, profiles, providers, root folders, history, calendars, and wanted media.
+- Imported list navigation now reports movie and television counts, and provider media labels such as `show`, `series`, and `television` are routed to the television engine consistently.
+
+### Fixed
+
+- External mode no longer starts or applies installation-specific setup to the bundled engines.
+- Container health checks remain valid when the bundled engines are intentionally disabled.
+
 ## [2.0.40] - 2026-08-09
 
 ### Added

@@ -173,3 +173,26 @@ test('environment engine credentials auto-configure the private gateway once',as
     assert.equal(JSON.stringify(service.public()).includes('movie-secret'),false);
   }finally{await rm(directory,{recursive:true,force:true});}
 });
+
+test('external engines are staged together and activate only after restart',async()=>{
+  const directory=await mkdtemp(join(tmpdir(),'vynodearr-external-'));
+  try{
+    const defaults={dataMode:'engine',movie:{enabled:true,host:'127.0.0.1',port:7878,apiCredential:'bundled-movie'},tv:{enabled:true,host:'127.0.0.1',port:8989,apiCredential:'bundled-tv'}};
+    const service=new EngineSettingsService({path:join(directory,'settings.json'),vaultPath:join(directory,'credentials.enc'),masterKey:'test-master-key-with-32-characters',defaults,bundled:true});
+    await service.initialize();
+    assert.equal(service.mode(),'bundled');
+    await assert.rejects(()=>service.requestMode('external'),/both external engines/i);
+    await service.saveExternal('movie',{...defaults.movie,host:'radarr.local'},'external-movie');
+    await service.saveExternal('tv',{...defaults.tv,host:'sonarr.local'},'external-tv');
+    await service.requestMode('external');
+    assert.equal(service.mode(),'bundled');
+    assert.equal(service.public().restartRequired,true);
+    await service.applyPendingMode();
+    assert.equal(service.mode(),'external');
+    const runtime=await service.runtime();
+    assert.equal(runtime.movie.host,'radarr.local');
+    assert.equal(runtime.tv.host,'sonarr.local');
+    assert.equal(runtime.movie.apiCredential,'external-movie');
+    assert.equal(JSON.stringify(service.public()).includes('external-movie'),false);
+  }finally{await rm(directory,{recursive:true,force:true});}
+});

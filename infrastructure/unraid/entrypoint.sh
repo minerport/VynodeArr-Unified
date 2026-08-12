@@ -6,6 +6,13 @@ tv_config=/config/television
 app_config=/config/vynodearr
 mkdir -p "$movie_config" "$tv_config" "$app_config" /movies /tv /downloads
 
+engine_mode=bundled
+settings_file="$app_config/engine-settings.json"
+if [ -f "$settings_file" ]; then
+  engine_mode="$(node -e "const fs=require('fs');try{const v=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(v.pendingMode||v.mode||'bundled')}catch{process.stdout.write('bundled')}" "$settings_file")"
+fi
+export VYNODEARR_ENGINE_MODE="$engine_mode"
+
 random_key() {
   od -An -N16 -tx1 /dev/urandom | tr -d ' \n'
 }
@@ -19,23 +26,27 @@ if [ ! -f "$tv_config/config.xml" ]; then
   printf '%s\n' "<Config><BindAddress>*</BindAddress><Port>8989</Port><EnableSsl>False</EnableSsl><LaunchBrowser>False</LaunchBrowser><ApiKey>${tv_key}</ApiKey><AuthenticationMethod>External</AuthenticationMethod><AuthenticationRequired>Enabled</AuthenticationRequired><LogLevel>info</LogLevel><UrlBase></UrlBase><InstanceName>VynodeArr Television</InstanceName><UpdateMechanism>Docker</UpdateMechanism></Config>" > "$tv_config/config.xml"
 fi
 
-export MOVIE_ENGINE_API_CREDENTIAL="$(sed -n 's:.*<ApiKey>\([^<]*\)</ApiKey>.*:\1:p' "$movie_config/config.xml")"
-export TV_ENGINE_API_CREDENTIAL="$(sed -n 's:.*<ApiKey>\([^<]*\)</ApiKey>.*:\1:p' "$tv_config/config.xml")"
-
-env -u PORT /opt/vynodearr/movies/Radarr -nobrowser -data="$movie_config" &
-movie_pid=$!
-env -u PORT /opt/vynodearr/television/Sonarr -nobrowser -data="$tv_config" &
-tv_pid=$!
+if [ "$engine_mode" = bundled ]; then
+  export MOVIE_ENGINE_API_CREDENTIAL="$(sed -n 's:.*<ApiKey>\([^<]*\)</ApiKey>.*:\1:p' "$movie_config/config.xml")"
+  export TV_ENGINE_API_CREDENTIAL="$(sed -n 's:.*<ApiKey>\([^<]*\)</ApiKey>.*:\1:p' "$tv_config/config.xml")"
+  env -u PORT /opt/vynodearr/movies/Radarr -nobrowser -data="$movie_config" &
+  movie_pid=$!
+  env -u PORT /opt/vynodearr/television/Sonarr -nobrowser -data="$tv_config" &
+  tv_pid=$!
+fi
 node apps/api/src/server.js &
 app_pid=$!
 
 shutdown() {
-  kill -TERM "$app_pid" "$movie_pid" "$tv_pid" 2>/dev/null || true
-  wait "$app_pid" "$movie_pid" "$tv_pid" 2>/dev/null || true
+  kill -TERM "$app_pid" ${movie_pid:-} ${tv_pid:-} 2>/dev/null || true
+  wait "$app_pid" ${movie_pid:-} ${tv_pid:-} 2>/dev/null || true
 }
 trap shutdown INT TERM EXIT
 
-while kill -0 "$app_pid" 2>/dev/null && kill -0 "$movie_pid" 2>/dev/null && kill -0 "$tv_pid" 2>/dev/null; do
+while kill -0 "$app_pid" 2>/dev/null; do
+  if [ "$engine_mode" = bundled ] && { ! kill -0 "$movie_pid" 2>/dev/null || ! kill -0 "$tv_pid" 2>/dev/null; }; then
+    exit 1
+  fi
   sleep 2
 done
 exit 1
