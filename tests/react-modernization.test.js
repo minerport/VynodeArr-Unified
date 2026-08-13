@@ -51,7 +51,8 @@ test('Reeltrack Lists remains fluid while the viewport is resized',async()=>{
   assert.match(artStyles,/\.reeltrack-artwork-designer\{[^}]*display:flex!important[^}]*overflow:hidden!important/);assert.match(artStyles,/\.reeltrack-designer-grid\{[^}]*overflow:hidden[^}]*flex:1/);assert.match(artStyles,/\.reeltrack-designer-grid>aside,\.reeltrack-designer-grid>main\{[^}]*overflow-y:auto/);
   assert.match(artStyles,/\.reeltrack-designer-grid>aside::after,\.reeltrack-designer-grid>main::after\{[^}]*height:100%[^}]*min-height:100%/);
   assert.match(view,/async function persistAutomation/);assert.match(view,/await persistAutomation\(\);\s*const value = await request/);
-  assert.match(api,/kind:\s*"title",\s*exceptRatingKeys:\s*collectionMemberKeys/);assert.match(api,/ratingKeys:\s*collectionMemberKeys/);
+  assert.match(api,/kind:\s*"title",\s*exceptRatingKeys:\s*collectionMemberKeys/);assert.match(api,/ratingKeys:\s*splitCollections\s*\?\s*placeholderKeys\s*:\s*collectionMemberKeys/);
+  assert.match(view,/Use a separate placeholder library/);assert.match(api,/splitLibraryMode/);assert.match(api,/realLibraryLocation/);
   assert.match(api,/realTitleTemplate\s*=\s*reeltrackPosterTemplate\(automation\.realTitleOverlayTemplate,\s*domain\)\s*\|\|\s*titleTemplate/);
   assert.match(api,/ratingKeys:\s*placeholderKeys/);assert.match(api,/ratingKeys:\s*realRatingKeys/);
   assert.match(api,/repair-trailers/);assert.match(view,/Find missing trailers/);assert.match(view,/Plex and overlays refreshed/);

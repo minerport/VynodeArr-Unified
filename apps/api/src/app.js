@@ -12,7 +12,7 @@ import {
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { Readable } from "node:stream";
-import { extname, join, normalize, resolve } from "node:path";
+import { extname, join, normalize, resolve, sep } from "node:path";
 import { promisify } from "node:util";
 import { gunzip, gzip } from "node:zlib";
 import { MediaEngineRegistry } from "../../../packages/platform/src/engine-registry.js";
@@ -1787,14 +1787,35 @@ export function createApplication(options = {}) {
           movie: automation.plexMovieLibraryKey || (legacyLibrary?.type === "movie" ? legacyLibrary.key : ""),
           tv: automation.plexTvLibraryKey || (legacyLibrary?.type === "show" ? legacyLibrary.key : ""),
         },
+        placeholderKeys = {
+          movie: automation.splitLibraryMode ? automation.plexMoviePlaceholderLibraryKey : "",
+          tv: automation.splitLibraryMode ? automation.plexTvPlaceholderLibraryKey : "",
+        },
         targets = await Promise.all([...requiredDomains].map(async (domain) => {
           const expectedType = domain === "tv" ? "show" : "movie",
-            library = libraries.find((item) => String(item.key) === String(selectedKeys[domain]) && item.type === expectedType);
-          if (!library) throw new Error(`Choose a Plex ${domain === "tv" ? "television" : "movie"} library for this list.`);
-          if (!String(library.locations?.[0] || "").trim()) throw new Error(`The selected Plex ${domain === "tv" ? "television" : "movie"} library does not report a media location. Reconnect Plex and try again.`);
-          const plexItems = await plexService.libraryItems(plexSettings.endpoint, plexToken, library),
-            libraryLocation = plexLibraryLocation(library, plexItems);
-          return { domain, library, libraryLocation, localRoot: mappedLibraryRoot(domain, automation), plexItems };
+            realLibrary = libraries.find((item) => String(item.key) === String(selectedKeys[domain]) && item.type === expectedType),
+            placeholderLibrary = placeholderKeys[domain]
+              ? libraries.find((item) => String(item.key) === String(placeholderKeys[domain]) && item.type === expectedType)
+              : realLibrary;
+          if (!realLibrary) throw new Error(`Choose a Plex ${domain === "tv" ? "television" : "movie"} library for this list.`);
+          if (!placeholderLibrary) throw new Error(`Choose a Plex placeholder ${domain === "tv" ? "television" : "movie"} library for this list.`);
+          if (automation.splitLibraryMode && String(realLibrary.key) === String(placeholderLibrary.key)) throw new Error("The real-media and placeholder Plex libraries must be different in split-library mode.");
+          if (!String(realLibrary.locations?.[0] || "").trim() || !String(placeholderLibrary.locations?.[0] || "").trim()) throw new Error(`The selected Plex ${domain === "tv" ? "television" : "movie"} libraries do not report media locations. Reconnect Plex and try again.`);
+          const [realPlexItems, placeholderPlexItems] = await Promise.all([
+              plexService.libraryItems(plexSettings.endpoint, plexToken, realLibrary),
+              String(realLibrary.key) === String(placeholderLibrary.key) ? Promise.resolve(null) : plexService.libraryItems(plexSettings.endpoint, plexToken, placeholderLibrary),
+            ]),
+            realLibraryLocation = plexLibraryLocation(realLibrary, realPlexItems),
+            placeholderLibraryLocation = plexLibraryLocation(placeholderLibrary, placeholderPlexItems || realPlexItems),
+            realLocalRoot = mappedLibraryRoot(domain, automation),
+            placeholderLocalRoot = automation.splitLibraryMode
+              ? resolve(String(domain === "tv" ? automation.tvPlaceholderHostRoot : automation.moviePlaceholderHostRoot))
+              : realLocalRoot;
+          if (automation.splitLibraryMode) {
+            const configuredRoot = resolve(localLibraryRoot(domain));
+            if (placeholderLocalRoot !== configuredRoot && !placeholderLocalRoot.startsWith(`${configuredRoot}${sep}`)) throw new Error("The placeholder folder must be inside the configured media root.");
+          }
+          return { domain, library: placeholderLibrary, libraryLocation: placeholderLibraryLocation, localRoot: placeholderLocalRoot, plexItems: placeholderPlexItems || realPlexItems, realLibrary, realLibraryLocation, realLocalRoot, realPlexItems };
         }));
       const libraryAdds = await addReeltrackItemsToLibraries(
           providerItems,
@@ -1805,7 +1826,7 @@ export function createApplication(options = {}) {
         totals = { managedTitles: 0, placeholders: 0, downloaded: 0, removed: 0, realMatches: 0, collectionPosters: 0, titlePosters: 0 },
         collectionRatingKeys = { ...(automation.collectionRatingKeys || {}) },
         plexLibraryLocations = {};
-      for (const { domain, library, libraryLocation, localRoot, plexItems } of targets) {
+      for (const { domain, library, libraryLocation, localRoot, plexItems, realLibrary, realLibraryLocation, realLocalRoot, realPlexItems } of targets) {
         plexLibraryLocations[domain] = libraryLocation;
         const trailerPrefix = plexPathValue(libraryLocation),
         localTrailerPrefix = plexPathValue(localRoot),
@@ -1843,7 +1864,7 @@ export function createApplication(options = {}) {
           (item.files || []).length > 0 &&
           isManagedPlaceholder(item),
         ),
-        realItems = plexItems.filter((item) => !placeholders.includes(item)),
+        realItems = automation.splitLibraryMode ? realPlexItems : plexItems.filter((item) => !placeholders.includes(item)),
         realIds = new Set(
           realItems.flatMap((item) =>
             plexExternalIds(item).map((identity) => `${domain}:${identity}`),
@@ -1873,7 +1894,7 @@ export function createApplication(options = {}) {
           realFile = (realItem?.files || []).find((file) => !/(?:^|[\\/])(?:trailer|[^\\/]*-trailer)\.[a-z0-9]+$/i.test(String(file)));
         if (!realFile) continue;
         try {
-          jobs[key] = await trailerDownloader.promote(job, { realFile, libraryRoot: libraryLocation, localRoot });
+          jobs[key] = await trailerDownloader.promote(job, { realFile, libraryRoot: realLibraryLocation, localRoot: realLocalRoot });
         } catch (error) {
           jobs[key] = { ...job, promotionError: error?.message || "Trailer could not be converted to a Plex extra.", promotionFailedAt: new Date().toISOString() };
         }
@@ -1894,7 +1915,7 @@ export function createApplication(options = {}) {
           if (realIds.has(key) && typeof trailerDownloader.promote === "function") {
             const realItem = realItems.find((value) => plexExternalIds(value).some((identity) => `${domain}:${identity}` === key)),
               realFile = (realItem?.files || []).find((file) => !/(?:^|[\\/])(?:trailer|[^\\/]*-trailer)\.[a-z0-9]+$/i.test(String(file)));
-            if (realFile) jobs[key] = await trailerDownloader.promote(jobs[key], { realFile, libraryRoot: libraryLocation, localRoot });
+            if (realFile) jobs[key] = await trailerDownloader.promote(jobs[key], { realFile, libraryRoot: realLibraryLocation, localRoot: realLocalRoot });
           }
           downloaded += 1;
         } catch (error) {
@@ -1916,6 +1937,8 @@ export function createApplication(options = {}) {
           plexToken,
           library.key,
         );
+      if (automation.splitLibraryMode && (downloaded || Object.values(jobs).some((job) => job?.state === "extra")))
+        await plexService.refreshLibrary(plexSettings.endpoint, plexToken, realLibrary.key);
       const currentManagedPlexPaths = () =>
           new Set(
             Object.values(jobs)
@@ -1967,11 +1990,14 @@ export function createApplication(options = {}) {
       const placeholderWarning = placeholderKeys.length < expectedPlaceholderCount
           ? `Plex indexed ${placeholderKeys.length} of ${expectedPlaceholderCount} managed ${domain === "tv" ? "television" : "movie"} trailers in ${library.title}. Verify that ${libraryLocation} and ${localRoot} point to the same host folder.`
           : null,
-        refreshedRealItems = refreshedItems.filter((item) => !refreshedPlaceholders.includes(item)),
+        refreshedRealItems = automation.splitLibraryMode
+          ? await plexService.libraryItems(plexSettings.endpoint, plexToken, realLibrary)
+          : refreshedItems.filter((item) => !refreshedPlaceholders.includes(item)),
         realRatingKeys = refreshedRealItems.filter((item) =>
           plexExternalIds(item).some((identity) => wanted.has(`${domain}:${identity}`)),
         ).map((item) => item.ratingKey),
-        collectionMemberKeys = [...new Set([...realRatingKeys, ...placeholderKeys])];
+        collectionMemberKeys = [...new Set([...realRatingKeys, ...placeholderKeys])],
+        splitCollections = automation.splitLibraryMode && String(library.key) !== String(realLibrary.key);
       await restoreReeltrackArtwork({ automation, endpoint: plexSettings.endpoint, token: plexToken, machineIdentifier: plexSettings.server?.machineIdentifier || "", domain, kind: "title", exceptRatingKeys: collectionMemberKeys });
       const collection = await plexService.syncCollection(
           plexSettings.endpoint,
@@ -1981,10 +2007,17 @@ export function createApplication(options = {}) {
             libraryType: library.type,
             machineIdentifier: plexSettings.server?.machineIdentifier,
             title: automation.collectionName || list.name,
-            ratingKeys: collectionMemberKeys,
+            ratingKeys: splitCollections ? placeholderKeys : collectionMemberKeys,
           },
         );
-        collectionRatingKeys[domain] = collection.ratingKey;
+        const realCollection = splitCollections ? await plexService.syncCollection(
+          plexSettings.endpoint, plexToken, {
+            libraryKey: realLibrary.key, libraryType: realLibrary.type,
+            machineIdentifier: plexSettings.server?.machineIdentifier,
+            title: automation.collectionName || list.name, ratingKeys: realRatingKeys,
+          },
+        ) : collection;
+        collectionRatingKeys[domain] = splitCollections ? { placeholder: collection.ratingKey, real: realCollection.ratingKey } : collection.ratingKey;
         const collectionTemplate = reeltrackPosterTemplate(automation.collectionPosterTemplate, domain),
           titleTemplate = reeltrackPosterTemplate(automation.titleOverlayTemplate, domain),
           realTitleTemplate = reeltrackPosterTemplate(automation.realTitleOverlayTemplate, domain) || titleTemplate;
@@ -2005,6 +2038,10 @@ export function createApplication(options = {}) {
             );
             await plexService.uploadPoster(plexSettings.endpoint, plexToken, collection.ratingKey, rendered, "image/jpeg");
             totals.collectionPosters += 1;
+            if (splitCollections && realCollection.ratingKey) {
+              await plexService.uploadPoster(plexSettings.endpoint, plexToken, realCollection.ratingKey, rendered, "image/jpeg");
+              totals.collectionPosters += 1;
+            }
           } catch (error) {
             totals.collectionPosterFailures = (totals.collectionPosterFailures || 0) + 1;
             totals.collectionPosterErrors = [...(totals.collectionPosterErrors || []), error?.message || "collection poster failed"].slice(0, 10);
@@ -2025,13 +2062,15 @@ export function createApplication(options = {}) {
         const realArtwork = await applyReeltrackTitleArtwork({
           template: realTitleTemplate, endpoint: plexSettings.endpoint, token: plexToken,
           machineIdentifier: plexSettings.server?.machineIdentifier || "", automation,
-          items: refreshedItems, ratingKeys: realRatingKeys, list, domain, syncedAt: runStartedAt,
+          items: refreshedRealItems, ratingKeys: realRatingKeys, list, domain, syncedAt: runStartedAt,
         });
         totals.titlePosters += placeholderArtwork.applied + realArtwork.applied;
         totals.titlePosterFailures = (totals.titlePosterFailures || 0) + placeholderArtwork.failed + realArtwork.failed;
         totals.titlePosterErrors = [...(totals.titlePosterErrors || []), ...placeholderArtwork.errors, ...realArtwork.errors].slice(0, 10);
         if (placeholderArtwork.applied || realArtwork.applied)
           await plexService.refreshLibrary(plexSettings.endpoint, plexToken, library.key);
+        if (splitCollections && realArtwork.applied)
+          await plexService.refreshLibrary(plexSettings.endpoint, plexToken, realLibrary.key);
         totals.managedTitles += wanted.size;
         totals.placeholders += placeholderKeys.length;
         totals.downloaded += downloaded;
@@ -2046,6 +2085,8 @@ export function createApplication(options = {}) {
         enabled: Boolean(remoteProviderList),
         plexMovieLibraryKey: String(selectedKeys.movie || ""),
         plexTvLibraryKey: String(selectedKeys.tv || ""),
+        plexMoviePlaceholderLibraryKey: String(placeholderKeys.movie || ""),
+        plexTvPlaceholderLibraryKey: String(placeholderKeys.tv || ""),
         plexLibraryLocations,
         jobs,
         intervalMinutes,
@@ -9542,6 +9583,12 @@ export function createApplication(options = {}) {
               throw new Error("Choose a discovered Plex movie library.");
             if (domains.has("tv") && !(settings.libraries || []).some((item) => item.type === "show" && String(item.key) === String(input.plexTvLibraryKey)))
               throw new Error("Choose a discovered Plex television library.");
+            if (input.splitLibraryMode) {
+              if (domains.has("movie") && !(settings.libraries || []).some((item) => item.type === "movie" && String(item.key) === String(input.plexMoviePlaceholderLibraryKey))) throw new Error("Choose a discovered Plex movie placeholder library.");
+              if (domains.has("tv") && !(settings.libraries || []).some((item) => item.type === "show" && String(item.key) === String(input.plexTvPlaceholderLibraryKey))) throw new Error("Choose a discovered Plex television placeholder library.");
+              if (domains.has("movie") && String(input.plexMovieLibraryKey) === String(input.plexMoviePlaceholderLibraryKey)) throw new Error("Choose different real-media and placeholder movie libraries.");
+              if (domains.has("tv") && String(input.plexTvLibraryKey) === String(input.plexTvPlaceholderLibraryKey)) throw new Error("Choose different real-media and placeholder television libraries.");
+            }
             if (domains.has("movie")) mappedLibraryRoot("movie", input);
             if (domains.has("tv")) mappedLibraryRoot("tv", input);
           }
@@ -9551,6 +9598,11 @@ export function createApplication(options = {}) {
             downloadTrailers: input.downloadTrailers !== false,
             plexMovieLibraryKey: String(input.plexMovieLibraryKey || ""),
             plexTvLibraryKey: String(input.plexTvLibraryKey || ""),
+            splitLibraryMode: input.splitLibraryMode === true,
+            plexMoviePlaceholderLibraryKey: input.splitLibraryMode ? String(input.plexMoviePlaceholderLibraryKey || "") : "",
+            plexTvPlaceholderLibraryKey: input.splitLibraryMode ? String(input.plexTvPlaceholderLibraryKey || "") : "",
+            moviePlaceholderHostRoot: input.splitLibraryMode ? String(input.moviePlaceholderHostRoot || input.movieHostRoot || localLibraryRoot("movie")) : "",
+            tvPlaceholderHostRoot: input.splitLibraryMode ? String(input.tvPlaceholderHostRoot || input.tvHostRoot || localLibraryRoot("tv")) : "",
             movieMediaDestinationId: String(input.movieMediaDestinationId || ""),
             tvMediaDestinationId: String(input.tvMediaDestinationId || ""),
             movieHostRoot: String(input.movieHostRoot || localLibraryRoot("movie")),

@@ -109,13 +109,16 @@ const reeltrackTrailerRepairAllowance={route:800};
 // explicitly saved and applied, preventing premature Plex synchronization.
 const reeltrackDraftImportAllowance={route:100};
 const reeltrackColumnOverscrollAllowance={css:250};
+// Optional split-library automation adds explicit real and placeholder Plex
+// destinations, host mappings, validation, and promotion controls to Lists only.
+const reeltrackSplitLibraryAllowance={route:5_200};
 const failures=[];
 
 if(!entry)failures.push('The React entry bundle was not produced.');
 else if(entry.bytes>limits.entry)failures.push(`React entry is ${entry.bytes} bytes (limit ${limits.entry}).`);
 if(!shell)failures.push('The TypeScript application shell bundle was not produced.');
 else if(shell.bytes>limits.shell+mobileAllowance.shell+reeltrackAllowance.shell+libraryReviewAllowance.shell+mediaRemovalAllowance.shell)failures.push(`Application shell is ${shell.bytes} bytes (limit ${limits.shell+mobileAllowance.shell+reeltrackAllowance.shell+libraryReviewAllowance.shell+mediaRemovalAllowance.shell}).`);
-for(const chunk of routeChunks){const routeLimit=limits.route+(chunk.name.startsWith('system-')?performanceAllowance.systemRoute:0)+(chunk.name.startsWith('poster-overlays-')?posterOverlayAllowance.route+overlayAssignmentClarityAllowance.route:0)+(chunk.name.startsWith('root-folders-')?storageMappingAllowance.route+mediaDestinationChoiceAllowance.rootFoldersRoute+storagePathMigrationAllowance.route+storagePathProgressAllowance.route+storageEngineVerificationAllowance.route+nestedMediaFolderAllowance.route:0)+(chunk.name.startsWith('reeltrack-lists-')?mediaDestinationChoiceAllowance.reeltrackRoute+mixedListSectionsAllowance.route+reeltrackRealTitleOverlayAllowance.route+reeltrackTrailerRepairAllowance.route+reeltrackDraftImportAllowance.route:0);if(chunk.bytes>routeLimit)failures.push(`${chunk.name} is ${chunk.bytes} bytes (route limit ${routeLimit}).`);}
+for(const chunk of routeChunks){const routeLimit=limits.route+(chunk.name.startsWith('system-')?performanceAllowance.systemRoute:0)+(chunk.name.startsWith('poster-overlays-')?posterOverlayAllowance.route+overlayAssignmentClarityAllowance.route:0)+(chunk.name.startsWith('root-folders-')?storageMappingAllowance.route+mediaDestinationChoiceAllowance.rootFoldersRoute+storagePathMigrationAllowance.route+storagePathProgressAllowance.route+storageEngineVerificationAllowance.route+nestedMediaFolderAllowance.route:0)+(chunk.name.startsWith('reeltrack-lists-')?mediaDestinationChoiceAllowance.reeltrackRoute+mixedListSectionsAllowance.route+reeltrackRealTitleOverlayAllowance.route+reeltrackTrailerRepairAllowance.route+reeltrackDraftImportAllowance.route+reeltrackSplitLibraryAllowance.route:0);if(chunk.bytes>routeLimit)failures.push(`${chunk.name} is ${chunk.bytes} bytes (route limit ${routeLimit}).`);}
 if(stylesheet&&stylesheet.bytes>limits.css+mobileAllowance.css+performanceAllowance.css+posterOverlayAllowance.css+reeltrackAllowance.css+trailerDownloadAllowance.css+managedListCompactAllowance.css+artworkDesignerAllowance.css+libraryReviewAllowance.css+mediaRemovalAllowance.css+releaseBrowserAllowance.css+managedCollectionSetupAllowance.css+overlayAssignmentClarityAllowance.css+reeltrackApiKeyLinkAllowance.css+mobileActivityControlsAllowance.css+staticOverlayCssAllowance.css+mixedListSectionsAllowance.css+reeltrackColumnOverscrollAllowance.css)failures.push(`React stylesheet exceeds its intentional feature budget.`);
 
 if(failures.length){

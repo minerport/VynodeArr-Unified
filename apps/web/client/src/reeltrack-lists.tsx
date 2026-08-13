@@ -73,12 +73,17 @@ export function ReeltrackListsView({
     [automationEnabled, setAutomationEnabled] = useState(false),
     [automationMovieLibraryKey, setAutomationMovieLibraryKey] = useState(""),
     [automationTvLibraryKey, setAutomationTvLibraryKey] = useState(""),
+    [splitLibraryMode, setSplitLibraryMode] = useState(false),
+    [moviePlaceholderLibraryKey, setMoviePlaceholderLibraryKey] = useState(""),
+    [tvPlaceholderLibraryKey, setTvPlaceholderLibraryKey] = useState(""),
     [mediaDestinations, setMediaDestinations] = useState<MediaDestination[]>([]),
     [movieMediaDestinationId, setMovieMediaDestinationId] = useState(""),
     [tvMediaDestinationId, setTvMediaDestinationId] = useState(""),
     [movieHostRoot, setMovieHostRoot] = useState("/movies"),
     [tvHostRoot, setTvHostRoot] = useState("/tv"),
-    [hostBrowser, setHostBrowser] = useState<"movie" | "tv" | null>(null),
+    [moviePlaceholderHostRoot, setMoviePlaceholderHostRoot] = useState("/movies"),
+    [tvPlaceholderHostRoot, setTvPlaceholderHostRoot] = useState("/tv"),
+    [hostBrowser, setHostBrowser] = useState<"movie" | "tv" | "moviePlaceholder" | "tvPlaceholder" | null>(null),
     [hostBrowserPath, setHostBrowserPath] = useState("/"),
     [hostDirectories, setHostDirectories] = useState<Array<{ name: string; path: string }>>([]),
     [hostBrowserError, setHostBrowserError] = useState(""),
@@ -135,10 +140,15 @@ export function ReeltrackListsView({
     const legacy = trailerStatus?.libraries?.find((item) => item.key === selected.automation?.plexLibraryKey);
     setAutomationMovieLibraryKey(selected.automation?.plexMovieLibraryKey || (legacy?.type === "movie" ? legacy.key : "") || trailerStatus?.libraries?.find((item) => item.type === "movie")?.key || "");
     setAutomationTvLibraryKey(selected.automation?.plexTvLibraryKey || (legacy?.type === "show" ? legacy.key : "") || trailerStatus?.libraries?.find((item) => item.type === "show")?.key || "");
+    setSplitLibraryMode(Boolean(selected.automation?.splitLibraryMode));
+    setMoviePlaceholderLibraryKey(selected.automation?.plexMoviePlaceholderLibraryKey || "");
+    setTvPlaceholderLibraryKey(selected.automation?.plexTvPlaceholderLibraryKey || "");
     setMovieMediaDestinationId(selected.automation?.movieMediaDestinationId || mediaDestinations.find((item) => item.domain === "movie" && item.isDefault && item.ready)?.id || mediaDestinations.find((item) => item.domain === "movie" && item.ready)?.id || "");
     setTvMediaDestinationId(selected.automation?.tvMediaDestinationId || mediaDestinations.find((item) => item.domain === "tv" && item.isDefault && item.ready)?.id || mediaDestinations.find((item) => item.domain === "tv" && item.ready)?.id || "");
     setMovieHostRoot(selected.automation?.movieHostRoot || trailerStatus?.hostRoots?.movie || "/movies");
     setTvHostRoot(selected.automation?.tvHostRoot || trailerStatus?.hostRoots?.tv || "/tv");
+    setMoviePlaceholderHostRoot(selected.automation?.moviePlaceholderHostRoot || selected.automation?.movieHostRoot || trailerStatus?.hostRoots?.movie || "/movies");
+    setTvPlaceholderHostRoot(selected.automation?.tvPlaceholderHostRoot || selected.automation?.tvHostRoot || trailerStatus?.hostRoots?.tv || "/tv");
     setAutomationInterval(selected.automation?.intervalMinutes || 60);
     setAutomationCollectionName(selected.automation?.collectionName || selected.name);
     setCollectionPosterTemplate(selected.automation?.collectionPosterTemplate || null);
@@ -149,7 +159,8 @@ export function ReeltrackListsView({
     if (!hostBrowser) return;
     setHostBrowserError("");
     setHostDirectories([]);
-    void request<{ directories?: Array<{ name: string; path: string }> }>(`/api/reeltrack/trailers/folders?domain=${hostBrowser}&path=${encodeURIComponent(hostBrowserPath)}`)
+    const domain = hostBrowser.startsWith("movie") ? "movie" : "tv";
+    void request<{ directories?: Array<{ name: string; path: string }> }>(`/api/reeltrack/trailers/folders?domain=${domain}&path=${encodeURIComponent(hostBrowserPath)}`)
       .then((value) => setHostDirectories(value.directories || []))
       .catch((reason) => setHostBrowserError(message(reason)));
   }, [hostBrowser, hostBrowserPath, request]);
@@ -291,6 +302,11 @@ export function ReeltrackListsView({
             enabled: automationEnabled,
             plexMovieLibraryKey: automationMovieLibraryKey,
             plexTvLibraryKey: automationTvLibraryKey,
+            splitLibraryMode,
+            plexMoviePlaceholderLibraryKey: moviePlaceholderLibraryKey,
+            plexTvPlaceholderLibraryKey: tvPlaceholderLibraryKey,
+            moviePlaceholderHostRoot,
+            tvPlaceholderHostRoot,
             movieMediaDestinationId,
             tvMediaDestinationId,
             movieHostRoot,
@@ -338,9 +354,10 @@ export function ReeltrackListsView({
       compatible: Boolean(location && hostRoot && (trailerStatus?.engineRoots?.[domain] || []).length),
     };
   };
-  const openHostBrowser = (domain: "movie" | "tv") => {
-    const path = domain === "movie" ? movieHostRoot : tvHostRoot;
-    setHostBrowser(domain);
+  const openHostBrowser = (target: "movie" | "tv" | "moviePlaceholder" | "tvPlaceholder") => {
+    const domain = target.startsWith("movie") ? "movie" : "tv",
+      path = target === "movie" ? movieHostRoot : target === "tv" ? tvHostRoot : target === "moviePlaceholder" ? moviePlaceholderHostRoot : tvPlaceholderHostRoot;
+    setHostBrowser(target);
     setHostBrowserPath(cleanFolder(path || trailerStatus?.hostRoots?.[domain] || (domain === "movie" ? "/movies" : "/tv")));
   };
   async function runAutomation() {
@@ -768,6 +785,14 @@ export function ReeltrackListsView({
                       <div className="storage-path-control"><input aria-label="Television host folder" readOnly value={tvHostRoot}/><button className="secondary" type="button" onClick={() => openHostBrowser("tv")}>Choose host folder</button></div>
                     </label><label><span>VynodeArr television destination</span><select value={tvMediaDestinationId} onChange={(event) => setTvMediaDestinationId(event.target.value)}><option value="">Use engine default</option>{mediaDestinations.filter((item) => item.domain === "tv").map((item) => <option key={item.id} value={item.id} disabled={!item.ready}>{item.name}{item.isDefault ? " — default" : ""}{item.ready ? "" : " — unavailable"}</option>)}</select><small>Missing series are registered with this root folder and quality profile.</small></label>{automationTvLibraryKey && !rootCompatibility("tv").compatible ? <div className="reeltrack-root-warning"><span>Television storage still needs a compatible engine root.</span><a className="button-link secondary" href="#service/root-folders">Review folders</a></div> : <small className="reeltrack-root-ready">Ready: Plex, host, and Television engine paths can differ.</small>}</div> : null}
                     </div>
+                    <label className="reeltrack-automation-toggle reeltrack-split-library-toggle">
+                      <input type="checkbox" checked={splitLibraryMode} onChange={(event) => setSplitLibraryMode(event.target.checked)} />
+                      <span><strong>Use a separate placeholder library <em>Optional</em></strong><small>Keep trailer-only titles in a separate Plex library. Real media remains in the library selected above, and VynodeArr maintains a matching collection in each library.</small></span>
+                    </label>
+                    {splitLibraryMode ? <div className="reeltrack-automation-fields reeltrack-library-fields reeltrack-placeholder-fields">
+                      {selected?.items?.some((item) => item.domain === "movie") ? <div className="reeltrack-plex-target"><label><span>Movie placeholder library</span><select value={moviePlaceholderLibraryKey} onChange={(event) => setMoviePlaceholderLibraryKey(event.target.value)}><option value="">Choose a different movie library</option>{(trailerStatus?.libraries || []).filter((library) => library.type === "movie" && library.key !== automationMovieLibraryKey).map((library) => <option key={library.key} value={library.key}>{library.title}</option>)}</select><small>Only trailer placeholders that do not have real media appear here.</small><div className="storage-path-control"><input aria-label="Movie placeholder host folder" readOnly value={moviePlaceholderHostRoot}/><button className="secondary" type="button" onClick={() => openHostBrowser("moviePlaceholder")}>Choose host folder</button></div></label></div> : null}
+                      {selected?.items?.some((item) => item.domain === "tv") ? <div className="reeltrack-plex-target"><label><span>Television placeholder library</span><select value={tvPlaceholderLibraryKey} onChange={(event) => setTvPlaceholderLibraryKey(event.target.value)}><option value="">Choose a different television library</option>{(trailerStatus?.libraries || []).filter((library) => library.type === "show" && library.key !== automationTvLibraryKey).map((library) => <option key={library.key} value={library.key}>{library.title}</option>)}</select><small>Only trailer placeholders that do not have real media appear here.</small><div className="storage-path-control"><input aria-label="Television placeholder host folder" readOnly value={tvPlaceholderHostRoot}/><button className="secondary" type="button" onClick={() => openHostBrowser("tvPlaceholder")}>Choose host folder</button></div></label></div> : null}
+                    </div> : null}
                   </div>
                 ) : null}
                 {automationEnabled ? (
@@ -801,7 +826,7 @@ export function ReeltrackListsView({
                 ) : null}
                 <button
                   className="primary"
-                  disabled={busy || (automationEnabled && Boolean(selected?.items?.some((item) => item.domain === "movie")) && !automationMovieLibraryKey) || (automationEnabled && Boolean(selected?.items?.some((item) => item.domain === "tv")) && !automationTvLibraryKey)}
+                  disabled={busy || (automationEnabled && Boolean(selected?.items?.some((item) => item.domain === "movie")) && (!automationMovieLibraryKey || (splitLibraryMode && !moviePlaceholderLibraryKey))) || (automationEnabled && Boolean(selected?.items?.some((item) => item.domain === "tv")) && (!automationTvLibraryKey || (splitLibraryMode && !tvPlaceholderLibraryKey)))}
                   onClick={() => void saveAutomation()}
                 >
                   Save and apply settings
@@ -941,12 +966,12 @@ export function ReeltrackListsView({
           <div className="root-folder-browser-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setHostBrowser(null); }}>
             <section className="panel root-folder-browser" role="dialog" aria-modal="true" aria-label="Map Plex library to a host folder">
               <div className="panel-heading">
-                <div><span className="eyebrow">MAP HOST FOLDER</span><h2>{hostBrowserPath}</h2><p className="muted">Plex reports {rootCompatibility(hostBrowser).location || "no path"}. Choose the corresponding folder visible to VynodeArr.</p></div>
+                <div><span className="eyebrow">MAP HOST FOLDER</span><h2>{hostBrowserPath}</h2><p className="muted">Choose the folder visible to VynodeArr that maps to this Plex library.</p></div>
                 <button className="secondary" type="button" onClick={() => setHostBrowser(null)}>Cancel</button>
               </div>
               <div className="folder-browser-actions">
-                <button className="secondary" type="button" disabled={cleanFolder(hostBrowserPath) === cleanFolder(trailerStatus?.hostRoots?.[hostBrowser] || (hostBrowser === "movie" ? "/movies" : "/tv"))} onClick={() => setHostBrowserPath(parentFolder(hostBrowserPath))}>← Parent</button>
-                <button className="primary" type="button" onClick={() => { hostBrowser === "movie" ? setMovieHostRoot(hostBrowserPath) : setTvHostRoot(hostBrowserPath); setHostBrowser(null); }}>Use this folder</button>
+                <button className="secondary" type="button" disabled={cleanFolder(hostBrowserPath) === cleanFolder(trailerStatus?.hostRoots?.[hostBrowser.startsWith("movie") ? "movie" : "tv"] || (hostBrowser.startsWith("movie") ? "/movies" : "/tv"))} onClick={() => setHostBrowserPath(parentFolder(hostBrowserPath))}>← Parent</button>
+                <button className="primary" type="button" onClick={() => { if (hostBrowser === "movie") setMovieHostRoot(hostBrowserPath); else if (hostBrowser === "tv") setTvHostRoot(hostBrowserPath); else if (hostBrowser === "moviePlaceholder") setMoviePlaceholderHostRoot(hostBrowserPath); else setTvPlaceholderHostRoot(hostBrowserPath); setHostBrowser(null); }}>Use this folder</button>
               </div>
               <div className="folder-browser-list">
                 {hostBrowserError ? <div className="empty error-state"><p>{hostBrowserError}</p></div> : hostDirectories.length ? hostDirectories.map((folder) => <button className="folder-row" type="button" key={folder.path} onClick={() => setHostBrowserPath(cleanFolder(folder.path))}><span className="folder-icon">▰</span><span>{folder.name}</span><small>{folder.path}</small></button>) : <div className="empty compact"><p>No subfolders here. You can still use this folder.</p></div>}
