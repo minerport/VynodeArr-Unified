@@ -9377,10 +9377,10 @@ export function createApplication(options = {}) {
                 ...list,
                 items,
                 importedAt: new Date().toISOString(),
-                automation: automationEnabled
-                  ? {
-                      ...(previousById.get(String(list.id))?.automation || {}),
-                      enabled: true,
+                automation: previousById.has(String(list.id))
+                  ? previousById.get(String(list.id))?.automation || null
+                  : automationEnabled ? {
+                      enabled: false,
                       downloadTrailers: true,
                       plexMovieLibraryKey: String(automationInput.plexMovieLibraryKey || ""),
                       plexTvLibraryKey: String(automationInput.plexTvLibraryKey || ""),
@@ -9393,11 +9393,11 @@ export function createApplication(options = {}) {
                         15,
                         Math.min(1440, Number(automationInput.intervalMinutes) || 60),
                       ),
-                      status: "scheduled",
+                      status: "disabled",
                       error: null,
-                      nextRunAt: new Date().toISOString(),
+                      nextRunAt: null,
                     }
-                  : previousById.get(String(list.id))?.automation || null,
+                  : null,
               };}),
             ),
             selectedById = new Map(selectedImports.map((item) => [String(item.id), item])),
@@ -9410,9 +9410,6 @@ export function createApplication(options = {}) {
               updatedAt: new Date().toISOString(),
             };
           await saveReeltrackSnapshot(session.user.id, snapshot);
-          for (const list of importedLists)
-            if (list.automation?.enabled)
-              void runReeltrackPlexAutomation(session.user.id, list.id).catch(() => {});
           await recordAudit(session, {
             category: "integration",
             action: "reeltrack.lists_imported",

@@ -54,7 +54,8 @@ test('Reeltrack Lists remains fluid while the viewport is resized',async()=>{
   assert.match(api,/realTitleTemplate\s*=\s*reeltrackPosterTemplate\(automation\.realTitleOverlayTemplate,\s*domain\)\s*\|\|\s*titleTemplate/);
   assert.match(api,/ratingKeys:\s*placeholderKeys/);assert.match(api,/ratingKeys:\s*realRatingKeys/);
   assert.match(api,/repair-trailers/);assert.match(view,/Find missing trailers/);assert.match(view,/Plex and overlays refreshed/);
-  assert.match(api,/selectedById\s*=\s*new Map\(selectedImports/);assert.match(api,/selectedById\.get\(String\(item\.id\)\)\s*\|\|\s*item/);assert.match(view,/Existing imports were kept/);
+  assert.match(api,/selectedById\s*=\s*new Map\(selectedImports/);assert.match(api,/selectedById\.get\(String\(item\.id\)\)\s*\|\|\s*item/);
+  assert.match(api,/previousById\.has\(String\(list\.id\)\)[\s\S]*enabled:\s*false[\s\S]*nextRunAt:\s*null/);assert.match(view,/sync anything to Plex/);assert.match(view,/Lists imported as drafts/);
   assert.match(designer,/for\s*\(const item of snapshots\)\s*onChange\(item\.id,\s*\{\s*position:\s*"custom"/);
   assert.match(designer,/layers:\s*\[\.\.\.current\.layers,\s*accent,\s*graphic,\s*badge\]/);
   assert.match(view,/overlays applied/);assert.match(view,/overlay failures/);

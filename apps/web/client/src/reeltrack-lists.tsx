@@ -236,7 +236,7 @@ export function ReeltrackListsView({
       setLists(value.items || []);
       setSelectedId(String(value.items?.[0]?.id || ""));
       setShowImport(false);
-      notify("Selected lists added or refreshed. Existing imports were kept.");
+      notify("Lists imported as drafts. Configure artwork, then save and apply.");
     } catch (error) {
       notify(message(error), "error");
     } finally {
@@ -576,7 +576,8 @@ export function ReeltrackListsView({
               <h2>Import from Reeltrack</h2>
               <p>
                 Importing copies a view of each list into VynodeArr. It does not
-                alter the source list.
+                alter the source list or sync anything to Plex. Configure artwork
+                after import, then choose Save and apply settings when ready.
               </p>
             </div>
             <button className="secondary" onClick={() => setShowImport(false)}>
@@ -619,10 +620,10 @@ export function ReeltrackListsView({
                   onChange={(event) => setAutomationEnabled(event.target.checked)}
                 />
                 <span>
-                  <strong>Create and maintain Plex trailer collections</strong>
+                  <strong>Prepare Plex settings for after import</strong>
                   <small>
-                    Periodically sync each selected list, download trailers for missing titles,
-                    and remove managed placeholders when the real media appears.
+                    These choices are saved as a draft. Plex is not changed until you open
+                    the imported list and choose Save and apply settings.
                   </small>
                 </span>
               </label>
