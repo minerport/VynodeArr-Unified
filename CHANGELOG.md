@@ -7,6 +7,17 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.42-rc.4] - 2026-08-12
+
+### Added
+
+- Imported lists now provide a targeted missing-trailer audit and repair action that retries failed or missing files without rebuilding unrelated collection members.
+- Recovered trailers for real movies and shows are promoted to Plex-recognized local extras and receive the configured real-title overlay after the library refresh.
+
+### Fixed
+
+- The Reeltrack artwork editor now scrolls continuously from its complete preset row through every control and the bottom actions instead of clipping the footer.
+
 ## [2.0.42-rc.3] - 2026-08-12
 
 ### Added
