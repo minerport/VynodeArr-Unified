@@ -7,6 +7,23 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.42-rc.3] - 2026-08-12
+
+### Added
+
+- Reeltrack list automation can use a separate overlay for real Plex movies and shows after they replace managed trailer placeholders.
+
+### Changed
+
+- Saving list automation now immediately applies the visible collection and title artwork settings, and manual synchronization persists edited artwork before running.
+- Scheduled refreshes apply overlays to both managed trailer placeholders and matching real Plex titles while preserving additive collection behavior.
+
+### Fixed
+
+- Kept the Reeltrack artwork editor fully inside the viewport so its heading and illustrated preset row remain visible.
+- Title overlays now target every matching Plex collection member instead of only trailer placeholders.
+- Original Plex posters are retained per title and restored when list overlays are removed.
+
 ## [2.0.42-rc.2] - 2026-08-12
 
 ### Changed
