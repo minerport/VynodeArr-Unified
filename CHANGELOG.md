@@ -7,6 +7,19 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.42-rc.5] - 2026-08-12
+
+### Changed
+
+- Reeltrack list imports are additive: unselected imported lists and their automation, trailers, overlays, and artwork backups remain until an explicit removal.
+- New imports are stored as disabled drafts and do not touch Plex until the administrator finishes artwork and destination setup and chooses Save and apply settings.
+- The desktop artwork editor keeps its header, presets, and bottom actions visible while the setup, layer settings, and preview columns scroll independently.
+
+### Fixed
+
+- Unchecking an existing list while importing another no longer removes the existing import.
+- Long editor columns no longer hide controls below the visible viewport.
+
 ## [2.0.42-rc.4] - 2026-08-12
 
 ### Added
