@@ -7,6 +7,31 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.42] - 2026-08-12
+
+### Added
+
+- Added restart-safe support for either bundled engines or validated, encrypted connections to existing external movie and television engines.
+- Mixed-media lists now remain unified while presenting separate Movies and Television sections with correct engine routing.
+- Added targeted audits and repairs for missing managed trailers, including overlay application after successful recovery.
+- Added a distinct overlay for real Plex titles after they replace managed trailer placeholders.
+
+### Changed
+
+- Plex list synchronization is additive: scheduled runs add missing members and retain trailers, existing collection membership, overlays, and artwork unless an administrator explicitly removes them.
+- Managed trailers become Plex-recognized local extras when real media arrives.
+- Imported lists are additive, remain until explicitly removed, and begin as inactive drafts so importing alone never changes Plex.
+- Saving automation or running a manual synchronization applies the current collection and title artwork settings.
+- Reeltrack artwork-editor setup, layer, and preview columns scroll independently through all controls while keeping actions accessible.
+
+### Fixed
+
+- Preserved original Plex posters for reliable restoration when overlays are removed.
+- Applied title overlays to every matching Plex collection member instead of only managed placeholders.
+- Prevented smart collections from being modified by regular list synchronization.
+- Prevented unselected existing imports from being removed while importing another list.
+- Corrected clipped and unreachable controls in long Reeltrack artwork editors.
+
 ## [2.0.42-rc.6] - 2026-08-12
 
 ### Fixed
