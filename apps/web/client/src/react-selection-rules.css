@@ -113,3 +113,16 @@
   .naming-token-warning{align-items:stretch;flex-direction:column}
   .editor-actions label{min-width:0}
 }
+@media(max-width:600px){
+  .release-profile-card{inset:0;top:0;left:0;width:100vw;height:100dvh;max-height:none;transform:none;border:0;border-radius:0;padding:0 0 env(safe-area-inset-bottom);overflow-y:auto;overscroll-behavior:contain}
+  .release-profile-card>.editor-heading{padding:.8rem .9rem;gap:.55rem .7rem}
+  .release-profile-card .editor-title .rule-kind{font-size:.62rem}
+  .release-profile-card .editor-title h2{font-size:1.05rem}
+  .release-profile-card>.native-field-grid,.release-profile-card>.tag-fields,.release-profile-card>.preferred-editor,.release-profile-card>.television-release-fields{padding:.8rem .9rem}
+  .release-profile-card>.native-field-grid{grid-template-columns:1fr;gap:.75rem}
+  .release-profile-card>.native-field-grid textarea{min-height:4.75rem;resize:none}
+  .release-profile-card>.editor-actions{align-items:stretch;padding:.75rem .9rem calc(.75rem + env(safe-area-inset-bottom))}
+  .release-profile-card>.editor-actions>span{font-size:.72rem;line-height:1.35}
+  .release-profile-card>.editor-actions button{width:100%;min-height:2.8rem}
+  .release-profile-card .tag-fields fieldset{min-height:0;padding:.75rem}
+}

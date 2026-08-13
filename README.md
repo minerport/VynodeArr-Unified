@@ -44,18 +44,19 @@ consistent experience and account system.
 
 ## Current release
 
-Version **2.0.39** is the current stable release and is published as the
-`latest` image. Movie and television details now support lightweight cinematic
-hero trailers, preferring a securely proxied matched Plex extra before a local
-trailer, an official TMDB/YouTube trailer, and finally the existing artwork.
-The release also fixes full-library release-date and first-aired sorting,
-preserves the selected sort when its direction changes, restores the exact
-library position after viewing details, and refreshes the GitHub product tour.
+Version **2.0.42** is the current stable release and is published as the
+`latest` image. Administrators can use the bundled media engines or connect
+existing external movie and television engines without losing VynodeArr's
+requests, searches, queues, profiles, providers, root-folder, history, calendar,
+or wanted-media workflows.
 
-Trailer playback remains optional. Plex credentials stay on the VynodeArr
-server, local files are streamed with byte-range support without transcoding,
-reduced-motion and reduced-data preferences are respected, and the hero artwork
-remains available whenever no playable trailer source can be resolved.
+Reeltrack and compatible mixed-media lists remain unified while showing clear
+Movies and Television sections. Plex synchronization is additive: scheduled
+runs add missing members and trailers without rebuilding collections or
+discarding artwork. Original posters are retained for restoration, overlays
+continue onto real media when placeholders are replaced, and targeted trailer
+repair can recover failed or missing local extras. New list imports remain
+inactive until their destination and artwork settings are deliberately applied.
 
 The administrator Validation Center checks
 engine connectivity, storage, acquisition providers, scheduled automation,

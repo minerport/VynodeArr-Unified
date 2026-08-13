@@ -555,12 +555,14 @@ export function createApplication(options = {}) {
       version: 1,
       events: [],
       reads: {},
+      dismissed: {},
     });
   const searchActivityStore =
     options.searchActivityStore ||
     new JsonStore(join(dataDir, "search-activity.json"), {
       version: 1,
       activities: [],
+      dismissed: {},
     });
   const downloadDecisionStore =
     options.downloadDecisionStore ||
@@ -1866,14 +1868,18 @@ export function createApplication(options = {}) {
             removed += 1;
           }
       for (const [key, job] of Object.entries(jobs)) {
-        if ((job?.domain === "tv" ? "tv" : "movie") === domain && (!wanted.has(key) || realIds.has(key))) {
-          await trailerDownloader.remove(job).catch(() => {});
-          delete jobs[key];
-          removed += 1;
+        if ((job?.domain === "tv" ? "tv" : "movie") !== domain || !realIds.has(key) || job?.state === "extra" || typeof trailerDownloader.promote !== "function") continue;
+        const realItem = realItems.find((item) => plexExternalIds(item).some((identity) => `${domain}:${identity}` === key)),
+          realFile = (realItem?.files || []).find((file) => !/(?:^|[\\/])(?:trailer|[^\\/]*-trailer)\.[a-z0-9]+$/i.test(String(file)));
+        if (!realFile) continue;
+        try {
+          jobs[key] = await trailerDownloader.promote(job, { realFile, libraryRoot: libraryLocation, localRoot });
+        } catch (error) {
+          jobs[key] = { ...job, promotionError: error?.message || "Trailer could not be converted to a Plex extra.", promotionFailedAt: new Date().toISOString() };
         }
       }
       for (const [key, item] of wanted) {
-        if (realIds.has(key) || jobs[key]?.folder) continue;
+        if (jobs[key]?.folder) continue;
         try {
           const metadata = await discovery.details(domain, item.tmdbId);
           if (!metadata?.trailer?.url) throw new Error("TMDB does not list a YouTube trailer.");
@@ -1885,6 +1891,11 @@ export function createApplication(options = {}) {
             tmdbId: item.tmdbId,
             root: localRoot,
           });
+          if (realIds.has(key) && typeof trailerDownloader.promote === "function") {
+            const realItem = realItems.find((value) => plexExternalIds(value).some((identity) => `${domain}:${identity}` === key)),
+              realFile = (realItem?.files || []).find((file) => !/(?:^|[\\/])(?:trailer|[^\\/]*-trailer)\.[a-z0-9]+$/i.test(String(file)));
+            if (realFile) jobs[key] = await trailerDownloader.promote(jobs[key], { realFile, libraryRoot: libraryLocation, localRoot });
+          }
           downloaded += 1;
         } catch (error) {
           jobs[key] = {
@@ -1897,7 +1908,7 @@ export function createApplication(options = {}) {
         }
       }
       const managedDomainDownloads = Object.values(jobs).filter(
-        (job) => job?.path && (job?.domain === "tv" ? "tv" : "movie") === domain,
+        (job) => job?.path && job?.state !== "extra" && (job?.domain === "tv" ? "tv" : "movie") === domain,
       ).length;
       if (downloaded || removed || managedDomainDownloads)
         await plexService.refreshLibrary(
@@ -1925,7 +1936,7 @@ export function createApplication(options = {}) {
             plexToken,
             library,
           );
-          const expectedManagedDownloads = Object.values(jobs).filter((job) => job?.path && (job?.domain === "tv" ? "tv" : "movie") === domain).length;
+          const expectedManagedDownloads = Object.values(jobs).filter((job) => job?.path && job?.state !== "extra" && (job?.domain === "tv" ? "tv" : "movie") === domain).length;
           if (refreshedItems.filter((item) => isManagedPlaceholder(item, currentManagedPlexPaths())).length >= expectedManagedDownloads || scanAttempt === 10)
             break;
           await new Promise((resolve) => setTimeout(resolve, 3000));
@@ -1961,7 +1972,7 @@ export function createApplication(options = {}) {
           plexExternalIds(item).some((identity) => wanted.has(`${domain}:${identity}`)),
         ).map((item) => item.ratingKey),
         collectionMemberKeys = [...new Set([...realRatingKeys, ...placeholderKeys])];
-      await restoreReeltrackArtwork({ automation, endpoint: plexSettings.endpoint, token: plexToken, machineIdentifier: plexSettings.server?.machineIdentifier || "", domain, kind: "title", exceptRatingKeys: placeholderKeys });
+      await restoreReeltrackArtwork({ automation, endpoint: plexSettings.endpoint, token: plexToken, machineIdentifier: plexSettings.server?.machineIdentifier || "", domain, kind: "title", exceptRatingKeys: collectionMemberKeys });
       const collection = await plexService.syncCollection(
           plexSettings.endpoint,
           plexToken,
@@ -1975,13 +1986,13 @@ export function createApplication(options = {}) {
         );
         collectionRatingKeys[domain] = collection.ratingKey;
         const collectionTemplate = reeltrackPosterTemplate(automation.collectionPosterTemplate, domain),
-          titleTemplate = reeltrackPosterTemplate(automation.titleOverlayTemplate, domain);
+          titleTemplate = reeltrackPosterTemplate(automation.titleOverlayTemplate, domain),
+          realTitleTemplate = reeltrackPosterTemplate(automation.realTitleOverlayTemplate, domain) || titleTemplate;
         if (collection.ratingKey && collectionTemplate?.enabled && collectionTemplate.layers?.length) {
           try {
-            // syncCollection creates a fresh Plex collection, whose generated thumbnail is
-            // commonly unavailable for several seconds. There is no prior collection poster
-            // to preserve on that new rating key, so render and upload the selected design
-            // directly instead of failing the entire artwork pass on a thumbnail HTTP 404.
+            // Render the configured collection design after membership is reconciled. Existing
+            // regular collections retain their rating key; newly created collections may not
+            // expose a generated thumbnail immediately, so this upload remains self-contained.
             const rendered = await renderedReeltrackArtwork(
               collectionTemplate,
               reeltrackPosterItem({
@@ -1999,7 +2010,7 @@ export function createApplication(options = {}) {
             totals.collectionPosterErrors = [...(totals.collectionPosterErrors || []), error?.message || "collection poster failed"].slice(0, 10);
           }
         }
-        const titleArtwork = await applyReeltrackTitleArtwork({
+        const placeholderArtwork = await applyReeltrackTitleArtwork({
           template: titleTemplate,
           endpoint: plexSettings.endpoint,
           token: plexToken,
@@ -2011,10 +2022,15 @@ export function createApplication(options = {}) {
           domain,
           syncedAt: runStartedAt,
         });
-        totals.titlePosters += titleArtwork.applied;
-        totals.titlePosterFailures = (totals.titlePosterFailures || 0) + titleArtwork.failed;
-        totals.titlePosterErrors = [...(totals.titlePosterErrors || []), ...titleArtwork.errors].slice(0, 10);
-        if (titleArtwork.applied)
+        const realArtwork = await applyReeltrackTitleArtwork({
+          template: realTitleTemplate, endpoint: plexSettings.endpoint, token: plexToken,
+          machineIdentifier: plexSettings.server?.machineIdentifier || "", automation,
+          items: refreshedItems, ratingKeys: realRatingKeys, list, domain, syncedAt: runStartedAt,
+        });
+        totals.titlePosters += placeholderArtwork.applied + realArtwork.applied;
+        totals.titlePosterFailures = (totals.titlePosterFailures || 0) + placeholderArtwork.failed + realArtwork.failed;
+        totals.titlePosterErrors = [...(totals.titlePosterErrors || []), ...placeholderArtwork.errors, ...realArtwork.errors].slice(0, 10);
+        if (placeholderArtwork.applied || realArtwork.applied)
           await plexService.refreshLibrary(plexSettings.endpoint, plexToken, library.key);
         totals.managedTitles += wanted.size;
         totals.placeholders += placeholderKeys.length;
@@ -2037,7 +2053,7 @@ export function createApplication(options = {}) {
         lastRunAt: now.toISOString(),
         nextRunAt: new Date(now.getTime() + intervalMinutes * 6e4).toISOString(),
         status: remoteProviderList ? "ready" : "disabled",
-        error: remoteProviderList ? null : "The source list was removed from Reeltrack; managed trailers and the Plex collection were cleared.",
+        error: remoteProviderList ? null : "The source list was removed from Reeltrack. Automatic management was disabled; Plex media, trailers, and collections were left unchanged.",
         summary: {
           providerTitles: providerItems.length,
           managedTitles: totals.managedTitles,
@@ -2652,6 +2668,7 @@ export function createApplication(options = {}) {
   async function reconcileSearchActivities(userId, providedSnapshots = null) {
     const stored = await searchActivityStore.read(),
       items = (stored.activities || [])
+        .filter((item) => !stored.dismissed?.[item.id])
         .filter((item) => userId == null || item.userId === userId)
         .slice(0, 75),
       active = items.filter(
@@ -6513,8 +6530,10 @@ export function createApplication(options = {}) {
         ...(legacy.notificationReads?.[session.user.id] || {}),
         ...(stored.reads?.[session.user.id] || {}),
       };
+    const dismissed = stored.dismissed?.[session.user.id] || {};
     return (stored.events || [])
       .filter((item) => item.recipientUserId === session.user.id)
+      .filter((item) => !dismissed[item.id])
       .sort((left, right) =>
         String(right.timestamp).localeCompare(String(left.timestamp)),
       )
@@ -8480,6 +8499,28 @@ export function createApplication(options = {}) {
           });
           return json(res, 200, { cleared: true });
         }
+        if (
+          url.pathname === "/api/search-activities" &&
+          req.method === "DELETE"
+        ) {
+          if (!administrator(res, session) || !requireCsrf(req, res, session))
+            return;
+          let cleared = 0;
+          await searchActivityStore.update((current) => {
+            current.dismissed = current.dismissed || {};
+            const timestamp = new Date().toISOString();
+            for (const item of current.activities || []) {
+              current.dismissed[item.id] = timestamp;
+              cleared += 1;
+            }
+            current.activities = [];
+            current.dismissed = Object.fromEntries(
+              Object.entries(current.dismissed).slice(-1e3),
+            );
+            return cleared;
+          });
+          return json(res, 200, { cleared });
+        }
         const searchActivityMatch = url.pathname.match(
           /^\/api\/search-activities\/([^/]+)$/,
         );
@@ -8488,21 +8529,20 @@ export function createApplication(options = {}) {
             return;
           let removed = false;
           await searchActivityStore.update((current) => {
+            current.dismissed = current.dismissed || {};
+            current.dismissed[searchActivityMatch[1]] =
+              new Date().toISOString();
             const before = (current.activities || []).length;
             current.activities = (current.activities || []).filter(
               (item) => item.id !== searchActivityMatch[1],
             );
             removed = current.activities.length < before;
-            return removed;
+            current.dismissed = Object.fromEntries(
+              Object.entries(current.dismissed).slice(-1e3),
+            );
+            return true;
           });
-          return removed
-            ? json(res, 204)
-            : json(res, 404, {
-                error: {
-                  code: "not_found",
-                  message: "Search activity was not found",
-                },
-              });
+          return json(res, 200, { dismissed: true, removed });
         }
         if (url.pathname === "/api/search-jobs" && req.method === "POST") {
           if (!administrator(res, session) || !requireCsrf(req, res, session))
@@ -9323,7 +9363,7 @@ export function createApplication(options = {}) {
               (previous.importedLists || []).map((item) => [String(item.id), item]),
             );
           if (!chosen.length) throw new Error("The selected Reeltrack lists are no longer available.");
-          const importedLists = await Promise.all(
+          const selectedImports = await Promise.all(
               chosen.map(async (list) => {
                 const items = await reeltrackListItems(apiKey, list.id),
                   domains = new Set(items.map(reeltrackItemIdentity).filter((item) => item.tmdbId).map((item) => item.domain)),
@@ -9337,10 +9377,10 @@ export function createApplication(options = {}) {
                 ...list,
                 items,
                 importedAt: new Date().toISOString(),
-                automation: automationEnabled
-                  ? {
-                      ...(previousById.get(String(list.id))?.automation || {}),
-                      enabled: true,
+                automation: previousById.has(String(list.id))
+                  ? previousById.get(String(list.id))?.automation || null
+                  : automationEnabled ? {
+                      enabled: false,
                       downloadTrailers: true,
                       plexMovieLibraryKey: String(automationInput.plexMovieLibraryKey || ""),
                       plexTvLibraryKey: String(automationInput.plexTvLibraryKey || ""),
@@ -9353,26 +9393,28 @@ export function createApplication(options = {}) {
                         15,
                         Math.min(1440, Number(automationInput.intervalMinutes) || 60),
                       ),
-                      status: "scheduled",
+                      status: "disabled",
                       error: null,
-                      nextRunAt: new Date().toISOString(),
+                      nextRunAt: null,
                     }
-                  : previousById.get(String(list.id))?.automation || null,
+                  : null,
               };}),
             ),
+            selectedById = new Map(selectedImports.map((item) => [String(item.id), item])),
+            importedLists = [
+              ...(previous.importedLists || []).map((item) => selectedById.get(String(item.id)) || item),
+              ...selectedImports.filter((item) => !previousById.has(String(item.id))),
+            ],
             snapshot = {
               importedLists,
               updatedAt: new Date().toISOString(),
             };
           await saveReeltrackSnapshot(session.user.id, snapshot);
-          for (const list of importedLists)
-            if (list.automation?.enabled)
-              void runReeltrackPlexAutomation(session.user.id, list.id).catch(() => {});
           await recordAudit(session, {
             category: "integration",
             action: "reeltrack.lists_imported",
             target: "Reeltrack lists",
-            summary: `Imported ${importedLists.length} Reeltrack list${importedLists.length === 1 ? "" : "s"}.`,
+            summary: `Added or refreshed ${selectedImports.length} Reeltrack list${selectedImports.length === 1 ? "" : "s"}.`,
             metadata: { listIds: [...selected] },
           });
           return json(res, 200, {
@@ -9429,7 +9471,7 @@ export function createApplication(options = {}) {
           });
         }
         const reeltrackAutomationMatch = url.pathname.match(
-          /^\/api\/reeltrack\/imported-lists\/([^/]+)\/automation(?:\/(run))?$/,
+          /^\/api\/reeltrack\/imported-lists\/([^/]+)\/automation(?:\/(run|repair-trailers))?$/,
         );
         const reeltrackArtworkRestoreMatch = url.pathname.match(
           /^\/api\/reeltrack\/imported-lists\/([^/]+)\/artwork\/(collection|titles)\/restore$/,
@@ -9521,6 +9563,9 @@ export function createApplication(options = {}) {
             titleOverlayTemplate: Object.hasOwn(input, "titleOverlayTemplate")
               ? reeltrackPosterTemplate(input.titleOverlayTemplate)
               : current.importedLists[index].automation?.titleOverlayTemplate || null,
+            realTitleOverlayTemplate: Object.hasOwn(input, "realTitleOverlayTemplate")
+              ? reeltrackPosterTemplate(input.realTitleOverlayTemplate)
+              : current.importedLists[index].automation?.realTitleOverlayTemplate || null,
             intervalMinutes: Math.max(15, Math.min(1440, Number(input.intervalMinutes) || 60)),
             status: enabled ? "scheduled" : "disabled",
             error: null,
@@ -9540,6 +9585,26 @@ export function createApplication(options = {}) {
           return json(res, 200, {
             item: (await matchedReeltrackLists(session, [current.importedLists[index]]))[0],
           });
+        }
+        if (
+          reeltrackAutomationMatch &&
+          req.method === "POST" &&
+          reeltrackAutomationMatch[2] === "repair-trailers"
+        ) {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          const listId = decodeURIComponent(reeltrackAutomationMatch[1]), current = await reeltrackSnapshotForUser(session.user.id),
+            index = (current.importedLists || []).findIndex((item) => String(item.id) === String(listId));
+          if (index < 0) throw new Error("The imported Reeltrack list no longer exists.");
+          const automation = current.importedLists[index].automation || {}, jobs = { ...(automation.jobs || {}) };
+          let found = 0;
+          for (const [key, job] of Object.entries(jobs)) {
+            const missing = job?.error || !job?.path || (typeof trailerDownloader.exists === "function" && !(await trailerDownloader.exists(job)));
+            if (missing) { delete jobs[key]; found += 1; }
+          }
+          current.importedLists[index].automation = { ...automation, jobs };
+          await saveReeltrackSnapshot(session.user.id, current);
+          const item = await runReeltrackPlexAutomation(session.user.id, listId, { refreshProvider: false });
+          return json(res, 200, { item: (await matchedReeltrackLists(session, [item]))[0], found, repaired: item.automation?.summary?.downloaded || 0 });
         }
         if (
           reeltrackAutomationMatch &&
@@ -9591,6 +9656,7 @@ export function createApplication(options = {}) {
                   machineIdentifier: settings.server?.machineIdentifier,
                   title: removedList.automation.collectionName || removedList.name,
                   ratingKeys: [],
+                  replace: true,
                 });
                 await plexService.refreshLibrary(settings.endpoint, token, library.key);
               }
@@ -10419,6 +10485,30 @@ export function createApplication(options = {}) {
             );
           });
           return json(res, 200, { read: ids });
+        }
+        if (
+          url.pathname === "/api/notifications" &&
+          req.method === "DELETE"
+        ) {
+          if (!requireCsrf(req, res, session)) return;
+          const input = await body(req),
+            available = await requestNotifications(session),
+            requested = Array.isArray(input.ids)
+              ? new Set(input.ids.map(String))
+              : null,
+            ids = available
+              .filter((item) => !requested || requested.has(item.id))
+              .map((item) => item.id),
+            dismissedAt = new Date().toISOString();
+          await notificationStore.update((current) => {
+            current.dismissed = current.dismissed || {};
+            const dismissed = current.dismissed[session.user.id] || {};
+            for (const id of ids) dismissed[id] = dismissedAt;
+            current.dismissed[session.user.id] = Object.fromEntries(
+              Object.entries(dismissed).slice(-1e3),
+            );
+          });
+          return json(res, 200, { dismissed: ids });
         }
         if (
           url.pathname === "/api/notifications/review-requests" &&

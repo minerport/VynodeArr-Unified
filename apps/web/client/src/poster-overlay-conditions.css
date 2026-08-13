@@ -1,0 +1,25 @@
+.overlay-condition-row{grid-column:1/-1;grid-row:2;width:100%;min-width:0;position:relative}
+.overlay-condition-workspace{display:grid;gap:16px;width:100%;min-width:0}
+.overlay-condition-builder,.overlay-style-variants{display:grid;gap:12px;width:100%;min-width:0;box-sizing:border-box;margin:0;padding:16px;border:1px solid var(--border);border-radius:12px}
+.overlay-condition-rule{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) auto;gap:8px}
+.overlay-condition-rule>*{min-width:0}
+.overlay-style-variants>header,.overlay-style-rule>summary,.overlay-style-rank-actions,.overlay-style-format-header{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.overlay-style-rule{display:grid;gap:12px;padding:12px;border:1px solid var(--border);border-radius:10px}
+.overlay-style-rule>summary{cursor:pointer}
+.overlay-style-rank-actions{justify-content:flex-end}
+.overlay-style-rank-actions button{padding:6px 9px}
+.overlay-style-format{display:grid;gap:10px;padding-top:10px;border-top:1px solid var(--border)}
+.overlay-style-format-header h4,.overlay-style-format-header p{margin:0}
+.overlay-style-overrides{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.overlay-style-overrides .check{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:8px}
+.overlay-style-overrides .check>span{min-width:0}
+.overlay-style-overrides .check>input:not([type=checkbox]),.overlay-style-overrides .check>select,.overlay-style-overrides .check>.overlay-color-control{grid-column:1/-1;width:100%}
+.overlay-color-control{display:grid;grid-template-columns:52px minmax(0,1fr);gap:8px;min-width:0}
+.overlay-color-control input[type=color]{box-sizing:border-box;width:52px!important;height:42px!important;min-width:52px;padding:3px;border-radius:8px;cursor:pointer}
+.overlay-color-control input[type=text]{box-sizing:border-box;width:100%;min-width:0;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;text-transform:uppercase}
+.overlay-condition-help{margin:0;line-height:1.5}
+@media(max-width:1000px){
+  .overlay-condition-rule,.overlay-style-overrides{grid-template-columns:1fr}
+  .overlay-style-variants>header,.overlay-style-format-header{align-items:stretch;flex-direction:column}
+}
+@media(max-width:980px){.overlay-condition-row{grid-row:auto}}

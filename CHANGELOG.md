@@ -7,23 +7,118 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-## [2.0.41] - 2026-08-12
+## [2.0.42] - 2026-08-12
 
 ### Added
 
-- Added a restart-safe choice between VynodeArr's bundled media engines and user-managed external movie and television engines.
-- Added encrypted staging and validation for both external engine connections before activation.
-- Mixed lists imported from Reeltrack and compatible services now remain one synchronized list while displaying separate Movies and Television sections.
+- Added restart-safe support for either bundled engines or validated, encrypted connections to existing external movie and television engines.
+- Mixed-media lists now remain unified while presenting separate Movies and Television sections with correct engine routing.
+- Added targeted audits and repairs for missing managed trailers, including overlay application after successful recovery.
+- Added a distinct overlay for real Plex titles after they replace managed trailer placeholders.
 
-### Improved
+### Changed
 
-- Every existing VynodeArr management surface follows the active engines through the same private gateway, including requests, searches, queues, profiles, providers, root folders, history, calendars, and wanted media.
-- Imported list navigation now reports movie and television counts, and provider media labels such as `show`, `series`, and `television` are routed to the television engine consistently.
+- Plex list synchronization is additive: scheduled runs add missing members and retain trailers, existing collection membership, overlays, and artwork unless an administrator explicitly removes them.
+- Managed trailers become Plex-recognized local extras when real media arrives.
+- Imported lists are additive, remain until explicitly removed, and begin as inactive drafts so importing alone never changes Plex.
+- Saving automation or running a manual synchronization applies the current collection and title artwork settings.
+- Reeltrack artwork-editor setup, layer, and preview columns scroll independently through all controls while keeping actions accessible.
 
 ### Fixed
 
-- External mode no longer starts or applies installation-specific setup to the bundled engines.
-- Container health checks remain valid when the bundled engines are intentionally disabled.
+- Preserved original Plex posters for reliable restoration when overlays are removed.
+- Applied title overlays to every matching Plex collection member instead of only managed placeholders.
+- Prevented smart collections from being modified by regular list synchronization.
+- Prevented unselected existing imports from being removed while importing another list.
+- Corrected clipped and unreachable controls in long Reeltrack artwork editors.
+
+## [2.0.42-rc.6] - 2026-08-12
+
+### Fixed
+
+- Every desktop Reeltrack artwork-editor column now includes a full viewport of trailing scroll space so all controls can move completely above the fixed action bar and out of view.
+
+## [2.0.42-rc.5] - 2026-08-12
+
+### Changed
+
+- Reeltrack list imports are additive: unselected imported lists and their automation, trailers, overlays, and artwork backups remain until an explicit removal.
+- New imports are stored as disabled drafts and do not touch Plex until the administrator finishes artwork and destination setup and chooses Save and apply settings.
+- The desktop artwork editor keeps its header, presets, and bottom actions visible while the setup, layer settings, and preview columns scroll independently.
+
+### Fixed
+
+- Unchecking an existing list while importing another no longer removes the existing import.
+- Long editor columns no longer hide controls below the visible viewport.
+
+## [2.0.42-rc.4] - 2026-08-12
+
+### Added
+
+- Imported lists now provide a targeted missing-trailer audit and repair action that retries failed or missing files without rebuilding unrelated collection members.
+- Recovered trailers for real movies and shows are promoted to Plex-recognized local extras and receive the configured real-title overlay after the library refresh.
+
+### Fixed
+
+- The Reeltrack artwork editor now scrolls continuously from its complete preset row through every control and the bottom actions instead of clipping the footer.
+
+## [2.0.42-rc.3] - 2026-08-12
+
+### Added
+
+- Reeltrack list automation can use a separate overlay for real Plex movies and shows after they replace managed trailer placeholders.
+
+### Changed
+
+- Saving list automation now immediately applies the visible collection and title artwork settings, and manual synchronization persists edited artwork before running.
+- Scheduled refreshes apply overlays to both managed trailer placeholders and matching real Plex titles while preserving additive collection behavior.
+
+### Fixed
+
+- Kept the Reeltrack artwork editor fully inside the viewport so its heading and illustrated preset row remain visible.
+- Title overlays now target every matching Plex collection member instead of only trailer placeholders.
+- Original Plex posters are retained per title and restored when list overlays are removed.
+
+## [2.0.42-rc.2] - 2026-08-12
+
+### Changed
+
+- Reeltrack Plex automation now updates regular collections in place, adds only missing members, and refuses to modify smart collections.
+- Managed movie and television trailers are retained as Plex local extras when real media arrives instead of being deleted.
+- Scheduled list synchronization is additive and leaves trailers, collection members, and artwork in place unless an administrator explicitly removes the managed list.
+
+### Fixed
+
+- Preserved collection-poster and individual-title overlay application while reconciling additive Plex collection membership.
+
+## [2.0.42-rc.1] - 2026-08-12
+
+### Added
+
+- Added a restart-gated external engine mode that securely validates and connects existing movie and television engine instances while disabling the bundled engines.
+- Imported mixed-media Reeltrack lists now keep one list and present separate Movies and Television sections with independent counts and correct engine routing.
+
+### Changed
+
+- Bundled engine setup, authentication, webhook, and root-folder operations are limited to bundled mode so external instances remain under their owners' control.
+- Unraid startup and health checks now support both bundled and external engine configurations without exposing or unnecessarily starting bundled services.
+
+## [2.0.40-rc.12] - 2026-08-11
+
+### Added
+
+- Movie and television libraries now provide React-native bulk selection, bounded batch rename, and refresh-and-scan actions for visual testing.
+
+### Changed
+
+- Calendar, Queue, Wanted, Engine Management, Discover settings, Quality Profiles, first-run engine setup, and authentication now use their typed React implementations exclusively while preserving their existing workflows.
+- Poster-overlay presentation now loads from static stylesheets, and background imports use a single React monitor instead of duplicate legacy controllers.
+- Mobile release-profile and notification activity layouts are clearer, with persistent notification clearing behavior across activity sections.
+
+### Fixed
+
+- Missing React route initialization now presents an actionable reload state instead of silently switching to a second implementation.
+- Library parity tests now protect bulk editing, destructive removal, and Quick Details until those remaining workflows are migrated.
 
 ## [2.0.40] - 2026-08-09
 

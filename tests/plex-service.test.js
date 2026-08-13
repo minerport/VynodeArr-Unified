@@ -63,9 +63,14 @@ test('Plex trailer matching queries connected libraries by authoritative externa
   assert.equal(match.ratingKey,'91');assert.match(calls[0],/guid=tmdb%3A%2F%2F101/);
 });
 
-test('Plex managed collections are replaced exactly and library refresh is bounded',async()=>{
-  const calls=[],service=new PlexService({fetchImpl:async(url,options)=>{calls.push({url,method:options.method||'GET'});if(url.endsWith('/library/sections/1/collections'))return new Response(JSON.stringify({MediaContainer:{Metadata:[{ratingKey:'90',title:'Watch later'}]}}));if(url.includes('/library/collections?'))return new Response(JSON.stringify({MediaContainer:{Metadata:[{ratingKey:'91'}]}}));return new Response('',{status:200});}});
+test('Plex managed collections add only missing members and library refresh is bounded',async()=>{
+  const calls=[],service=new PlexService({fetchImpl:async(url,options)=>{calls.push({url,method:options.method||'GET'});if(url.endsWith('/library/sections/1/collections'))return new Response(JSON.stringify({MediaContainer:{Metadata:[{ratingKey:'90',title:'Watch later',smart:'0'}]}}));if(url.includes('/library/metadata/90/children'))return new Response(JSON.stringify({MediaContainer:{Metadata:[{ratingKey:'11'}]}}));return new Response('',{status:200});}});
   const result=await service.syncCollection('http://plex.local:32400','token',{libraryKey:'1',libraryType:'movie',machineIdentifier:'server-1',title:'Watch later',ratingKeys:['11','12','12']});
-  assert.equal(result.itemCount,2);assert.deepEqual(calls.map(item=>item.method),['GET','DELETE','POST']);assert.match(calls[2].url,/sectionId=1/);assert.match(decodeURIComponent(calls[2].url),/metadata\/11,12/);
+  assert.equal(result.itemCount,2);assert.equal(result.added,1);assert.deepEqual(calls.map(item=>item.method),['GET','GET','PUT']);assert.match(calls[2].url,/collections\/90\/items/);assert.match(decodeURIComponent(calls[2].url),/metadata\/12/);
   await service.refreshLibrary('http://plex.local:32400','token','1');assert.match(calls.at(-1).url,/library\/sections\/1\/refresh$/);assert.equal(calls.at(-1).method,'GET');
+});
+
+test('Plex managed collections reject smart collections instead of mutating them',async()=>{
+  const service=new PlexService({fetchImpl:async()=>new Response(JSON.stringify({MediaContainer:{Metadata:[{ratingKey:'90',title:'Watch later',smart:'1'}]}}))});
+  await assert.rejects(service.syncCollection('http://plex.local:32400','token',{libraryKey:'1',libraryType:'movie',machineIdentifier:'server-1',title:'Watch later',ratingKeys:['11']}),/smart and cannot be managed safely/);
 });

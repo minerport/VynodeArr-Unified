@@ -5,7 +5,7 @@ import test from 'node:test';
 const read=(path)=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
 test('Reeltrack Lists remains fluid while the viewport is resized',async()=>{
-  const [styles,view,designer,artStyles]=await Promise.all([read('apps/web/client/src/react-reeltrack-lists.css'),read('apps/web/client/src/reeltrack-lists.tsx'),read('apps/web/client/src/reeltrack-poster-designer.tsx'),read('apps/web/client/src/reeltrack-poster-designer.css')]);
+  const [styles,view,designer,artStyles,api]=await Promise.all([read('apps/web/client/src/react-reeltrack-lists.css'),read('apps/web/client/src/reeltrack-lists.tsx'),read('apps/web/client/src/reeltrack-poster-designer.tsx'),read('apps/web/client/src/reeltrack-poster-designer.css'),read('apps/api/src/app.js')]);
   assert.match(styles,/\.react-reeltrack-lists\s*>\s*\.reeltrack-hero\s*\{[^}]*position:\s*static[^}]*height:\s*auto[^}]*min-height:\s*0/);
   assert.match(styles,/\.reeltrack-key-form input\s*\{[^}]*min-width:\s*0[^}]*width:\s*100%/);
   assert.match(styles,/\.reeltrack-list-nav\s*\{[^}]*display:\s*flex[^}]*max-height:\s*calc\(100dvh - 8rem\)[^}]*flex-direction:\s*column[^}]*overflow-y:\s*auto/);
@@ -46,7 +46,17 @@ test('Reeltrack Lists remains fluid while the viewport is resized',async()=>{
   assert.match(designer,/selectedIds\.includes\(item\.id\)/);assert.match(designer,/className="reeltrack-selection-box"/);assert.match(designer,/zIndex:\s*20/);assert.match(designer,/pointerEvents:\s*"auto"/);
   for(const label of ['Group','Ungroup','items selected'])assert.ok(designer.includes(label),label);
   assert.match(designer,/scaleX\s*=\s*width\s*\/\s*start\.width/);assert.match(designer,/scaleY\s*=\s*height\s*\/\s*start\.height/);
-  for(const control of ['Layer level','To front','Forward','Backward','To back'])assert.ok(designer.includes(control),control);
+  for(const control of ['Layer level','To front','Forward','Backward','To back','Horizontal position','Vertical position','Layer width','Shape height','Text opacity','Shape opacity','Inner spacing','Corner radius'])assert.ok(designer.includes(control),control);
+  assert.match(designer,/reeltrack-designer-backdrop/);assert.match(designer,/height:\s*"calc\(100dvh - 40px\)"/);
+  assert.match(artStyles,/\.reeltrack-artwork-designer\{[^}]*display:flex!important[^}]*overflow:hidden!important/);assert.match(artStyles,/\.reeltrack-designer-grid\{[^}]*overflow:hidden[^}]*flex:1/);assert.match(artStyles,/\.reeltrack-designer-grid>aside,\.reeltrack-designer-grid>main\{[^}]*overflow-y:auto/);
+  assert.match(artStyles,/\.reeltrack-designer-grid>aside::after,\.reeltrack-designer-grid>main::after\{[^}]*height:100%[^}]*min-height:100%/);
+  assert.match(view,/async function persistAutomation/);assert.match(view,/await persistAutomation\(\);\s*const value = await request/);
+  assert.match(api,/kind:\s*"title",\s*exceptRatingKeys:\s*collectionMemberKeys/);assert.match(api,/ratingKeys:\s*collectionMemberKeys/);
+  assert.match(api,/realTitleTemplate\s*=\s*reeltrackPosterTemplate\(automation\.realTitleOverlayTemplate,\s*domain\)\s*\|\|\s*titleTemplate/);
+  assert.match(api,/ratingKeys:\s*placeholderKeys/);assert.match(api,/ratingKeys:\s*realRatingKeys/);
+  assert.match(api,/repair-trailers/);assert.match(view,/Find missing trailers/);assert.match(view,/Plex and overlays refreshed/);
+  assert.match(api,/selectedById\s*=\s*new Map\(selectedImports/);assert.match(api,/selectedById\.get\(String\(item\.id\)\)\s*\|\|\s*item/);
+  assert.match(api,/previousById\.has\(String\(list\.id\)\)[\s\S]*enabled:\s*false[\s\S]*nextRunAt:\s*null/);assert.match(view,/sync anything to Plex/);assert.match(view,/Lists imported as drafts/);
   assert.match(designer,/for\s*\(const item of snapshots\)\s*onChange\(item\.id,\s*\{\s*position:\s*"custom"/);
   assert.match(designer,/layers:\s*\[\.\.\.current\.layers,\s*accent,\s*graphic,\s*badge\]/);
   assert.match(view,/overlays applied/);assert.match(view,/overlay failures/);
@@ -143,10 +153,13 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(entry,/unmountHistory/);
   assert.match(entry,/QueueView/);
   assert.match(entry,/unmountQueue/);
+  assert.doesNotMatch(entry,/mountQueue\)return showQueue/);
   assert.match(entry,/WantedView/);
   assert.match(entry,/unmountWanted/);
+  assert.doesNotMatch(entry,/mountWanted\)return showWanted/);
   assert.match(entry,/CalendarView/);
   assert.match(entry,/unmountCalendar/);
+  assert.doesNotMatch(entry,/mountCalendar\)return showCalendar/);
   assert.match(entry,/MovieDetailView/);
   assert.match(entry,/unmountMovieDetail/);
   assert.match(entry,/mountTvDetail/);
@@ -435,14 +448,12 @@ test('Discover progressively loads and owns title details and requests through a
   assert.match(legacy,/vynodearr\.dashboardSnapshot/);
 });
 
-test('global import progress uses a typed React monitor with the legacy path retained as fallback',async()=>{
-  const [monitor,visibleRefresh,types,controller,poller,fallbackView,islands,legacy]=await Promise.all([
+test('global import progress is owned by one typed React monitor',async()=>{
+  const [monitor,visibleRefresh,types,controller,islands,legacy]=await Promise.all([
     read('apps/web/client/src/import-monitor.tsx'),
     read('apps/web/client/src/use-visible-refresh.ts'),
     read('apps/web/client/src/import-monitor-types.ts'),
     read('apps/web/client/src/background-import.ts'),
-    read('apps/web/client/src/import-monitor-controller.ts'),
-    read('apps/web/client/src/legacy-import-monitor-view.ts'),
     read('apps/web/client/src/react-islands.tsx'),
     read('apps/web/client/src/app-shell.ts')
   ]);
@@ -456,14 +467,11 @@ test('global import progress uses a typed React monitor with the legacy path ret
   assert.match(types,/ImportJobStatus/);
   assert.match(islands,/mountImportMonitor/);
   assert.match(legacy,/window\.VynodeArrReact\?\.mountImportMonitor/);
-  assert.match(controller,/if\(!options\.reactMonitorActive\(\)\)options\.renderFallback/);
-  assert.match(poller,/export function createImportMonitorController/);
-  assert.match(poller,/milestones=new Map<string,number>/);
-  assert.match(poller,/options\.onMilestone\(job\)/);
-  assert.match(fallbackView,/export function createLegacyImportMonitorView/);
-  assert.match(fallbackView,/cancel-import-job/);
-  assert.match(legacy,/createImportMonitorController/);
-  assert.match(legacy,/renderFallback:legacyImportView\.render/);
+  assert.match(legacy,/importMonitorMounted/);
+  assert.match(monitor,/milestones=useRef\(new Map<string,number>\(\)\)/);
+  assert.match(monitor,/options\.onMilestone\?\.\(job\)/);
+  assert.doesNotMatch(legacy,/createImportMonitorController|createLegacyImportMonitorView|renderFallback/);
+  assert.doesNotMatch(controller,/reactMonitorActive|renderFallback|persistDismissed/);
 });
 
 test('advanced engine resources use a typed schema-driven React editor',async()=>{
@@ -603,11 +611,10 @@ test('background import creation and monitor handoff have typed ownership',async
   ]);
   assert.match(controller,/export async function queueBackgroundImport/);
   assert.match(controller,/request<\{job:ImportJob\}>\('\/api\/import-jobs'/);
-  assert.match(controller,/dismissed\.delete\(job\.id\)/);
-  assert.match(controller,/persistDismissed\(\)/);
-  assert.match(controller,/if\(!options\.reactMonitorActive\(\)\)options\.renderFallback/);
   assert.match(controller,/queued for background import/);
   assert.match(legacy,/queueBackgroundImport\(\{domain,items/);
+  assert.match(legacy,/mount\(importProgress,\{request:api,notify/);
+  assert.doesNotMatch(controller,/dismissed|renderFallback|reactMonitorActive/);
   assert.doesNotMatch(legacy,/async function startBackgroundImport/);
 });
 
@@ -693,7 +700,7 @@ test('account sections and the React mount boundary have typed ownership',async(
   assert.doesNotMatch(shell,/host=document\.createElement\('div'\);host\.id='account-react'/);
 });
 
-test('engine management uses a typed React route while retaining a legacy fallback',async()=>{
+test('engine management uses a typed React route with complete capability ownership',async()=>{
   const [view,types,islands,shell,api]=await Promise.all([
     read('apps/web/client/src/engine-management.tsx'),
     read('apps/web/client/src/engine-management-types.ts'),
@@ -713,13 +720,13 @@ test('engine management uses a typed React route while retaining a legacy fallba
   assert.match(types,/interface EngineManagementMountOptions/);
   assert.match(islands,/mountEngineManagement/);
   assert.match(islands,/import\('\.\/engine-management'\)/);
-  assert.match(shell,/showEngineManagementLegacy/);
+  assert.doesNotMatch(shell,/mountEngineManagement\)return showEngineManagementLegacy/);
   assert.match(shell,/mountEngineManagement/);
   assert.match(api,/client\.post\('command',\{name:'ResetApiKey'\}\)/);
   assert.match(api,/did not reconnect with the new API key/);
 });
 
-test('Discover credential settings use a typed React route with a safe legacy fallback',async()=>{
+test('Discover credential settings use a typed React route with complete capability ownership',async()=>{
   const [view,types,islands,shell,api]=await Promise.all([
     read('apps/web/client/src/discover-settings.tsx'),
     read('apps/web/client/src/discover-settings-types.ts'),
@@ -739,7 +746,7 @@ test('Discover credential settings use a typed React route with a safe legacy fa
   assert.match(types,/interface DiscoverSettingsMountOptions/);
   assert.match(islands,/mountDiscoverSettings/);
   assert.match(islands,/import\('\.\/discover-settings'\)/);
-  assert.match(shell,/showDiscoverSettingsLegacy/);
+  assert.doesNotMatch(shell,/mountDiscoverSettings\)return showDiscoverSettingsLegacy/);
   assert.match(shell,/mountDiscoverSettings/);
   assert.match(api,/saveDiscoveryCredential\(input\.token\)/);
   assert.match(api,/removeDiscoveryCredential\(\)/);
@@ -760,7 +767,7 @@ test('quality profiles use a typed React route with engine-native editing parity
   assert.match(types,/interface QualityProfilesMountOptions/);
   assert.match(islands,/mountQualityProfiles/);
   assert.match(islands,/import\('\.\/quality-profiles'\)/);
-  assert.match(shell,/showProfilesLegacy/);
+  assert.doesNotMatch(shell,/mountQualityProfiles\)return showProfilesLegacy/);
   assert.match(shell,/mountQualityProfiles/);
 });
 
@@ -780,7 +787,7 @@ test('first-run engine setup uses the shared typed React connection workflow',as
   assert.match(types,/interface EngineSetupMountOptions/);
   assert.match(islands,/mountEngineSetup/);
   assert.match(islands,/import\('\.\/engine-setup'\)/);
-  assert.match(shell,/showEngineSetupLegacy/);
+  assert.doesNotMatch(shell,/mountEngineSetup\)return showEngineSetupLegacy/);
   assert.match(shell,/mountEngineSetup/);
 });
 
@@ -799,7 +806,7 @@ test('administrator setup and sign-in use a typed React authentication shell',as
   assert.match(types,/interface AuthenticationMountOptions/);
   assert.match(islands,/mountAuthentication/);
   assert.match(islands,/import\('\.\/authentication'\)/);
-  assert.match(shell,/wireLegacyAuthentication/);
+  assert.doesNotMatch(shell,/else wireLegacyAuthentication\(\)/);
   assert.match(shell,/mountAuthentication/);
   assert.match(shell,/authenticationComplete/);
 });
@@ -902,6 +909,28 @@ test('movie and television initial loading is owned by typed React without losin
   assert.match(shell,/try\{const value=await api\(movie\?'\/api\/media\/movies':'\/api\/media\/tv'\)/);
 });
 
+test('movie and television legacy fallback remains until bulk actions and quick details reach React parity',async()=>{
+  const [library,shell]=await Promise.all([
+    read('apps/web/client/src/library.tsx'),
+    read('apps/web/client/src/app-shell.ts')
+  ]);
+  assert.match(shell,/if\(window\.VynodeArrReact\?\.mountLibrary\)/);
+  for(const capability of ['setupLibraryBulkSelection','Rename selected','Refresh & scan selected','Edit selected','Remove selected','openQuickDetails'])assert.match(shell,new RegExp(capability.replace(/[&]/g,'&')));
+  for(const endpoint of ['/api/media-files/rename','libraryEditor','rootFolders','profiles'])assert.ok(shell.includes(endpoint),endpoint);
+  assert.match(library,/href=\{href\}/);
+  assert.match(library,/onMonitor=\{monitor\}/);
+});
+
+test('React movie and television libraries support bulk selection, rename, and refresh scans',async()=>{
+  const library=await read('apps/web/client/src/library.tsx');
+  for(const capability of ['Select visible','Rename selected','Refresh & scan selected','selectedItems','toggleVisible','renameSelected','scanSelected'])assert.match(library,new RegExp(capability.replace(/[&]/g,'&')));
+  assert.match(library,/\/api\/media-files\/rename/);
+  assert.match(library,/name:'RefreshMovie',movieIds:targets/);
+  assert.match(library,/name:'RefreshSeries',seriesId/);
+  assert.match(library,/Math\.min\(2,targets\.length\)/);
+  assert.match(library,/checked=\{selected\}/);
+});
+
 test('history initial loading and refresh recovery are owned by typed React',async()=>{
   const [history,types,shell]=await Promise.all([
     read('apps/web/client/src/history.tsx'),
@@ -915,7 +944,8 @@ test('history initial loading and refresh recovery are owned by typed React',asy
   assert.match(history,/options\.administrator && item\.mediaId && event\.organizable/);
   assert.match(types,/items\?:HistoryItem\[\]/);
   assert.match(shell,/mountHistory\(host,\{administrator:state\.user\.role==='administrator',request:api,notify\}\)/);
-  assert.match(shell,/return showOperational\('History','\/api\/activity\/history'\)/);
+  assert.match(shell,/History could not load/);
+  assert.doesNotMatch(shell,/showOperational|historySections|wireHistoryActions/);
 });
 
 test('route teardown and navigation activation use a typed lifecycle helper',async()=>{
@@ -1222,7 +1252,7 @@ test('poster overlay layer selection scrolls settings into view and new layers s
 });
 
 test('poster overlay layer settings cards minimize independently inside the second column',async()=>{
-  const [source,layout]=await Promise.all([read('apps/web/client/src/poster-overlays.tsx'),read('apps/web/client/src/poster-overlay-editor-layout.tsx')]);
+  const [source,layout]=await Promise.all([read('apps/web/client/src/poster-overlays.tsx'),read('apps/web/client/src/poster-overlay-editor-layout.css')]);
   assert.match(source,/collapsedLayerIds/);
   assert.match(source,/open=\{!collapsedLayerIds\.includes\(layer\.id\)\}/);
   assert.match(source,/onToggle=\{event=>\{const open=event\.currentTarget\.open;setCollapsedLayerIds\(current=>open/);
@@ -1235,7 +1265,7 @@ test('poster overlay layer settings cards minimize independently inside the seco
 });
 
 test('poster overlay editor remains inside its viewport without deferred toggle event access',async()=>{
-  const [source,layout]=await Promise.all([read('apps/web/client/src/poster-overlays.tsx'),read('apps/web/client/src/poster-overlay-editor-layout.tsx')]);
+  const [source,layout]=await Promise.all([read('apps/web/client/src/poster-overlays.tsx'),read('apps/web/client/src/poster-overlay-editor-layout.css')]);
   assert.match(layout,/\.overlay-editor-backdrop\{box-sizing:border-box;padding:12px!important;overflow:hidden\}/);
   assert.match(layout,/width:min\(1840px,100%\);height:100%;max-height:100%/);
   assert.doesNotMatch(layout,/width:min\(1840px,calc\(100vw/);
@@ -1286,18 +1316,18 @@ test('Plex poster batches support variable filters and direct scoped restoration
 });
 
 test('poster overlay editor provides bounded layer fields and a shape library',async()=>{
-  const rail=await read('apps/web/client/src/poster-overlay-editor-rail.tsx'),layout=await read('apps/web/client/src/poster-overlay-editor-layout.tsx');
+  const rail=await read('apps/web/client/src/poster-overlay-editor-rail.tsx'),layout=await read('apps/web/client/src/poster-overlay-editor-layout.css');
   for(const shape of ['rounded','square','pill','circle','ticket','ribbon','tag','hexagon','chevron'])assert.ok(rail.includes(shape),shape);
   assert.match(layout,/overlay-layer-body input/);assert.match(layout,/min-width:0/);
   assert.match(layout,/overlay-preview-column>label select\{box-sizing:border-box;width:100%;min-width:0\}/);
 });
 
 test('poster overlay editor uses four focused desktop columns and a sequential mobile workflow',async()=>{
-  const conditions=await read('apps/web/client/src/poster-overlay-conditions.tsx'),layout=await read('apps/web/client/src/poster-overlay-editor-layout.tsx'),editor=await read('apps/web/client/src/poster-overlays.tsx');
-  assert.match(conditions,/overlay-condition-row\{grid-column:1\/-1;grid-row:2;width:100%/);
-  assert.match(conditions,/overlay-condition-rule\{display:grid;grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
-  assert.match(conditions,/@media\(max-width:1000px\)\{\.overlay-condition-rule/);
-  assert.match(conditions,/@media\(max-width:980px\)\{\.overlay-condition-row\{grid-row:auto\}/);
+  const conditionStyles=await read('apps/web/client/src/poster-overlay-conditions.css'),layout=await read('apps/web/client/src/poster-overlay-editor-layout.css'),editor=await read('apps/web/client/src/poster-overlays.tsx');
+  assert.match(conditionStyles,/overlay-condition-row\{grid-column:1\/-1;grid-row:2;width:100%/);
+  assert.match(conditionStyles,/overlay-condition-rule\{display:grid;grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
+  assert.match(conditionStyles,/@media\(max-width:1000px\)\{\s*\.overlay-condition-rule/);
+  assert.match(conditionStyles,/@media\(max-width:980px\)\{\.overlay-condition-row\{grid-row:auto\}/);
   assert.match(layout,/width:min\(1840px,100%\);height:100%;max-height:100%/);
   assert.match(layout,/grid-template-columns:minmax\(250px,280px\) minmax\(460px,1\.18fr\) minmax\(420px,1fr\) minmax\(330px,370px\)/);
   assert.match(layout,/grid-template-areas:"rail fields conditions preview"/);
@@ -1411,7 +1441,7 @@ test('request notification bell has durable role-aware request updates',async()=
   assert.match(shell,/nav-count-badge/);assert.match(notifications,/onPageBadge/);
   assert.match(notifications,/\/api\/notifications/);assert.match(notifications,/Mark all read/);assert.match(notifications,/15_000/);
   assert.match(notifications,/hasActiveActivity/);assert.doesNotMatch(notifications,/\},\[activities,load\]\)/,'notification polling must not restart after every loaded activity array');
-  assert.match(notifications,/Notification history/);assert.match(notifications,/Read and resolved notifications will remain here/);assert.match(notifications,/tab==='inbox'/);
+  assert.match(notifications,/Notification history/);assert.match(notifications,/Cleared notifications stay cleared/);assert.match(notifications,/tab==='inbox'/);
   assert.match(notifications,/aria-label="Notifications and activity"/);
   assert.match(notifications,/Open Action Center/);
   assert.match(notifications,/notification-operations-link/);
@@ -1505,6 +1535,14 @@ test('download decision center explains native candidate evidence',async()=>{
   for(const value of ['downloadDecisionStore','recordDownloadDecisions','/api/download-decisions','customFormatScore','preferredWordScore','upgradeEligible'])assert.ok(server.includes(value),value);
   for(const value of ['Download Decision Center','Why a release was accepted or rejected','Custom format','Preferred words','Age (days)','Seeders','Upgrade','Engine rejection evidence'])assert.ok(notifications.includes(value),value);
   assert.match(types,/interface DownloadDecision/);assert.match(styles,/decision-metrics/);assert.match(styles,/@media\(max-width:700px\)/);
+});
+
+test('mobile release profiles and every activity section provide compact persistent clearing',async()=>{
+  const [server,notifications,selectionStyles,activityStyles]=await Promise.all([read('apps/api/src/app.js'),read('apps/web/client/src/notifications.tsx'),read('apps/web/client/src/react-selection-rules.css'),read('apps/web/public/search-activity.css')]);
+  for(const value of ['req.method === "DELETE"','current.dismissed','/api/search-activities','/api/download-decisions'])assert.ok(server.includes(value),value);
+  for(const value of ['clearNotifications','clearSection','notification-clear','Cleared notifications stay cleared'])assert.ok(notifications.includes(value),value);
+  assert.match(selectionStyles,/@media\(max-width:600px\)/);assert.match(selectionStyles,/height:100dvh/);assert.match(selectionStyles,/native-field-grid textarea\{min-height:4\.75rem/);
+  assert.match(activityStyles,/notification-item-actions/);assert.match(activityStyles,/notification-dismiss/);
 });
 
 test('administrator audit coverage includes security, jobs, exports, collections, media, and system operations',async()=>{
