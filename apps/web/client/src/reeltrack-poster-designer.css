@@ -11,6 +11,7 @@
 .theatrical-preset strong{font-size:.82rem;letter-spacing:.035em}.theatrical-preset small{color:color-mix(in srgb,var(--preset-fg) 78%,transparent);font-size:.68rem}
 .reeltrack-designer-grid{display:grid;grid-template-columns:minmax(285px,320px) minmax(440px,1fr) minmax(350px,430px);gap:12px;padding:12px 14px;min-height:0;overflow:hidden;flex:1}
 .reeltrack-designer-grid>aside,.reeltrack-designer-grid>main{min-width:0;min-height:0;overflow-y:auto;padding:12px!important}
+.reeltrack-designer-grid>aside::after,.reeltrack-designer-grid>main::after{content:"";display:block;height:100%;min-height:100%}
 .reeltrack-artwork-designer label{display:grid;align-content:start;gap:6px;min-width:0;color:var(--text)}
 .reeltrack-artwork-designer label>input:not([type=checkbox]):not([type=color]),.reeltrack-artwork-designer label>select{width:100%;min-width:0}
 .reeltrack-artwork-designer fieldset{display:grid;gap:9px;margin:12px 0;padding:12px;border:1px solid var(--border);border-radius:12px}
@@ -23,5 +24,5 @@
 .reeltrack-artwork-designer [role=tablist]{position:sticky;top:0;z-index:3;padding-bottom:8px;background:var(--panel)}
 .reeltrack-interactive-canvas .poster-overlay-layer{pointer-events:auto!important}
 @media(max-width:1180px){.theatrical-preset-grid{grid-template-columns:repeat(3,minmax(128px,1fr))}.reeltrack-designer-grid{grid-template-columns:280px minmax(400px,1fr) 360px}}
-@media(max-width:980px){.reeltrack-artwork-designer{overflow-y:auto!important}.reeltrack-designer-grid{display:block;overflow:visible;flex:none}.reeltrack-designer-grid>aside,.reeltrack-designer-grid>main{overflow:visible}.theatrical-preset-grid{grid-template-columns:repeat(2,minmax(0,1fr));max-height:none}}
+@media(max-width:980px){.reeltrack-artwork-designer{overflow-y:auto!important}.reeltrack-designer-grid{display:block;overflow:visible;flex:none}.reeltrack-designer-grid>aside,.reeltrack-designer-grid>main{overflow:visible}.reeltrack-designer-grid>aside::after,.reeltrack-designer-grid>main::after{display:none}.theatrical-preset-grid{grid-template-columns:repeat(2,minmax(0,1fr));max-height:none}}
 @media(max-width:560px){.theatrical-preset-grid{grid-template-columns:1fr}.theatrical-preset-panel{margin-inline:8px}.reeltrack-designer-grid{padding-inline:8px}}
