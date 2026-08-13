@@ -35,6 +35,7 @@ export interface ReeltrackList {
     collectionName?:string;
     collectionPosterTemplate?:import("./poster-overlays-types").OverlayTemplate|null;
     titleOverlayTemplate?:import("./poster-overlays-types").OverlayTemplate|null;
+    realTitleOverlayTemplate?:import("./poster-overlays-types").OverlayTemplate|null;
     intervalMinutes?:number;
     status?:'scheduled'|'ready'|'error'|'disabled';
     error?:string|null;

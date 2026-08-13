@@ -4,10 +4,12 @@ import { ModalPortal } from "./modal-portal";
 import { overlayClientId, OverlayLayerView, overlayLayerVisible, resolveConditionalLayer } from "./poster-overlay-layer";
 import { PosterIcon, PosterLayerContent, posterIcons } from "./poster-overlay-icons";
 import LayerIdentity from "./poster-overlay-layer-identity";
-import type { OverlayLayer, OverlayTemplate } from "./poster-overlays-types";
+import type { OverlayLayer, OverlayPosition, OverlayTemplate } from "./poster-overlays-types";
 import "./reeltrack-poster-designer.css";
 
 const OverlayConditions = lazy(() => import("./poster-overlay-conditions"));
+const positions: OverlayPosition[] = ["top-left", "top-center", "top-right", "bottom-left", "bottom-center", "bottom-right", "custom"];
+const positionCoordinates: Record<OverlayPosition, [number, number]> = {"top-left":[5,5],"top-center":[30,5],"top-right":[55,5],"bottom-left":[5,88],"bottom-center":[30,88],"bottom-right":[55,88],custom:[5,5]};
 const variables = ["custom_text", "collection_name", "collection_title_count", "collection_media_type", "collection_last_sync", "title", "year", "rating", "quality", "resolution", "quality_profile", "video_codec", "audio_codec", "audio_channels", "dynamic_range", "source", "languages", "subtitle_languages", "runtime", "certification", "studio", "network", "genres", "monitored", "availability", "library_status", "completion_percent", "file_size", "tags", "date_added", "added_ago", "plex_days_since_added", "release_date", "release_age", "download_status", "download_progress", "download_eta", "missing_count", "cutoff_status", "season_progress", "episode_progress", "series_type", "next_episode", "requested_by", "request_count", "tmdb_id", "tvdb_id", "imdb_id"];
 const presets = [
   {
@@ -540,8 +542,8 @@ export function ReeltrackPosterDesigner({ mode, template, collectionName, titleC
     background = mode === "collection" && quad.length ? `${quad.map((item, index) => `url(/api/reeltrack/poster/${item.domain}/${item.tmdbId}) ${quadPositions[index]}/35% 31% no-repeat`).join(",")},${baseBackground}` : baseBackground;
   return (
     <ModalPortal>
-      <div className="overlay-editor-backdrop">
-        <section className="overlay-editor reeltrack-artwork-designer" style={{ width: "min(1500px,100%)", height: "100%" }} role="dialog" aria-modal="true">
+      <div className="overlay-editor-backdrop reeltrack-designer-backdrop" style={{ alignItems: "start" }}>
+        <section className="overlay-editor reeltrack-artwork-designer" style={{ width: "min(1500px,100%)", height: "calc(100dvh - 40px)", maxHeight: "calc(100dvh - 40px)" }} role="dialog" aria-modal="true">
           <div className="panel-heading reeltrack-designer-heading">
             <div>
               <span className="eyebrow">{mode === "collection" ? "COLLECTION POSTER" : "TITLE OVERLAY"}</span>
@@ -843,6 +845,38 @@ export function ReeltrackPosterDesigner({ mode, template, collectionName, titleC
                         gap: 10,
                       }}
                     >
+                      <div className="overlay-control-group-heading overlay-placement-heading">
+                        <span className="eyebrow">PLACEMENT &amp; SIZE</span>
+                        <strong>Place the layer</strong>
+                        <small className="muted">Use a preset or fine-tune the same values changed by dragging the preview.</small>
+                      </div>
+                      <label>
+                        Position
+                        <select value={selected.position} onChange={(e) => { const position=e.target.value as OverlayPosition,[x,y]=positionCoordinates[position];update({position,x,y}); }}>
+                          {positions.map((position) => <option value={position} key={position}>{position.replace("-", " ")}</option>)}
+                        </select>
+                      </label>
+                      <label className="overlay-range">
+                        <span>Horizontal position</span><span>{Math.round(selected.x ?? 5)}%</span>
+                        <input type="range" min="0" max="95" value={selected.x ?? 5} onChange={(e) => update({ position: "custom", x: Number(e.target.value) })} />
+                      </label>
+                      <label className="overlay-range">
+                        <span>Vertical position</span><span>{Math.round(selected.y ?? 5)}%</span>
+                        <input type="range" min="0" max="96" value={selected.y ?? 5} onChange={(e) => update({ position: "custom", y: Number(e.target.value) })} />
+                      </label>
+                      <label className="overlay-range">
+                        <span>Layer width</span><span>{Math.round(selected.width ?? 40)}%</span>
+                        <input type="range" min="15" max="100" value={selected.width ?? 40} onChange={(e) => { const width=Number(e.target.value);update({width,...(width===100?{position:"custom",x:0}: {})}); }} />
+                      </label>
+                      {selected.kind === "shape" ? <label className="overlay-range">
+                        <span>Shape height</span><span>{Math.round(selected.height ?? 6)}%</span>
+                        <input type="range" min="3" max="100" value={selected.height ?? 6} onChange={(e) => { const height=Number(e.target.value);update({height,...((selected.y ?? 0)+height>100?{position:"custom",y:Math.max(0,100-height)}:{} )}); }} />
+                      </label> : null}
+                      <div className="overlay-control-group-heading overlay-copy-heading">
+                        <span className="eyebrow">TEXT &amp; COLORS</span>
+                        <strong>Format the content</strong>
+                        <small className="muted">Set surrounding text, colors, typography, spacing, and opacity.</small>
+                      </div>
                       <label>
                         Prefix
                         <input value={selected.prefix} onChange={(e) => update({ prefix: e.target.value })} />

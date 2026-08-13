@@ -1967,7 +1967,7 @@ export function createApplication(options = {}) {
           plexExternalIds(item).some((identity) => wanted.has(`${domain}:${identity}`)),
         ).map((item) => item.ratingKey),
         collectionMemberKeys = [...new Set([...realRatingKeys, ...placeholderKeys])];
-      await restoreReeltrackArtwork({ automation, endpoint: plexSettings.endpoint, token: plexToken, machineIdentifier: plexSettings.server?.machineIdentifier || "", domain, kind: "title", exceptRatingKeys: placeholderKeys });
+      await restoreReeltrackArtwork({ automation, endpoint: plexSettings.endpoint, token: plexToken, machineIdentifier: plexSettings.server?.machineIdentifier || "", domain, kind: "title", exceptRatingKeys: collectionMemberKeys });
       const collection = await plexService.syncCollection(
           plexSettings.endpoint,
           plexToken,
@@ -1981,7 +1981,8 @@ export function createApplication(options = {}) {
         );
         collectionRatingKeys[domain] = collection.ratingKey;
         const collectionTemplate = reeltrackPosterTemplate(automation.collectionPosterTemplate, domain),
-          titleTemplate = reeltrackPosterTemplate(automation.titleOverlayTemplate, domain);
+          titleTemplate = reeltrackPosterTemplate(automation.titleOverlayTemplate, domain),
+          realTitleTemplate = reeltrackPosterTemplate(automation.realTitleOverlayTemplate, domain) || titleTemplate;
         if (collection.ratingKey && collectionTemplate?.enabled && collectionTemplate.layers?.length) {
           try {
             // Render the configured collection design after membership is reconciled. Existing
@@ -2004,7 +2005,7 @@ export function createApplication(options = {}) {
             totals.collectionPosterErrors = [...(totals.collectionPosterErrors || []), error?.message || "collection poster failed"].slice(0, 10);
           }
         }
-        const titleArtwork = await applyReeltrackTitleArtwork({
+        const placeholderArtwork = await applyReeltrackTitleArtwork({
           template: titleTemplate,
           endpoint: plexSettings.endpoint,
           token: plexToken,
@@ -2016,10 +2017,15 @@ export function createApplication(options = {}) {
           domain,
           syncedAt: runStartedAt,
         });
-        totals.titlePosters += titleArtwork.applied;
-        totals.titlePosterFailures = (totals.titlePosterFailures || 0) + titleArtwork.failed;
-        totals.titlePosterErrors = [...(totals.titlePosterErrors || []), ...titleArtwork.errors].slice(0, 10);
-        if (titleArtwork.applied)
+        const realArtwork = await applyReeltrackTitleArtwork({
+          template: realTitleTemplate, endpoint: plexSettings.endpoint, token: plexToken,
+          machineIdentifier: plexSettings.server?.machineIdentifier || "", automation,
+          items: refreshedItems, ratingKeys: realRatingKeys, list, domain, syncedAt: runStartedAt,
+        });
+        totals.titlePosters += placeholderArtwork.applied + realArtwork.applied;
+        totals.titlePosterFailures = (totals.titlePosterFailures || 0) + placeholderArtwork.failed + realArtwork.failed;
+        totals.titlePosterErrors = [...(totals.titlePosterErrors || []), ...placeholderArtwork.errors, ...realArtwork.errors].slice(0, 10);
+        if (placeholderArtwork.applied || realArtwork.applied)
           await plexService.refreshLibrary(plexSettings.endpoint, plexToken, library.key);
         totals.managedTitles += wanted.size;
         totals.placeholders += placeholderKeys.length;
@@ -9550,6 +9556,9 @@ export function createApplication(options = {}) {
             titleOverlayTemplate: Object.hasOwn(input, "titleOverlayTemplate")
               ? reeltrackPosterTemplate(input.titleOverlayTemplate)
               : current.importedLists[index].automation?.titleOverlayTemplate || null,
+            realTitleOverlayTemplate: Object.hasOwn(input, "realTitleOverlayTemplate")
+              ? reeltrackPosterTemplate(input.realTitleOverlayTemplate)
+              : current.importedLists[index].automation?.realTitleOverlayTemplate || null,
             intervalMinutes: Math.max(15, Math.min(1440, Number(input.intervalMinutes) || 60)),
             status: enabled ? "scheduled" : "disabled",
             error: null,

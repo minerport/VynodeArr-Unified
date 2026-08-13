@@ -5,7 +5,7 @@ import test from 'node:test';
 const read=(path)=>readFile(new URL(`../${path}`,import.meta.url),'utf8');
 
 test('Reeltrack Lists remains fluid while the viewport is resized',async()=>{
-  const [styles,view,designer,artStyles]=await Promise.all([read('apps/web/client/src/react-reeltrack-lists.css'),read('apps/web/client/src/reeltrack-lists.tsx'),read('apps/web/client/src/reeltrack-poster-designer.tsx'),read('apps/web/client/src/reeltrack-poster-designer.css')]);
+  const [styles,view,designer,artStyles,api]=await Promise.all([read('apps/web/client/src/react-reeltrack-lists.css'),read('apps/web/client/src/reeltrack-lists.tsx'),read('apps/web/client/src/reeltrack-poster-designer.tsx'),read('apps/web/client/src/reeltrack-poster-designer.css'),read('apps/api/src/app.js')]);
   assert.match(styles,/\.react-reeltrack-lists\s*>\s*\.reeltrack-hero\s*\{[^}]*position:\s*static[^}]*height:\s*auto[^}]*min-height:\s*0/);
   assert.match(styles,/\.reeltrack-key-form input\s*\{[^}]*min-width:\s*0[^}]*width:\s*100%/);
   assert.match(styles,/\.reeltrack-list-nav\s*\{[^}]*display:\s*flex[^}]*max-height:\s*calc\(100dvh - 8rem\)[^}]*flex-direction:\s*column[^}]*overflow-y:\s*auto/);
@@ -46,7 +46,12 @@ test('Reeltrack Lists remains fluid while the viewport is resized',async()=>{
   assert.match(designer,/selectedIds\.includes\(item\.id\)/);assert.match(designer,/className="reeltrack-selection-box"/);assert.match(designer,/zIndex:\s*20/);assert.match(designer,/pointerEvents:\s*"auto"/);
   for(const label of ['Group','Ungroup','items selected'])assert.ok(designer.includes(label),label);
   assert.match(designer,/scaleX\s*=\s*width\s*\/\s*start\.width/);assert.match(designer,/scaleY\s*=\s*height\s*\/\s*start\.height/);
-  for(const control of ['Layer level','To front','Forward','Backward','To back'])assert.ok(designer.includes(control),control);
+  for(const control of ['Layer level','To front','Forward','Backward','To back','Horizontal position','Vertical position','Layer width','Shape height','Text opacity','Shape opacity','Inner spacing','Corner radius'])assert.ok(designer.includes(control),control);
+  assert.match(designer,/reeltrack-designer-backdrop/);assert.match(designer,/height:\s*"calc\(100dvh - 40px\)"/);
+  assert.match(view,/async function persistAutomation/);assert.match(view,/await persistAutomation\(\);\s*const value = await request/);
+  assert.match(api,/kind:\s*"title",\s*exceptRatingKeys:\s*collectionMemberKeys/);assert.match(api,/ratingKeys:\s*collectionMemberKeys/);
+  assert.match(api,/realTitleTemplate\s*=\s*reeltrackPosterTemplate\(automation\.realTitleOverlayTemplate,\s*domain\)\s*\|\|\s*titleTemplate/);
+  assert.match(api,/ratingKeys:\s*placeholderKeys/);assert.match(api,/ratingKeys:\s*realRatingKeys/);
   assert.match(designer,/for\s*\(const item of snapshots\)\s*onChange\(item\.id,\s*\{\s*position:\s*"custom"/);
   assert.match(designer,/layers:\s*\[\.\.\.current\.layers,\s*accent,\s*graphic,\s*badge\]/);
   assert.match(view,/overlays applied/);assert.match(view,/overlay failures/);
