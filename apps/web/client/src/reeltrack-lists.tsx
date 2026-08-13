@@ -236,7 +236,7 @@ export function ReeltrackListsView({
       setLists(value.items || []);
       setSelectedId(String(value.items?.[0]?.id || ""));
       setShowImport(false);
-      notify("Reeltrack lists imported.");
+      notify("Selected lists added or refreshed. Existing imports were kept.");
     } catch (error) {
       notify(message(error), "error");
     } finally {

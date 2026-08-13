@@ -9363,7 +9363,7 @@ export function createApplication(options = {}) {
               (previous.importedLists || []).map((item) => [String(item.id), item]),
             );
           if (!chosen.length) throw new Error("The selected Reeltrack lists are no longer available.");
-          const importedLists = await Promise.all(
+          const selectedImports = await Promise.all(
               chosen.map(async (list) => {
                 const items = await reeltrackListItems(apiKey, list.id),
                   domains = new Set(items.map(reeltrackItemIdentity).filter((item) => item.tmdbId).map((item) => item.domain)),
@@ -9400,6 +9400,11 @@ export function createApplication(options = {}) {
                   : previousById.get(String(list.id))?.automation || null,
               };}),
             ),
+            selectedById = new Map(selectedImports.map((item) => [String(item.id), item])),
+            importedLists = [
+              ...(previous.importedLists || []).map((item) => selectedById.get(String(item.id)) || item),
+              ...selectedImports.filter((item) => !previousById.has(String(item.id))),
+            ],
             snapshot = {
               importedLists,
               updatedAt: new Date().toISOString(),
@@ -9412,7 +9417,7 @@ export function createApplication(options = {}) {
             category: "integration",
             action: "reeltrack.lists_imported",
             target: "Reeltrack lists",
-            summary: `Imported ${importedLists.length} Reeltrack list${importedLists.length === 1 ? "" : "s"}.`,
+            summary: `Added or refreshed ${selectedImports.length} Reeltrack list${selectedImports.length === 1 ? "" : "s"}.`,
             metadata: { listIds: [...selected] },
           });
           return json(res, 200, {
