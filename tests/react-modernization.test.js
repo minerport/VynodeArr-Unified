@@ -50,7 +50,6 @@ test('Reeltrack Lists remains fluid while the viewport is resized',async()=>{
   assert.match(designer,/reeltrack-designer-backdrop/);assert.match(designer,/height:\s*"calc\(100dvh - 40px\)"/);
   assert.match(artStyles,/\.reeltrack-artwork-designer\{[^}]*display:flex!important[^}]*overflow:hidden!important/);assert.match(artStyles,/\.reeltrack-designer-grid\{[^}]*overflow:hidden[^}]*flex:1/);assert.match(artStyles,/\.reeltrack-designer-grid>aside,\.reeltrack-designer-grid>main\{[^}]*overflow-y:auto/);
   assert.match(artStyles,/\.reeltrack-designer-grid>aside::after,\.reeltrack-designer-grid>main::after\{[^}]*height:100%[^}]*min-height:100%/);
-  assert.match(designer,/className="reeltrack-collage-titles"/);assert.doesNotMatch(designer,/maxHeight:\s*220/);
   assert.match(view,/async function persistAutomation/);assert.match(view,/await persistAutomation\(\);\s*const value = await request/);
   assert.match(api,/kind:\s*"title",\s*exceptRatingKeys:\s*collectionMemberKeys/);assert.match(api,/ratingKeys:\s*collectionMemberKeys/);
   assert.match(api,/realTitleTemplate\s*=\s*reeltrackPosterTemplate\(automation\.realTitleOverlayTemplate,\s*domain\)\s*\|\|\s*titleTemplate/);

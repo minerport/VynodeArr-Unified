@@ -594,7 +594,7 @@ export function ReeltrackPosterDesigner({ mode, template, collectionName, titleC
             </div>
           ) : null}
           <div className="reeltrack-designer-grid">
-            <aside className="panel">
+            <aside className="panel" style={{ padding: 12, overflow: "auto" }}>
               <label>
                 Design name
                 <input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} />
@@ -722,7 +722,15 @@ export function ReeltrackPosterDesigner({ mode, template, collectionName, titleC
                     <legend>Four-poster collage</legend>
                     <p className="muted">Choose up to four list titles for a 2 × 2 mini-poster section.</p>
                     <input value={quadSearch} onChange={(event) => setQuadSearch(event.target.value)} placeholder="Find a title" />
-                    <div className="reeltrack-collage-titles">
+                    <div
+                      style={{
+                        display: "grid",
+                        gap: 6,
+                        maxHeight: 220,
+                        overflow: "auto",
+                        marginTop: 6,
+                      }}
+                    >
                       {samples
                         .filter((item) => item.tmdbId && item.title.toLowerCase().includes(quadSearch.trim().toLowerCase()))
                         .map((item) => {
@@ -785,7 +793,7 @@ export function ReeltrackPosterDesigner({ mode, template, collectionName, titleC
                 </button>
               </div>
             </aside>
-            <main className="panel">
+            <main className="panel" style={{ padding: 12, overflow: "auto" }}>
               {selected ? (
                 <>
                   <div className="layer-order-controls" aria-label="Layer level">
@@ -997,7 +1005,7 @@ export function ReeltrackPosterDesigner({ mode, template, collectionName, titleC
                 <div className="empty compact">Add a layer to begin.</div>
               )}
             </main>
-            <aside className="panel" style={{ textAlign: "center" }}>
+            <aside className="panel" style={{ padding: 12, overflow: "auto", textAlign: "center" }}>
               <strong>Drag to position · pull corner to resize</strong>
               <InteractiveCanvas template={editing} values={values} background={background} selectedIds={selectedIds} onSelect={selectLayer} onChange={change} />
               {exact ? (

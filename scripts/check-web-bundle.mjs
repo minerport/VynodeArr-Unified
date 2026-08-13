@@ -108,7 +108,7 @@ const reeltrackTrailerRepairAllowance={route:800};
 // Imported lists now remain local drafts until artwork and destinations are
 // explicitly saved and applied, preventing premature Plex synchronization.
 const reeltrackDraftImportAllowance={route:100};
-const reeltrackColumnOverscrollAllowance={css:400};
+const reeltrackColumnOverscrollAllowance={css:250};
 const failures=[];
 
 if(!entry)failures.push('The React entry bundle was not produced.');

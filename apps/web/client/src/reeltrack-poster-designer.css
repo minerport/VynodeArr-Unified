@@ -11,7 +11,6 @@
 .theatrical-preset strong{font-size:.82rem;letter-spacing:.035em}.theatrical-preset small{color:color-mix(in srgb,var(--preset-fg) 78%,transparent);font-size:.68rem}
 .reeltrack-designer-grid{display:grid;grid-template-columns:minmax(285px,320px) minmax(440px,1fr) minmax(350px,430px);gap:12px;padding:12px 14px;min-height:0;overflow:hidden;flex:1}
 .reeltrack-designer-grid>aside,.reeltrack-designer-grid>main{min-width:0;min-height:0;overflow-y:auto;padding:12px!important}
-.reeltrack-collage-titles{display:grid;gap:6px;margin-top:6px}.reeltrack-collage-titles button{min-width:0;white-space:normal;overflow-wrap:anywhere}
 .reeltrack-designer-grid>aside::after,.reeltrack-designer-grid>main::after{content:"";display:block;height:100%;min-height:100%}
 .reeltrack-artwork-designer label{display:grid;align-content:start;gap:6px;min-width:0;color:var(--text)}
 .reeltrack-artwork-designer label>input:not([type=checkbox]):not([type=color]),.reeltrack-artwork-designer label>select{width:100%;min-width:0}
