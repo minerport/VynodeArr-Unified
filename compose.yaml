@@ -11,6 +11,7 @@ services:
     volumes:
       - movie-engine-config:/movie
       - tv-engine-config:/tv
+      - vynodearr-data:/data
       - movie-library:/movies
       - tv-library:/television
       - shared-downloads:/downloads
@@ -18,6 +19,8 @@ services:
     command:
       - |
         set -eu
+        chown -R 10001:"$${PGID}" /data
+        chmod 775 /data
         chown -R "$${PUID}:$${PGID}" /movies /television /downloads
         chmod 775 /movies /television /downloads
         movie_key="$$(sed -n 's:.*<ApiKey>\([^<]*\)</ApiKey>.*:\1:p' /movie/config.xml 2>/dev/null || true)"
@@ -89,6 +92,7 @@ services:
       context: .
     image: vynodearr:local
     container_name: vynodearr
+    user: "10001:${PGID:-1000}"
     restart: unless-stopped
     env_file:
       - path: .env

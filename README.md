@@ -475,6 +475,19 @@ The stack also starts with its documented defaults if `.env` is omitted, but
 copying the example makes timezone, ownership, networking, and optional TMDB
 configuration easier to review and retain.
 
+Before starting, run the included preflight check. It verifies Docker, Docker
+Compose, the Docker service, and the resolved Compose configuration:
+
+```sh
+sh scripts/docker-preflight.sh
+```
+
+On Windows PowerShell:
+
+```powershell
+.\scripts\docker-preflight.ps1
+```
+
 Open [http://localhost:8686](http://localhost:8686), create the first
 administrator, and follow the first-run checklist below. On another computer,
 replace `localhost` with the Docker host's address.
@@ -531,7 +544,32 @@ For example, a host might contain:
 └── Anime/
 ```
 
-Map that parent folder to `/media` in **VynodeArr and both bundled engines**:
+Set the parent folder in `.env`:
+
+```dotenv
+VYNODEARR_MEDIA_PATH=/srv/media
+```
+
+On Docker Desktop for Windows, use a forward-slash drive path such as
+`VYNODEARR_MEDIA_PATH=D:/Media` and ensure Docker Desktop can access that
+drive.
+
+Run the media-aware preflight and start Compose with the included override:
+
+```sh
+sh scripts/docker-preflight.sh --media
+docker compose -f compose.yaml -f compose.media.yaml up --build -d
+```
+
+On Windows PowerShell:
+
+```powershell
+.\scripts\docker-preflight.ps1 -Media
+docker compose -f compose.yaml -f compose.media.yaml up --build -d
+```
+
+The override maps the parent folder to `/media` in **VynodeArr and both bundled
+engines**. It is equivalent to:
 
 ```yaml
 services:
@@ -576,18 +614,6 @@ migration action to update the application and engine paths, verify engine
 health, and only then remove the redundant legacy mapping. Mapping the same
 files twice does not create copies, but scanning both paths as separate
 libraries can create duplicate records.
-
-On Docker Desktop for Windows, quote drive-based host paths:
-
-```yaml
-services:
-  vynodearr:
-    volumes:
-      - "D:/Media:/media"
-```
-
-Apply the equivalent `D:/Media:/media` mapping to both engine services too.
-Ensure Docker Desktop has permission to access that drive.
 
 Keep the `vynodearr-data`, `movie-engine-config`, and `tv-engine-config`
 volumes when recreating or updating the stack. Stop without deleting data with

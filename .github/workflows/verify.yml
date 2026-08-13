@@ -16,3 +16,5 @@ jobs:
       - name: Prepare review environment
         run: cp .env.example .env
       - run: docker compose --env-file .env.example config
+      - name: Smoke-test generic Docker image
+        run: sh scripts/docker-smoke-test.sh

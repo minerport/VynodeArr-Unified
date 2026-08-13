@@ -19,6 +19,10 @@ jobs:
           node-version: 24
       - run: npm install --include=dev --no-audit --no-fund
       - run: npm run verify
+      - name: Validate generic Docker Compose
+        run: docker compose config --quiet
+      - name: Smoke-test generic Docker image
+        run: sh scripts/docker-smoke-test.sh
 
   unraid:
     needs: verify
