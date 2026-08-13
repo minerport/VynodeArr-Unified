@@ -1879,7 +1879,7 @@ export function createApplication(options = {}) {
         }
       }
       for (const [key, item] of wanted) {
-        if (realIds.has(key) || jobs[key]?.folder) continue;
+        if (jobs[key]?.folder) continue;
         try {
           const metadata = await discovery.details(domain, item.tmdbId);
           if (!metadata?.trailer?.url) throw new Error("TMDB does not list a YouTube trailer.");
@@ -1891,6 +1891,11 @@ export function createApplication(options = {}) {
             tmdbId: item.tmdbId,
             root: localRoot,
           });
+          if (realIds.has(key) && typeof trailerDownloader.promote === "function") {
+            const realItem = realItems.find((value) => plexExternalIds(value).some((identity) => `${domain}:${identity}` === key)),
+              realFile = (realItem?.files || []).find((file) => !/(?:^|[\\/])(?:trailer|[^\\/]*-trailer)\.[a-z0-9]+$/i.test(String(file)));
+            if (realFile) jobs[key] = await trailerDownloader.promote(jobs[key], { realFile, libraryRoot: libraryLocation, localRoot });
+          }
           downloaded += 1;
         } catch (error) {
           jobs[key] = {
@@ -9464,7 +9469,7 @@ export function createApplication(options = {}) {
           });
         }
         const reeltrackAutomationMatch = url.pathname.match(
-          /^\/api\/reeltrack\/imported-lists\/([^/]+)\/automation(?:\/(run))?$/,
+          /^\/api\/reeltrack\/imported-lists\/([^/]+)\/automation(?:\/(run|repair-trailers))?$/,
         );
         const reeltrackArtworkRestoreMatch = url.pathname.match(
           /^\/api\/reeltrack\/imported-lists\/([^/]+)\/artwork\/(collection|titles)\/restore$/,
@@ -9578,6 +9583,26 @@ export function createApplication(options = {}) {
           return json(res, 200, {
             item: (await matchedReeltrackLists(session, [current.importedLists[index]]))[0],
           });
+        }
+        if (
+          reeltrackAutomationMatch &&
+          req.method === "POST" &&
+          reeltrackAutomationMatch[2] === "repair-trailers"
+        ) {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          const listId = decodeURIComponent(reeltrackAutomationMatch[1]), current = await reeltrackSnapshotForUser(session.user.id),
+            index = (current.importedLists || []).findIndex((item) => String(item.id) === String(listId));
+          if (index < 0) throw new Error("The imported Reeltrack list no longer exists.");
+          const automation = current.importedLists[index].automation || {}, jobs = { ...(automation.jobs || {}) };
+          let found = 0;
+          for (const [key, job] of Object.entries(jobs)) {
+            const missing = job?.error || !job?.path || (typeof trailerDownloader.exists === "function" && !(await trailerDownloader.exists(job)));
+            if (missing) { delete jobs[key]; found += 1; }
+          }
+          current.importedLists[index].automation = { ...automation, jobs };
+          await saveReeltrackSnapshot(session.user.id, current);
+          const item = await runReeltrackPlexAutomation(session.user.id, listId, { refreshProvider: false });
+          return json(res, 200, { item: (await matchedReeltrackLists(session, [item]))[0], found, repaired: item.automation?.summary?.downloaded || 0 });
         }
         if (
           reeltrackAutomationMatch &&

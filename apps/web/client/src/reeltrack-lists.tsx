@@ -364,6 +364,16 @@ export function ReeltrackListsView({
       setBusy(false);
     }
   }
+  async function repairTrailers() {
+    if (!selected) return;
+    setBusy(true);
+    try {
+      await persistAutomation();
+      const value = await request<{ item: ReeltrackList; found: number; repaired: number }>(`/api/reeltrack/imported-lists/${encodeURIComponent(selected.id)}/automation/repair-trailers`, { method: "POST" });
+      setLists((current) => current.map((item) => String(item.id) === String(value.item.id) ? value.item : item));
+      notify(value.found ? `Found ${value.found}; repaired ${value.repaired}. Plex and overlays refreshed.` : "No missing trailers found.");
+    } catch (error) { notify(message(error), "error"); } finally { setBusy(false); }
+  }
   async function restoreArtwork(kind: "collection" | "titles") {
     if (!selected || !confirm(`Restore the original ${kind === "collection" ? "collection poster" : "title posters"} for “${selected.name}” and disable this design?`)) return;
     setBusy(true);
@@ -723,9 +733,7 @@ export function ReeltrackListsView({
                     </small>
                   </div>
                   {selected?.automation?.enabled ? (
-                    <button className="secondary" disabled={busy} onClick={() => void runAutomation()}>
-                      {busy ? "Synchronizing…" : "Run now"}
-                    </button>
+                    <div className="form-actions"><button className="secondary" disabled={busy} onClick={() => void repairTrailers()}>Find missing trailers</button><button className="secondary" disabled={busy} onClick={() => void runAutomation()}>{busy ? "Synchronizing…" : "Run now"}</button></div>
                   ) : null}
                 </div>
                 <label className="reeltrack-automation-toggle">
