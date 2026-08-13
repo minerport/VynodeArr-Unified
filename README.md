@@ -464,6 +464,15 @@ The repository includes a standard Compose stack with VynodeArr plus private
 movie and television engines. Only the VynodeArr web interface is published;
 the engine API keys are generated and shared automatically.
 
+Choose one installation method:
+
+| Storage layout | Use this method |
+|---|---|
+| Start fresh with Docker-managed movie and TV volumes | **Standard installation** below |
+| Use an existing parent folder such as `/srv/media` or `D:/Media` | **Optional main media folder** below |
+
+#### Standard installation
+
 ```sh
 git clone https://github.com/minerport/VynodeArr-Unified.git
 cd VynodeArr-Unified
@@ -528,7 +537,7 @@ services:
       - /srv/downloads:/downloads
 ```
 
-#### Optional main media folder
+#### Optional main media folder installation
 
 VynodeArr also supports one parent media folder when your movies and television
 libraries are organized as subfolders of the same host directory. This is

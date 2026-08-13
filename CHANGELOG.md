@@ -7,6 +7,51 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.43-rc.3] - 2026-08-13
+
+### Added
+
+- Added an optional `compose.media.yaml` override that maps one host parent
+  media folder to `/media` in VynodeArr and both bundled engines.
+- Added Linux/macOS and Windows PowerShell Docker preflight tools that verify
+  Docker, Compose, the Docker service, configuration, and the optional media
+  folder before startup.
+- Added a real Linux container smoke test to develop, pull-request, and release
+  workflows. It builds the generic image, verifies `/healthz`, waits for a
+  healthy container, and confirms `/data`, `/movies`, `/tv`, and `/downloads`.
+
+### Fixed
+
+- Corrected permissions for a fresh persistent `/data` volume.
+- Corrected unprivileged user creation in the generic Node Alpine image.
+
+### Docker installation
+
+Standard named-volume installation:
+
+```sh
+cp .env.example .env
+sh scripts/docker-preflight.sh
+docker compose up --build -d
+```
+
+Optional main media folder installation:
+
+```sh
+# Set VYNODEARR_MEDIA_PATH=/srv/media in .env first.
+sh scripts/docker-preflight.sh --media
+docker compose -f compose.yaml -f compose.media.yaml up --build -d
+```
+
+Open `http://localhost:8686`. Windows PowerShell equivalents and complete
+folder-assignment and migration instructions are in the README's Docker
+Compose section.
+
+### Compatibility
+
+- The Unraid image, Community Applications template, and Unraid configuration
+  remain unchanged.
+
 ## [2.0.43-rc.2] - 2026-08-13
 
 ### Changed
