@@ -428,6 +428,7 @@ Build hand-picked collections or combine smart rules such as title, year, decade
 | Platform | Best for | Start here |
 |---|---|---|
 | Unraid | Always-on media servers | Use the Community Apps template or [`templates/vynodearr.xml`](templates/vynodearr.xml) |
+| Docker Compose | Linux, NAS, and Docker hosts | Follow the Docker instructions below |
 | Windows 10/11 x64 | Desktop installation or a Windows host | Download the Windows archive from the [latest release](https://github.com/minerport/VynodeArr-Unified/releases/latest) |
 
 ### Unraid
@@ -456,6 +457,76 @@ ghcr.io/minerport/vynodearr-unified:latest
 > Keep `/config` when updating or recreating the container. It contains the application state and both service databases.
 
 For normal Unraid HTTP access, leave `VYNODEARR_SECURE_COOKIES=false`. Enable secure cookies only when VynodeArr is always accessed over HTTPS.
+
+### Docker Compose
+
+The repository includes a standard Compose stack with VynodeArr plus private
+movie and television engines. Only the VynodeArr web interface is published;
+the engine API keys are generated and shared automatically.
+
+```sh
+git clone https://github.com/minerport/VynodeArr-Unified.git
+cd VynodeArr-Unified
+cp .env.example .env
+docker compose up --build -d
+```
+
+The stack also starts with its documented defaults if `.env` is omitted, but
+copying the example makes timezone, ownership, networking, and optional TMDB
+configuration easier to review and retain.
+
+Open [http://localhost:8686](http://localhost:8686), create the first
+administrator, and follow the first-run checklist below. On another computer,
+replace `localhost` with the Docker host's address.
+
+The default Compose stack uses named volumes so it works immediately without
+host-specific paths:
+
+| Volume | Container path | Purpose |
+|---|---|---|
+| `vynodearr-data` | `/data` | VynodeArr accounts, settings, and database |
+| `movie-library` | `/movies` | Organized movies |
+| `tv-library` | `/tv` | Organized television |
+| `shared-downloads` | `/downloads` | Completed downloads visible to both engines |
+
+Before first use, edit `.env` to set `TZ`. Linux users can also set `PUID` and
+`PGID` to the account that should own media files (`id -u` and `id -g`). To
+limit access to the Docker host itself, set `VYNODEARR_BIND_ADDRESS=127.0.0.1`.
+Set `VYNODEARR_PORT` if port `8686` is already occupied.
+
+To use existing host folders instead of the named media volumes, replace the
+matching volume entries in all services that use them. The same host folder
+must always use the same container path. For example:
+
+```yaml
+services:
+  movie-engine:
+    volumes:
+      - /srv/media/movies:/movies
+      - /srv/downloads:/downloads
+  tv-engine:
+    volumes:
+      - /srv/media/tv:/tv
+      - /srv/downloads:/downloads
+  vynodearr:
+    volumes:
+      - /srv/media/movies:/movies
+      - /srv/media/tv:/tv
+      - /srv/downloads:/downloads
+```
+
+Keep the `vynodearr-data`, `movie-engine-config`, and `tv-engine-config`
+volumes when recreating or updating the stack. Stop without deleting data with
+`docker compose down`; do not add `--volumes` unless you intentionally want to
+erase application and engine state.
+
+Useful checks:
+
+```sh
+docker compose ps
+docker compose logs -f vynodearr
+docker compose config --quiet
+```
 
 ### Credential encryption and master-key rotation
 

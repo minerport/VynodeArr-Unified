@@ -7,6 +7,38 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.43-rc.2] - 2026-08-13
+
+### Changed
+
+- Made the standard Docker Compose installation portable across Linux, NAS,
+  Docker Desktop, and other Docker hosts by removing machine-specific paths.
+- Added configurable WebUI bind address, port, timezone, PUID, and PGID with
+  safe defaults; `.env` is optional.
+- Shared movie, television, and completed-download storage consistently with
+  VynodeArr and its bundled engines.
+- Updated the generic Docker image to use reproducible dependency installs and
+  declare all persistent runtime paths.
+- Added a complete Docker Compose installation, host-folder mapping,
+  persistence, update, and troubleshooting guide to the README.
+
+### Docker quick start
+
+```sh
+git clone https://github.com/minerport/VynodeArr-Unified.git
+cd VynodeArr-Unified
+cp .env.example .env
+docker compose up --build -d
+```
+
+Open `http://localhost:8686`. Existing host media folders can be mapped to
+`/movies`, `/tv`, and `/downloads` as documented in the README.
+
+### Compatibility
+
+- The Unraid image, Community Applications template, and Unraid configuration
+  are unchanged in this release candidate.
+
 ## [2.0.43-rc.1] - 2026-08-13
 
 ### Added
