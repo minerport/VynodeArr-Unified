@@ -38,6 +38,7 @@ test('Unraid template has required mappings, self-contained image, and upstream 
 test('production image is non-root and has a health check',async()=>{
   const text=await readFile(new URL('../Dockerfile',import.meta.url),'utf8');assert.match(text,/USER vynodearr/);assert.match(text,/HEALTHCHECK/);assert.match(text,/VYNODEARR_DATA_DIR=\/data/);
   assert.match(text,/npm ci --include=dev/);assert.match(text,/npm ci --omit=dev/);
+  assert.match(text,/adduser -S -G node -u 10001 vynodearr/);
   for(const path of ['/data','/movies','/tv','/downloads'])assert.ok(text.includes(path),path);
 });
 

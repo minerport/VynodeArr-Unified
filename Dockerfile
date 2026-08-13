@@ -19,9 +19,9 @@ COPY --from=web-build /app/apps/web/public/react ./apps/web/public/react
 COPY --from=web-build /app/.server-build/apps/api ./apps/api
 COPY --from=web-build /app/.server-build/packages ./packages
 COPY OPEN_SOURCE_NOTICES LICENSE THIRD_PARTY_NOTICES ./
-RUN addgroup -S -g 1000 vynodearr && adduser -S -G vynodearr -u 10001 vynodearr \
+RUN adduser -S -G node -u 10001 vynodearr \
     && mkdir -p /data /movies /tv /downloads \
-    && chown -R vynodearr:vynodearr /app /data /movies /tv /downloads
+    && chown -R vynodearr:node /app /data /movies /tv /downloads
 USER vynodearr
 ENV PORT=4310 \
     VYNODEARR_DATA_DIR=/data \
