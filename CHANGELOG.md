@@ -7,6 +7,22 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.43-rc.1] - 2026-08-13
+
+### Added
+
+- Added an optional split-library mode for Reeltrack Plex automation, allowing separate placeholder and real-media libraries for movies and television.
+- Split mode maintains a corresponding collection in each Plex library and continues matching titles by authoritative external IDs.
+
+### Changed
+
+- Trailer promotion now copies the managed trailer beside real media, verifies the new file, and only then removes the placeholder copy.
+- Existing automations remain in the established single-library mode unless an administrator explicitly enables separate placeholder libraries.
+
+### Fixed
+
+- Preserved collection posters, placeholder overlays, real-title overlays, and original-artwork restoration across both split-library destinations.
+
 ## [2.0.42] - 2026-08-12
 
 ### Added
