@@ -7,6 +7,12 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.42-rc.6] - 2026-08-12
+
+### Fixed
+
+- Every desktop Reeltrack artwork-editor column now includes a full viewport of trailing scroll space so all controls can move completely above the fixed action bar and out of view.
+
 ## [2.0.42-rc.5] - 2026-08-12
 
 ### Changed
