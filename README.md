@@ -515,6 +515,80 @@ services:
       - /srv/downloads:/downloads
 ```
 
+#### Optional main media folder
+
+VynodeArr also supports one parent media folder when your movies and television
+libraries are organized as subfolders of the same host directory. This is
+optional; the existing `/movies` and `/tv` mappings continue to work.
+
+For example, a host might contain:
+
+```text
+/srv/media/
+├── Movies/
+├── Movies 4K/
+├── Television/
+└── Anime/
+```
+
+Map that parent folder to `/media` in **VynodeArr and both bundled engines**:
+
+```yaml
+services:
+  movie-engine:
+    volumes:
+      - /srv/media:/media
+      - /srv/downloads:/downloads
+
+  tv-engine:
+    volumes:
+      - /srv/media:/media
+      - /srv/downloads:/downloads
+
+  vynodearr:
+    volumes:
+      - /srv/media:/media
+      - /srv/downloads:/downloads
+```
+
+After starting the stack:
+
+1. Open **Service Settings → Root Folders**.
+2. Find the scanned folders beneath `/media`.
+3. Assign each folder to Movies or Television. You can expand a folder and
+   select a deeper subfolder when needed.
+4. Choose the default movie and television destinations used for new requests.
+5. Confirm the corresponding engine reports each selected root as available.
+
+For the example above, VynodeArr can register `/media/Movies` and
+`/media/Movies 4K` with the movie engine, and `/media/Television` and
+`/media/Anime` with the television engine. Requests, interactive searches, and
+list imports can then use the appropriate registered destination.
+
+> Path consistency is required. If VynodeArr sees a library as
+> `/media/Movies`, the movie engine must also see that exact storage location
+> as `/media/Movies`. Do not map the same host folder as `/media/Movies` in one
+> container and `/movies` in another.
+
+If `/movies` or `/tv` already points to the same physical host folders, keep
+the legacy mappings during migration. Add `/media`, use VynodeArr's root-folder
+migration action to update the application and engine paths, verify engine
+health, and only then remove the redundant legacy mapping. Mapping the same
+files twice does not create copies, but scanning both paths as separate
+libraries can create duplicate records.
+
+On Docker Desktop for Windows, quote drive-based host paths:
+
+```yaml
+services:
+  vynodearr:
+    volumes:
+      - "D:/Media:/media"
+```
+
+Apply the equivalent `D:/Media:/media` mapping to both engine services too.
+Ensure Docker Desktop has permission to access that drive.
+
 Keep the `vynodearr-data`, `movie-engine-config`, and `tv-engine-config`
 volumes when recreating or updating the stack. Stop without deleting data with
 `docker compose down`; do not add `--volumes` unless you intentionally want to
