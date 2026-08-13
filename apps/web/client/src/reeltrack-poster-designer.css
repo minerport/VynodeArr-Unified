@@ -1,4 +1,4 @@
-.reeltrack-artwork-designer{display:flex;flex-direction:column;overflow:hidden}
+.reeltrack-artwork-designer{display:block!important;overflow-y:auto!important;overscroll-behavior:contain}
 .reeltrack-designer-heading{padding:14px 18px 10px}
 .theatrical-preset-panel{margin:0 14px;padding:10px 12px;flex:none}
 .theatrical-preset-panel .panel-heading{margin-bottom:8px}
@@ -9,8 +9,8 @@
 .theatrical-preset-icon{grid-row:1/3;display:grid;place-items:center;width:40px;height:40px;padding:7px;border-radius:50%;background:var(--preset-accent);color:var(--preset-bg)}
 .theatrical-preset strong,.theatrical-preset small{position:relative;z-index:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .theatrical-preset strong{font-size:.82rem;letter-spacing:.035em}.theatrical-preset small{color:color-mix(in srgb,var(--preset-fg) 78%,transparent);font-size:.68rem}
-.reeltrack-designer-grid{display:grid;grid-template-columns:minmax(285px,320px) minmax(440px,1fr) minmax(350px,430px);gap:12px;padding:12px 14px;min-height:0;overflow:hidden;flex:1}
-.reeltrack-designer-grid>aside,.reeltrack-designer-grid>main{min-width:0;min-height:0;overflow:auto;padding:12px!important}
+.reeltrack-designer-grid{display:grid;grid-template-columns:minmax(285px,320px) minmax(440px,1fr) minmax(350px,430px);gap:12px;padding:12px 14px;min-height:0;overflow:visible}
+.reeltrack-designer-grid>aside,.reeltrack-designer-grid>main{min-width:0;min-height:0;overflow:visible;padding:12px!important}
 .reeltrack-artwork-designer label{display:grid;align-content:start;gap:6px;min-width:0;color:var(--text)}
 .reeltrack-artwork-designer label>input:not([type=checkbox]):not([type=color]),.reeltrack-artwork-designer label>select{width:100%;min-width:0}
 .reeltrack-artwork-designer fieldset{display:grid;gap:9px;margin:12px 0;padding:12px;border:1px solid var(--border);border-radius:12px}
@@ -23,5 +23,5 @@
 .reeltrack-artwork-designer [role=tablist]{position:sticky;top:0;z-index:3;padding-bottom:8px;background:var(--panel)}
 .reeltrack-interactive-canvas .poster-overlay-layer{pointer-events:auto!important}
 @media(max-width:1180px){.theatrical-preset-grid{grid-template-columns:repeat(3,minmax(128px,1fr))}.reeltrack-designer-grid{grid-template-columns:280px minmax(400px,1fr) 360px}}
-@media(max-width:980px){.reeltrack-artwork-designer{overflow:auto}.reeltrack-designer-grid{grid-template-columns:1fr;overflow:visible}.reeltrack-designer-grid>aside,.reeltrack-designer-grid>main{overflow:visible}.theatrical-preset-grid{grid-template-columns:repeat(2,minmax(0,1fr));max-height:none}}
+@media(max-width:980px){.reeltrack-designer-grid{grid-template-columns:1fr}.theatrical-preset-grid{grid-template-columns:repeat(2,minmax(0,1fr));max-height:none}}
 @media(max-width:560px){.theatrical-preset-grid{grid-template-columns:1fr}.theatrical-preset-panel{margin-inline:8px}.reeltrack-designer-grid{padding-inline:8px}}
