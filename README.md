@@ -44,11 +44,16 @@ consistent experience and account system.
 
 ## Current release
 
-Version **2.0.42** is the current stable release and is published as the
-`latest` image. Administrators can use the bundled media engines or connect
-existing external movie and television engines without losing VynodeArr's
-requests, searches, queues, profiles, providers, root-folder, history, calendar,
-or wanted-media workflows.
+Version **2.0.43** is the current stable release and is published as the
+`latest` image. Administrators can use the bundled media engines, connect one
+existing external movie and television engine, or manage multiple independent
+external instances. Each instance keeps its credentials, settings,
+destinations, requests, searches, queues, profiles, providers, history,
+calendar, and wanted-media workflows isolated.
+
+New installations can follow the in-app **Setup Center** to configure engines,
+storage and destinations, quality preferences, indexers, download clients,
+optional integrations, and a final health check in a clear order.
 
 Reeltrack and compatible mixed-media lists remain unified while showing clear
 Movies and Television sections. Plex synchronization is additive: scheduled

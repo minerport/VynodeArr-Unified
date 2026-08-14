@@ -2750,7 +2750,18 @@ Open `http://localhost:8686`. Existing host media folders can be mapped to
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.40-rc.8...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.43...HEAD
+[2.0.43]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.42...v2.0.43
+[2.0.43-rc.8]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.43-rc.7...v2.0.43-rc.8
+[2.0.43-rc.7]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.43-rc.6...v2.0.43-rc.7
+[2.0.43-rc.6]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.43-rc.5...v2.0.43-rc.6
+[2.0.43-rc.5]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.43-rc.4...v2.0.43-rc.5
+[2.0.43-rc.4]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.43-rc.3...v2.0.43-rc.4
+[2.0.43-rc.3]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.43-rc.2...v2.0.43-rc.3
+[2.0.43-rc.2]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.43-rc.1...v2.0.43-rc.2
+[2.0.43-rc.1]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.42...v2.0.43-rc.1
+[2.0.42]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.41...v2.0.42
+[2.0.41]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.40...v2.0.41
 [2.0.40-rc.8]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.40-rc.7...v2.0.40-rc.8
 [2.0.40-rc.7]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.40-rc.6...v2.0.40-rc.7
 [2.0.40-rc.6]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.40-rc.5...v2.0.40-rc.6
