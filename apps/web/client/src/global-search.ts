@@ -32,7 +32,11 @@ const destinations:SearchItem[]=[
   ["Import Lists","Configure engine import-list providers","#service/import-lists","provider lists","Setting"],
   ["Discover Settings","Configure TMDB metadata","#service/discover","api token","Setting"],
   ["Account Settings","Manage profile, appearance, and security","#settings/account","theme password users permissions","Setting"],
-  ["Engine Settings","Configure internal or external media engines","#settings/engines","movie television engine connection api","Setting"],
+  ["Setup Overview","Complete the essential VynodeArr setup","#setup","install onboarding getting started requirements","Setup"],
+  ["Media Engines","Configure built-in or external media engines","#setup/engines","movie television engine connection api","Setup"],
+  ["Storage & Destinations","Configure downloads and final media locations","#setup/storage","root folders paths media defaults","Setup"],
+  ["Search & Downloads","Configure indexers and download clients","#setup/search","providers release sources sabnzbd qbittorrent","Setup"],
+  ["Integrations","Connect TMDB Plex and Reeltrack","#setup/integrations","metadata artwork lists optional","Setup"],
   ["System","Backups, updates, logs, and diagnostics","#system","restore version performance","Setting"],
 ].map(([title,description,href,keywords,kind])=>({title,description,href,keywords,kind:kind as SearchItem["kind"]}));
 

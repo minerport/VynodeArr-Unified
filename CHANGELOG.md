@@ -7,6 +7,31 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.43-rc.8] - 2026-08-14
+
+### Added
+
+- Added a dedicated Setup Center that places engines, storage, search and
+  download connections, optional integrations, and final health validation in
+  a clear first-time order while retaining every detailed setting and legacy
+  route.
+
+### Changed
+
+- Moved engine entry points out of personal Account Settings, renamed the
+  guided storage entry point to Storage & Destinations, and added concise
+  instructions explaining which setup requirements are essential or optional.
+
+### Fixed
+
+- Kept the imported-list selector on-screen on phones by separating its
+  navigation semantics from the application shell sidebar and bounding its
+  mobile height.
+- Preserved title overlays for managed trailer placeholders that leave a
+  synchronized provider list while no valid real media file exists. Collection
+  membership still follows the current list without deleting the trailer or
+  restoring its placeholder poster.
+
 ## [2.0.43-rc.7] - 2026-08-14
 
 ### Fixed

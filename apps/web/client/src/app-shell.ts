@@ -398,7 +398,8 @@ async function showDashboard(){
   }catch(error){content.querySelector('.dashboard-grid').innerHTML=`<div class="empty error-state"><h2>Dashboard unavailable</h2><p>${esc(error.message)}</p></div>`;}
 }
 
-function showHealthReact(){if(!window.VynodeArrReact?.mountHealth){content.innerHTML='<div class="empty error-state"><h2>Health view unavailable</h2><p>Reload VynodeArr and try again.</p></div>';return;}const host=createRouteHost(content,'health-react');window.VynodeArrReact.mountHealth(host,{request:api});}
+function showHealthReact(setupMode=false){if(!window.VynodeArrReact?.mountHealth){content.innerHTML='<div class="empty error-state"><h2>Health view unavailable</h2><p>Reload VynodeArr and try again.</p></div>';return;}const host=createRouteHost(content,'health-react');window.VynodeArrReact.mountHealth(host,{request:api,setupMode});}
+function showSetupCenter(section='overview'){if(!window.VynodeArrReact?.mountSetupCenter){content.innerHTML='<div class="empty error-state"><h2>Setup Center unavailable</h2><p>Reload VynodeArr and try again.</p></div>';return;}const host=createRouteHost(content,'setup-center-react');window.VynodeArrReact.mountSetupCenter(host,{section,administrator:state.user?.role==='administrator'});}
 
 function engineFields(domain,settings){const value=settings?.[domain]||{};return`<form class="engine-form" data-domain="${domain}" data-existing-credential="${value.configured?'true':'false'}"><div class="engine-title"><div><span class="status-indicator idle"></span><h2>${domain==='movie'?'Movies':'TV'}</h2></div><span class="validation-text">Not tested</span></div><div class="form-grid"><label>Internal host<input name="host" value="${esc(value.host||'')}" placeholder="${domain}-engine" required></label><label>Port<input name="port" type="number" min="1" max="65535" value="${esc(value.port||'')}" required></label></div><div class="form-grid compact-fields"><label class="check"><input name="https" type="checkbox"${value.https?' checked':''}> HTTPS</label><label class="check"><input name="tlsVerify" type="checkbox"${value.tlsVerify!==false?' checked':''}> Verify TLS</label></div><label>URL base<input name="urlBase" value="${esc(value.urlBase||'')}" placeholder="Optional"></label><label>API key<input name="apiCredential" type="password" autocomplete="off" placeholder="${value.configured?'Replace configured credential':'Required'}" required></label>${value.configured?'<div class="notice credential-dependency-warning"><strong>Changing this key affects external applications.</strong><p>Update Seerr and every other application connected to this engine with the same new API key immediately after saving.</p></div>':''}<div class="form-actions"><button class="secondary test-engine" type="button">Test connection</button><button class="primary save-engine" type="submit" disabled>Save ${domain==='movie'?'Movies':'TV'}</button></div><div class="capability-results"></div></form>`;}
 async function showEngineManagementLegacy(){
@@ -687,6 +688,9 @@ async function route(){
     case'history':return showHistoryReact();
     case'calendar':return showCalendarReact();
     case'health':return showHealthReact();
+    case'setupCenter':return showSetupCenter(action.section);
+    case'setupStorage':return showRootFoldersReact();
+    case'setupHealth':return showHealthReact(true);
     case'serviceSettings':return showServiceSettings(action.section,action.templateFilter);
     case'management':return showManagementReact();
     case'engineManagement':return showEngineManagement();

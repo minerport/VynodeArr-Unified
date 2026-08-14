@@ -20,6 +20,7 @@ export const routeKeys=[
   'management',
   'settings',
   'system',
+  'setup',
   'engine-setup'
 ] as const;
 

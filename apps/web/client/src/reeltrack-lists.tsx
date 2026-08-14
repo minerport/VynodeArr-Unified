@@ -711,7 +711,7 @@ export function ReeltrackListsView({
         <div className="panel skeleton">Loading Reeltrack lists…</div>
       ) : lists.length ? (
         <div className="reeltrack-workspace">
-          <aside className="reeltrack-list-nav">
+          <nav className="reeltrack-list-nav" aria-label="Imported lists">
             <h2>Imported lists</h2>
             {lists.map((list) => (
               <button
@@ -725,7 +725,7 @@ export function ReeltrackListsView({
                 <small>{listCounts(list).movie} movies · {listCounts(list).tv} TV</small>
               </button>
             ))}
-          </aside>
+          </nav>
           <main>
             <div className="reeltrack-list-heading">
               <div>

@@ -1980,6 +1980,11 @@ export function createApplication(options = {}) {
             plexExternalIds(item).map((identity) => `${domain}:${identity}`),
           ),
         ),
+        realFileIds = new Set(
+          realItems
+            .filter((item) => (item.files || []).some((file) => !/(?:^|[\\/])(?:trailer|[^\\/]*-trailer)\.[a-z0-9]+$/i.test(String(file))))
+            .flatMap((item) => plexExternalIds(item).map((identity) => `${domain}:${identity}`)),
+        ),
         wanted = new Map();
       for (const item of providerItems) {
         const identity = reeltrackItemIdentity(item);
@@ -2094,6 +2099,18 @@ export function createApplication(options = {}) {
             );
           })
           .map((item) => item.ratingKey),
+        retainedPlaceholderOverlayKeys = refreshedPlaceholders
+          .filter((item) => {
+            const identities = [
+              ...plexExternalIds(item).map((identity) => `${domain}:${identity}`),
+              ...(item.files || [])
+                .map((file) => String(file).match(/\[tmdb-(\d+)\]/i)?.[1])
+                .filter(Boolean)
+                .map((id) => `${domain}:tmdb:${id}`),
+            ];
+            return identities.some((identity) => Boolean(jobs[identity]?.path) && !realFileIds.has(identity));
+          })
+          .map((item) => item.ratingKey),
         expectedPlaceholderCount = [...wanted.keys()].filter(
           (key) => !realIds.has(key) && Boolean(jobs[key]?.path),
         ).length;
@@ -2108,7 +2125,7 @@ export function createApplication(options = {}) {
         ).map((item) => item.ratingKey),
         collectionMemberKeys = [...new Set([...realRatingKeys, ...placeholderKeys])],
         splitCollections = automation.splitLibraryMode && String(library.key) !== String(realLibrary.key);
-      await restoreReeltrackArtwork({ automation, endpoint: plexSettings.endpoint, token: plexToken, machineIdentifier: plexSettings.server?.machineIdentifier || "", libraryKey: library.key, domain, kind: "title", exceptRatingKeys: splitCollections ? placeholderKeys : collectionMemberKeys });
+      await restoreReeltrackArtwork({ automation, endpoint: plexSettings.endpoint, token: plexToken, machineIdentifier: plexSettings.server?.machineIdentifier || "", libraryKey: library.key, domain, kind: "title", exceptRatingKeys: splitCollections ? retainedPlaceholderOverlayKeys : [...new Set([...collectionMemberKeys, ...retainedPlaceholderOverlayKeys])] });
       if (splitCollections)
         await restoreReeltrackArtwork({ automation, endpoint: plexSettings.endpoint, token: plexToken, machineIdentifier: plexSettings.server?.machineIdentifier || "", libraryKey: realLibrary.key, domain, kind: "title", exceptRatingKeys: realRatingKeys });
       const collection = await plexService.syncCollection(

@@ -1,5 +1,5 @@
 import {useCallback,useEffect,useState,type FormEvent} from 'react';
-import {AccountTabs} from './account-tabs';
+import {SetupNav} from './setup-nav';
 import type {EngineAuthenticationSettings,EngineConfiguration,EngineDomain,EngineInstance,EngineManagementMountOptions,EngineSettings,EngineSummary,EngineSystem,EngineValidation} from './engine-management-types';
 
 const errorText=(reason:unknown)=>reason instanceof Error?reason.message:'Engine management is unavailable.';
@@ -88,7 +88,7 @@ export function EngineManagementView({options}:{options:EngineManagementMountOpt
   if(error||!system||!settings||!authentication)return <div className="empty error-state"><h2>Engine management unavailable</h2><p>{error||'Engine settings could not be loaded.'}</p><button className="secondary" onClick={()=>void load()}>Try again</button></div>;
   return <div className="react-engine-management">
     <div className="hero"><div><span className="eyebrow">ENGINE MANAGEMENT</span><h1>Media engines</h1><p className="lede">{system.managed?'Installed engines are connected and maintained automatically.':'Review connections for separately managed engines.'}</p></div>{system.managed?<button className="secondary" disabled={repairing} onClick={()=>void repair()}>{repairing?'Repairing…':'Repair automatic connections'}</button>:null}</div>
-    <AccountTabs active="engines" administrator/>
+    <SetupNav active="engines"/>
     <section className="panel"><div className="panel-heading"><div><span className="eyebrow">ENGINE SOURCE</span><h2>Choose your movie and television engines</h2></div><span className={`badge ${system.restartRequired?'warm':'green'}`}>{system.restartRequired?'Restart required':system.engineMode==='external'?'External engines':'Built-in engines'}</span></div><p className="muted">Every VynodeArr feature continues to use the selected engines through the same private gateway.</p><div className="engine-status-grid"><button className={system.engineMode==='bundled'&&!system.pendingMode?'primary':'secondary'} onClick={()=>void selectMode('bundled')}>Use built-in engines</button><button className={system.engineMode==='external'&&!system.pendingMode?'primary':'secondary'} onClick={()=>void selectMode('external')}>Use my own engines</button></div>{system.restartRequired?<div className="notice"><strong>Restart VynodeArr to finish switching.</strong><p>The current engines remain active until restart. No library data or engine settings are deleted.</p></div>:null}</section>
     <div className="engine-status-grid">{system.engines.map(engine=><EngineCard engine={engine} key={engine.domain}/>)}</div>
     <section className="panel integration-access"><h2>External application access</h2><p className="muted">Connect Seerr and similar applications to this VynodeArr host on port <strong>8686</strong>. Use URL Base <code>/movies</code> for movies and <code>/tv</code> for television.</p>{system.engines.map(engine=><IntegrationKey engine={engine} managed={system.managed} options={options} key={engine.domain}/>)}</section>

@@ -18,5 +18,6 @@ export interface HealthItem {
 
 export interface HealthMountOptions {
   request:<T=unknown>(path:string,options?:RequestInit)=>Promise<T>;
+  setupMode?:boolean;
 }
 export interface EnginePathVerification {path:string;rootRegistered:boolean;titleCount:number;collectionCount:number;titleExamples:string[];collectionExamples:string[];equivalentTargets:string[];checkedAt:string}

@@ -370,6 +370,7 @@
   position: sticky;
   top: 1rem;
   display: flex;
+  height: auto;
   max-height: calc(100dvh - 8rem);
   flex-direction: column;
   align-self: start;
@@ -635,6 +636,7 @@
   .reeltrack-list-nav {
     position: static;
     display: flex;
+    height: auto;
     width: 100%;
     max-width: 100%;
     max-height: none;

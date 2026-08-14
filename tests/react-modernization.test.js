@@ -14,6 +14,8 @@ test('Reeltrack Lists remains fluid while the viewport is resized',async()=>{
   assert.doesNotMatch(view,/Manage integrations/);
   assert.match(view,/This is the only place in VynodeArr where your Reeltrack key\s+is entered/);
   assert.match(view,/Replace API key/);
+  assert.match(view,/<nav className="reeltrack-list-nav" aria-label="Imported lists">/);
+  assert.doesNotMatch(view,/<aside className="reeltrack-list-nav">/);
   assert.match(view,/Choose host folder/);
   assert.match(view,/Get your API key at reeltrack\.vynodehub\.com/);
   for(const guidance of ['Keep this list in sync with Plex','1. Turn on automatic management','2','Choose where titles belong','Name it and choose a schedule','Customize artwork','Original Plex artwork is backed up','Last sync results','Save and apply settings'])assert.ok(view.includes(guidance),guidance);
@@ -51,7 +53,7 @@ test('Reeltrack Lists remains fluid while the viewport is resized',async()=>{
   assert.match(artStyles,/\.reeltrack-artwork-designer\{[^}]*display:flex!important[^}]*overflow:hidden!important/);assert.match(artStyles,/\.reeltrack-designer-grid\{[^}]*overflow:hidden[^}]*flex:1/);assert.match(artStyles,/\.reeltrack-designer-grid>aside,\.reeltrack-designer-grid>main\{[^}]*overflow-y:auto/);
   assert.match(artStyles,/\.reeltrack-designer-grid>aside::after,\.reeltrack-designer-grid>main::after\{[^}]*height:100%[^}]*min-height:100%/);
   assert.match(view,/async function persistAutomation/);assert.match(view,/await persistAutomation\(\);\s*const value = await request/);
-  assert.match(api,/libraryKey:\s*library\.key,\s*domain,\s*kind:\s*"title",\s*exceptRatingKeys:\s*splitCollections\s*\?\s*placeholderKeys\s*:\s*collectionMemberKeys/);assert.match(api,/libraryKey:\s*realLibrary\.key,\s*domain,\s*kind:\s*"title",\s*exceptRatingKeys:\s*realRatingKeys/);assert.match(api,/ratingKeys:\s*splitCollections\s*\?\s*placeholderKeys\s*:\s*collectionMemberKeys/);
+  assert.match(api,/retainedPlaceholderOverlayKeys\s*=\s*refreshedPlaceholders/);assert.match(api,/Boolean\(jobs\[identity\]\?\.path\)\s*&&\s*!realFileIds\.has\(identity\)/);assert.match(api,/exceptRatingKeys:\s*splitCollections\s*\?\s*retainedPlaceholderOverlayKeys\s*:\s*\[\.\.\.new Set\(\[\.\.\.collectionMemberKeys,\s*\.\.\.retainedPlaceholderOverlayKeys\]\)\]/);assert.match(api,/libraryKey:\s*realLibrary\.key,\s*domain,\s*kind:\s*"title",\s*exceptRatingKeys:\s*realRatingKeys/);assert.match(api,/ratingKeys:\s*splitCollections\s*\?\s*placeholderKeys\s*:\s*collectionMemberKeys/);
   assert.match(view,/Use a separate placeholder library/);assert.match(api,/splitLibraryMode/);assert.match(api,/realLibraryLocation/);
   assert.match(api,/realTitleTemplate\s*=\s*reeltrackPosterTemplate\(automation\.realTitleOverlayTemplate,\s*domain\)\s*\|\|\s*titleTemplate/);
   assert.match(api,/ratingKeys:\s*placeholderKeys/);assert.match(api,/ratingKeys:\s*realRatingKeys/);
@@ -672,16 +674,21 @@ test('React service settings routes share one complete navigation component',asy
   }
 });
 
-test('administrator account navigation retains access to engine API-key management',async()=>{
-  const [account,tabs,shell,dispatch]=await Promise.all([
+test('administrator setup navigation retains access to engine API-key management',async()=>{
+  const [account,tabs,shell,dispatch,setup,setupNav,index]=await Promise.all([
     read('apps/web/client/src/account.tsx'),
     read('apps/web/client/src/account-tabs.tsx'),
     read('apps/web/client/src/app-shell.ts'),
-    read('apps/web/client/src/route-dispatch.ts')
+    read('apps/web/client/src/route-dispatch.ts'),
+    read('apps/web/client/src/setup-center.tsx'),
+    read('apps/web/client/src/setup-nav.tsx'),
+    read('apps/web/public/index.html')
   ]);
   assert.match(account,/AccountTabs/);
-  assert.match(tabs,/\{administrator\?<a className=\{active==='engines'/);
-  assert.match(tabs,/href="#settings\/engines">Engines/);
+  assert.doesNotMatch(tabs,/href="#settings\/engines">Engines/);
+  assert.match(setup,/SetupNav/);
+  assert.match(setupNav,/href="#setup\/engines">Media engines/);
+  assert.match(index,/href="#setup\/engines">Media Engines/);
   assert.match(dispatch,/parts\[1\]==='engines'/);
   assert.match(shell,/case'engineManagement':return showEngineManagement\(\)/);
   assert.match(shell,/External application access/);
