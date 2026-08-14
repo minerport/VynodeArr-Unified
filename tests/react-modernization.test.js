@@ -1066,8 +1066,9 @@ test('session bootstrap and authenticated shell activation have typed ownership'
 });
 
 test('global shell controls and presentation have typed ownership',async()=>{
-  const [controller,shell]=await Promise.all([
+  const [controller,globalSearch,shell]=await Promise.all([
     read('apps/web/client/src/shell-controller.ts'),
+    read('apps/web/client/src/global-search.ts'),
     read('apps/web/client/src/app-shell.ts')
   ]);
   assert.match(controller,/export function createNotifier/);
@@ -1083,7 +1084,12 @@ test('global shell controls and presentation have typed ownership',async()=>{
   assert.match(controller,/export function wireShellControls/);
   assert.match(controller,/request\('\/api\/auth\/logout'/);
   assert.match(controller,/classList\.toggle\('nav-open'\)/);
-  assert.match(controller,/location\.hash\.slice\(1\)/);
+  assert.match(controller,/wireGlobalSearch\(options\.globalSearch/);
+  assert.match(globalSearch,/export function wireGlobalSearch/);
+  assert.match(globalSearch,/Search titles, pages, and settings/);
+  assert.match(globalSearch,/Poster Overlays and Plex/);
+  assert.match(globalSearch,/mediaItems\(state\.movies,"Movie","movie"\)/);
+  assert.match(globalSearch,/mediaItems\(state\.tv,"Television","series"\)/);
   assert.match(controller,/addEventListener\('beforeunload'/);
   assert.match(shell,/from '\.\/shell-controller'/);
   assert.match(shell,/const notify=createNotifier\(toast\)/);

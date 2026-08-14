@@ -108,7 +108,9 @@ const reeltrackTrailerRepairAllowance={route:800};
 // Imported lists now remain local drafts until artwork and destinations are
 // explicitly saved and applied, preventing premature Plex synchronization.
 const reeltrackDraftImportAllowance={route:100};
-const reeltrackColumnOverscrollAllowance={css:250};
+// Imported-list names are width-constrained and ellipsized on phones so a long
+// provider title cannot expand the horizontal selector or the entire page.
+const reeltrackColumnOverscrollAllowance={css:450};
 // Optional split-library automation adds explicit real and placeholder Plex
 // destinations, host mappings, validation, and promotion controls to Lists only.
 const reeltrackSplitLibraryAllowance={route:5_200};

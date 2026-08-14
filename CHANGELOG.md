@@ -7,6 +7,22 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.43-rc.4] - 2026-08-13
+
+### Added
+
+- Turned the persistent header field into an application-wide search for movie
+  and television titles, primary pages, Service Settings, account settings,
+  engine configuration, and system tools.
+- Added a responsive search-results panel with direct navigation and keyboard
+  support for arrows, Enter, and Escape.
+
+### Fixed
+
+- Constrained imported-list selectors on phones so long provider list names
+  truncate cleanly instead of expanding the horizontal workspace and creating
+  a massive blank page break.
+
 ## [2.0.43-rc.3] - 2026-08-13
 
 ### Added
