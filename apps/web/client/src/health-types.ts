@@ -3,6 +3,8 @@ export type HealthDomain='movie'|'tv';
 export interface HealthItem {
   id:string;
   domain:HealthDomain;
+  engineInstanceId?:string;
+  engineInstanceName?:string;
   severity?:string|null;
   message:string;
   source?:string|null;

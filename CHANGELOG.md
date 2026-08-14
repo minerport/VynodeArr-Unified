@@ -7,6 +7,34 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.43-rc.5] - 2026-08-14
+
+### Added
+
+- Added multiple independently configured external movie and television engine
+  instances, with encrypted credentials and isolated settings for each.
+- Added **All engines** and individual-instance views across Movies, Television,
+  Wanted, Queue, History, Calendar, Health, Dashboard, and Action Center.
+- Added engine-aware destinations, quality profiles, providers, selection rules,
+  guide templates, requests, automatic searches, and interactive grabs.
+
+### Fixed
+
+- Prevented identical native title IDs from different engine instances from
+  colliding in library records, request attribution, artwork, notifications,
+  search activity, and detail links.
+- Kept healthy instance data visible when another external engine is offline.
+- Preserved the selected engine throughout approval, correction, cancellation,
+  deletion, destination selection, and search workflows.
+
+### Compatibility
+
+- Existing bundled-engine and single-external-engine installations migrate to
+  one default instance without changing their current behavior or credentials.
+- Multi-engine mode is optional. Removing an additional instance does not alter
+  the remaining instance, and the bundled engines remain available unless the
+  administrator explicitly switches to external engines.
+
 ## [2.0.43-rc.4] - 2026-08-13
 
 ### Added

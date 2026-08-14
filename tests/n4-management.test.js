@@ -91,7 +91,7 @@ test('native interaction workflows replace an upstream-shaped generic shell',asy
   for(const workflow of ['wireLibraryImportReview','Select all shown','Unmatched only','Possible mismatches','Find match','run-import-lookup','import-mismatch','import-unmatched','Already imported match','selected match is already in the library'])assert.ok(script.includes(workflow),workflow);
   for(const workflow of ['scanNameParts','comparableTitle','scanDuplicateKey','analyzeDuplicateFolders','classifyImportChoice'])assert.ok(importAnalysisSource.includes(workflow),workflow);
   for(const workflow of ['item.backdrop','detail-backdrop','detail-copy'])assert.match(script,new RegExp(workflow.replace('.','\\.')));
-  for(const workflow of ['wanted-art','wanted-card','wanted-episode-row','/api/artwork/movie/movie_${item.id}/poster','/api/artwork/tv/series_${seriesId}/fanart'])assert.ok(wantedSource.includes(workflow));
+  for(const workflow of ['wanted-art','wanted-card','wanted-episode-row',"publicId('movie',item.id,item.engineInstanceId)","publicId('tv',group.seriesId,group.instanceId)"])assert.ok(wantedSource.includes(workflow));
   for(const workflow of ['useVisibleRefresh','load(true)','queue-poster','clientFilename','clientTimeLeft','/api/activity/queue/live'])assert.ok(queueSource.includes(workflow),workflow);
   for(const workflow of ['showMediaManagement','media-management','mediaSettingOptions','flattenMediaSettings','mediaManagement','Naming and folders','Importing and file management'])assert.ok(script.includes(workflow),workflow);
   for(const workflow of ['releaseEligible','Grab anyway','release-warning','Only rejected releases were returned. Use Interactive Search','No releases were returned by the configured indexers.'])assert.ok(script.includes(workflow)||apiSource.includes(workflow),workflow);
@@ -195,5 +195,47 @@ test('external engines are staged together and activate only after restart',asyn
     assert.equal(runtime.tv.host,'sonarr.local');
     assert.equal(runtime.movie.apiCredential,'external-movie');
     assert.equal(JSON.stringify(service.public()).includes('external-movie'),false);
+  }finally{await rm(directory,{recursive:true,force:true});}
+});
+
+test('multi-engine browser behavior remains owned by typed React routes',async()=>{
+  const [legacyShell,control,management,library,guideTemplates,wanted,queue,history,calendar,health,dashboard,operations,requests,notifications]=await Promise.all([
+    readFile(new URL('../apps/web/client/src/app-shell.ts',import.meta.url),'utf8'),
+    readFile(new URL('../apps/web/client/src/engine-instance-control.tsx',import.meta.url),'utf8'),
+    readFile(new URL('../apps/web/client/src/engine-management.tsx',import.meta.url),'utf8'),
+    readFile(new URL('../apps/web/client/src/library.tsx',import.meta.url),'utf8'),
+    readFile(new URL('../apps/web/client/src/guide-templates.tsx',import.meta.url),'utf8'),
+    ...['wanted','queue','history','calendar','health','dashboard','operations-center','request-management','notifications'].map(name=>readFile(new URL(`../apps/web/client/src/${name}.tsx`,import.meta.url),'utf8')),
+  ]);
+  assert.doesNotMatch(legacyShell,/engineInstanceId|EngineInstanceSelect|useEngineInstance/);
+  for(const source of [control,management,library,guideTemplates])assert.match(source,/engineInstance|EngineInstance/);
+  assert.match(control,/useEngineInstance/);
+  assert.match(guideTemplates,/EngineInstanceSelect/);
+  for(const source of [wanted,queue,history,calendar,health,dashboard,operations])assert.match(source,/EngineInstanceFilter/);
+  for(const source of [requests,notifications])assert.match(source,/engineInstance/);
+});
+
+test('external engine instances migrate safely and keep credentials isolated',async()=>{
+  const directory=await mkdtemp(join(tmpdir(),'vynodearr-multi-engine-'));
+  try{
+    const defaults={dataMode:'review',movie:{enabled:true,host:'127.0.0.1',port:7878},tv:{enabled:true,host:'127.0.0.1',port:8989}};
+    const path=join(directory,'settings.json'),vaultPath=join(directory,'credentials.enc'),masterKey='test-master-key-with-32-characters';
+    const service=new EngineSettingsService({path,vaultPath,masterKey,defaults});
+    await service.initialize();
+    await service.saveExternal('movie',{...defaults.movie,host:'movies-primary.local'},'movie-primary-key');
+    const second=await service.createInstance('movie',{...defaults.movie,name:'4K Movies',host:'movies-4k.local'},'movie-4k-key');
+    await service.saveExternal('tv',{...defaults.tv,host:'tv-primary.local'},'tv-primary-key');
+    assert.equal(service.public().instances.length,3);
+    assert.equal(service.public().instances.filter(value=>value.domain==='movie'&&value.isDefault).length,1);
+    assert.equal((await service.instanceRuntime(second.id)).apiCredential,'movie-4k-key');
+    await service.setDefaultInstance(second.id);
+    assert.equal((await service.externalRuntime()).movie.host,'movies-4k.local');
+    assert.equal(JSON.stringify(service.public()).includes('movie-4k-key'),false);
+    await assert.rejects(()=>service.removeInstance(second.id),/another default/i);
+
+    const reloaded=new EngineSettingsService({path,vaultPath,masterKey,defaults});
+    await reloaded.initialize();
+    assert.equal(reloaded.public().instances.length,3);
+    assert.equal((await reloaded.defaultInstanceRuntime('movie')).host,'movies-4k.local');
   }finally{await rm(directory,{recursive:true,force:true});}
 });

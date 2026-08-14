@@ -6,6 +6,7 @@ import type { AvailableLibraryFoldersResponse, Directory, DownloadFolders, Media
 import { ServiceTabs } from "./service-tabs";
 import { LibraryImportReview } from "./library-import-review";
 import { ModalPortal } from "./modal-portal";
+import { EngineInstanceSelect, useEngineInstance } from "./engine-instance-control";
 
 const clean = (value: string) => (value === "/" ? "/" : value.replace(/\/+$/, "") || "/");
 const parent = (value: string) => clean(value).split("/").slice(0, -1).join("/") || "/";
@@ -37,11 +38,12 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
     [current, setCurrent] = useState("/"),
     [directories, setDirectories] = useState<Directory[]>([]),
     [browseError, setBrowseError] = useState("");
+  const engine = useEngineInstance(options.request, domain);
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const [rootValue, downloadValue, destinationValue, availableValue] = await Promise.all([options.request<{ result: RootFolder[] }>(`/api/manage/${domain}/rootFolders`), options.request<DownloadFolders>("/api/settings/download-folders"), options.request<MediaDestinationResponse>(`/api/media-destinations?domain=${domain}&includeUsage=true`), options.request<AvailableLibraryFoldersResponse>("/api/storage/available-library-folders")]);
+      const [rootValue, downloadValue, destinationValue, availableValue] = await Promise.all([options.request<{ result: RootFolder[] }>(engine.route(`/api/manage/${domain}/rootFolders`)), options.request<DownloadFolders>("/api/settings/download-folders"), options.request<MediaDestinationResponse>(engine.route(`/api/media-destinations?domain=${domain}&includeUsage=true`)), options.request<AvailableLibraryFoldersResponse>("/api/storage/available-library-folders")]);
       setRoots(rootValue.result || []);
       setDownloads(downloadValue || {});
       setDestinationData(destinationValue);
@@ -53,7 +55,7 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
     } finally {
       setLoading(false);
     }
-  }, [domain, options]);
+  }, [domain, options, engine.instanceId]);
   useEffect(() => {
     setRootPath(domain === "movie" ? "/movies" : "/tv");
     void load();
@@ -68,10 +70,10 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
     setBrowseError("");
     setDirectories([]);
     void options
-      .request<{ result: { directories?: Directory[] } }>(`/api/manage/${domain}/filesystem?path=${encodeURIComponent(current)}&includeFiles=false&allowFoldersWithoutTrailingSlashes=true`)
+      .request<{ result: { directories?: Directory[] } }>(engine.route(`/api/manage/${domain}/filesystem?path=${encodeURIComponent(current)}&includeFiles=false&allowFoldersWithoutTrailingSlashes=true`))
       .then((value) => setDirectories(value.result?.directories || []))
       .catch((reason) => setBrowseError(message(reason)));
-  }, [browser, current, domain, options]);
+  }, [browser, current, domain, options, engine.instanceId]);
   const saveDownload = async () => {
     setBusy("download");
     try {
@@ -90,7 +92,7 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
   const addRoot = async () => {
     setBusy("root");
     try {
-      await options.request(`/api/manage/${domain}/rootFolders`, {
+      await options.request(engine.route(`/api/manage/${domain}/rootFolders`), {
         method: "POST",
         body: JSON.stringify({ path: rootPath }),
       });
@@ -105,7 +107,7 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
   const addDestinationRoot = async (path: string) => {
     setBusy("destination-root");
     try {
-      await options.request(`/api/manage/${domain}/rootFolders`, {
+      await options.request(engine.route(`/api/manage/${domain}/rootFolders`), {
         method: "POST",
         body: JSON.stringify({ path }),
       });
@@ -122,7 +124,8 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
   const registerAvailableFolder = async (path: string, targetDomain: StorageDomain = domain) => {
     setBusy(`available-${targetDomain}-${path}`);
     try {
-      await options.request(`/api/manage/${targetDomain}/rootFolders`, { method: "POST", body: JSON.stringify({ path }) });
+      const targetRoute=targetDomain===domain?engine.route(`/api/manage/${targetDomain}/rootFolders`):`/api/manage/${targetDomain}/rootFolders`;
+      await options.request(targetRoute, { method: "POST", body: JSON.stringify({ path }) });
       options.notify(`${path} registered with the ${targetDomain === "movie" ? "movie" : "television"} engine. Set up its Media Destination below.`);
       await load();
     } catch (reason) {
@@ -143,7 +146,7 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
     if (!confirm(`Remove ${root.path} as a library folder? Media files will not be deleted.`)) return;
     setBusy(String(root.id));
     try {
-      await options.request(`/api/manage/${domain}/rootFolders/${root.id}`, {
+      await options.request(engine.route(`/api/manage/${domain}/rootFolders/${root.id}`), {
         method: "DELETE",
       });
       options.notify("Library folder removed.");
@@ -180,9 +183,10 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
         path = method === "PUT" ? `/api/media-destinations/${editingDestination.id}` : "/api/media-destinations",
         payload = {
           ...editingDestination,
+          engineInstanceId: engine.instanceId || undefined,
           id: method === "POST" ? undefined : editingDestination.id,
         };
-      await options.request(path, { method, body: JSON.stringify(payload) });
+      await options.request(engine.route(path), { method, body: JSON.stringify(payload) });
       options.notify(`${editingDestination.name} saved. Future additions will use its configured defaults.`);
       setEditingDestination(null);
       await load();
@@ -200,7 +204,7 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
     if (!confirm(`Remove ${destination.name}? Existing media and engine root folders will not be changed.`)) return;
     setBusy(`destination-${destination.id}`);
     try {
-      await options.request(`/api/media-destinations/${destination.id}`, {
+      await options.request(engine.route(`/api/media-destinations/${destination.id}`), {
         method: "DELETE",
       });
       options.notify("Media destination removed. Existing media was not changed.");
@@ -215,7 +219,7 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
     if (destination.discovered) { setEditingDestination({ ...destination, isDefault: true }); return; }
     setBusy(`default-${destination.id}`);
     try {
-      await options.request(`/api/media-destinations/${destination.id}`, { method: "PUT", body: JSON.stringify({ ...destination, isDefault: true }) });
+      await options.request(engine.route(`/api/media-destinations/${destination.id}`), { method: "PUT", body: JSON.stringify({ ...destination, engineInstanceId:engine.instanceId||undefined, isDefault: true }) });
       options.notify(`${destination.name} is now the default ${domain === "movie" ? "movie" : "television"} destination.`);
       await load();
     } catch (reason) { options.notify(message(reason), "error"); }
@@ -276,6 +280,7 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
         </div>
       </div>
       <ServiceTabs active="root-folders" />
+      <div className="management-toolbar engine-instance-toolbar"><EngineInstanceSelect instances={engine.instances} value={engine.instanceId} onChange={engine.setInstanceId}/></div>
       <section className="storage-engine-bar">
         <div>
           <span className="eyebrow">CONFIGURING</span>

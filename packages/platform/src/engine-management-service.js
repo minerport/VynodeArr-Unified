@@ -78,19 +78,21 @@ const domainResources=Object.freeze({
 const cleanQuery=(query={})=>Object.fromEntries(Object.entries(query).filter(([,value])=>value!==''&&value!=null));
 
 export class EngineManagementService {
-  constructor(registry){this.registry=registry;}
+  constructor(registry){this.registry=registry;this.instances=new Map();}
+  setInstances(values=[]){this.instances=new Map(values.map(value=>[value.id,value]));return this;}
+  instance(id,domain){const value=this.instances.get(id);if(!value||value.domain!==domain)throw new Error('The selected engine instance is unavailable');return value;}
   available(domain){return Boolean(this.registry.get(domain)?.client);}
   catalog(domain){
     if(!domainResources[domain])throw new Error('Unsupported media domain');
     return Object.entries({...sharedResources,...domainResources[domain]}).map(([key,value])=>({key,methods:value.methods}));
   }
-  async execute(domain,resource,method,{id,query,payload}={}){
+  async execute(domain,resource,method,{id,query,payload,engineInstanceId}={}){
     const definition={...sharedResources,...domainResources[domain]}[resource];
     if(!definition||!definition.methods.includes(method))throw new Error('This management operation is not available');
     const singleton=['naming','mediaManagement','downloadClientSettings','hostSettings','uiSettings','metadataSource','libraryEditor'];
     if((method==='PUT'||method==='DELETE')&&!id&&!singleton.includes(resource))throw new Error('A resource identifier is required');
     const path=id?`${definition.path}/${encodeURIComponent(String(id))}${definition.suffix?`/${definition.suffix}`:''}`:definition.path;
-    const client=this.registry.get(domain).client;
+    const client=engineInstanceId?this.instance(engineInstanceId,domain).client:this.registry.get(domain).client;
     if(!client)throw new Error('The connected engine does not support management');
     if(method==='GET')return client.get(path,cleanQuery(query));
     if(method==='POST')return client.post(path,payload,cleanQuery(query));

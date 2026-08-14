@@ -691,6 +691,36 @@ Run `Stop-VynodeArr.ps1` to stop VynodeArr without removing its data.
 6. Add or import media and choose monitoring behavior.
 7. Open **Health** from the dashboard to resolve any remaining setup issues.
 
+### Multiple external movie and television engines
+
+Multi-engine mode is optional. A normal bundled-engine or single external-engine
+installation continues to work without additional configuration.
+
+1. Open **Service Settings → Engine Management** as an administrator.
+2. Add each external Radarr-compatible movie or Sonarr-compatible television
+   instance with a unique friendly name, server URL, and API key.
+3. Test each connection before saving. Credentials are encrypted independently.
+4. Open **Service Settings → Root Folders** and create destinations for the
+   matching instance. A destination, root folder, profile, and tags always
+   belong to one engine instance.
+5. Choose one default destination per media type and engine where appropriate.
+6. Review profiles, providers, selection rules, and guide templates using the
+   engine selector at the top of each page.
+7. Use **All engines** on library and activity pages for a combined view, or
+   select one named instance to inspect and manage it independently.
+
+When adding or requesting a title, VynodeArr carries the chosen destination and
+engine through approval, search, grab, queue, import, history, and notification
+links. Two instances may have the same native numeric title ID without being
+treated as the same record. If one instance is offline, its error remains
+isolated and records from healthy instances continue to appear.
+
+Before removing an instance, move or remove its destinations and confirm that no
+pending requests rely on it. Existing single-engine settings are retained as the
+default instance during migration. To roll back, remove only the newly added
+instances and continue using the original default instance; no media files are
+moved by this configuration change.
+
 ## Connect Seerr or another request application
 
 Use the VynodeArr server address and port `8686` for both services:

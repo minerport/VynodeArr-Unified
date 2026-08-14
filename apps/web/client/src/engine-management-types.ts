@@ -59,6 +59,17 @@ export interface EngineSettings {
   movie:EngineConfiguration;
   tv:EngineConfiguration;
   external:{movie:EngineConfiguration;tv:EngineConfiguration};
+  instances:EngineInstance[];
+}
+
+export interface EngineInstance extends EngineConfiguration {
+  id:string;
+  name:string;
+  domain:EngineDomain;
+  enabled:boolean;
+  isDefault:boolean;
+  createdAt?:string;
+  updatedAt?:string;
 }
 
 export interface EngineValidation {

@@ -1,6 +1,7 @@
 export type QueueDomain='movie'|'tv';
 export interface QueueItem {
   id:string|number; domain:QueueDomain; mediaId?:string|number|null;
+  engineInstanceId?:string; engineInstanceName?:string;
   media?:{title?:string}; movie?:{title?:string}; series?:{title?:string};
   episode?:{seasonNumber?:number;episodeNumber?:number;title?:string};
   title?:string; clientFilename?:string; downloadClient?:string; protocol?:string; indexer?:string;

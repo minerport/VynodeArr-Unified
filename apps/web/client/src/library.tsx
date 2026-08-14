@@ -8,6 +8,7 @@ import {
 } from "react";
 import type {
   LibraryItem,
+  LibraryEngineOption,
   LibraryMountOptions,
   LibraryView,
 } from "./library-types";
@@ -320,6 +321,7 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
           query?: string;
           scrollY?: number;
           limit?: number;
+          engineInstanceId?: string;
         };
       } catch {
         return {};
@@ -347,6 +349,8 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
     ),
     [randomSeed, setRandomSeed] = useState(() => Date.now()),
     [query, setQuery] = useState(saved.query || ""),
+    [engineInstanceId,setEngineInstanceId]=useState(saved.engineInstanceId||"all"),
+    [engineOptions,setEngineOptions]=useState<LibraryEngineOption[]>([]),
     [debouncedQuery, setDebouncedQuery] = useState(saved.query || ""),
     [view, setView] = useState(options.initialView),
     [batchSize, setBatchSize] = useState(60),
@@ -389,6 +393,7 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
           sort,
           direction,
           randomSeed: String(randomSeed),
+          engineInstanceId,
         });
         const value = await request<{
           items?: LibraryItem[];
@@ -402,6 +407,7 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
           summary?: { total: number; monitored: number; covered: number };
           mode?: string;
           sync?: { lastSuccess?: string | null };
+          engines?: LibraryEngineOption[];
         }>(`${movie ? "/api/media/movies" : "/api/media/tv"}?${parameters}`);
         if (active && Array.isArray(value.items)) {
           setItems(value.items);
@@ -423,6 +429,7 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
         if (active && value.summary) setSummary(value.summary);
         if (active && value.sync?.lastSuccess)
           setLastSyncedAt(value.sync.lastSuccess);
+        if(active&&Array.isArray(value.engines))setEngineOptions(value.engines);
         if (active) setLoadError("");
       } catch (error) {
         if (active)
@@ -524,6 +531,7 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
     sort,
     direction,
     randomSeed,
+    engineInstanceId,
   ]);
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedQuery(query), 200);
@@ -536,7 +544,7 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
     }
     setLoadingPage(true);
     setLimit(batchSize);
-  }, [filter, sort, debouncedQuery, view, batchSize]);
+  }, [filter, sort, debouncedQuery, view, batchSize, engineInstanceId]);
   useEffect(() => {
     const persist = (scrollY = lastLibraryScroll.current) =>
       sessionStorage.setItem(
@@ -548,6 +556,7 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
           query,
           scrollY,
           limit,
+          engineInstanceId,
         }),
       );
     const track = () => {
@@ -561,7 +570,7 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
       persist();
       window.removeEventListener("scroll", track);
     };
-  }, [storageKey, filter, sort, direction, query, limit]);
+  }, [storageKey, filter, sort, direction, query, limit, engineInstanceId]);
   useEffect(() => {
     if (loading || restoredLibraryScroll.current) return;
     restoredLibraryScroll.current = true;
@@ -787,15 +796,15 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
     );
   async function monitor(item: LibraryItem) {
     const domain = movie ? "movie" : "tv",
-      engineId = item.id.replace(movie ? "movie_" : "series_", "");
+      engineId = item.id;
     try {
       const value = await request<{ result: Record<string, unknown> }>(
-          `/api/manage/${domain}/library/${engineId}`,
+          `/api/manage/${domain}/library/${encodeURIComponent(engineId)}`,
         ),
         raw = value.result,
         next = !raw.monitored;
       const saved = await request<{ result: Record<string, unknown> }>(
-        `/api/manage/${domain}/library/${engineId}`,
+          `/api/manage/${domain}/library/${encodeURIComponent(engineId)}`,
         { method: "PUT", body: JSON.stringify({ ...raw, monitored: next }) },
       );
       const monitored = Boolean(saved.result?.monitored ?? next),
@@ -1009,6 +1018,7 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
         </div>
       </div>
       <div className="toolbar react-library-toolbar">
+        <label className="react-library-engine-filter">Engine instance<select aria-label={`Filter ${movie?'movies':'television'} by engine instance`} value={engineInstanceId} onChange={event=>{setEngineInstanceId(event.target.value);setSelected(new Set());}}><option value="all">All instances</option>{engineOptions.map(engine=><option value={engine.id} key={engine.id}>{engine.name}{engine.isDefault?' (Default)':''}</option>)}</select></label>
         <div className="filters">
           {["all", "monitored", "unmonitored", "missing", "cutoff"].map(
             (value) => (

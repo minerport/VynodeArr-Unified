@@ -1,6 +1,7 @@
 import { JsonStore } from './json-store.js';
 import { EncryptedCredentialVault } from './credential-vault.js';
 import { publicEngineConfiguration } from './engine-config.js';
+import { randomUUID } from 'node:crypto';
 
 const allowed=(value,displayName)=>({
   enabled:value.enabled!==false,host:String(value.host||'').trim(),port:Number(value.port),
@@ -12,15 +13,17 @@ const allowed=(value,displayName)=>({
 
 export class EngineSettingsService {
   constructor({path,vaultPath,masterKey,defaults,bundled=false}) {
-    this.store=new JsonStore(path,{version:2,configured:false,mode:bundled?'bundled':'external',pendingMode:null,movie:null,tv:null,external:{movie:null,tv:null},updatedAt:null});
+    this.store=new JsonStore(path,{version:3,configured:false,mode:bundled?'bundled':'external',pendingMode:null,movie:null,tv:null,external:{movie:null,tv:null},instances:[],updatedAt:null});
     this.vault=new EncryptedCredentialVault(vaultPath,masterKey);this.defaults=defaults;this.bundled=bundled;this.value=null;
   }
   async initialize(){
     this.value=await this.store.read();
     if(!this.value.mode)this.value.mode=this.bundled?'bundled':'external';
     if(!this.value.external)this.value.external={movie:null,tv:null};
+    if(!Array.isArray(this.value.instances))this.value.instances=[];
     if(!Object.hasOwn(this.value,'pendingMode'))this.value.pendingMode=null;
-    this.value.version=2;
+    await this.#migrateExternalInstances();
+    this.value.version=3;
     if(!this.configured()&&this.defaults?.dataMode==='engine'&&this.defaults.movie?.apiCredential&&this.defaults.tv?.apiCredential){
       await this.save('movie',this.defaults.movie,this.defaults.movie.apiCredential);
       await this.save('tv',this.defaults.tv,this.defaults.tv.apiCredential);
@@ -37,7 +40,7 @@ export class EngineSettingsService {
   public(){
     const domain=(name,displayName)=>this.value?.[name]?{...publicEngineConfiguration({...this.value[name],apiCredential:'configured'}),host:this.value[name].host,port:this.value[name].port,urlBase:this.value[name].urlBase,configured:true}:{...publicEngineConfiguration(this.defaults[name]),host:'',port:this.defaults[name].port,urlBase:'',configured:false,displayName};
     const externalDomain=(name,displayName)=>this.value?.external?.[name]?{...publicEngineConfiguration({...this.value.external[name],apiCredential:'configured'}),host:this.value.external[name].host,port:this.value.external[name].port,urlBase:this.value.external[name].urlBase,configured:true}:{...publicEngineConfiguration(this.defaults[name]),host:'',port:this.defaults[name].port,urlBase:'',configured:false,displayName};
-    return{configured:this.configured(),mode:this.mode(),pendingMode:this.pendingMode(),restartRequired:Boolean(this.pendingMode()),movie:domain('movie','Movies'),tv:domain('tv','TV'),external:{movie:externalDomain('movie','Movies'),tv:externalDomain('tv','TV')},updatedAt:this.value?.updatedAt||null};
+    return{configured:this.configured(),mode:this.mode(),pendingMode:this.pendingMode(),restartRequired:Boolean(this.pendingMode()),movie:domain('movie','Movies'),tv:domain('tv','TV'),external:{movie:externalDomain('movie','Movies'),tv:externalDomain('tv','TV')},instances:this.value.instances.map(instance=>this.#publicInstance(instance)),updatedAt:this.value?.updatedAt||null};
   }
   normalize(domain,input){return allowed(input,domain==='movie'?'Movies':'TV');}
   async save(domain,input,credential){
@@ -49,16 +52,81 @@ export class EngineSettingsService {
   }
   async remove(domain){await this.vault.remove(domain);this.value[domain]=null;this.value.configured=false;this.value.updatedAt=new Date().toISOString();await this.store.write(this.value);}
   async saveExternal(domain,input,credential){
-    const config=this.normalize(domain,input);if(!config.host||!Number.isInteger(config.port)||config.port<1||config.port>65535)throw new Error('Enter a valid host and port');
-    if(!credential&&!this.value.external?.[domain])throw new Error('API key is required');
-    if(credential)await this.vault.replace(`external:${domain}`,credential);
-    this.value.external[domain]=config;this.value.updatedAt=new Date().toISOString();await this.store.write(this.value);return this.public();
+    const current=this.#defaultInstance(domain);
+    if(current)return this.updateInstance(current.id,{...input,name:current.name,enabled:true,isDefault:true},credential);
+    return this.createInstance(domain,{...input,name:domain==='movie'?'Primary Movies':'Primary TV',enabled:true,isDefault:true},credential);
   }
   async externalRuntime(){
-    if(!this.value?.external?.movie||!this.value?.external?.tv)return null;
-    const [movieCredential,tvCredential]=await Promise.all([this.vault.get('external:movie'),this.vault.get('external:tv')]);
-    if(!movieCredential||!tvCredential)return null;
-    return{movie:{...this.value.external.movie,apiCredential:movieCredential},tv:{...this.value.external.tv,apiCredential:tvCredential}};
+    const [movie,tv]=await Promise.all([this.defaultInstanceRuntime('movie'),this.defaultInstanceRuntime('tv')]);
+    return movie&&tv?{movie,tv}:null;
+  }
+
+  async createInstance(domain,input,credential){
+    this.#assertDomain(domain);
+    const config=this.normalize(domain,input),name=String(input.name||'').trim();
+    if(!name)throw new Error('Instance name is required');
+    if(!config.host||!Number.isInteger(config.port)||config.port<1||config.port>65535)throw new Error('Enter a valid host and port');
+    if(!credential)throw new Error('API key is required');
+    const now=new Date().toISOString(),makeDefault=input.isDefault===true||!this.#defaultInstance(domain),instance={id:randomUUID(),name,domain,...config,enabled:input.enabled!==false,isDefault:makeDefault,createdAt:now,updatedAt:now};
+    if(makeDefault)for(const item of this.value.instances)if(item.domain===domain)item.isDefault=false;
+    this.value.instances.push(instance);
+    if(instance.isDefault)this.value.external[domain]=config;
+    await this.vault.replace(this.#instanceCredentialKey(instance.id),credential);
+    await this.#persist();
+    return this.#publicInstance(instance);
+  }
+
+  async updateInstance(id,input,credential=''){
+    const instance=this.#instance(id);if(!instance)throw new Error('Engine instance was not found');
+    const config=this.normalize(instance.domain,{...instance,...input}),name=String(input.name??instance.name).trim();
+    if(!name)throw new Error('Instance name is required');
+    if(!config.host||!Number.isInteger(config.port)||config.port<1||config.port>65535)throw new Error('Enter a valid host and port');
+    Object.assign(instance,config,{name,enabled:input.enabled!==false,updatedAt:new Date().toISOString()});
+    if(input.isDefault===true)this.#setDefaultInMemory(instance.domain,instance.id);
+    if(credential)await this.vault.replace(this.#instanceCredentialKey(instance.id),credential);
+    if(instance.isDefault)this.value.external[instance.domain]=this.normalize(instance.domain,instance);
+    await this.#persist();return this.#publicInstance(instance);
+  }
+
+  async removeInstance(id){
+    const instance=this.#instance(id);if(!instance)throw new Error('Engine instance was not found');
+    if(instance.isDefault&&this.value.instances.some(item=>item.domain===instance.domain&&item.id!==id))throw new Error('Choose another default instance before removing this one');
+    this.value.instances=this.value.instances.filter(item=>item.id!==id);
+    await this.vault.remove(this.#instanceCredentialKey(id));
+    if(instance.isDefault)this.value.external[instance.domain]=null;
+    await this.#persist();return this.public();
+  }
+
+  async setDefaultInstance(id){
+    const instance=this.#instance(id);if(!instance)throw new Error('Engine instance was not found');
+    const credential=await this.vault.get(this.#instanceCredentialKey(id));
+    if(!credential)throw new Error('The selected instance has no saved API key');
+    this.#setDefaultInMemory(instance.domain,id);this.value.external[instance.domain]=this.normalize(instance.domain,instance);
+    await this.#persist();return this.public();
+  }
+
+  async instanceRuntime(id){
+    const instance=this.#instance(id);if(!instance||instance.enabled===false)return null;
+    const credential=await this.vault.get(this.#instanceCredentialKey(id));
+    return credential?{...this.normalize(instance.domain,instance),id:instance.id,name:instance.name,domain:instance.domain,apiCredential:credential}:null;
+  }
+  async defaultInstanceRuntime(domain){const instance=this.#defaultInstance(domain);return instance?this.instanceRuntime(instance.id):null;}
+
+  #assertDomain(domain){if(!['movie','tv'].includes(domain))throw new Error('Choose a movie or TV engine');}
+  #instance(id){return this.value.instances.find(instance=>instance.id===id);}
+  #defaultInstance(domain){return this.value.instances.find(instance=>instance.domain===domain&&instance.isDefault)||this.value.instances.find(instance=>instance.domain===domain);}
+  #instanceCredentialKey(id){return `external-instance:${id}`;}
+  #setDefaultInMemory(domain,id){for(const instance of this.value.instances)if(instance.domain===domain)instance.isDefault=instance.id===id;const pending=this.#instance(id);if(pending)pending.isDefault=true;}
+  #publicInstance(instance){return{id:instance.id,name:instance.name,domain:instance.domain,enabled:instance.enabled!==false,isDefault:Boolean(instance.isDefault),createdAt:instance.createdAt,updatedAt:instance.updatedAt,...publicEngineConfiguration({...instance,apiCredential:'configured'}),host:instance.host,port:instance.port,urlBase:instance.urlBase,configured:true,credentialConfigured:true};}
+  async #persist(){this.value.updatedAt=new Date().toISOString();this.value.version=3;await this.store.write(this.value);}
+  async #migrateExternalInstances(){
+    for(const domain of ['movie','tv']){
+      const legacy=this.value.external?.[domain];if(!legacy||this.value.instances.some(instance=>instance.domain===domain))continue;
+      const id=`external-${domain}-default`,now=this.value.updatedAt||new Date().toISOString();
+      this.value.instances.push({id,name:domain==='movie'?'Primary Movies':'Primary TV',domain,...this.normalize(domain,legacy),enabled:true,isDefault:true,createdAt:now,updatedAt:now});
+      const credential=await this.vault.get(`external:${domain}`);if(credential)await this.vault.replace(this.#instanceCredentialKey(id),credential);
+    }
+    for(const domain of ['movie','tv']){const values=this.value.instances.filter(instance=>instance.domain===domain);if(values.length&&!values.some(instance=>instance.isDefault))values[0].isDefault=true;}
   }
   async requestMode(mode){
     if(!['bundled','external'].includes(mode))throw new Error('Choose bundled or external engine mode');

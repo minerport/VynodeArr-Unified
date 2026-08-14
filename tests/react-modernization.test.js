@@ -884,7 +884,7 @@ test('dashboard loading, caching, and refresh ownership live in typed React',asy
     read('apps/web/client/src/app-shell.ts')
   ]);
   assert.match(dashboard,/export function DashboardRoute/);
-  assert.match(dashboard,/options\.request<DashboardData>\('\/api\/dashboard'\)/);
+  assert.match(dashboard,/options\.request<DashboardData>\(`\/api\/dashboard\?engineInstanceId=\$\{encodeURIComponent\(engineInstanceId\)\}`\)/);
   assert.match(dashboard,/sessionStorage\.setItem\(dashboardSnapshotKey/);
   assert.match(dashboard,/useVisibleRefresh\(load,15_000\)/);
   assert.match(types,/interface DashboardMountOptions/);
@@ -1505,7 +1505,8 @@ test('administrator search activity visualizes every automatic-search entry poin
   for(const value of ["client.get('queue'","client.get('history'",'status:\'downloading\'','status:\'imported\'','waiting for the media engine to import','download finished and was imported'])assert.ok(server.includes(value),value);
   for(const value of ['Search activity','Queued','Searching','Grabbed','Downloading','Imported','Open Queue','Open title'])assert.match(notifications,new RegExp(value),value);
   assert.match(notifications,/5_000/);assert.match(styles,/search-stage-track/);assert.match(styles,/bottom:0/);assert.match(styles,/aspect-ratio:2\/3/);
-  assert.match(notifications,/artwork\/movie\/movie_\$\{item\.movieId\}\/poster/);assert.match(notifications,/#movie\/movie_\$\{item\.movieId\}/);
+  assert.match(notifications,/owner=item\.engineInstanceId\?`\$\{item\.engineInstanceId\}_`/);
+  assert.match(notifications,/artwork\/movie\/movie_\$\{owner\}\$\{item\.movieId\}\/poster/);assert.match(notifications,/#movie\/movie_\$\{owner\}\$\{item\.movieId\}/);
 });
 
 test('search activity reconciles in the server background and refreshes when the app returns',async()=>{

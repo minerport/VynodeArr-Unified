@@ -3,6 +3,7 @@ import {ModalPortal} from './modal-portal';
 import type { ApiRecord,CustomFormat,CustomFormatSpecification,NativeField,QualityProfile,ReleaseProfile,SelectionDomain,SelectionRulesMountOptions,SelectionSection } from './selection-rules-types';
 import {addCustomFormatsToken,customFormatsToken,namingHasCustomFormatsToken,type NamingSettings} from './custom-format-naming';
 import {ServiceTabs,type ServiceSection} from './service-tabs';
+import {EngineInstanceSelect,useEngineInstance} from './engine-instance-control';
 import './react-selection-rules.css';
 
 const list=(value:unknown)=>Array.isArray(value)?value.map(String):String(value||'').split(',').map(item=>item.trim()).filter(Boolean);
@@ -36,42 +37,44 @@ function NativeFieldInput({field,onChange}:{field:NativeField;onChange:(value:un
 
 export function SelectionRulesView({options}:{options:SelectionRulesMountOptions}){
   const [domain,setDomain]=useState<SelectionDomain>('movie'),[section,setSection]=useState<SelectionSection>(options.section),[profiles,setProfiles]=useState<QualityProfile[]>([]),[formats,setFormats]=useState<CustomFormat[]>([]),[releases,setReleases]=useState<ReleaseProfile[]>([]),[schemas,setSchemas]=useState<ApiRecord[]>([]),[tags,setTags]=useState<ApiRecord[]>([]),[indexers,setIndexers]=useState<ApiRecord[]>([]),[naming,setNaming]=useState<NamingSettings>({}),[loading,setLoading]=useState(true),[busy,setBusy]=useState(''),[loadError,setLoadError]=useState(''),[editingFormat,setEditingFormat]=useState<number|null>(null),[editingRelease,setEditingRelease]=useState<number|null>(null);
+  const engine=useEngineInstance(options.request,domain);
   const formatNames=useMemo(()=>new Map(formats.map(format=>[Number(format.id),format.name||`Format ${format.id}`])),[formats]);
   const load=async()=>{setLoading(true);setLoadError('');try{
     if(section==='custom-formats'){
       const [profileValue,formatValue,schemaValue,namingValue]=await Promise.all([
-        options.request<{result:QualityProfile[]}>(`/api/manage/${domain}/profiles`),
-        options.request<{result:CustomFormat[]}>(`/api/manage/${domain}/customFormats`),
-        options.request<{result:ApiRecord[]}>(`/api/manage/${domain}/customFormatSchemas`),
-        options.request<{result:NamingSettings}>(`/api/manage/${domain}/naming`)
+        options.request<{result:QualityProfile[]}>(engine.route(`/api/manage/${domain}/profiles`)),
+        options.request<{result:CustomFormat[]}>(engine.route(`/api/manage/${domain}/customFormats`)),
+        options.request<{result:ApiRecord[]}>(engine.route(`/api/manage/${domain}/customFormatSchemas`)),
+        options.request<{result:NamingSettings}>(engine.route(`/api/manage/${domain}/naming`))
       ]);
       setProfiles(profileValue.result||[]);setFormats(formatValue.result||[]);setSchemas(schemaValue.result||[]);setNaming(namingValue.result||{});
     }else{
-      const releaseValue=await options.request<{result:ReleaseProfile[]}>(`/api/manage/${domain}/${releaseResource(domain)}`);
+      const releaseValue=await options.request<{result:ReleaseProfile[]}>(engine.route(`/api/manage/${domain}/${releaseResource(domain)}`));
       const [tagValue,indexerValue]=await Promise.all([
-        options.request<{result:ApiRecord[]}>(`/api/manage/${domain}/tags`).catch(()=>({result:[]})),
-        options.request<{result:ApiRecord[]}>(`/api/manage/${domain}/indexers`).catch(()=>({result:[]}))
+        options.request<{result:ApiRecord[]}>(engine.route(`/api/manage/${domain}/tags`)).catch(()=>({result:[]})),
+        options.request<{result:ApiRecord[]}>(engine.route(`/api/manage/${domain}/indexers`)).catch(()=>({result:[]}))
       ]);
       setReleases(releaseValue.result||[]);setTags(tagValue.result||[]);setIndexers(indexerValue.result||[]);
     }
   }catch(reason){setLoadError(errorMessage(reason));}finally{setLoading(false);}};
-  useEffect(()=>{setEditingFormat(null);setEditingRelease(null);void load();},[domain,section]);
+  useEffect(()=>{setEditingFormat(null);setEditingRelease(null);void load();},[domain,section,engine.instanceId]);
   const updateFormat=(index:number,change:(format:CustomFormat)=>CustomFormat)=>setFormats(current=>current.map((format,i)=>i===index?change(format):format));
-  const saveFormat=async(format:CustomFormat,isNew=false)=>{setBusy(`format-${format.id||'new'}`);try{await options.request(`/api/manage/${domain}/customFormats${isNew?'':`/${format.id}`}`,{method:isNew?'POST':'PUT',body:JSON.stringify(format)});options.notify('Custom format saved to the engine.');setEditingFormat(null);await load();}catch(reason){options.notify(errorMessage(reason),'error');}finally{setBusy('');}};
-  const ensureNamingToken=async()=>{if(!window.confirm(`Add ${customFormatsToken} to the active ${domain==='movie'?'movie':'TV episode'} filename formats?`))return;setBusy('naming-token');try{const updated=addCustomFormatsToken(domain,naming);await options.request(`/api/manage/${domain}/naming`,{method:'PUT',body:JSON.stringify(updated)});setNaming(updated);options.notify(`${customFormatsToken} added to ${domain==='movie'?'movie':'TV episode'} naming formats.`);}catch(reason){options.notify(errorMessage(reason),'error');}finally{setBusy('');}};
-  const removeFormat=async(format:CustomFormat,index:number)=>{if(!format.id){setFormats(current=>current.filter((_,i)=>i!==index));return;}if(!confirm(`Delete ${format.name}?`))return;try{await options.request(`/api/manage/${domain}/customFormats/${format.id}`,{method:'DELETE'});options.notify('Custom format deleted.');await load();}catch(reason){options.notify(errorMessage(reason),'error');}};
-  const saveProfile=async(profile:QualityProfile)=>{setBusy(`profile-${profile.id}`);try{await options.request(`/api/manage/${domain}/profiles/${profile.id}`,{method:'PUT',body:JSON.stringify(profile)});options.notify(`${profile.name} scores saved to the engine.`);await load();}catch(reason){options.notify(errorMessage(reason),'error');}finally{setBusy('');}};
+  const saveFormat=async(format:CustomFormat,isNew=false)=>{setBusy(`format-${format.id||'new'}`);try{await options.request(engine.route(`/api/manage/${domain}/customFormats${isNew?'':`/${format.id}`}`),{method:isNew?'POST':'PUT',body:JSON.stringify(format)});options.notify('Custom format saved to the engine.');setEditingFormat(null);await load();}catch(reason){options.notify(errorMessage(reason),'error');}finally{setBusy('');}};
+  const ensureNamingToken=async()=>{if(!window.confirm(`Add ${customFormatsToken} to the active ${domain==='movie'?'movie':'TV episode'} filename formats?`))return;setBusy('naming-token');try{const updated=addCustomFormatsToken(domain,naming);await options.request(engine.route(`/api/manage/${domain}/naming`),{method:'PUT',body:JSON.stringify(updated)});setNaming(updated);options.notify(`${customFormatsToken} added to ${domain==='movie'?'movie':'TV episode'} naming formats.`);}catch(reason){options.notify(errorMessage(reason),'error');}finally{setBusy('');}};
+  const removeFormat=async(format:CustomFormat,index:number)=>{if(!format.id){setFormats(current=>current.filter((_,i)=>i!==index));return;}if(!confirm(`Delete ${format.name}?`))return;try{await options.request(engine.route(`/api/manage/${domain}/customFormats/${format.id}`),{method:'DELETE'});options.notify('Custom format deleted.');await load();}catch(reason){options.notify(errorMessage(reason),'error');}};
+  const saveProfile=async(profile:QualityProfile)=>{setBusy(`profile-${profile.id}`);try{await options.request(engine.route(`/api/manage/${domain}/profiles/${profile.id}`),{method:'PUT',body:JSON.stringify(profile)});options.notify(`${profile.name} scores saved to the engine.`);await load();}catch(reason){options.notify(errorMessage(reason),'error');}finally{setBusy('');}};
   const score=(profile:QualityProfile,formatId:number)=>profile.formatItems?.find(item=>Number(item.format)===formatId)?.score||0;
   const setScore=(profileId:number,formatId:number,value:number)=>setProfiles(current=>current.map(profile=>{if(profile.id!==profileId)return profile;const items=[...(profile.formatItems||[])],index=items.findIndex(item=>Number(item.format)===formatId);if(index>=0)items[index]={...items[index],score:value};else items.push({format:formatId,name:formatNames.get(formatId),score:value});return{...profile,formatItems:items};}));
   const updateRelease=(index:number,change:Partial<ReleaseProfile>)=>setReleases(current=>current.map((profile,i)=>i===index?{...profile,...change}:profile));
-  const saveRelease=async(profile:ReleaseProfile,isNew=false)=>{setBusy(`release-${profile.id||'new'}`);try{await options.request(`/api/manage/${domain}/${releaseResource(domain)}${isNew?'':`/${profile.id}`}`,{method:isNew?'POST':'PUT',body:JSON.stringify(profile)});options.notify('Release profile saved to the engine.');setEditingRelease(null);await load();}catch(reason){options.notify(errorMessage(reason),'error');}finally{setBusy('');}};
-  const removeRelease=async(profile:ReleaseProfile,index:number)=>{if(!profile.id){setReleases(current=>current.filter((_,i)=>i!==index));return;}if(!confirm(`Delete ${profile.name}?`))return;try{await options.request(`/api/manage/${domain}/${releaseResource(domain)}/${profile.id}`,{method:'DELETE'});options.notify('Release profile deleted.');await load();}catch(reason){options.notify(errorMessage(reason),'error');}};
+  const saveRelease=async(profile:ReleaseProfile,isNew=false)=>{setBusy(`release-${profile.id||'new'}`);try{await options.request(engine.route(`/api/manage/${domain}/${releaseResource(domain)}${isNew?'':`/${profile.id}`}`),{method:isNew?'POST':'PUT',body:JSON.stringify(profile)});options.notify('Release profile saved to the engine.');setEditingRelease(null);await load();}catch(reason){options.notify(errorMessage(reason),'error');}finally{setBusy('');}};
+  const removeRelease=async(profile:ReleaseProfile,index:number)=>{if(!profile.id){setReleases(current=>current.filter((_,i)=>i!==index));return;}if(!confirm(`Delete ${profile.name}?`))return;try{await options.request(engine.route(`/api/manage/${domain}/${releaseResource(domain)}/${profile.id}`),{method:'DELETE'});options.notify('Release profile deleted.');await load();}catch(reason){options.notify(errorMessage(reason),'error');}};
   const closeRelease=(profile:ReleaseProfile,index:number)=>{if(!profile.id)setReleases(current=>current.filter((_,i)=>i!==index));setEditingRelease(null);};
   const closeFormat=(format:CustomFormat,index:number)=>{if(!format.id)setFormats(current=>current.filter((_,i)=>i!==index));setEditingFormat(null);};
   const toggleId=(values:number[]|undefined,id:number)=>values?.includes(id)?values.filter(value=>value!==id):[...(values||[]),id];
   return <div className="selection-rules-route">
     <div className="hero"><div><span className="eyebrow">RELEASE SELECTION</span><h1>Selection rules</h1><p className="lede">Configure the connected engines’ native matching, scoring, and release rules.</p></div></div>
     <ServiceTabs active={section} onNavigate={(next:ServiceSection)=>{if(next==='custom-formats'||next==='release-profiles')setSection(next);}}/>
+    <div className="management-toolbar engine-instance-toolbar"><EngineInstanceSelect instances={engine.instances} value={engine.instanceId} onChange={engine.setInstanceId}/></div>
     <div className="management-toolbar"><label>Library<select value={domain} onChange={event=>setDomain(event.target.value as SelectionDomain)}><option value="movie">Movies</option><option value="tv">Television</option></select></label><div className="selection-rule-explainer"><strong>{section==='custom-formats'?'Native scored matching':'Native release-title rules'}</strong><span>{section==='custom-formats'?`${schemas.length} condition types supplied by the selected engine.`:'Rules are written directly to the selected engine.'}</span></div></div>
     {loading?<div className="panel skeleton">Loading engine rules…</div>:loadError?<div className="panel selection-rule-error"><h2>{section==='custom-formats'?'Custom formats':'Release profiles'} unavailable</h2><p>{loadError}</p><button className="primary" onClick={()=>void load()}>Try again</button></div>:section==='custom-formats'?<div className="selection-rule-stack">
       <section className="panel selection-rule-intro"><div><h2>Custom formats</h2><p>Build formats from the exact condition schemas reported by the connected engine.</p></div><div className="rule-summary-actions"><a className="secondary" href={`#service/guide-templates/${domain==='tv'?'tv:':''}customFormat,customFormatGroup`}>Browse TRaSH templates</a><button className="primary" onClick={()=>{setFormats(current=>[{name:'New custom format',includeCustomFormatWhenRenaming:false,specifications:[]},...current]);setEditingFormat(0);}}>New custom format</button></div></section>
