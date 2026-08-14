@@ -695,6 +695,20 @@ test('administrator setup navigation retains access to engine API-key management
   assert.match(shell,/Generate new key/);
 });
 
+test('setup overview stays inside the phone viewport without becoming another shell sidebar',async()=>{
+  const [setup,foundation,index]=await Promise.all([
+    read('apps/web/client/src/setup-center.tsx'),
+    read('apps/web/public/ui-foundation.css'),
+    read('apps/web/public/index.html')
+  ]);
+  assert.match(setup,/className="setup-intro-note"/);
+  assert.doesNotMatch(setup,/<aside>/);
+  assert.match(foundation,/\.react-setup-center\{width:100%;max-width:100%;min-width:0;overflow-x:clip\}/);
+  assert.match(foundation,/@media\(max-width:760px\).*\.setup-center-nav\{display:grid;grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/s);
+  assert.match(foundation,/@media\(max-width:390px\)\{\.setup-center-nav\{grid-template-columns:1fr\}/);
+  assert.match(index,/ui-foundation\.css\?v=20260814-setup-mobile/);
+});
+
 test('account sections and the React mount boundary have typed ownership',async()=>{
   const [account,types,shell]=await Promise.all([
     read('apps/web/client/src/account.tsx'),
