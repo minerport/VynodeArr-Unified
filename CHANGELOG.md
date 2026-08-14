@@ -7,7 +7,7 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-## [2.0.43-rc.6] - 2026-08-14
+## [2.0.43-rc.7] - 2026-08-14
 
 ### Fixed
 

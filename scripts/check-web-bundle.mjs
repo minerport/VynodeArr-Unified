@@ -95,9 +95,11 @@ const nestedMediaFolderAllowance={route:700};
 // Destination choice is now explicit in requests, Add Media, and Reeltrack
 // automation. Storage also exposes a direct make-default action.
 const mediaDestinationChoiceAllowance={rootFoldersRoute:1_000,reeltrackRoute:3_500};
-// Multi-instance storage keeps root browsing and destination mutations bound to
-// the selected external engine. Limit the allowance to Storage Folders only.
-const multiEngineStorageAllowance={route:600};
+// Multi-instance storage keeps inventories, root browsing, destinations,
+// defaults, path remediation, and mutations bound to the selected external
+// engine. Keep this substantial administration surface isolated to Storage
+// Folders rather than raising the budget for every lazy route.
+const multiEngineStorageAllowance={route:13_000};
 // Mixed provider lists retain one synchronization identity while rendering
 // movie and television titles in separate engine-aware sections. The small
 // allowance is isolated to that lazy route and its responsive section headers.
