@@ -463,183 +463,127 @@ ghcr.io/minerport/vynodearr-unified:latest
 
 For normal Unraid HTTP access, leave `VYNODEARR_SECURE_COOKIES=false`. Enable secure cookies only when VynodeArr is always accessed over HTTPS.
 
-### Docker Compose
+### Docker
 
-The repository includes a standard Compose stack with VynodeArr plus private
-movie and television engines. Only the VynodeArr web interface is published;
-the engine API keys are generated and shared automatically.
+The supported release image is self-contained. It includes VynodeArr and its
+installation-managed movie and television engines, so a normal Docker install
+does **not** need to clone this repository or build three separate containers.
 
-Choose one installation method:
+#### Recommended Docker Compose installation
 
-| Storage layout | Use this method |
-|---|---|
-| Start fresh with Docker-managed movie and TV volumes | **Standard installation** below |
-| Use an existing parent folder such as `/srv/media` or `D:/Media` | **Optional main media folder** below |
+Create a new folder and save the following as `compose.yaml`. Replace the three
+host paths with folders on your Docker host before starting it.
 
-#### Standard installation
+```yaml
+services:
+  vynodearr:
+    image: ghcr.io/minerport/vynodearr-unified:latest
+    container_name: vynodearr
+    restart: unless-stopped
+    ports:
+      - "8686:8686"
+    environment:
+      TZ: America/New_York
+      VYNODEARR_SECURE_COOKIES: "false"
+      VYNODEARR_DOWNLOAD_CLIENT_REMOTE_PATH: /downloads
+    volumes:
+      - /srv/vynodearr/config:/config
+      - /srv/media:/media
+      - /srv/downloads:/downloads
+```
+
+Then run:
+
+```sh
+docker compose pull
+docker compose up -d
+```
+
+Open [http://localhost:8686](http://localhost:8686). From another computer,
+replace `localhost` with the Docker host's IP address or hostname.
+
+| Container path | Required | Purpose |
+|---|---|---|
+| `/config` | Yes | Persistent accounts, VynodeArr state, backups, and both bundled-engine databases |
+| `/media` | Recommended | A parent folder containing movie and television library folders |
+| `/downloads` | Yes for downloading | Completed downloads visible to VynodeArr and its engines |
+| `/movies` | No | Legacy single movie-library mapping |
+| `/tv` | No | Legacy single television-library mapping |
+
+Keep `/config` mapped to persistent storage and back it up. Updating or
+recreating the container is safe when this folder is retained. Do not map the
+same physical library through both `/media` and a legacy path unless you are
+performing a controlled path migration.
+
+For Docker Desktop on Windows, volume sources may use forward-slash paths such
+as `D:/Docker/VynodeArr:/config`, `D:/Media:/media`, and
+`D:/Downloads:/downloads`. Ensure Docker Desktop is permitted to access those
+drives.
+
+After first sign-in:
+
+1. Open **Service Settings → Root Folders**.
+2. Review the folders detected beneath `/media`.
+3. Assign each library folder, or a deeper subfolder, to Movies or Television.
+4. Set the default movie and television destinations used for new requests.
+5. Add an indexer and download client, then run the health check.
+
+If the download client reports completed files under a different container
+path, set `VYNODEARR_DOWNLOAD_CLIENT_REMOTE_PATH` to that reported path. The
+same completed-download host folder must be mounted at `/downloads` in
+VynodeArr so files can be imported.
+
+#### Docker run installation
+
+The equivalent Linux command is:
+
+```sh
+docker pull ghcr.io/minerport/vynodearr-unified:latest
+docker run -d \
+  --name vynodearr \
+  --restart unless-stopped \
+  -p 8686:8686 \
+  -e TZ=America/New_York \
+  -e VYNODEARR_SECURE_COOKIES=false \
+  -e VYNODEARR_DOWNLOAD_CLIENT_REMOTE_PATH=/downloads \
+  -v /srv/vynodearr/config:/config \
+  -v /srv/media:/media \
+  -v /srv/downloads:/downloads \
+  ghcr.io/minerport/vynodearr-unified:latest
+```
+
+Useful commands:
+
+```sh
+docker logs -f vynodearr
+docker stop vynodearr
+docker start vynodearr
+```
+
+#### Building the development stack from source
+
+The repository's root `compose.yaml` is a contributor and local-development
+stack. It builds VynodeArr from source and runs separate Radarr and Sonarr
+containers. Use it only when developing or testing repository changes:
 
 ```sh
 git clone https://github.com/minerport/VynodeArr-Unified.git
 cd VynodeArr-Unified
 cp .env.example .env
+sh scripts/docker-preflight.sh
 docker compose up --build -d
 ```
 
-The stack also starts with its documented defaults if `.env` is omitted, but
-copying the example makes timezone, ownership, networking, and optional TMDB
-configuration easier to review and retain.
-
-Before starting, run the included preflight check. It verifies Docker, Docker
-Compose, the Docker service, and the resolved Compose configuration:
-
-```sh
-sh scripts/docker-preflight.sh
-```
-
-On Windows PowerShell:
-
-```powershell
-.\scripts\docker-preflight.ps1
-```
-
-Open [http://localhost:8686](http://localhost:8686), create the first
-administrator, and follow the first-run checklist below. On another computer,
-replace `localhost` with the Docker host's address.
-
-The default Compose stack uses named volumes so it works immediately without
-host-specific paths:
-
-| Volume | Container path | Purpose |
-|---|---|---|
-| `vynodearr-data` | `/data` | VynodeArr accounts, settings, and database |
-| `movie-library` | `/movies` | Organized movies |
-| `tv-library` | `/tv` | Organized television |
-| `shared-downloads` | `/downloads` | Completed downloads visible to both engines |
-
-Before first use, edit `.env` to set `TZ`. Linux users can also set `PUID` and
-`PGID` to the account that should own media files (`id -u` and `id -g`). To
-limit access to the Docker host itself, set `VYNODEARR_BIND_ADDRESS=127.0.0.1`.
-Set `VYNODEARR_PORT` if port `8686` is already occupied.
-
-To use existing host folders instead of the named media volumes, replace the
-matching volume entries in all services that use them. The same host folder
-must always use the same container path. For example:
-
-```yaml
-services:
-  movie-engine:
-    volumes:
-      - /srv/media/movies:/movies
-      - /srv/downloads:/downloads
-  tv-engine:
-    volumes:
-      - /srv/media/tv:/tv
-      - /srv/downloads:/downloads
-  vynodearr:
-    volumes:
-      - /srv/media/movies:/movies
-      - /srv/media/tv:/tv
-      - /srv/downloads:/downloads
-```
-
-#### Optional main media folder installation
-
-VynodeArr also supports one parent media folder when your movies and television
-libraries are organized as subfolders of the same host directory. This is
-optional; the existing `/movies` and `/tv` mappings continue to work.
-
-For example, a host might contain:
-
-```text
-/srv/media/
-├── Movies/
-├── Movies 4K/
-├── Television/
-└── Anime/
-```
-
-Set the parent folder in `.env`:
+To expose an existing parent media folder to all three development containers,
+set `VYNODEARR_MEDIA_PATH` in `.env` and include `compose.media.yaml`:
 
 ```dotenv
 VYNODEARR_MEDIA_PATH=/srv/media
 ```
 
-On Docker Desktop for Windows, use a forward-slash drive path such as
-`VYNODEARR_MEDIA_PATH=D:/Media` and ensure Docker Desktop can access that
-drive.
-
-Run the media-aware preflight and start Compose with the included override:
-
 ```sh
 sh scripts/docker-preflight.sh --media
 docker compose -f compose.yaml -f compose.media.yaml up --build -d
-```
-
-On Windows PowerShell:
-
-```powershell
-.\scripts\docker-preflight.ps1 -Media
-docker compose -f compose.yaml -f compose.media.yaml up --build -d
-```
-
-The override maps the parent folder to `/media` in **VynodeArr and both bundled
-engines**. It is equivalent to:
-
-```yaml
-services:
-  movie-engine:
-    volumes:
-      - /srv/media:/media
-      - /srv/downloads:/downloads
-
-  tv-engine:
-    volumes:
-      - /srv/media:/media
-      - /srv/downloads:/downloads
-
-  vynodearr:
-    volumes:
-      - /srv/media:/media
-      - /srv/downloads:/downloads
-```
-
-After starting the stack:
-
-1. Open **Service Settings → Root Folders**.
-2. Find the scanned folders beneath `/media`.
-3. Assign each folder to Movies or Television. You can expand a folder and
-   select a deeper subfolder when needed.
-4. Choose the default movie and television destinations used for new requests.
-5. Confirm the corresponding engine reports each selected root as available.
-
-For the example above, VynodeArr can register `/media/Movies` and
-`/media/Movies 4K` with the movie engine, and `/media/Television` and
-`/media/Anime` with the television engine. Requests, interactive searches, and
-list imports can then use the appropriate registered destination.
-
-> Path consistency is required. If VynodeArr sees a library as
-> `/media/Movies`, the movie engine must also see that exact storage location
-> as `/media/Movies`. Do not map the same host folder as `/media/Movies` in one
-> container and `/movies` in another.
-
-If `/movies` or `/tv` already points to the same physical host folders, keep
-the legacy mappings during migration. Add `/media`, use VynodeArr's root-folder
-migration action to update the application and engine paths, verify engine
-health, and only then remove the redundant legacy mapping. Mapping the same
-files twice does not create copies, but scanning both paths as separate
-libraries can create duplicate records.
-
-Keep the `vynodearr-data`, `movie-engine-config`, and `tv-engine-config`
-volumes when recreating or updating the stack. Stop without deleting data with
-`docker compose down`; do not add `--volumes` unless you intentionally want to
-erase application and engine state.
-
-Useful checks:
-
-```sh
-docker compose ps
-docker compose logs -f vynodearr
-docker compose config --quiet
 ```
 
 ### Credential encryption and master-key rotation
