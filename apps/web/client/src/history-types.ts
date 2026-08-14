@@ -3,6 +3,8 @@ export type HistoryDomain='movie'|'tv';
 export interface HistoryItem {
   id:string;
   domain:HistoryDomain;
+  engineInstanceId?:string;
+  engineInstanceName?:string;
   mediaId?:string|null;
   title:string;
   context?:string|null;

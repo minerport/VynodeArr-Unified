@@ -7,6 +7,180 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.43-rc.8] - 2026-08-14
+
+### Added
+
+- Added a dedicated Setup Center that places engines, storage, search and
+  download connections, optional integrations, and final health validation in
+  a clear first-time order while retaining every detailed setting and legacy
+  route.
+
+### Changed
+
+- Moved engine entry points out of personal Account Settings, renamed the
+  guided storage entry point to Storage & Destinations, and added concise
+  instructions explaining which setup requirements are essential or optional.
+
+### Fixed
+
+- Kept the imported-list selector on-screen on phones by separating its
+  navigation semantics from the application shell sidebar and bounding its
+  mobile height.
+- Preserved title overlays for managed trailer placeholders that leave a
+  synchronized provider list while no valid real media file exists. Collection
+  membership still follows the current list without deleting the trailer or
+  restoring its placeholder poster.
+
+## [2.0.43-rc.7] - 2026-08-14
+
+### Fixed
+
+- Corrected the clean-volume multi-engine Docker lab to use the published
+  image's port and persistent configuration path, and added a retained-lab mode
+  for browser validation.
+- Scoped library totals, monitored counts, coverage, missing counts, and cutoff
+  counts to the selected engine instance instead of retaining aggregate values.
+- Documented the required external-engine restart and one-to-one Plex library
+  ownership during multi-engine setup.
+
+## [2.0.43-rc.5] - 2026-08-14
+
+### Added
+
+- Added multiple independently configured external movie and television engine
+  instances, with encrypted credentials and isolated settings for each.
+- Added **All engines** and individual-instance views across Movies, Television,
+  Wanted, Queue, History, Calendar, Health, Dashboard, and Action Center.
+- Added engine-aware destinations, quality profiles, providers, selection rules,
+  guide templates, requests, automatic searches, and interactive grabs.
+
+### Fixed
+
+- Prevented identical native title IDs from different engine instances from
+  colliding in library records, request attribution, artwork, notifications,
+  search activity, and detail links.
+- Kept healthy instance data visible when another external engine is offline.
+- Preserved the selected engine throughout approval, correction, cancellation,
+  deletion, destination selection, and search workflows.
+
+### Compatibility
+
+- Existing bundled-engine and single-external-engine installations migrate to
+  one default instance without changing their current behavior or credentials.
+- Multi-engine mode is optional. Removing an additional instance does not alter
+  the remaining instance, and the bundled engines remain available unless the
+  administrator explicitly switches to external engines.
+
+## [2.0.43-rc.4] - 2026-08-13
+
+### Added
+
+- Turned the persistent header field into an application-wide search for movie
+  and television titles, primary pages, Service Settings, account settings,
+  engine configuration, and system tools.
+- Added a responsive search-results panel with direct navigation and keyboard
+  support for arrows, Enter, and Escape.
+
+### Fixed
+
+- Constrained imported-list selectors on phones so long provider list names
+  truncate cleanly instead of expanding the horizontal workspace and creating
+  a massive blank page break.
+
+## [2.0.43-rc.3] - 2026-08-13
+
+### Added
+
+- Added an optional `compose.media.yaml` override that maps one host parent
+  media folder to `/media` in VynodeArr and both bundled engines.
+- Added Linux/macOS and Windows PowerShell Docker preflight tools that verify
+  Docker, Compose, the Docker service, configuration, and the optional media
+  folder before startup.
+- Added a real Linux container smoke test to develop, pull-request, and release
+  workflows. It builds the generic image, verifies `/healthz`, waits for a
+  healthy container, and confirms `/data`, `/movies`, `/tv`, and `/downloads`.
+
+### Fixed
+
+- Corrected permissions for a fresh persistent `/data` volume.
+- Corrected unprivileged user creation in the generic Node Alpine image.
+
+### Docker installation
+
+Standard named-volume installation:
+
+```sh
+cp .env.example .env
+sh scripts/docker-preflight.sh
+docker compose up --build -d
+```
+
+Optional main media folder installation:
+
+```sh
+# Set VYNODEARR_MEDIA_PATH=/srv/media in .env first.
+sh scripts/docker-preflight.sh --media
+docker compose -f compose.yaml -f compose.media.yaml up --build -d
+```
+
+Open `http://localhost:8686`. Windows PowerShell equivalents and complete
+folder-assignment and migration instructions are in the README's Docker
+Compose section.
+
+### Compatibility
+
+- The Unraid image, Community Applications template, and Unraid configuration
+  remain unchanged.
+
+## [2.0.43-rc.2] - 2026-08-13
+
+### Changed
+
+- Made the standard Docker Compose installation portable across Linux, NAS,
+  Docker Desktop, and other Docker hosts by removing machine-specific paths.
+- Added configurable WebUI bind address, port, timezone, PUID, and PGID with
+  safe defaults; `.env` is optional.
+- Shared movie, television, and completed-download storage consistently with
+  VynodeArr and its bundled engines.
+- Updated the generic Docker image to use reproducible dependency installs and
+  declare all persistent runtime paths.
+- Added a complete Docker Compose installation, host-folder mapping,
+  persistence, update, and troubleshooting guide to the README.
+
+### Docker quick start
+
+```sh
+git clone https://github.com/minerport/VynodeArr-Unified.git
+cd VynodeArr-Unified
+cp .env.example .env
+docker compose up --build -d
+```
+
+Open `http://localhost:8686`. Existing host media folders can be mapped to
+`/movies`, `/tv`, and `/downloads` as documented in the README.
+
+### Compatibility
+
+- The Unraid image, Community Applications template, and Unraid configuration
+  are unchanged in this release candidate.
+
+## [2.0.43-rc.1] - 2026-08-13
+
+### Added
+
+- Added an optional split-library mode for Reeltrack Plex automation, allowing separate placeholder and real-media libraries for movies and television.
+- Split mode maintains a corresponding collection in each Plex library and continues matching titles by authoritative external IDs.
+
+### Changed
+
+- Trailer promotion now copies the managed trailer beside real media, verifies the new file, and only then removes the placeholder copy.
+- Existing automations remain in the established single-library mode unless an administrator explicitly enables separate placeholder libraries.
+
+### Fixed
+
+- Preserved collection posters, placeholder overlays, real-title overlays, and original-artwork restoration across both split-library destinations.
+
 ## [2.0.42] - 2026-08-12
 
 ### Added

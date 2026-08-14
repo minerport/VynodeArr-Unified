@@ -1,4 +1,5 @@
 import type {AppState,LibraryKind} from './app-state';
+import {wireGlobalSearch} from './global-search';
 
 export type ToastTone='success'|'error'|'info'|string;
 export type Notify=(message:unknown,tone?:ToastTone)=>void;
@@ -50,7 +51,7 @@ export function applyUserPresentation(
 }
 
 interface ShellControlsOptions{
-  state:Pick<AppState,'csrf'|'user'|'query'|'dirty'|'sessionMessage'>;
+  state:Pick<AppState,'csrf'|'user'|'query'|'dirty'|'sessionMessage'|'movies'|'tv'>;
   logoutButton:HTMLElement;
   menuButton:HTMLElement;
   globalSearch:HTMLInputElement;
@@ -100,11 +101,7 @@ export function wireShellControls(options:ShellControlsOptions){
     if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}
     else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
   });
-  options.globalSearch.addEventListener('input',()=>{
-    options.state.query=options.globalSearch.value.toLowerCase();
-    const route=location.hash.slice(1);
-    if(route==='movies'||route==='tv')options.renderLibrary(route);
-  });
+  wireGlobalSearch(options.globalSearch,options.state,options.request);
   addEventListener('beforeunload',event=>{
     if(!options.state.dirty)return;
     event.preventDefault();

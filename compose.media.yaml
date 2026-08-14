@@ -1,0 +1,18 @@
+services:
+  movie-engine:
+    volumes:
+      - type: bind
+        source: "${VYNODEARR_MEDIA_PATH:?Set VYNODEARR_MEDIA_PATH in .env to your main media folder}"
+        target: /media
+
+  tv-engine:
+    volumes:
+      - type: bind
+        source: "${VYNODEARR_MEDIA_PATH:?Set VYNODEARR_MEDIA_PATH in .env to your main media folder}"
+        target: /media
+
+  vynodearr:
+    volumes:
+      - type: bind
+        source: "${VYNODEARR_MEDIA_PATH:?Set VYNODEARR_MEDIA_PATH in .env to your main media folder}"
+        target: /media

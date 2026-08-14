@@ -8,17 +8,18 @@ export class JsonStore {
     catch(error) { if(error.code==='ENOENT')return structuredClone(this.initialValue);throw error; }
   }
   async write(value) {
-    this.queue=this.queue.then(async()=>{
+    const operation=this.queue.catch(()=>{}).then(async()=>{
       await mkdir(dirname(this.path),{recursive:true});
       const temporary=`${this.path}.${process.pid}.tmp`;
       await writeFile(temporary,JSON.stringify(value,null,2),{mode:0o600});
       await rename(temporary,this.path);
     });
-    return this.queue;
+    this.queue=operation.catch(()=>{});
+    return operation;
   }
   async update(mutator) {
     let result;
-    this.queue=this.queue.then(async()=>{
+    const operation=this.queue.catch(()=>{}).then(async()=>{
       const current=await this.read();
       result=await mutator(current);
       await mkdir(dirname(this.path),{recursive:true});
@@ -26,6 +27,7 @@ export class JsonStore {
       await writeFile(temporary,JSON.stringify(current,null,2),{mode:0o600});
       await rename(temporary,this.path);
     });
-    await this.queue;return result;
+    this.queue=operation.catch(()=>{});
+    await operation;return result;
   }
 }

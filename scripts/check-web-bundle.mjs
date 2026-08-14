@@ -95,6 +95,11 @@ const nestedMediaFolderAllowance={route:700};
 // Destination choice is now explicit in requests, Add Media, and Reeltrack
 // automation. Storage also exposes a direct make-default action.
 const mediaDestinationChoiceAllowance={rootFoldersRoute:1_000,reeltrackRoute:3_500};
+// Multi-instance storage keeps inventories, root browsing, destinations,
+// defaults, path remediation, and mutations bound to the selected external
+// engine. Keep this substantial administration surface isolated to Storage
+// Folders rather than raising the budget for every lazy route.
+const multiEngineStorageAllowance={route:13_000};
 // Mixed provider lists retain one synchronization identity while rendering
 // movie and television titles in separate engine-aware sections. The small
 // allowance is isolated to that lazy route and its responsive section headers.
@@ -108,14 +113,19 @@ const reeltrackTrailerRepairAllowance={route:800};
 // Imported lists now remain local drafts until artwork and destinations are
 // explicitly saved and applied, preventing premature Plex synchronization.
 const reeltrackDraftImportAllowance={route:100};
-const reeltrackColumnOverscrollAllowance={css:250};
+// Imported-list names are width-constrained and ellipsized on phones so a long
+// provider title cannot expand the horizontal selector or the entire page.
+const reeltrackColumnOverscrollAllowance={css:450};
+// Optional split-library automation adds explicit real and placeholder Plex
+// destinations, host mappings, validation, and promotion controls to Lists only.
+const reeltrackSplitLibraryAllowance={route:5_200};
 const failures=[];
 
 if(!entry)failures.push('The React entry bundle was not produced.');
 else if(entry.bytes>limits.entry)failures.push(`React entry is ${entry.bytes} bytes (limit ${limits.entry}).`);
 if(!shell)failures.push('The TypeScript application shell bundle was not produced.');
 else if(shell.bytes>limits.shell+mobileAllowance.shell+reeltrackAllowance.shell+libraryReviewAllowance.shell+mediaRemovalAllowance.shell)failures.push(`Application shell is ${shell.bytes} bytes (limit ${limits.shell+mobileAllowance.shell+reeltrackAllowance.shell+libraryReviewAllowance.shell+mediaRemovalAllowance.shell}).`);
-for(const chunk of routeChunks){const routeLimit=limits.route+(chunk.name.startsWith('system-')?performanceAllowance.systemRoute:0)+(chunk.name.startsWith('poster-overlays-')?posterOverlayAllowance.route+overlayAssignmentClarityAllowance.route:0)+(chunk.name.startsWith('root-folders-')?storageMappingAllowance.route+mediaDestinationChoiceAllowance.rootFoldersRoute+storagePathMigrationAllowance.route+storagePathProgressAllowance.route+storageEngineVerificationAllowance.route+nestedMediaFolderAllowance.route:0)+(chunk.name.startsWith('reeltrack-lists-')?mediaDestinationChoiceAllowance.reeltrackRoute+mixedListSectionsAllowance.route+reeltrackRealTitleOverlayAllowance.route+reeltrackTrailerRepairAllowance.route+reeltrackDraftImportAllowance.route:0);if(chunk.bytes>routeLimit)failures.push(`${chunk.name} is ${chunk.bytes} bytes (route limit ${routeLimit}).`);}
+for(const chunk of routeChunks){const routeLimit=limits.route+(chunk.name.startsWith('system-')?performanceAllowance.systemRoute:0)+(chunk.name.startsWith('poster-overlays-')?posterOverlayAllowance.route+overlayAssignmentClarityAllowance.route:0)+(chunk.name.startsWith('root-folders-')?storageMappingAllowance.route+mediaDestinationChoiceAllowance.rootFoldersRoute+storagePathMigrationAllowance.route+storagePathProgressAllowance.route+storageEngineVerificationAllowance.route+nestedMediaFolderAllowance.route+multiEngineStorageAllowance.route:0)+(chunk.name.startsWith('reeltrack-lists-')?mediaDestinationChoiceAllowance.reeltrackRoute+mixedListSectionsAllowance.route+reeltrackRealTitleOverlayAllowance.route+reeltrackTrailerRepairAllowance.route+reeltrackDraftImportAllowance.route+reeltrackSplitLibraryAllowance.route:0);if(chunk.bytes>routeLimit)failures.push(`${chunk.name} is ${chunk.bytes} bytes (route limit ${routeLimit}).`);}
 if(stylesheet&&stylesheet.bytes>limits.css+mobileAllowance.css+performanceAllowance.css+posterOverlayAllowance.css+reeltrackAllowance.css+trailerDownloadAllowance.css+managedListCompactAllowance.css+artworkDesignerAllowance.css+libraryReviewAllowance.css+mediaRemovalAllowance.css+releaseBrowserAllowance.css+managedCollectionSetupAllowance.css+overlayAssignmentClarityAllowance.css+reeltrackApiKeyLinkAllowance.css+mobileActivityControlsAllowance.css+staticOverlayCssAllowance.css+mixedListSectionsAllowance.css+reeltrackColumnOverscrollAllowance.css)failures.push(`React stylesheet exceeds its intentional feature budget.`);
 
 if(failures.length){

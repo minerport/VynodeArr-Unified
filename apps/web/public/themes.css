@@ -268,6 +268,7 @@ select option {background:var(--panel);color:var(--text)}
   backdrop-filter:none;
   -webkit-backdrop-filter:none;
 }
+.app-shell>main>header .search{position:relative;min-width:0}.global-search-results{position:absolute;z-index:100;top:calc(100% + 12px);right:0;left:0;max-height:min(70vh,34rem);overflow:auto;padding:.45rem;border:1px solid var(--line);border-radius:14px;background:color-mix(in srgb,var(--panel,#0d1321) 96%,#000);box-shadow:0 24px 70px #000c}.global-search-results a{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.75rem;align-items:center;padding:.7rem .75rem;border-radius:10px;color:var(--text);text-decoration:none}.global-search-results a:hover,.global-search-results a.active{background:var(--panel-strong,#172138)}.global-search-results span{display:grid;min-width:0}.global-search-results strong,.global-search-results small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.global-search-results small{color:var(--muted)}.global-search-results em{padding:.2rem .45rem;border:1px solid var(--line);border-radius:999px;color:var(--muted);font-size:.65rem;font-style:normal;text-transform:uppercase}.global-search-empty{padding:1rem;color:var(--muted);text-align:center}@media(max-width:600px){.global-search-results{position:fixed;top:4.5rem;right:.75rem;left:.75rem;max-height:65dvh}.global-search-results a{padding:.8rem .7rem}}
 
 /* Service pages share one masthead geometry and glass treatment. */
 :is(.quality-profiles-route,.discover-settings-route,.guide-templates-route)>.hero {

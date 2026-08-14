@@ -14,6 +14,8 @@ test('Reeltrack Lists remains fluid while the viewport is resized',async()=>{
   assert.doesNotMatch(view,/Manage integrations/);
   assert.match(view,/This is the only place in VynodeArr where your Reeltrack key\s+is entered/);
   assert.match(view,/Replace API key/);
+  assert.match(view,/<nav className="reeltrack-list-nav" aria-label="Imported lists">/);
+  assert.doesNotMatch(view,/<aside className="reeltrack-list-nav">/);
   assert.match(view,/Choose host folder/);
   assert.match(view,/Get your API key at reeltrack\.vynodehub\.com/);
   for(const guidance of ['Keep this list in sync with Plex','1. Turn on automatic management','2','Choose where titles belong','Name it and choose a schedule','Customize artwork','Original Plex artwork is backed up','Last sync results','Save and apply settings'])assert.ok(view.includes(guidance),guidance);
@@ -51,7 +53,8 @@ test('Reeltrack Lists remains fluid while the viewport is resized',async()=>{
   assert.match(artStyles,/\.reeltrack-artwork-designer\{[^}]*display:flex!important[^}]*overflow:hidden!important/);assert.match(artStyles,/\.reeltrack-designer-grid\{[^}]*overflow:hidden[^}]*flex:1/);assert.match(artStyles,/\.reeltrack-designer-grid>aside,\.reeltrack-designer-grid>main\{[^}]*overflow-y:auto/);
   assert.match(artStyles,/\.reeltrack-designer-grid>aside::after,\.reeltrack-designer-grid>main::after\{[^}]*height:100%[^}]*min-height:100%/);
   assert.match(view,/async function persistAutomation/);assert.match(view,/await persistAutomation\(\);\s*const value = await request/);
-  assert.match(api,/kind:\s*"title",\s*exceptRatingKeys:\s*collectionMemberKeys/);assert.match(api,/ratingKeys:\s*collectionMemberKeys/);
+  assert.match(api,/retainedPlaceholderOverlayKeys\s*=\s*refreshedPlaceholders/);assert.match(api,/Boolean\(jobs\[identity\]\?\.path\)\s*&&\s*!realFileIds\.has\(identity\)/);assert.match(api,/exceptRatingKeys:\s*splitCollections\s*\?\s*retainedPlaceholderOverlayKeys\s*:\s*\[\.\.\.new Set\(\[\.\.\.collectionMemberKeys,\s*\.\.\.retainedPlaceholderOverlayKeys\]\)\]/);assert.match(api,/libraryKey:\s*realLibrary\.key,\s*domain,\s*kind:\s*"title",\s*exceptRatingKeys:\s*realRatingKeys/);assert.match(api,/ratingKeys:\s*splitCollections\s*\?\s*placeholderKeys\s*:\s*collectionMemberKeys/);
+  assert.match(view,/Use a separate placeholder library/);assert.match(api,/splitLibraryMode/);assert.match(api,/realLibraryLocation/);
   assert.match(api,/realTitleTemplate\s*=\s*reeltrackPosterTemplate\(automation\.realTitleOverlayTemplate,\s*domain\)\s*\|\|\s*titleTemplate/);
   assert.match(api,/ratingKeys:\s*placeholderKeys/);assert.match(api,/ratingKeys:\s*realRatingKeys/);
   assert.match(api,/repair-trailers/);assert.match(view,/Find missing trailers/);assert.match(view,/Plex and overlays refreshed/);
@@ -575,6 +578,9 @@ test('storage folders and import review use a typed React route and analysis bou
   assert.match(api,/readFile\("\/proc\/self\/mountinfo"/);
   assert.match(api,/mainMediaConfigured: mountPoints\.has\("\/media"\)/);
   assert.match(types,/startImport:/);
+  assert.match(review,/initialRoot\.engineInstanceId/);
+  assert.match(review,/options\.startImport\(domain,items,root\.engineInstanceId\)/);
+  assert.match(api,/startImportJob[\s\S]*engineInstanceId[\s\S]*management\.execute\(domain, "library", "GET", \{ engineInstanceId \}\)/);
   assert.match(islands,/mountRootFolders/);
   assert.match(legacy,/showRootFoldersReact/);
   assert.match(legacy,/startImport:startBackgroundImport/);
@@ -599,7 +605,7 @@ test('storage folders and import review use a typed React route and analysis bou
   assert.match(review,/tmdb:\$\{value\}/);
   assert.match(review,/Search by title, TMDB ID, or IMDb ID/);
   assert.match(review,/Already imported match/);
-  assert.match(review,/options\.startImport\(domain,items\)/);
+  assert.match(review,/options\.startImport\(domain,items,root\.engineInstanceId\)/);
   assert.match(review,/Possible duplicate/);
   assert.match(review,/Newest copy/);
 });
@@ -668,16 +674,21 @@ test('React service settings routes share one complete navigation component',asy
   }
 });
 
-test('administrator account navigation retains access to engine API-key management',async()=>{
-  const [account,tabs,shell,dispatch]=await Promise.all([
+test('administrator setup navigation retains access to engine API-key management',async()=>{
+  const [account,tabs,shell,dispatch,setup,setupNav,index]=await Promise.all([
     read('apps/web/client/src/account.tsx'),
     read('apps/web/client/src/account-tabs.tsx'),
     read('apps/web/client/src/app-shell.ts'),
-    read('apps/web/client/src/route-dispatch.ts')
+    read('apps/web/client/src/route-dispatch.ts'),
+    read('apps/web/client/src/setup-center.tsx'),
+    read('apps/web/client/src/setup-nav.tsx'),
+    read('apps/web/public/index.html')
   ]);
   assert.match(account,/AccountTabs/);
-  assert.match(tabs,/\{administrator\?<a className=\{active==='engines'/);
-  assert.match(tabs,/href="#settings\/engines">Engines/);
+  assert.doesNotMatch(tabs,/href="#settings\/engines">Engines/);
+  assert.match(setup,/SetupNav/);
+  assert.match(setupNav,/href="#setup\/engines">Media engines/);
+  assert.match(index,/href="#setup\/engines">Media Engines/);
   assert.match(dispatch,/parts\[1\]==='engines'/);
   assert.match(shell,/case'engineManagement':return showEngineManagement\(\)/);
   assert.match(shell,/External application access/);
@@ -883,7 +894,7 @@ test('dashboard loading, caching, and refresh ownership live in typed React',asy
     read('apps/web/client/src/app-shell.ts')
   ]);
   assert.match(dashboard,/export function DashboardRoute/);
-  assert.match(dashboard,/options\.request<DashboardData>\('\/api\/dashboard'\)/);
+  assert.match(dashboard,/options\.request<DashboardData>\(`\/api\/dashboard\?engineInstanceId=\$\{encodeURIComponent\(engineInstanceId\)\}`\)/);
   assert.match(dashboard,/sessionStorage\.setItem\(dashboardSnapshotKey/);
   assert.match(dashboard,/useVisibleRefresh\(load,15_000\)/);
   assert.match(types,/interface DashboardMountOptions/);
@@ -1065,8 +1076,9 @@ test('session bootstrap and authenticated shell activation have typed ownership'
 });
 
 test('global shell controls and presentation have typed ownership',async()=>{
-  const [controller,shell]=await Promise.all([
+  const [controller,globalSearch,shell]=await Promise.all([
     read('apps/web/client/src/shell-controller.ts'),
+    read('apps/web/client/src/global-search.ts'),
     read('apps/web/client/src/app-shell.ts')
   ]);
   assert.match(controller,/export function createNotifier/);
@@ -1082,7 +1094,12 @@ test('global shell controls and presentation have typed ownership',async()=>{
   assert.match(controller,/export function wireShellControls/);
   assert.match(controller,/request\('\/api\/auth\/logout'/);
   assert.match(controller,/classList\.toggle\('nav-open'\)/);
-  assert.match(controller,/location\.hash\.slice\(1\)/);
+  assert.match(controller,/wireGlobalSearch\(options\.globalSearch/);
+  assert.match(globalSearch,/export function wireGlobalSearch/);
+  assert.match(globalSearch,/Search titles, pages, and settings/);
+  assert.match(globalSearch,/Poster Overlays and Plex/);
+  assert.match(globalSearch,/mediaItems\(state\.movies,"Movie","movie"\)/);
+  assert.match(globalSearch,/mediaItems\(state\.tv,"Television","series"\)/);
   assert.match(controller,/addEventListener\('beforeunload'/);
   assert.match(shell,/from '\.\/shell-controller'/);
   assert.match(shell,/const notify=createNotifier\(toast\)/);
@@ -1498,7 +1515,8 @@ test('administrator search activity visualizes every automatic-search entry poin
   for(const value of ["client.get('queue'","client.get('history'",'status:\'downloading\'','status:\'imported\'','waiting for the media engine to import','download finished and was imported'])assert.ok(server.includes(value),value);
   for(const value of ['Search activity','Queued','Searching','Grabbed','Downloading','Imported','Open Queue','Open title'])assert.match(notifications,new RegExp(value),value);
   assert.match(notifications,/5_000/);assert.match(styles,/search-stage-track/);assert.match(styles,/bottom:0/);assert.match(styles,/aspect-ratio:2\/3/);
-  assert.match(notifications,/artwork\/movie\/movie_\$\{item\.movieId\}\/poster/);assert.match(notifications,/#movie\/movie_\$\{item\.movieId\}/);
+  assert.match(notifications,/owner=item\.engineInstanceId\?`\$\{item\.engineInstanceId\}_`/);
+  assert.match(notifications,/artwork\/movie\/movie_\$\{owner\}\$\{item\.movieId\}\/poster/);assert.match(notifications,/#movie\/movie_\$\{owner\}\$\{item\.movieId\}/);
 });
 
 test('search activity reconciles in the server background and refreshes when the app returns',async()=>{
@@ -1596,7 +1614,7 @@ test('movie and television details share lightweight hero trailer playback with 
 
 test('detail trailers prefer protected Plex extras before local and TMDB fallbacks',async()=>{
   const [api,plex,hero]=await Promise.all([read('apps/api/src/app.js'),read('packages/platform/src/plex-service.js'),read('apps/web/client/src/detail-hero-trailer.tsx')]);
-  assert.match(api,/plexService\.openTrailer/);assert.match(api,/trailerPlayback\.find/);assert.ok(api.indexOf('plexService.openTrailer')<api.indexOf('trailerPlayback.find(domain, detail.item.location'));
+  assert.match(api,/plexService\.openTrailer/);assert.match(api,/trailerPlayback\.find/);assert.ok(api.indexOf('plexService.openTrailer')<api.indexOf('trailerPlayback.find(domain,'));
   assert.match(plex,/includeExtras=1/);assert.match(plex,/x-plex-token/);assert.match(plex,/headers\.range/);assert.match(api,/content-range/);assert.match(hero,/youtube-nocookie\.com/);
 });
 

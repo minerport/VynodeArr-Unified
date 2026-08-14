@@ -113,7 +113,7 @@ function Status({
               <div className="notice danger">
                 <strong>{label(domain)} service unavailable</strong>
                 <p>{errors[domain]}</p>
-                <a className="button-link secondary" href="#service/engine-management">
+                <a className="button-link secondary" href="#setup/engines">
                   Review engine connection
                 </a>
               </div>

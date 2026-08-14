@@ -475,9 +475,10 @@ export function PlexConnectionPanel({
                     />
                   </span>
                   <span className="plex-match-title">
-                    <strong>
-                      {item.title} {item.year ? `(${item.year})` : ""}
-                    </strong>
+                     <strong>
+                       {item.title} {item.year ? `(${item.year})` : ""}
+                     </strong>
+                     {item.engineInstanceName ? <small>{item.engineInstanceName} → {item.plexLibrary.title}</small> : null}
                   </span>
                   <span
                     className={`plex-match-status badge${item.status === "matched" ? " green" : ""}`}

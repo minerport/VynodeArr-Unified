@@ -370,6 +370,7 @@
   position: sticky;
   top: 1rem;
   display: flex;
+  height: auto;
   max-height: calc(100dvh - 8rem);
   flex-direction: column;
   align-self: start;
@@ -386,6 +387,8 @@
   flex: 0 0 auto;
   gap: 0.2rem;
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   min-height: 4rem;
   padding: 0.8rem;
   text-align: left;
@@ -404,6 +407,9 @@
 }
 .reeltrack-list-nav strong,
 .reeltrack-list-nav small {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -630,18 +636,24 @@
   .reeltrack-list-nav {
     position: static;
     display: flex;
+    height: auto;
+    width: 100%;
+    max-width: 100%;
     max-height: none;
     flex-direction: row;
     overflow-x: auto;
     overflow-y: hidden;
     scroll-snap-type: x proximity;
+    scrollbar-width: thin;
   }
   .reeltrack-list-nav h2 {
     display: none;
   }
   .reeltrack-list-nav button {
-    width: auto;
-    min-width: 160px;
+    flex: 0 0 clamp(10rem, 72vw, 18rem);
+    width: clamp(10rem, 72vw, 18rem);
+    min-width: 0;
+    max-width: min(72vw, 18rem);
     scroll-snap-align: start;
   }
   .reeltrack-list-heading {

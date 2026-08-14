@@ -20,6 +20,9 @@ export type RouteAction=
   |{name:'history'}
   |{name:'calendar'}
   |{name:'health'}
+  |{name:'setupCenter';section:'overview'|'search'|'integrations'}
+  |{name:'setupStorage'}
+  |{name:'setupHealth'}
   |{name:'serviceSettings';section:string;templateFilter:string}
   |{name:'management'}
   |{name:'engineManagement'}
@@ -59,6 +62,12 @@ export function resolveRouteAction(route:AppRoute,state:RouteActionState):RouteA
   if(key==='history')return{name:'history'};
   if(key==='calendar')return{name:'calendar'};
   if(key==='health')return{name:'health'};
+  if(key==='setup'){
+    if(parts[1]==='engines')return{name:'engineManagement'};
+    if(parts[1]==='storage')return{name:'setupStorage'};
+    if(parts[1]==='health')return{name:'setupHealth'};
+    return{name:'setupCenter',section:parts[1]==='search'?'search':parts[1]==='integrations'?'integrations':'overview'};
+  }
   if(key==='service')return{name:'serviceSettings',section:parts[1]||'',templateFilter:parts[2]||''};
   if(key==='management')return{name:'management'};
   if(key==='settings'){

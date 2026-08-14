@@ -428,6 +428,7 @@ Build hand-picked collections or combine smart rules such as title, year, decade
 | Platform | Best for | Start here |
 |---|---|---|
 | Unraid | Always-on media servers | Use the Community Apps template or [`templates/vynodearr.xml`](templates/vynodearr.xml) |
+| Docker Compose | Linux, NAS, and Docker hosts | Follow the Docker instructions below |
 | Windows 10/11 x64 | Desktop installation or a Windows host | Download the Windows archive from the [latest release](https://github.com/minerport/VynodeArr-Unified/releases/latest) |
 
 ### Unraid
@@ -456,6 +457,185 @@ ghcr.io/minerport/vynodearr-unified:latest
 > Keep `/config` when updating or recreating the container. It contains the application state and both service databases.
 
 For normal Unraid HTTP access, leave `VYNODEARR_SECURE_COOKIES=false`. Enable secure cookies only when VynodeArr is always accessed over HTTPS.
+
+### Docker Compose
+
+The repository includes a standard Compose stack with VynodeArr plus private
+movie and television engines. Only the VynodeArr web interface is published;
+the engine API keys are generated and shared automatically.
+
+Choose one installation method:
+
+| Storage layout | Use this method |
+|---|---|
+| Start fresh with Docker-managed movie and TV volumes | **Standard installation** below |
+| Use an existing parent folder such as `/srv/media` or `D:/Media` | **Optional main media folder** below |
+
+#### Standard installation
+
+```sh
+git clone https://github.com/minerport/VynodeArr-Unified.git
+cd VynodeArr-Unified
+cp .env.example .env
+docker compose up --build -d
+```
+
+The stack also starts with its documented defaults if `.env` is omitted, but
+copying the example makes timezone, ownership, networking, and optional TMDB
+configuration easier to review and retain.
+
+Before starting, run the included preflight check. It verifies Docker, Docker
+Compose, the Docker service, and the resolved Compose configuration:
+
+```sh
+sh scripts/docker-preflight.sh
+```
+
+On Windows PowerShell:
+
+```powershell
+.\scripts\docker-preflight.ps1
+```
+
+Open [http://localhost:8686](http://localhost:8686), create the first
+administrator, and follow the first-run checklist below. On another computer,
+replace `localhost` with the Docker host's address.
+
+The default Compose stack uses named volumes so it works immediately without
+host-specific paths:
+
+| Volume | Container path | Purpose |
+|---|---|---|
+| `vynodearr-data` | `/data` | VynodeArr accounts, settings, and database |
+| `movie-library` | `/movies` | Organized movies |
+| `tv-library` | `/tv` | Organized television |
+| `shared-downloads` | `/downloads` | Completed downloads visible to both engines |
+
+Before first use, edit `.env` to set `TZ`. Linux users can also set `PUID` and
+`PGID` to the account that should own media files (`id -u` and `id -g`). To
+limit access to the Docker host itself, set `VYNODEARR_BIND_ADDRESS=127.0.0.1`.
+Set `VYNODEARR_PORT` if port `8686` is already occupied.
+
+To use existing host folders instead of the named media volumes, replace the
+matching volume entries in all services that use them. The same host folder
+must always use the same container path. For example:
+
+```yaml
+services:
+  movie-engine:
+    volumes:
+      - /srv/media/movies:/movies
+      - /srv/downloads:/downloads
+  tv-engine:
+    volumes:
+      - /srv/media/tv:/tv
+      - /srv/downloads:/downloads
+  vynodearr:
+    volumes:
+      - /srv/media/movies:/movies
+      - /srv/media/tv:/tv
+      - /srv/downloads:/downloads
+```
+
+#### Optional main media folder installation
+
+VynodeArr also supports one parent media folder when your movies and television
+libraries are organized as subfolders of the same host directory. This is
+optional; the existing `/movies` and `/tv` mappings continue to work.
+
+For example, a host might contain:
+
+```text
+/srv/media/
+├── Movies/
+├── Movies 4K/
+├── Television/
+└── Anime/
+```
+
+Set the parent folder in `.env`:
+
+```dotenv
+VYNODEARR_MEDIA_PATH=/srv/media
+```
+
+On Docker Desktop for Windows, use a forward-slash drive path such as
+`VYNODEARR_MEDIA_PATH=D:/Media` and ensure Docker Desktop can access that
+drive.
+
+Run the media-aware preflight and start Compose with the included override:
+
+```sh
+sh scripts/docker-preflight.sh --media
+docker compose -f compose.yaml -f compose.media.yaml up --build -d
+```
+
+On Windows PowerShell:
+
+```powershell
+.\scripts\docker-preflight.ps1 -Media
+docker compose -f compose.yaml -f compose.media.yaml up --build -d
+```
+
+The override maps the parent folder to `/media` in **VynodeArr and both bundled
+engines**. It is equivalent to:
+
+```yaml
+services:
+  movie-engine:
+    volumes:
+      - /srv/media:/media
+      - /srv/downloads:/downloads
+
+  tv-engine:
+    volumes:
+      - /srv/media:/media
+      - /srv/downloads:/downloads
+
+  vynodearr:
+    volumes:
+      - /srv/media:/media
+      - /srv/downloads:/downloads
+```
+
+After starting the stack:
+
+1. Open **Service Settings → Root Folders**.
+2. Find the scanned folders beneath `/media`.
+3. Assign each folder to Movies or Television. You can expand a folder and
+   select a deeper subfolder when needed.
+4. Choose the default movie and television destinations used for new requests.
+5. Confirm the corresponding engine reports each selected root as available.
+
+For the example above, VynodeArr can register `/media/Movies` and
+`/media/Movies 4K` with the movie engine, and `/media/Television` and
+`/media/Anime` with the television engine. Requests, interactive searches, and
+list imports can then use the appropriate registered destination.
+
+> Path consistency is required. If VynodeArr sees a library as
+> `/media/Movies`, the movie engine must also see that exact storage location
+> as `/media/Movies`. Do not map the same host folder as `/media/Movies` in one
+> container and `/movies` in another.
+
+If `/movies` or `/tv` already points to the same physical host folders, keep
+the legacy mappings during migration. Add `/media`, use VynodeArr's root-folder
+migration action to update the application and engine paths, verify engine
+health, and only then remove the redundant legacy mapping. Mapping the same
+files twice does not create copies, but scanning both paths as separate
+libraries can create duplicate records.
+
+Keep the `vynodearr-data`, `movie-engine-config`, and `tv-engine-config`
+volumes when recreating or updating the stack. Stop without deleting data with
+`docker compose down`; do not add `--volumes` unless you intentionally want to
+erase application and engine state.
+
+Useful checks:
+
+```sh
+docker compose ps
+docker compose logs -f vynodearr
+docker compose config --quiet
+```
 
 ### Credential encryption and master-key rotation
 
@@ -510,6 +690,42 @@ Run `Stop-VynodeArr.ps1` to stop VynodeArr without removing its data.
 5. Ensure the same completed-download folder is visible to VynodeArr and the download client.
 6. Add or import media and choose monitoring behavior.
 7. Open **Health** from the dashboard to resolve any remaining setup issues.
+
+### Multiple external movie and television engines
+
+Multi-engine mode is optional. A normal bundled-engine or single external-engine
+installation continues to work without additional configuration.
+
+1. Open **Service Settings → Engine Management** as an administrator.
+2. Add each external Radarr-compatible movie or Sonarr-compatible television
+   instance with a unique friendly name, server URL, and API key.
+3. Test each connection before saving. Credentials are encrypted independently.
+4. Restart the VynodeArr container when prompted so the private gateway loads
+   the complete instance registry. Saved connections remain available during
+   the restart.
+5. Open **Service Settings → Root Folders** and create destinations for the
+   matching instance. A destination, root folder, profile, and tags always
+   belong to one engine instance.
+6. Choose one default destination per media type and engine where appropriate.
+7. If Plex is connected, associate each destination with the Plex library that
+   sees the same media path. VynodeArr prevents one Plex library from being
+   assigned ambiguously across different engine instances.
+8. Review profiles, providers, selection rules, and guide templates using the
+   engine selector at the top of each page.
+9. Use **All engines** on library and activity pages for a combined view, or
+   select one named instance to inspect and manage it independently.
+
+When adding or requesting a title, VynodeArr carries the chosen destination and
+engine through approval, search, grab, queue, import, history, and notification
+links. Two instances may have the same native numeric title ID without being
+treated as the same record. If one instance is offline, its error remains
+isolated and records from healthy instances continue to appear.
+
+Before removing an instance, move or remove its destinations and confirm that no
+pending requests rely on it. Existing single-engine settings are retained as the
+default instance during migration. To roll back, remove only the newly added
+instances and continue using the original default instance; no media files are
+moved by this configuration change.
 
 ## Connect Seerr or another request application
 

@@ -1,6 +1,7 @@
 export type RequestStatus='pending_approval'|'requested'|'searching'|'downloading'|'imported'|'failed'|'rejected'|'canceled';
 export interface UserRequest {
   id:string;userId:string;domain:'movie'|'tv';engineId:number|null;tmdbId:number;tvdbId?:number|null;
+  engineInstanceId?:string|null;engineInstanceName?:string|null;
   title:string;year?:number|null;requestedAt:string;updatedAt:string;
   poster?:string|null;backdrop?:string|null;overview?:string;rating?:number;genres?:string[];
   runtime?:number|null;certification?:string|null;

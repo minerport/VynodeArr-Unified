@@ -2,12 +2,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { access,readFile } from 'node:fs/promises';
 
-test('local Compose bundles private healthy engines and exposes only VynodeArr',async()=>{
+test('Docker Compose bundles private healthy engines and exposes only VynodeArr',async()=>{
   const text=await readFile(new URL('../compose.yaml',import.meta.url),'utf8');
-  for(const value of ['127.0.0.1:4310:4310','movie-engine-config','tv-engine-config','shared-downloads','lscr.io/linuxserver/radarr','lscr.io/linuxserver/sonarr','condition: service_healthy','VYNODEARR_BUNDLED_ENGINES'])assert.match(text,new RegExp(value.replaceAll('.','\\.')));
+  for(const value of ['${VYNODEARR_BIND_ADDRESS:-0.0.0.0}:${VYNODEARR_PORT:-8686}:4310','movie-engine-config','tv-engine-config','shared-downloads','lscr.io/linuxserver/radarr','lscr.io/linuxserver/sonarr','condition: service_healthy','VYNODEARR_BUNDLED_ENGINES'])assert.ok(text.includes(value),value);
   assert.equal((text.match(/ports:/g)||[]).length,1);
   assert.match(text,/MOVIE_ENGINE_HOST: movie-engine/);
   assert.match(text,/TV_ENGINE_HOST: tv-engine/);
+  assert.match(text,/path: \.env\s+required: false/);
+  assert.match(text,/chown -R 10001:"\$\$\{PGID\}" \/data/);
+  assert.ok(text.includes('user: "10001:${PGID:-1000}"'));
+  assert.doesNotMatch(text,/[A-Z]:\\/);
+  for(const path of ['movie-library:/movies','tv-library:/tv','shared-downloads:/downloads'])assert.ok((text.match(new RegExp(path,'g'))||[]).length>=2,path);
 });
 test('local Compose persists random engine keys and shares them with VynodeArr',async()=>{
   const text=await readFile(new URL('../compose.yaml',import.meta.url),'utf8');
@@ -32,6 +37,33 @@ test('Unraid template has required mappings, self-contained image, and upstream 
 });
 test('production image is non-root and has a health check',async()=>{
   const text=await readFile(new URL('../Dockerfile',import.meta.url),'utf8');assert.match(text,/USER vynodearr/);assert.match(text,/HEALTHCHECK/);assert.match(text,/VYNODEARR_DATA_DIR=\/data/);
+  assert.match(text,/npm ci --include=dev/);assert.match(text,/npm ci --omit=dev/);
+  assert.match(text,/adduser -S -G node -u 10001 vynodearr/);
+  for(const path of ['/data','/movies','/tv','/downloads'])assert.ok(text.includes(path),path);
+});
+
+test('Docker environment example uses current variables and safe defaults',async()=>{
+  const text=await readFile(new URL('../.env.example',import.meta.url),'utf8');
+  for(const value of ['VYNODEARR_PORT=8686','VYNODEARR_BIND_ADDRESS=0.0.0.0','VYNODEARR_DATA_MODE=engine','VYNODEARR_DATA_DIR=/data','PUID=1000','PGID=1000'])assert.ok(text.includes(value),value);
+  assert.doesNotMatch(text,/VYNODENEW_/);
+});
+
+test('optional Docker main-media override maps the same path into every service',async()=>{
+  const text=await readFile(new URL('../compose.media.yaml',import.meta.url),'utf8');
+  for(const service of ['movie-engine:','tv-engine:','vynodearr:'])assert.ok(text.includes(service),service);
+  assert.equal((text.match(/source: "\$\{VYNODEARR_MEDIA_PATH:/g)||[]).length,3);
+  assert.equal((text.match(/target: \/media/g)||[]).length,3);
+});
+
+test('Docker preflight and smoke-test scripts cover configuration and runtime health',async()=>{
+  const [shell,powershell,smoke]=await Promise.all([
+    readFile(new URL('../scripts/docker-preflight.sh',import.meta.url),'utf8'),
+    readFile(new URL('../scripts/docker-preflight.ps1',import.meta.url),'utf8'),
+    readFile(new URL('../scripts/docker-smoke-test.sh',import.meta.url),'utf8')
+  ]);
+  for(const marker of ['docker info','docker compose','config --quiet','VYNODEARR_MEDIA_PATH'])assert.ok(shell.includes(marker),marker);
+  for(const marker of ['docker info','docker compose','config','VYNODEARR_MEDIA_PATH'])assert.ok(powershell.includes(marker),marker);
+  for(const marker of ['docker build','/healthz','State.Health.Status','/data','/movies','/tv','/downloads'])assert.ok(smoke.includes(marker),marker);
 });
 
 test('1.0 release includes self-contained Unraid and Windows distributions',async()=>{

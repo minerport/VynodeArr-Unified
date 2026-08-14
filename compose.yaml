@@ -6,9 +6,12 @@ services:
     environment:
       MOVIE_KEY: "${MOVIE_ENGINE_API_CREDENTIAL:-}"
       TV_KEY: "${TV_ENGINE_API_CREDENTIAL:-}"
+      PUID: "${PUID:-1000}"
+      PGID: "${PGID:-1000}"
     volumes:
       - movie-engine-config:/movie
       - tv-engine-config:/tv
+      - vynodearr-data:/data
       - movie-library:/movies
       - tv-library:/television
       - shared-downloads:/downloads
@@ -16,7 +19,9 @@ services:
     command:
       - |
         set -eu
-        chown -R 1000:1000 /movies /television /downloads
+        chown -R 10001:"$${PGID}" /data
+        chmod 775 /data
+        chown -R "$${PUID}:$${PGID}" /movies /television /downloads
         chmod 775 /movies /television /downloads
         movie_key="$$(sed -n 's:.*<ApiKey>\([^<]*\)</ApiKey>.*:\1:p' /movie/config.xml 2>/dev/null || true)"
         tv_key="$$(sed -n 's:.*<ApiKey>\([^<]*\)</ApiKey>.*:\1:p' /tv/config.xml 2>/dev/null || true)"
@@ -44,16 +49,13 @@ services:
       engine-config-init:
         condition: service_completed_successfully
     environment:
-      PUID: "1000"
-      PGID: "1000"
+      PUID: "${PUID:-1000}"
+      PGID: "${PGID:-1000}"
       TZ: "${TZ:-America/New_York}"
     volumes:
       - movie-engine-config:/config
       - movie-library:/movies
       - shared-downloads:/downloads
-      - type: bind
-        source: 'E:\'
-        target: /e
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS 'http://127.0.0.1:7878/ping' >/dev/null || exit 1"]
       interval: 10s
@@ -70,16 +72,13 @@ services:
       engine-config-init:
         condition: service_completed_successfully
     environment:
-      PUID: "1000"
-      PGID: "1000"
+      PUID: "${PUID:-1000}"
+      PGID: "${PGID:-1000}"
       TZ: "${TZ:-America/New_York}"
     volumes:
       - tv-engine-config:/config
       - tv-library:/tv
       - shared-downloads:/downloads
-      - type: bind
-        source: 'E:\'
-        target: /e
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS 'http://127.0.0.1:8989/ping' >/dev/null || exit 1"]
       interval: 10s
@@ -91,11 +90,13 @@ services:
   vynodearr:
     build:
       context: .
-    image: vynodearr:review
+    image: vynodearr:local
     container_name: vynodearr
+    user: "10001:${PGID:-1000}"
     restart: unless-stopped
     env_file:
-      - .env
+      - path: .env
+        required: false
     environment:
       VYNODEARR_DATA_MODE: engine
       MOVIE_ENGINE_HOST: movie-engine
@@ -106,12 +107,19 @@ services:
       TV_ENGINE_API_CREDENTIAL_FILE: /engine-config/tv/api-key
       VYNODEARR_BOOTSTRAP_ROOT_FOLDERS: "true"
       VYNODEARR_BUNDLED_ENGINES: "true"
+      VYNODEARR_SECURE_COOKIES: "${VYNODEARR_SECURE_COOKIES:-false}"
+      VYNODEARR_MOVIE_LIBRARY_PATH: /movies
+      VYNODEARR_TV_LIBRARY_PATH: /tv
+      VYNODEARR_MOVIE_DOWNLOADS_PATH: /downloads
+      VYNODEARR_TV_DOWNLOADS_PATH: /downloads
       TMDB_API_READ_TOKEN: "${TMDB_API_READ_TOKEN:-}"
     ports:
-      - "127.0.0.1:4310:4310"
+      - "${VYNODEARR_BIND_ADDRESS:-0.0.0.0}:${VYNODEARR_PORT:-8686}:4310"
     volumes:
       - vynodearr-data:/data
       - movie-library:/movies
+      - tv-library:/tv
+      - shared-downloads:/downloads
       - movie-engine-config:/engine-config/movie:ro
       - tv-engine-config:/engine-config/tv:ro
     extra_hosts:

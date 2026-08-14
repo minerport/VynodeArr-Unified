@@ -1,6 +1,15 @@
 .git
+.github
+.server-build
+.vite
 dist
 node_modules
 data
+output
+tmp
 *.log
 .env
+Dockerfile.unraid
+distribution
+docs
+tests
