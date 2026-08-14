@@ -16,6 +16,7 @@ export interface LibraryQueue {
 
 export interface LibraryItem {
   id: string;
+  engineInstanceId?: string;
   title: string;
   sortTitle?: string;
   year?: number;
@@ -47,6 +48,12 @@ export interface LibraryItem {
   completionPercent?: number;
   sizeOnDisk?: number;
   queue?: LibraryQueue;
+}
+
+export interface LibraryEngineOption {
+  id:string;
+  name:string;
+  isDefault:boolean;
 }
 
 export interface LibraryMountOptions {

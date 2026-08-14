@@ -4,6 +4,7 @@ import type {
   HistoryItem,
   HistoryMountOptions,
 } from "./history-types";
+import { EngineInstanceFilter, useEngineInstances } from "./engine-instance-control";
 import "./react-history.css";
 
 type HistoryCategory =
@@ -107,13 +108,13 @@ function HistorySection({
   const [busy, setBusy] = useState<Record<string, boolean>>({}),
     [completed, setCompleted] = useState<Record<string, boolean>>({});
   async function organize(item: HistoryItem) {
-    const mediaId = Number(String(item.mediaId || "").replace(/^[^_]+_/, ""));
+    const mediaId = Number(String(item.mediaId || "").split('_').at(-1));
     if (!Number.isFinite(mediaId)) return;
     setBusy((value) => ({ ...value, [item.id]: true }));
     try {
       await options.request("/api/media-files/rename", {
         method: "POST",
-        body: JSON.stringify({ domain, mediaId }),
+        body: JSON.stringify({ domain, mediaId,engineInstanceId:item.engineInstanceId }),
       });
       setCompleted((value) => ({ ...value, [item.id]: true }));
       options.notify(`${item.title} was queued to rename and organize.`);
@@ -160,6 +161,7 @@ function HistorySection({
                 {item.context ? (
                   <span className="history-context">{item.context}</span>
                 ) : null}
+                {item.engineInstanceName?<span className="history-context">Engine: {item.engineInstanceName}</span>:null}
                 <span className="history-event-description">
                   {event.description}
                   {item.quality ? ` · ${item.quality}` : ""}
@@ -201,10 +203,12 @@ function HistorySection({
 }
 
 export function HistoryView({ options }: { options: HistoryMountOptions }) {
+  const engineInstances = useEngineInstances(options.request);
   const [items, setItems] = useState(options.items || []),
     [query, setQuery] = useState(""),
     [category, setCategory] = useState<HistoryCategory>("all"),
     [domain, setDomain] = useState<HistoryDomainFilter>("all"),
+    [engineInstanceId, setEngineInstanceId] = useState("all"),
     [refreshing, setRefreshing] = useState(false),
     [loading, setLoading] = useState(!options.items),
     [loadError, setLoadError] = useState("");
@@ -230,9 +234,10 @@ export function HistoryView({ options }: { options: HistoryMountOptions }) {
   useEffect(() => {
     if (!options.items) void refresh(false);
   }, [options.items, refresh]);
+  const scopedItems = useMemo(() => items.filter(item => engineInstanceId === "all" || item.engineInstanceId === engineInstanceId), [items, engineInstanceId]);
   const counts = useMemo(
     () =>
-      items.reduce<Record<Exclude<HistoryCategory, "all">, number>>(
+      scopedItems.reduce<Record<Exclude<HistoryCategory, "all">, number>>(
         (result, item) => {
           result[eventPresentation(item.eventType).category]++;
           return result;
@@ -246,11 +251,11 @@ export function HistoryView({ options }: { options: HistoryMountOptions }) {
           other: 0,
         },
       ),
-    [items],
+    [scopedItems],
   );
   const filtered = useMemo(
     () =>
-      items.filter(
+      scopedItems.filter(
         (item) =>
           (category === "all" ||
             eventPresentation(item.eventType).category === category) &&
@@ -259,7 +264,7 @@ export function HistoryView({ options }: { options: HistoryMountOptions }) {
               .toLowerCase()
               .includes(query.toLowerCase())),
       ),
-    [items, category, query],
+    [scopedItems, category, query],
   );
   const categories: [HistoryCategory, string][] = [
     ["all", "All activity"],
@@ -296,7 +301,7 @@ export function HistoryView({ options }: { options: HistoryMountOptions }) {
       </div>
       <div className="history-summary" aria-label="History summary">
         <div>
-          <strong>{items.length}</strong>
+          <strong>{scopedItems.length}</strong>
           <span>Total events</span>
         </div>
         <div>
@@ -322,6 +327,7 @@ export function HistoryView({ options }: { options: HistoryMountOptions }) {
         </p>
       </div>
       <div className="react-history-toolbar">
+        <EngineInstanceFilter instances={engineInstances} value={engineInstanceId} onChange={setEngineInstanceId}/>
         <label>
           Media library
           <select
@@ -354,7 +360,7 @@ export function HistoryView({ options }: { options: HistoryMountOptions }) {
             {categories.map(([value, label]) => (
               <option key={value} value={value}>
                 {label}
-                {value === "all" ? ` (${items.length})` : ` (${counts[value]})`}
+                {value === "all" ? ` (${scopedItems.length})` : ` (${counts[value]})`}
               </option>
             ))}
           </select>

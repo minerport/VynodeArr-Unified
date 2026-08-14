@@ -1,4 +1,4 @@
-export type RequestOptions={method?:string;body?:BodyInit};
+export type RequestOptions=RequestInit;
 export type GuideTemplatesMountOptions={request:<T=any>(path:string,options?:RequestOptions)=>Promise<T>;notify:(message:string,type?:string)=>void;initialTypes?:ResourceType[];initialDomain?:TemplateDomain};
 export type ResourceType='customFormat'|'qualityProfile'|'qualitySize'|'naming'|'customFormatGroup';
 export type Purpose={id:string;label:string;description:string};

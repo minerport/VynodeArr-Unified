@@ -44,11 +44,16 @@ consistent experience and account system.
 
 ## Current release
 
-Version **2.0.42** is the current stable release and is published as the
-`latest` image. Administrators can use the bundled media engines or connect
-existing external movie and television engines without losing VynodeArr's
-requests, searches, queues, profiles, providers, root-folder, history, calendar,
-or wanted-media workflows.
+Version **2.0.43** is the current stable release and is published as the
+`latest` image. Administrators can use the bundled media engines, connect one
+existing external movie and television engine, or manage multiple independent
+external instances. Each instance keeps its credentials, settings,
+destinations, requests, searches, queues, profiles, providers, history,
+calendar, and wanted-media workflows isolated.
+
+New installations can follow the in-app **Setup Center** to configure engines,
+storage and destinations, quality preferences, indexers, download clients,
+optional integrations, and a final health check in a clear order.
 
 Reeltrack and compatible mixed-media lists remain unified while showing clear
 Movies and Television sections. Plex synchronization is additive: scheduled
@@ -690,6 +695,42 @@ Run `Stop-VynodeArr.ps1` to stop VynodeArr without removing its data.
 5. Ensure the same completed-download folder is visible to VynodeArr and the download client.
 6. Add or import media and choose monitoring behavior.
 7. Open **Health** from the dashboard to resolve any remaining setup issues.
+
+### Multiple external movie and television engines
+
+Multi-engine mode is optional. A normal bundled-engine or single external-engine
+installation continues to work without additional configuration.
+
+1. Open **Service Settings → Engine Management** as an administrator.
+2. Add each external Radarr-compatible movie or Sonarr-compatible television
+   instance with a unique friendly name, server URL, and API key.
+3. Test each connection before saving. Credentials are encrypted independently.
+4. Restart the VynodeArr container when prompted so the private gateway loads
+   the complete instance registry. Saved connections remain available during
+   the restart.
+5. Open **Service Settings → Root Folders** and create destinations for the
+   matching instance. A destination, root folder, profile, and tags always
+   belong to one engine instance.
+6. Choose one default destination per media type and engine where appropriate.
+7. If Plex is connected, associate each destination with the Plex library that
+   sees the same media path. VynodeArr prevents one Plex library from being
+   assigned ambiguously across different engine instances.
+8. Review profiles, providers, selection rules, and guide templates using the
+   engine selector at the top of each page.
+9. Use **All engines** on library and activity pages for a combined view, or
+   select one named instance to inspect and manage it independently.
+
+When adding or requesting a title, VynodeArr carries the chosen destination and
+engine through approval, search, grab, queue, import, history, and notification
+links. Two instances may have the same native numeric title ID without being
+treated as the same record. If one instance is offline, its error remains
+isolated and records from healthy instances continue to appear.
+
+Before removing an instance, move or remove its destinations and confirm that no
+pending requests rely on it. Existing single-engine settings are retained as the
+default instance during migration. To roll back, remove only the newly added
+instances and continue using the original default instance; no media files are
+moved by this configuration change.
 
 ## Connect Seerr or another request application
 

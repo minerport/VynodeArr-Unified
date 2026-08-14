@@ -18,7 +18,7 @@ const message = (error: unknown) =>
     : "VynodeArr could not complete this request.";
 const cleanFolder = (value: string) => value === "/" ? "/" : value.replaceAll("\\", "/").replace(/\/+$/, "") || "/";
 const parentFolder = (value: string) => cleanFolder(value).split("/").slice(0, -1).join("/") || "/";
-type MediaDestination = { id: string; domain: "movie" | "tv"; name: string; rootFolderPath: string; isDefault?: boolean; ready?: boolean };
+type MediaDestination = { id: string; domain: "movie" | "tv"; engineInstanceId?:string|null; engineInstanceName?:string|null; name: string; rootFolderPath: string; isDefault?: boolean; ready?: boolean; plexLibraryKey?:string|null; plexLibrary?:{key:string;title:string}|null };
 const reeltrackPosterUrl = (item: ReeltrackListItem) => item.tmdbId
   ? `/api/reeltrack/poster/${item.domain}/${item.tmdbId}`
   : item.posterUrl || "";
@@ -155,6 +155,12 @@ export function ReeltrackListsView({
     setTitleOverlayTemplate(selected.automation?.titleOverlayTemplate || null);
     setRealTitleOverlayTemplate(selected.automation?.realTitleOverlayTemplate || null);
   }, [selectedId]);
+  const chooseMediaDestination = (domain:"movie"|"tv", id:string) => {
+    const destination = mediaDestinations.find((item) => item.domain === domain && item.id === id);
+    (domain === "movie" ? setMovieMediaDestinationId : setTvMediaDestinationId)(id);
+    if (destination?.plexLibraryKey)
+      (domain === "movie" ? setAutomationMovieLibraryKey : setAutomationTvLibraryKey)(destination.plexLibraryKey);
+  };
   useEffect(() => {
     if (!hostBrowser) return;
     setHostBrowserError("");
@@ -656,7 +662,7 @@ export function ReeltrackListsView({
                       </select>
                       {value ? <small>Plex reference: {compatibility.location || "not reported"}</small> : null}
                       {value ? <div className="storage-path-control"><input aria-label={`${domain} host folder`} readOnly value={compatibility.hostRoot}/><button className="secondary" type="button" onClick={() => openHostBrowser(domain)}>Choose host folder</button></div> : null}
-                    </label><label>{type === "movie" ? "Movie" : "Television"} destination<select value={domain === "movie" ? movieMediaDestinationId : tvMediaDestinationId} onChange={(event) => domain === "movie" ? setMovieMediaDestinationId(event.target.value) : setTvMediaDestinationId(event.target.value)}><option value="">Use engine default</option>{mediaDestinations.filter((item) => item.domain === domain).map((item) => <option key={item.id} value={item.id} disabled={!item.ready}>{item.name}{item.isDefault ? " — default" : ""}{item.ready ? "" : " — unavailable"}</option>)}</select><small>This folder and its quality profile are sent to the media engine for missing list titles.</small></label>{value && !compatibility.compatible ? <div className="reeltrack-root-warning"><span>This media engine has no configured root. Configure its own path under Storage Folders; it may differ from both paths shown above.</span><a className="button-link secondary" href="#service/root-folders">Review storage folders</a></div> : value ? <small className="reeltrack-root-ready">Plex, host, and engine paths are mapped independently</small> : null}</div>;
+                    </label><label>{type === "movie" ? "Movie" : "Television"} destination<select value={domain === "movie" ? movieMediaDestinationId : tvMediaDestinationId} onChange={(event) => chooseMediaDestination(domain,event.target.value)}><option value="">Use engine default</option>{mediaDestinations.filter((item) => item.domain === domain).map((item) => <option key={item.id} value={item.id} disabled={!item.ready}>{item.engineInstanceName ? `${item.engineInstanceName} · ` : ""}{item.name}{item.isDefault ? " — default" : ""}{item.ready ? "" : " — unavailable"}</option>)}</select></label>{value && !compatibility.compatible ? <div className="reeltrack-root-warning"><span>This media engine has no configured root. Configure its own path under Storage Folders; it may differ from both paths shown above.</span><a className="button-link secondary" href="#service/root-folders">Review storage folders</a></div> : value ? <small className="reeltrack-root-ready">Plex, host, and engine paths are mapped independently</small> : null}</div>;
                   })}
                   <label>
                     Update every
@@ -705,7 +711,7 @@ export function ReeltrackListsView({
         <div className="panel skeleton">Loading Reeltrack lists…</div>
       ) : lists.length ? (
         <div className="reeltrack-workspace">
-          <aside className="reeltrack-list-nav">
+          <nav className="reeltrack-list-nav" aria-label="Imported lists">
             <h2>Imported lists</h2>
             {lists.map((list) => (
               <button
@@ -719,7 +725,7 @@ export function ReeltrackListsView({
                 <small>{listCounts(list).movie} movies · {listCounts(list).tv} TV</small>
               </button>
             ))}
-          </aside>
+          </nav>
           <main>
             <div className="reeltrack-list-heading">
               <div>
@@ -774,7 +780,7 @@ export function ReeltrackListsView({
                       </select>
                       <small>Plex stores this library at {rootCompatibility("movie").location || "an unreported location"}.</small>
                       <div className="storage-path-control"><input aria-label="Movie host folder" readOnly value={movieHostRoot}/><button className="secondary" type="button" onClick={() => openHostBrowser("movie")}>Choose host folder</button></div>
-                    </label><label><span>VynodeArr movie destination</span><select value={movieMediaDestinationId} onChange={(event) => setMovieMediaDestinationId(event.target.value)}><option value="">Use engine default</option>{mediaDestinations.filter((item) => item.domain === "movie").map((item) => <option key={item.id} value={item.id} disabled={!item.ready}>{item.name}{item.isDefault ? " — default" : ""}{item.ready ? "" : " — unavailable"}</option>)}</select><small>Missing movies are registered with this root folder and quality profile.</small></label>{automationMovieLibraryKey && !rootCompatibility("movie").compatible ? <div className="reeltrack-root-warning"><span>Movie storage still needs a compatible engine root.</span><a className="button-link secondary" href="#service/root-folders">Review folders</a></div> : <small className="reeltrack-root-ready">Ready: Plex, host, and Movie engine paths can differ.</small>}</div> : null}
+                    </label><label><span>VynodeArr movie destination</span><select value={movieMediaDestinationId} onChange={(event) => chooseMediaDestination("movie",event.target.value)}><option value="">Use engine default</option>{mediaDestinations.filter((item) => item.domain === "movie").map((item) => <option key={item.id} value={item.id} disabled={!item.ready}>{item.engineInstanceName ? `${item.engineInstanceName} · ` : ""}{item.name}{item.isDefault ? " — default" : ""}{item.ready ? "" : " — unavailable"}</option>)}</select><small>Selects its Plex library.</small></label>{automationMovieLibraryKey && !rootCompatibility("movie").compatible ? <div className="reeltrack-root-warning"><span>Movie storage still needs a compatible engine root.</span><a className="button-link secondary" href="#service/root-folders">Review folders</a></div> : <small className="reeltrack-root-ready">Ready: Plex, host, and Movie engine paths can differ.</small>}</div> : null}
                     {selected?.items?.some((item) => item.domain === "tv") ? <div className="reeltrack-plex-target"><label>
                       <span>Television library</span>
                       <select value={automationTvLibraryKey} onChange={(event) => setAutomationTvLibraryKey(event.target.value)}>
@@ -783,7 +789,7 @@ export function ReeltrackListsView({
                       </select>
                       <small>Plex stores this library at {rootCompatibility("tv").location || "an unreported location"}.</small>
                       <div className="storage-path-control"><input aria-label="Television host folder" readOnly value={tvHostRoot}/><button className="secondary" type="button" onClick={() => openHostBrowser("tv")}>Choose host folder</button></div>
-                    </label><label><span>VynodeArr television destination</span><select value={tvMediaDestinationId} onChange={(event) => setTvMediaDestinationId(event.target.value)}><option value="">Use engine default</option>{mediaDestinations.filter((item) => item.domain === "tv").map((item) => <option key={item.id} value={item.id} disabled={!item.ready}>{item.name}{item.isDefault ? " — default" : ""}{item.ready ? "" : " — unavailable"}</option>)}</select><small>Missing series are registered with this root folder and quality profile.</small></label>{automationTvLibraryKey && !rootCompatibility("tv").compatible ? <div className="reeltrack-root-warning"><span>Television storage still needs a compatible engine root.</span><a className="button-link secondary" href="#service/root-folders">Review folders</a></div> : <small className="reeltrack-root-ready">Ready: Plex, host, and Television engine paths can differ.</small>}</div> : null}
+                    </label><label><span>VynodeArr television destination</span><select value={tvMediaDestinationId} onChange={(event) => chooseMediaDestination("tv",event.target.value)}><option value="">Use engine default</option>{mediaDestinations.filter((item) => item.domain === "tv").map((item) => <option key={item.id} value={item.id} disabled={!item.ready}>{item.engineInstanceName ? `${item.engineInstanceName} · ` : ""}{item.name}{item.isDefault ? " — default" : ""}{item.ready ? "" : " — unavailable"}</option>)}</select><small>Selects its Plex library.</small></label>{automationTvLibraryKey && !rootCompatibility("tv").compatible ? <div className="reeltrack-root-warning"><span>Television storage still needs a compatible engine root.</span><a className="button-link secondary" href="#service/root-folders">Review folders</a></div> : <small className="reeltrack-root-ready">Ready: Plex, host, and Television engine paths can differ.</small>}</div> : null}
                     </div>
                     <label className="reeltrack-automation-toggle reeltrack-split-library-toggle">
                       <input type="checkbox" checked={splitLibraryMode} onChange={(event) => setSplitLibraryMode(event.target.checked)} />

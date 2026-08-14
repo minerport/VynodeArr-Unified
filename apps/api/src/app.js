@@ -1,5 +1,5 @@
-import { mkdir, readFile, readdir, realpath, rename, stat, unlink, writeFile } from "node:fs/promises";
-import { watch } from "node:fs";
+import { access, mkdir, readFile, readdir, realpath, rename, stat, unlink, writeFile } from "node:fs/promises";
+import { constants as fsConstants, watch } from "node:fs";
 import {
   createCipheriv,
   createDecipheriv,
@@ -47,6 +47,7 @@ import { BoundedCache } from "../../../packages/platform/src/bounded-cache.js";
 import { AsyncLimiter } from "../../../packages/platform/src/async-limiter.js";
 import { MovieEngineAdapter } from "../../../packages/movie-domain/src/engine-adapter.js";
 import { TvEngineAdapter } from "../../../packages/tv-domain/src/engine-adapter.js";
+import { MultiInstanceReadAdapter } from "../../../packages/platform/src/multi-instance-read-adapter.js";
 import { MovieFixtureAdapter } from "../../../packages/movie-domain/src/fixture-adapter.js";
 import { TvFixtureAdapter } from "../../../packages/tv-domain/src/fixture-adapter.js";
 import {
@@ -114,6 +115,20 @@ export function televisionAddPayload(input = {}) {
         addOptions.searchForCutoffUnmetEpisodes === true,
     },
   };
+}
+export function resolveOwnedEngineInstance(queryInstanceId, ownedInstanceId) {
+  const queryId=String(queryInstanceId||'').trim()||null,ownedId=String(ownedInstanceId||'').trim()||null;
+  if(queryId&&ownedId&&queryId!==ownedId)throw new Error('The media identifier belongs to a different engine instance');
+  return queryId||ownedId||null;
+}
+export function attachEngineOwnership(result, instance) {
+  if (!instance?.id || result == null) return result;
+  const own = (value) => value && typeof value === "object" && !Array.isArray(value)
+    ? { ...value, engineInstanceId: instance.id, engineInstanceName: instance.name || null }
+    : value;
+  if (Array.isArray(result)) return result.map(own);
+  if (Array.isArray(result.records)) return { ...result, records: result.records.map(own) };
+  return own(result);
 }
 export async function filesystemLocationIdentity(path) {
   const resolved = await realpath(String(path || "")),
@@ -642,8 +657,71 @@ export function createApplication(options = {}) {
       destinations: [],
       updatedAt: null,
     });
+  const engineStorageMappingStore =
+    options.engineStorageMappingStore ||
+    new JsonStore(join(dataDir, "engine-storage-mappings.json"), {
+      version: 1,
+      mappings: [],
+      updatedAt: null,
+    });
   const mediaDestinations =
     options.mediaDestinations || new MediaDestinationService(mediaDestinationStore);
+  const engineStorageStatus = async (instance, root, mapping = null) => {
+    const enginePath = normalizeMediaPath(root?.path),
+      vynodePath = normalizeMediaPath(mapping?.vynodePath || enginePath),
+      hostPath = String(mapping?.hostPath || "").trim();
+    let exists = false, directory = false, writable = false, error = null;
+    try {
+      const details = await stat(vynodePath);
+      exists = true;
+      directory = details.isDirectory();
+      if (directory) { await access(vynodePath, fsConstants.R_OK | fsConstants.W_OK); writable = true; }
+    } catch (reason) { error = reason instanceof Error ? reason.message : "The folder is not accessible."; }
+    const accessible = exists && directory && writable;
+    return {
+      engineInstanceId: instance.id,
+      engineInstanceName: instance.name,
+      domain: instance.domain,
+      enginePath,
+      vynodePath,
+      hostPath: hostPath || null,
+      mapped: Boolean(mapping),
+      exists,
+      directory,
+      writable,
+      accessible,
+      status: accessible ? "ready" : exists && directory ? "read-only" : mapping ? "not-mounted" : "mapping-required",
+      restartRequired: !accessible,
+      error: accessible ? null : error,
+      explanation: accessible
+        ? "VynodeArr can read and write this external-engine library folder."
+        : `The external engine can use ${enginePath}, but that path is not currently usable inside the VynodeArr container.`,
+      remediation: {
+        docker: hostPath ? `Add this volume to VynodeArr and recreate the container: ${hostPath}:${vynodePath}:rw` : `Map the same host folder used by ${instance.name} into the VynodeArr container at ${vynodePath} with read/write access.`,
+        unraid: hostPath ? `Edit the VynodeArr container, add a Path with host path ${hostPath} and container path ${vynodePath}, apply the change, then restart VynodeArr.` : `In Unraid, edit the VynodeArr container and add the same Host Path used by ${instance.name}. Set its Container Path to ${vynodePath}, use Read/Write access, apply, and restart VynodeArr.`,
+      },
+    };
+  };
+  async function instanceStorage(instanceId) {
+    const instance = engineSettings.public().instances.find((item) => item.id === instanceId && item.enabled !== false);
+    if (!instance) throw new Error("Choose an available engine instance");
+    const [rootsValue, stored] = await Promise.all([
+      management.execute(instance.domain, "rootFolders", "GET", { engineInstanceId: instance.id }),
+      engineStorageMappingStore.read(),
+    ]), roots = Array.isArray(rootsValue) ? rootsValue : rootsValue?.records || [], mappings = Array.isArray(stored.mappings) ? stored.mappings : [];
+    return Promise.all(roots.map((root) => engineStorageStatus(instance, root, mappings.find((item) => item.engineInstanceId === instance.id && normalizeMediaPath(item.enginePath) === normalizeMediaPath(root.path)))));
+  }
+  async function vynodeAccessiblePath(domain, enginePath, engineInstanceId = null) {
+    const source = normalizeMediaPath(enginePath);
+    if (!source || !engineInstanceId) return source;
+    const stored = await engineStorageMappingStore.read(), mappings = (Array.isArray(stored.mappings) ? stored.mappings : [])
+      .filter((item) => item.domain === domain && item.engineInstanceId === engineInstanceId)
+      .sort((left, right) => normalizeMediaPath(right.enginePath).length - normalizeMediaPath(left.enginePath).length),
+      mapping = mappings.find((item) => source === normalizeMediaPath(item.enginePath) || source.startsWith(`${normalizeMediaPath(item.enginePath)}/`));
+    if (!mapping) return source;
+    const engineRoot = normalizeMediaPath(mapping.enginePath), localRoot = normalizeMediaPath(mapping.vynodePath);
+    return `${localRoot}${source.slice(engineRoot.length)}`;
+  }
   const engineUpdateReview =
     options.engineUpdateReview ||
     new EngineUpdateReviewService({
@@ -669,6 +747,7 @@ export function createApplication(options = {}) {
     "engine-authentication.json",
     "download-folders.json",
     "media-destinations.json",
+    "engine-storage-mappings.json",
     "performance-settings.json",
     "projections.json",
   ];
@@ -1409,24 +1488,43 @@ export function createApplication(options = {}) {
     const path = String(value || "").trim();
     return !path || plexPathValue(path) === "/trailers" ? "/movies" : path;
   };
-  async function mediaDestinationContext(domain, administrator = true) {
-    const [roots, profiles, plexSettings] = await Promise.all([
-      management.execute(domain, "rootFolders", "GET", {}).catch(() => []),
-      management.execute(domain, "profiles", "GET", {}).catch(() => []),
+  async function mediaDestinationContext(domain, administrator = true, engineInstanceId = null) {
+    const domainInstances = engineSettings.public().instances.filter((item) => item.domain === domain && item.enabled !== false),
+      includeLegacy = !engineInstanceId || !domainInstances.length || domainInstances.some((item) => item.id === engineInstanceId && item.isDefault);
+    const [rawRoots, profiles, plexSettings] = await Promise.all([
+      management.execute(domain, "rootFolders", "GET", {engineInstanceId}).catch(() => []),
+      management.execute(domain, "profiles", "GET", {engineInstanceId}).catch(() => []),
       plexSettingsStore.read().catch(() => ({ libraries: [] })),
-    ]);
+    ]), instance = engineInstanceId ? domainInstances.find((item) => item.id === engineInstanceId) : null,
+      storage = instance ? await instanceStorage(instance.id).catch(() => []) : [],
+      roots = (Array.isArray(rawRoots) ? rawRoots : rawRoots?.records || []).map((root) => {
+        const mapped = storage.find((item) => normalizeMediaPath(item.enginePath) === normalizeMediaPath(root.path));
+        return mapped ? { ...root, accessible: mapped.accessible, vynodePath: mapped.vynodePath, storageStatus: mapped.status, restartRequired: mapped.restartRequired } : root;
+      });
     const destinations = await mediaDestinations.context(domain, {
       roots,
       profiles,
       plexLibraries: plexSettings.libraries || [],
       administrator,
+      engineInstanceId,
+      includeLegacy,
     });
     return { destinations, roots, profiles, plexLibraries: plexSettings.libraries || [] };
+  }
+  const enabledEngineInstances = (domain) => {
+    const instances = engineSettings.public().instances.filter((item) => item.domain === domain && item.enabled !== false);
+    return instances.length ? instances : [{ id: null, name: domain === "tv" ? "Television" : "Movies", isDefault: true }];
+  };
+  async function allMediaDestinationContexts(domain, administrator = true) {
+    return Promise.all(enabledEngineInstances(domain).map(async (instance) => ({
+      instance,
+      context: await mediaDestinationContext(domain, administrator, instance.id),
+    })));
   }
   async function applyMediaDestination(domain, payload, administrator = true) {
     const destinationId = String(payload?.mediaDestinationId || "");
     if (!destinationId) return payload;
-    const context = await mediaDestinationContext(domain, administrator),
+    const engineInstanceId=String(payload?.engineInstanceId||'').trim()||null,context = await mediaDestinationContext(domain, administrator,engineInstanceId),
       destination = context.destinations.find((item) => item.id === destinationId);
     if (!destination) throw new Error("Choose an available media destination");
     if (!destination.ready)
@@ -1443,12 +1541,16 @@ export function createApplication(options = {}) {
         .filter(({ identity }) => identity.domain === domain && identity.tmdbId);
       if (!candidates.length) continue;
       let records, profiles, roots, destinationContext;
+      const requestedDestinationId = String(preferredDestinationIds[domain] || ""),
+        destinationState = await mediaDestinations.state(),
+        storedDestination = destinationState.destinations.find((item) => item.id === requestedDestinationId),
+        engineInstanceId = storedDestination?.engineInstanceId || enabledEngineInstances(domain).find((item) => item.isDefault)?.id || null;
       try {
         [records, profiles, roots, destinationContext] = await Promise.all([
-          management.execute(domain, "library", "GET", {}),
-          management.execute(domain, "profiles", "GET", {}),
-          management.execute(domain, "rootFolders", "GET", {}),
-          mediaDestinationContext(domain, true),
+          management.execute(domain, "library", "GET", { engineInstanceId }),
+          management.execute(domain, "profiles", "GET", { engineInstanceId }),
+          management.execute(domain, "rootFolders", "GET", { engineInstanceId }),
+          mediaDestinationContext(domain, true, engineInstanceId),
         ]);
       } catch (error) {
         summary.failed += candidates.length;
@@ -1457,8 +1559,7 @@ export function createApplication(options = {}) {
         );
         continue;
       }
-      const requestedDestinationId = String(preferredDestinationIds[domain] || ""),
-        known = Array.isArray(records) ? records : records?.records || [],
+      const known = Array.isArray(records) ? records : records?.records || [],
         selectedDestination = destinationContext.destinations.find((item) => item.id === requestedDestinationId && item.ready),
         defaultDestination = selectedDestination || destinationContext.destinations.find((item) => item.isDefault && item.ready) || destinationContext.destinations.find((item) => item.ready),
         profile = (Array.isArray(profiles) ? profiles : []).find((item) => defaultDestination && Number(item.id) === Number(defaultDestination.qualityProfileId)) || (Array.isArray(profiles) ? profiles : [])[0],
@@ -1519,6 +1620,7 @@ export function createApplication(options = {}) {
           for (const term of lookupTermsForIdentity(domain, engineIdentity)) {
             const matches = await management.execute(domain, "lookup", "GET", {
               query: { term },
+              engineInstanceId,
             });
             match = exactEngineMatch(
               domain,
@@ -1551,10 +1653,11 @@ export function createApplication(options = {}) {
                   },
                 }),
           };
-          const destinationPayload = !preferredPath && defaultDestination ? mediaDestinations.apply(payload, defaultDestination) : payload,
-            added = await management.execute(domain, "library", "POST", {
-            payload: domain === "tv" ? televisionAddPayload(destinationPayload) : destinationPayload,
-          });
+           const destinationPayload = !preferredPath && defaultDestination ? mediaDestinations.apply(payload, defaultDestination) : payload,
+             added = await management.execute(domain, "library", "POST", {
+             payload: domain === "tv" ? televisionAddPayload(destinationPayload) : destinationPayload,
+             engineInstanceId,
+           });
           known.push(added || destinationPayload);
           summary.added += 1;
           domainAdded += 1;
@@ -1653,37 +1756,44 @@ export function createApplication(options = {}) {
       .jpeg({ quality: 92, chromaSubsampling: "4:4:4" })
       .toBuffer();
   }
-  async function reeltrackOriginalArtwork({ automation, endpoint, token, machineIdentifier, ratingKey, artworkPath, domain, kind }) {
+  async function reeltrackOriginalArtwork({ automation, endpoint, token, machineIdentifier, libraryKey, ratingKey, artworkPath, domain, kind }) {
     automation.artworkOriginals ||= {};
-    const key = `${machineIdentifier}:${domain}:${kind}:${ratingKey}`,
+    const normalizedLibraryKey = String(libraryKey || ""),
+      key = `${machineIdentifier}:${normalizedLibraryKey}:${domain}:${kind}:${ratingKey}`,
+      previousKey = `${machineIdentifier}:${domain}:${kind}:${ratingKey}`,
       legacyKey = `${machineIdentifier}:${ratingKey}`,
       legacy = automation.artworkOriginals[legacyKey],
-      existing = automation.artworkOriginals[key] || (legacy?.machineIdentifier === machineIdentifier && legacy?.domain === domain && legacy?.kind === kind ? legacy : null);
+      previous = automation.artworkOriginals[previousKey],
+      compatiblePrevious = previous?.machineIdentifier === machineIdentifier && previous?.domain === domain && previous?.kind === kind && (!previous.libraryKey || String(previous.libraryKey) === normalizedLibraryKey) ? previous : null,
+      compatibleLegacy = legacy?.machineIdentifier === machineIdentifier && legacy?.domain === domain && legacy?.kind === kind && (!legacy.libraryKey || String(legacy.libraryKey) === normalizedLibraryKey) ? legacy : null,
+      existing = automation.artworkOriginals[key] || compatiblePrevious || compatibleLegacy;
     if (existing?.backupFile && /^[a-f0-9-]{36}\.poster$/i.test(existing.backupFile)) {
       const body = await readFile(join(reeltrackArtworkBackupDir, existing.backupFile)).catch(() => null);
       if (body?.length && createHash("sha256").update(body).digest("hex") === existing.sha256) {
         automation.artworkOriginals[key] = existing;
+        if (compatiblePrevious === existing) delete automation.artworkOriginals[previousKey];
         if (legacy === existing) delete automation.artworkOriginals[legacyKey];
         return { body, contentType: existing.contentType, key, captured: false, synthetic: Boolean(existing.synthetic) };
       }
       delete automation.artworkOriginals[key];
+      if (compatiblePrevious === existing) delete automation.artworkOriginals[previousKey];
       if (legacy === existing) delete automation.artworkOriginals[legacyKey];
     }
     const synthetic = typeof plexService.artwork !== "function",
       current = !synthetic
         ? await plexService.artwork(endpoint, token, artworkPath || `/library/metadata/${ratingKey}/thumb`)
         : { body: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="600" height="900"><rect width="600" height="900" fill="#08111f"/></svg>'), contentType: "image/svg+xml" },
-      original = await originalPlexPoster({ server: { machineIdentifier } }, ratingKey, current),
+      original = await originalPlexPoster({ server: { machineIdentifier } }, normalizedLibraryKey, ratingKey, current),
       backupFile = `${randomUUID()}.poster`;
     await mkdir(reeltrackArtworkBackupDir, { recursive: true });
     await writeFile(join(reeltrackArtworkBackupDir, backupFile), original.body, { mode: 384, flag: "wx" });
-    automation.artworkOriginals[key] = { backupFile, contentType: original.contentType, sha256: createHash("sha256").update(original.body).digest("hex"), machineIdentifier, ratingKey: String(ratingKey), domain, kind, synthetic, capturedAt: new Date().toISOString() };
+    automation.artworkOriginals[key] = { backupFile, contentType: original.contentType, sha256: createHash("sha256").update(original.body).digest("hex"), machineIdentifier, libraryKey: normalizedLibraryKey, ratingKey: String(ratingKey), domain, kind, synthetic, capturedAt: new Date().toISOString() };
     return { ...original, key, captured: true };
   }
-  async function restoreReeltrackArtwork({ automation, endpoint, token, machineIdentifier, domain, kind, exceptRatingKeys = [] }) {
+  async function restoreReeltrackArtwork({ automation, endpoint, token, machineIdentifier, libraryKey = null, domain, kind, exceptRatingKeys = [] }) {
     const restored = [];
     const retained = new Set(exceptRatingKeys.map(String)),
-      records = Object.values(automation.artworkOriginals || {}).filter((item, index, all) => !item.synthetic && item.machineIdentifier === machineIdentifier && item.domain === domain && item.kind === kind && !retained.has(String(item.ratingKey)) && all.indexOf(item) === index);
+      records = Object.values(automation.artworkOriginals || {}).filter((item, index, all) => !item.synthetic && item.machineIdentifier === machineIdentifier && item.domain === domain && item.kind === kind && (libraryKey === null || !item.libraryKey || String(item.libraryKey) === String(libraryKey)) && !retained.has(String(item.ratingKey)) && all.indexOf(item) === index);
     for (const record of records) {
       if (!/^[a-f0-9-]{36}\.poster$/i.test(String(record.backupFile || ""))) continue;
       const body = await readFile(join(reeltrackArtworkBackupDir, record.backupFile)).catch(() => null);
@@ -1692,7 +1802,7 @@ export function createApplication(options = {}) {
     }
     return restored;
   }
-  async function applyReeltrackTitleArtwork({ template, endpoint, token, machineIdentifier, automation, items, ratingKeys, list, domain, syncedAt }) {
+  async function applyReeltrackTitleArtwork({ template, endpoint, token, machineIdentifier, libraryKey, automation, items, ratingKeys, list, domain, syncedAt }) {
     if (!template?.enabled || !template.layers?.length) return { applied: 0, failed: 0, errors: [] };
     let applied = 0, failed = 0;
     const errors = [];
@@ -1703,7 +1813,7 @@ export function createApplication(options = {}) {
           tmdbId = Number(identity?.split(":")[1] || pathTmdbId || 0),
           source = (list.items || []).find((value) => String(value.tmdbId || "") === String(tmdbId || "")) || {},
           metadata = tmdbId ? await discovery.details(domain, tmdbId).catch(() => null) : null,
-          original = await reeltrackOriginalArtwork({ automation, endpoint, token, machineIdentifier, ratingKey: plexItem.ratingKey, artworkPath: plexItem.thumb, domain, kind: "title" }).catch(() => null),
+          original = await reeltrackOriginalArtwork({ automation, endpoint, token, machineIdentifier, libraryKey, ratingKey: plexItem.ratingKey, artworkPath: plexItem.thumb, domain, kind: "title" }).catch(() => null),
           poster = original?.body || await remotePosterBuffer(domain, tmdbId);
         if (!poster?.length) throw new Error("No Plex or provider poster was available");
         const
@@ -1870,6 +1980,11 @@ export function createApplication(options = {}) {
             plexExternalIds(item).map((identity) => `${domain}:${identity}`),
           ),
         ),
+        realFileIds = new Set(
+          realItems
+            .filter((item) => (item.files || []).some((file) => !/(?:^|[\\/])(?:trailer|[^\\/]*-trailer)\.[a-z0-9]+$/i.test(String(file))))
+            .flatMap((item) => plexExternalIds(item).map((identity) => `${domain}:${identity}`)),
+        ),
         wanted = new Map();
       for (const item of providerItems) {
         const identity = reeltrackItemIdentity(item);
@@ -1984,6 +2099,18 @@ export function createApplication(options = {}) {
             );
           })
           .map((item) => item.ratingKey),
+        retainedPlaceholderOverlayKeys = refreshedPlaceholders
+          .filter((item) => {
+            const identities = [
+              ...plexExternalIds(item).map((identity) => `${domain}:${identity}`),
+              ...(item.files || [])
+                .map((file) => String(file).match(/\[tmdb-(\d+)\]/i)?.[1])
+                .filter(Boolean)
+                .map((id) => `${domain}:tmdb:${id}`),
+            ];
+            return identities.some((identity) => Boolean(jobs[identity]?.path) && !realFileIds.has(identity));
+          })
+          .map((item) => item.ratingKey),
         expectedPlaceholderCount = [...wanted.keys()].filter(
           (key) => !realIds.has(key) && Boolean(jobs[key]?.path),
         ).length;
@@ -1998,7 +2125,9 @@ export function createApplication(options = {}) {
         ).map((item) => item.ratingKey),
         collectionMemberKeys = [...new Set([...realRatingKeys, ...placeholderKeys])],
         splitCollections = automation.splitLibraryMode && String(library.key) !== String(realLibrary.key);
-      await restoreReeltrackArtwork({ automation, endpoint: plexSettings.endpoint, token: plexToken, machineIdentifier: plexSettings.server?.machineIdentifier || "", domain, kind: "title", exceptRatingKeys: collectionMemberKeys });
+      await restoreReeltrackArtwork({ automation, endpoint: plexSettings.endpoint, token: plexToken, machineIdentifier: plexSettings.server?.machineIdentifier || "", libraryKey: library.key, domain, kind: "title", exceptRatingKeys: splitCollections ? retainedPlaceholderOverlayKeys : [...new Set([...collectionMemberKeys, ...retainedPlaceholderOverlayKeys])] });
+      if (splitCollections)
+        await restoreReeltrackArtwork({ automation, endpoint: plexSettings.endpoint, token: plexToken, machineIdentifier: plexSettings.server?.machineIdentifier || "", libraryKey: realLibrary.key, domain, kind: "title", exceptRatingKeys: realRatingKeys });
       const collection = await plexService.syncCollection(
           plexSettings.endpoint,
           plexToken,
@@ -2052,6 +2181,7 @@ export function createApplication(options = {}) {
           endpoint: plexSettings.endpoint,
           token: plexToken,
           machineIdentifier: plexSettings.server?.machineIdentifier || "",
+          libraryKey: library.key,
           automation,
           items: refreshedItems,
           ratingKeys: placeholderKeys,
@@ -2062,6 +2192,7 @@ export function createApplication(options = {}) {
         const realArtwork = await applyReeltrackTitleArtwork({
           template: realTitleTemplate, endpoint: plexSettings.endpoint, token: plexToken,
           machineIdentifier: plexSettings.server?.machineIdentifier || "", automation,
+          libraryKey: realLibrary.key,
           items: refreshedRealItems, ratingKeys: realRatingKeys, list, domain, syncedAt: runStartedAt,
         });
         totals.titlePosters += placeholderArtwork.applied + realArtwork.applied;
@@ -2213,6 +2344,8 @@ export function createApplication(options = {}) {
         source: "search",
         category: "automation",
         domain: operationDomain(value),
+        engineInstanceId:value.engineInstanceId||null,
+        engineInstanceName:value.engineInstanceName||null,
         title: operationTitle(value, "Media search"),
         summary: value.message || `Search is ${value.status || "recorded"}.`,
         status: value.status || "unknown",
@@ -2226,6 +2359,8 @@ export function createApplication(options = {}) {
         source: "decision",
         category: "download",
         domain: operationDomain(value),
+        engineInstanceId:value.engineInstanceId||null,
+        engineInstanceName:value.engineInstanceName||null,
         title: operationTitle(value, "Release decision"),
         summary:
           (value.reasons || [])[0] ||
@@ -2241,6 +2376,8 @@ export function createApplication(options = {}) {
         source: "audit",
         category: value.category || "administration",
         domain: operationDomain(value),
+        engineInstanceId:value.engineInstanceId||value.metadata?.engineInstanceId||null,
+        engineInstanceName:value.engineInstanceName||null,
         title: operationTitle(value, "Administrator action"),
         summary:
           value.summary || value.action || "Administrator action recorded.",
@@ -2255,6 +2392,8 @@ export function createApplication(options = {}) {
         source: "request",
         category: "request",
         domain: operationDomain(value),
+        engineInstanceId:value.engineInstanceId||null,
+        engineInstanceName:value.engineInstanceName||null,
         title: operationTitle(value, "Media request"),
         summary: value.message || `Request is ${value.status || "recorded"}.`,
         status: value.status || "unknown",
@@ -2297,6 +2436,8 @@ export function createApplication(options = {}) {
         source: "queue",
         category: "download",
         domain: operationDomain(value),
+        engineInstanceId:value.engineInstanceId||null,
+        engineInstanceName:value.engineInstanceName||null,
         title: operationTitle(value, "Queued download"),
         summary:
           value.errorMessage ||
@@ -2313,6 +2454,8 @@ export function createApplication(options = {}) {
         source: "history",
         category: "library",
         domain: operationDomain(value),
+        engineInstanceId:value.engineInstanceId||null,
+        engineInstanceName:value.engineInstanceName||null,
         title: operationTitle(value, "Library event"),
         summary:
           value.details ||
@@ -2383,6 +2526,8 @@ export function createApplication(options = {}) {
           id: `action:${item.id}`,
           severity: status === "failed" ? "critical" : "warning",
           domain: item.domain,
+          engineInstanceId:item.engineInstanceId||null,
+          engineInstanceName:item.engineInstanceName||null,
           title: item.title,
           what: item.summary,
           why:
@@ -2402,6 +2547,8 @@ export function createApplication(options = {}) {
           id: `action:${item.id}`,
           severity: "critical",
           domain: item.domain,
+          engineInstanceId:item.engineInstanceId||null,
+          engineInstanceName:item.engineInstanceName||null,
           title: item.title,
           what: item.summary,
           why: "The media engine reports that this queued download needs attention.",
@@ -2417,6 +2564,8 @@ export function createApplication(options = {}) {
           id: `action:${item.id}`,
           severity: "information",
           domain: item.domain,
+          engineInstanceId:item.engineInstanceId||null,
+          engineInstanceName:item.engineInstanceName||null,
           title: `Approval needed: ${item.title}`,
           what: item.summary,
           why: "This user requires administrator approval before the title can be added.",
@@ -2541,6 +2690,11 @@ export function createApplication(options = {}) {
     mode === "fixture" || engineSettings.configured();
   const bundledEnginesActive = () => engineSettings.mode() === "bundled";
   const management = new EngineManagementService(registry);
+  const decodeOwnedMediaId=(domain,id)=>{
+    const raw=String(id||''),prefix=domain==='movie'?'movie_':'series_',value=raw.startsWith(prefix)?raw.slice(prefix.length):raw;
+    for(const instance of engineSettings.public().instances.filter(item=>item.domain===domain)){for(const separator of ['_',':']){const marker=`${instance.id}${separator}`;if(value.startsWith(marker))return{engineInstanceId:instance.id,id:value.slice(marker.length)};}}
+    return{engineInstanceId:null,id:value};
+  };
   const importJobs = new Map(),
     searchJobs = new Map(),
     namingAuditJobs = new Map(),
@@ -2586,6 +2740,8 @@ export function createApplication(options = {}) {
     return {
       id: job.id,
       domain: job.domain,
+      engineInstanceId: job.engineInstanceId || null,
+      engineInstanceName: job.engineInstanceName || null,
       label: job.label,
       status: job.status,
       total: job.total,
@@ -3460,7 +3616,7 @@ export function createApplication(options = {}) {
     }
     return releases.sort(compareReleases).slice(0, 200);
   }
-  async function reacquireRelease(domain, release) {
+  async function reacquireRelease(domain, release,engineInstanceId=null) {
     const movieId = Number(release?.mappedMovieId || release?.movieId);
     const mappedEpisode = Array.isArray(release?.mappedEpisodeInfo)
       ? release.mappedEpisodeInfo[0]
@@ -3479,6 +3635,7 @@ export function createApplication(options = {}) {
     const current = await management.execute(domain, "releases", "GET", {
       query:
         domain === "movie" ? { movieId: movieId } : { episodeId: episodeId },
+      engineInstanceId,
     });
     const match = (Array.isArray(current) ? current : []).find(
       (item) =>
@@ -3510,15 +3667,16 @@ export function createApplication(options = {}) {
     ]
       .filter(Boolean)
       .join(" ");
-  async function grabReleaseWithImportGuard(domain, release, mediaId) {
+  async function grabReleaseWithImportGuard(domain, release, mediaId,engineInstanceId=null) {
     const result = await management.execute(domain, "releases", "POST", {
-      payload: await reacquireRelease(domain, release),
+      payload: await reacquireRelease(domain, release,engineInstanceId),engineInstanceId,
     });
     for (let attempt = 0; attempt < 4; attempt += 1) {
       if (attempt) await new Promise((resolve) => setTimeout(resolve, 250));
       const queueValue = await management
           .execute(domain, "queue", "GET", {
             query: { page: 1, pageSize: 100, includeUnknownMovieItems: true, includeUnknownSeriesItems: true },
+            engineInstanceId,
           })
           .catch(() => []),
         item = queueRecords(queueValue).find(
@@ -3536,6 +3694,7 @@ export function createApplication(options = {}) {
           id: String(item.id),
           query: { removeFromClient: "true", blocklist: "true" },
           payload: {},
+          engineInstanceId,
         });
       clearReleaseCache(domain);
       throw new Error(
@@ -3562,11 +3721,17 @@ export function createApplication(options = {}) {
   }
   async function rematchMedia(input) {
     const domain = String(input.domain || ""),
+      engineInstanceId = String(input.engineInstanceId || "").trim() || null,
       mediaId = Number(input.mediaId),
       tmdbId = Number(input.tmdbId),
       imdbId = String(input.imdbId || "").trim().toLowerCase(),
       hasTmdbId = Number.isInteger(tmdbId) && tmdbId > 0,
       hasImdbId = /^tt\d+$/.test(imdbId);
+    const execute = (resource, method, options = {}) =>
+      execute(resource, method, {
+        ...options,
+        engineInstanceId: engineInstanceId,
+      });
     if (
       !["movie", "tv"].includes(domain) ||
       !Number.isFinite(mediaId) ||
@@ -3577,11 +3742,11 @@ export function createApplication(options = {}) {
       throw new Error(
         "Add a TMDB key in Service Settings before fixing library matches.",
       );
-    const current = await management.execute(domain, "library", "GET", { id: mediaId });
+    const current = await execute("library", "GET", { id: mediaId });
     let metadata = null;
     let match;
     if (hasImdbId && !hasTmdbId) {
-      const matches = await management.execute(domain, "lookup", "GET", {
+      const matches = await execute("lookup", "GET", {
         query: { term: `imdb:${imdbId}` },
       });
       match = (Array.isArray(matches) ? matches : []).find(
@@ -3592,7 +3757,7 @@ export function createApplication(options = {}) {
       metadata = await discovery.details(domain, tmdbId);
       const identity = { tmdbId: tmdbId, tvdbId: metadata.tvdbId };
       for (const term of lookupTermsForIdentity(domain, identity)) {
-        const matches = await management.execute(domain, "lookup", "GET", { query: { term: term } });
+        const matches = await execute("lookup", "GET", { query: { term: term } });
         match = exactEngineMatch(domain, identity, Array.isArray(matches) ? matches : []);
         if (match) break;
       }
@@ -3601,7 +3766,7 @@ export function createApplication(options = {}) {
       throw new Error(
         `The ${domain === "movie" ? "movie" : "television"} engine could not resolve that external ID. Try another match.`,
       );
-    const library = await management.execute(domain, "library", "GET"),
+    const library = await execute("library", "GET"),
       records = Array.isArray(library) ? library : library?.records || [],
       duplicate = records.find(
         (value) =>
@@ -3643,7 +3808,7 @@ export function createApplication(options = {}) {
     const rollback = { ...current };
     for (const key of ["id", "movieFile", "statistics", "sizeOnDisk", "added"])
       delete rollback[key];
-    await management.execute(domain, "library", "DELETE", {
+    await execute("library", "DELETE", {
       id: mediaId,
       query:
         domain === "movie"
@@ -3652,11 +3817,10 @@ export function createApplication(options = {}) {
     });
     let result;
     try {
-      result = await management.execute(domain, "library", "POST", {
+      result = await execute("library", "POST", {
         payload: replacement,
       });
-      const folderResult = await management.execute(
-          domain,
+      const folderResult = await execute(
           "libraryFolder",
           "GET",
           { id: Number(result.id) },
@@ -3669,7 +3833,7 @@ export function createApplication(options = {}) {
         correctedPath &&
         normalizeMediaPath(correctedPath) !== normalizeMediaPath(result.path)
       )
-        result = await management.execute(domain, "library", "PUT", {
+        result = await execute("library", "PUT", {
           id: Number(result.id),
           query: { moveFiles: true },
           payload: {
@@ -3680,8 +3844,7 @@ export function createApplication(options = {}) {
         });
     } catch (error) {
       if (Number.isFinite(Number(result?.id)))
-        await management
-          .execute(domain, "library", "DELETE", {
+        await execute("library", "DELETE", {
             id: Number(result.id),
             query:
               domain === "movie"
@@ -3689,15 +3852,13 @@ export function createApplication(options = {}) {
                 : { deleteFiles: false, addImportListExclusion: false },
           })
           .catch(() => {});
-      await management
-        .execute(domain, "library", "POST", { payload: rollback })
+      await execute("library", "POST", { payload: rollback })
         .catch(() => {});
       throw new Error(
         `The engine could not apply the new match. The original match was restored when possible. ${error.message}`,
       );
     }
-    await management
-      .execute(domain, "commands", "POST", {
+    await execute("commands", "POST", {
         payload: {
           name: domain === "movie" ? "RefreshMovie" : "RefreshSeries",
           ...(domain === "movie"
@@ -3706,8 +3867,9 @@ export function createApplication(options = {}) {
         },
       })
       .catch(() => {});
-    const oldPublicId = `${domain === "movie" ? "movie" : "series"}_${mediaId}`,
-      newPublicId = `${domain === "movie" ? "movie" : "series"}_${Number(result.id)}`;
+    const ownerPrefix = engineInstanceId ? `${engineInstanceId}_` : "",
+      oldPublicId = `${domain === "movie" ? "movie" : "series"}_${ownerPrefix}${mediaId}`,
+      newPublicId = `${domain === "movie" ? "movie" : "series"}_${ownerPrefix}${Number(result.id)}`;
     if (oldPublicId !== newPublicId)
       await sync.reconcileItem(domain, oldPublicId);
     await sync.reconcileItem(domain, newPublicId);
@@ -3721,6 +3883,7 @@ export function createApplication(options = {}) {
   }
   async function reassignMediaFile(input) {
     const domain = String(input.domain || ""),
+      engineInstanceId = String(input.engineInstanceId || "").trim() || null,
       selectedPath = String(input.path || "")
         .trim()
         .replaceAll("\\", "/");
@@ -3747,14 +3910,17 @@ export function createApplication(options = {}) {
     if (domain === "movie") {
       const movieRecord = await management.execute("movie", "library", "GET", {
         id: movieId,
+        engineInstanceId: engineInstanceId,
       });
       await management.execute("movie", "library", "PUT", {
         id: movieId,
         query: { moveFiles: false },
         payload: { ...movieRecord, path: selectedFolder },
+        engineInstanceId: engineInstanceId,
       });
       const result = await management.execute("movie", "commands", "POST", {
         payload: { name: "RefreshMovie", movieIds: [movieId] },
+        engineInstanceId: engineInstanceId,
       });
       for (const delay of [5e3, 2e4])
         setTimeout(
@@ -3769,6 +3935,7 @@ export function createApplication(options = {}) {
         folder: selectedFolder,
         filterExistingFiles: false,
       },
+      engineInstanceId: engineInstanceId,
     });
     const candidates = Array.isArray(value) ? value : value?.records || [],
       normalize = (value) =>
@@ -3802,7 +3969,7 @@ export function createApplication(options = {}) {
       domain,
       "manualImport",
       "POST",
-      { payload: [assignment] },
+      { payload: [assignment], engineInstanceId: engineInstanceId },
     );
     const processed =
       (Array.isArray(reprocessed) ? reprocessed : [assignment])[0] ||
@@ -3823,6 +3990,7 @@ export function createApplication(options = {}) {
         importMode: "Auto",
         priority: "high",
       },
+      engineInstanceId: engineInstanceId,
     });
     setTimeout(
       () =>
@@ -3840,16 +4008,16 @@ export function createApplication(options = {}) {
     String(value || "")
       .replaceAll("\\", "/")
       .replace(/\/+$/, "");
-  async function mediaPathMigrationPreview(domain, targetPath, requestedSource = "") {
+  async function mediaPathMigrationPreview(domain, targetPath, requestedSource = "", engineInstanceId = null) {
     if (!["movie", "tv"].includes(domain))
       throw new Error("Choose Movies or Television");
     const targetRoot = normalizeMediaPath(targetPath),
       sourceFilter = normalizeMediaPath(requestedSource),
       [rootsValue, libraryValue, collectionsValue] = await Promise.all([
-        management.execute(domain, "rootFolders", "GET", {}),
-        management.execute(domain, "library", "GET", {}),
+        management.execute(domain, "rootFolders", "GET", {engineInstanceId}),
+        management.execute(domain, "library", "GET", {engineInstanceId}),
         domain === "movie"
-          ? management.execute("movie", "collections", "GET", {}).catch(() => [])
+          ? management.execute("movie", "collections", "GET", {engineInstanceId}).catch(() => [])
           : Promise.resolve([]),
       ]),
       roots = Array.isArray(rootsValue) ? rootsValue : [],
@@ -3980,7 +4148,8 @@ export function createApplication(options = {}) {
   }
   async function renameMediaPreview(input) {
     const domain = String(input.domain || ""),
-      mediaId = Number(input.mediaId);
+      mediaId = Number(input.mediaId),
+      engineInstanceId = String(input.engineInstanceId || "").trim() || null;
     if (!["movie", "tv"].includes(domain) || !Number.isFinite(mediaId))
       throw new Error("Choose a movie or television series to organize");
     let refreshStatus = "not-requested";
@@ -3992,6 +4161,7 @@ export function createApplication(options = {}) {
             : { name: "RefreshSeries", seriesId: mediaId };
         const command = await management.execute(domain, "commands", "POST", {
             payload: payload,
+            engineInstanceId: engineInstanceId,
           }),
           commandId = Number(command?.id);
         refreshStatus = "queued";
@@ -4003,7 +4173,7 @@ export function createApplication(options = {}) {
               domain,
               "commands",
               "GET",
-              { id: commandId },
+              { id: commandId, engineInstanceId: engineInstanceId },
             );
             const status = String(current?.status || "").toLowerCase();
             if (
@@ -4021,12 +4191,13 @@ export function createApplication(options = {}) {
     }
     const record = await management.execute(domain, "library", "GET", {
       id: mediaId,
+      engineInstanceId: engineInstanceId,
     });
     const folderResult = await management.execute(
       domain,
       "libraryFolder",
       "GET",
-      { id: mediaId },
+      { id: mediaId, engineInstanceId: engineInstanceId },
     );
     const folder = String(folderResult?.folder || "").trim();
     if (!folder)
@@ -4044,6 +4215,7 @@ export function createApplication(options = {}) {
       {
         query:
           domain === "movie" ? { movieId: mediaId } : { seriesId: mediaId },
+        engineInstanceId: engineInstanceId,
       },
     );
     const fileRecords = await management.execute(
@@ -4053,6 +4225,7 @@ export function createApplication(options = {}) {
       {
         query:
           domain === "movie" ? { movieId: mediaId } : { seriesId: mediaId },
+        engineInstanceId: engineInstanceId,
       },
     );
     const fileList = Array.isArray(fileRecords) ? fileRecords : [],
@@ -4141,6 +4314,7 @@ export function createApplication(options = {}) {
     const preview = {
       domain: domain,
       mediaId: mediaId,
+      engineInstanceId: engineInstanceId,
       title: record.title,
       currentPath: record.path,
       rootFolderPath: rootFolderPath,
@@ -4241,6 +4415,7 @@ export function createApplication(options = {}) {
       preview = plan.preview;
       record = await management.execute(preview.domain, "library", "GET", {
         id: preview.mediaId,
+        engineInstanceId: preview.engineInstanceId || null,
       });
       if (
         (input.domain && input.domain !== preview.domain) ||
@@ -4256,6 +4431,7 @@ export function createApplication(options = {}) {
     } else preview = await renameMediaPreview({ ...input, storePlan: false });
     const domain = preview.domain,
       mediaId = preview.mediaId,
+      engineInstanceId = preview.engineInstanceId || null,
       moveFolder = input.moveFolder !== false;
     const availableIds = new Set(
       preview.files.map((file) => Number(file.id)).filter(Number.isFinite),
@@ -4266,6 +4442,7 @@ export function createApplication(options = {}) {
     if (preview.folderChange && moveFolder) {
       record ||= await management.execute(domain, "library", "GET", {
         id: mediaId,
+        engineInstanceId: engineInstanceId,
       });
       await management.execute(domain, "library", "PUT", {
         id: mediaId,
@@ -4275,6 +4452,7 @@ export function createApplication(options = {}) {
           path: preview.destinationPath,
           rootFolderPath: preview.rootFolderPath,
         },
+        engineInstanceId: engineInstanceId,
       });
     }
     const command = requestedIds.length
@@ -4283,6 +4461,7 @@ export function createApplication(options = {}) {
             domain === "movie"
               ? { name: "RenameFiles", movieId: mediaId, files: requestedIds }
               : { name: "RenameFiles", seriesId: mediaId, files: requestedIds },
+          engineInstanceId: engineInstanceId,
         })
       : null;
     for (const delay of [2e3, 1e4, 3e4])
@@ -4313,11 +4492,12 @@ export function createApplication(options = {}) {
       preview.domain,
       preview.domain === "movie" ? "movieFiles" : "episodeFiles",
       "DELETE",
-      { id: fileId },
+      { id: fileId, engineInstanceId: preview.engineInstanceId || null },
     );
     preview.files = preview.files.filter((item) => Number(item.id) !== fileId);
     const record = await management.execute(preview.domain, "library", "GET", {
       id: preview.mediaId,
+      engineInstanceId: preview.engineInstanceId || null,
     });
     plan.signature = renameMediaSignature(record);
     await sync
@@ -4401,9 +4581,9 @@ export function createApplication(options = {}) {
       return attention;
     }
   }
-  async function librarySummary(domain, items) {
+  async function librarySummary(domain, items, engineInstanceId = "all") {
     if (typeof projectionStore.librarySummary === "function")
-      return projectionStore.librarySummary(domain);
+      return projectionStore.librarySummary(domain, engineInstanceId);
     const records = Array.isArray(items) ? items : [],
       monitored = records.filter((item) => item.monitoring !== "none").length,
       covered = records.filter((item) =>
@@ -4541,7 +4721,8 @@ export function createApplication(options = {}) {
   }
   function scheduleImportedUpgradeRename(domain, item, event) {
     if (!truthyEngineValue(event?.data?.isUpgrade ?? event?.isUpgrade)) return;
-    const mediaId = Number(
+    const engineInstanceId = String(item.engineInstanceId || "").trim() || null,
+      mediaId = Number(
       domain === "movie"
         ? item.movieId || item.movie?.id
         : item.seriesId || item.series?.id || item.episode?.seriesId,
@@ -4558,14 +4739,14 @@ export function createApplication(options = {}) {
         item.title ||
         "unknown",
     );
-    const key = `${domain}:${mediaId}:${eventIdentity}`,
+    const key = `${domain}:${engineInstanceId || "default"}:${mediaId}:${eventIdentity}`,
       now = Date.now(),
       last = completedUpgradeRenames.get(key) || 0;
     if (now - last < 24 * 60 * 60 * 1e3) return;
     completedUpgradeRenames.set(key, now);
     void (async () => {
       try {
-        const naming = await management.execute(domain, "naming", "GET", {});
+        const naming = await management.execute(domain, "naming", "GET", { engineInstanceId });
         const renameEnabled =
           domain === "movie" ? naming?.renameMovies : naming?.renameEpisodes;
         if (!truthyEngineValue(renameEnabled)) return;
@@ -4575,6 +4756,7 @@ export function createApplication(options = {}) {
             : { name: "RenameSeries", seriesIds: [mediaId] };
         await management.execute(domain, "commands", "POST", {
           payload: payload,
+          engineInstanceId,
         });
         for (const delay of [2e3, 1e4, 3e4])
           setTimeout(
@@ -4582,7 +4764,7 @@ export function createApplication(options = {}) {
               sync
                 .reconcileItem(
                   domain,
-                  `${domain === "movie" ? "movie" : "series"}_${mediaId}`,
+                  `${domain === "movie" ? "movie" : "series"}_${engineInstanceId ? `${engineInstanceId}_` : ""}${mediaId}`,
                 )
                 .catch(() => {}),
             delay,
@@ -4597,7 +4779,8 @@ export function createApplication(options = {}) {
           completedUpgradeRenames.delete(recordKey);
   }
   function scheduleCompletedMediaRefresh(domain, item) {
-    const mediaId = Number(
+    const engineInstanceId = String(item.engineInstanceId || "").trim() || null,
+      mediaId = Number(
       domain === "movie"
         ? item.movieId || item.movie?.id
         : item.seriesId || item.series?.id || item.episode?.seriesId,
@@ -4617,10 +4800,11 @@ export function createApplication(options = {}) {
         try {
           await management.execute(domain, "commands", "POST", {
             payload: payload,
+            engineInstanceId,
           });
           await sync.reconcileItem(
             domain,
-            `${domain === "movie" ? "movie" : "series"}_${mediaId}`,
+            `${domain === "movie" ? "movie" : "series"}_${engineInstanceId ? `${engineInstanceId}_` : ""}${mediaId}`,
           );
         } catch {}
       }, delay);
@@ -4638,7 +4822,9 @@ export function createApplication(options = {}) {
     new Promise((resolve) => setTimeout(resolve, milliseconds));
   function startImportJob(userId, input) {
     const domain = input.domain,
-      label = domain === "movie" ? "Movies" : "Television",
+      engineInstanceId = String(input.engineInstanceId || "").trim() || null,
+      instance = engineInstanceId ? engineSettings.public().instances.find((item) => item.id === engineInstanceId && item.domain === domain && item.enabled !== false) : null,
+      label = instance?.name || (domain === "movie" ? "Movies" : "Television"),
       items = Array.isArray(input.items) ? input.items : [];
     if (
       !["movie", "tv"].includes(domain) ||
@@ -4646,10 +4832,14 @@ export function createApplication(options = {}) {
       items.length > 5e3
     )
       throw new Error("Select between 1 and 5,000 titles to import");
+    if (engineInstanceId && !instance)
+      throw new Error("Choose an available engine instance");
     const job = {
       id: `import_${randomUUID()}`,
       userId: userId,
       domain: domain,
+      engineInstanceId: engineInstanceId,
+      engineInstanceName: instance?.name || null,
       label: label,
       status: "queued",
       total: items.length,
@@ -4667,7 +4857,7 @@ export function createApplication(options = {}) {
       job.status = "running";
       const known = new Set();
       try {
-        const existing = await management.execute(domain, "library", "GET", {});
+        const existing = await management.execute(domain, "library", "GET", { engineInstanceId });
         for (const record of Array.isArray(existing)
           ? existing
           : existing?.records || [])
@@ -4685,6 +4875,7 @@ export function createApplication(options = {}) {
         try {
           await management.execute(domain, "library", "POST", {
             payload: item.payload,
+            engineInstanceId,
           });
           job.completed += 1;
           for (const key of keys) known.add(key);
@@ -4719,13 +4910,16 @@ export function createApplication(options = {}) {
   }
   function startMissingSearchJob(userId, input) {
     const domain = input.domain,
-      label = domain === "movie" ? "Movies" : "Television";
+      engineInstanceId=String(input.engineInstanceId||"").trim()||null,
+      instance=engineInstanceId?engineSettings.public().instances.find(item=>item.id===engineInstanceId&&item.domain===domain):null,
+      label = instance?.name || (domain === "movie" ? "Movies" : "Television");
     if (!["movie", "tv"].includes(domain))
       throw new Error("Choose Movies or Television");
     const active = [...searchJobs.values()].find(
       (job) =>
         job.userId === userId &&
         job.domain === domain &&
+        String(job.engineInstanceId||"")===String(engineInstanceId||"") &&
         ["queued", "running", "canceling"].includes(job.status),
     );
     if (active) return publicSearchJob(active);
@@ -4733,6 +4927,8 @@ export function createApplication(options = {}) {
       id: `search_${randomUUID()}`,
       userId: userId,
       domain: domain,
+      engineInstanceId,
+      engineInstanceName:instance?.name||null,
       label: label,
       status: "queued",
       total: 0,
@@ -4755,6 +4951,7 @@ export function createApplication(options = {}) {
         source: "wanted",
         scope: "bulk",
         title: `Search all missing ${label.toLowerCase()}`,
+        engineInstanceId,
         status: "searching",
         counts: { total: 0, completed: 0, failed: 0 },
       },
@@ -4771,6 +4968,7 @@ export function createApplication(options = {}) {
             sortDirection: "ascending",
             ...(domain === "tv" ? { monitored: true } : {}),
           },
+          engineInstanceId,
         });
         const items = Array.isArray(value) ? value : value?.records || [];
         job.total = items.length;
@@ -4798,6 +4996,7 @@ export function createApplication(options = {}) {
                 domain === "movie"
                   ? { name: "MoviesSearch", movieIds: ids }
                   : { name: "EpisodeSearch", episodeIds: ids },
+              engineInstanceId,
             });
             job.completed += ids.length;
           } catch (error) {
@@ -4855,12 +5054,21 @@ export function createApplication(options = {}) {
     return publicSearchJob(job);
   }
   async function rebuildFromSettings() {
-    const runtime = await engineSettings.runtime();
+    const runtime = engineSettings.mode() === "external"
+      ? await engineSettings.externalRuntime()
+      : await engineSettings.runtime();
     if (!runtime) return;
     movie = new MovieEngineAdapter(runtime.movie);
     tv = new TvEngineAdapter(runtime.tv);
     registry.register("movie", movie).register("tv", tv);
-    sync.setEngines(movie, tv);
+    if(engineSettings.mode()==="external"){
+      const configured=engineSettings.public().instances.filter(instance=>instance.enabled!==false),groups={movie:[],tv:[]};
+      for(const instance of configured){const value=await engineSettings.instanceRuntime(instance.id);if(!value)continue;groups[instance.domain].push({...instance,adapter:instance.domain==="movie"?new MovieEngineAdapter(value):new TvEngineAdapter(value)});}
+      const movieRead=groups.movie.length?new MultiInstanceReadAdapter("movie",groups.movie):movie,
+        tvRead=groups.tv.length?new MultiInstanceReadAdapter("tv",groups.tv):tv;
+      sync.setEngines(movieRead,tvRead);
+      management.setInstances([...groups.movie,...groups.tv].map(instance=>({id:instance.id,domain:instance.domain,client:instance.adapter.client})));
+    }else{sync.setEngines(movie, tv);management.setInstances([]);}
     mode = "engine";
   }
   async function ensureBundledRootFolders() {
@@ -5696,8 +5904,8 @@ export function createApplication(options = {}) {
     runtime: Number(metadata.runtime || 0) || null,
     certification: metadata.certification || null,
   });
-  async function existingLibraryItem(domain, identity) {
-    const value = await management.execute(domain, "library", "GET", {}),
+  async function existingLibraryItem(domain, identity,engineInstanceId=null) {
+    const value = await management.execute(domain, "library", "GET", {engineInstanceId}),
       items = Array.isArray(value) ? value : value?.records || [];
     const tmdbId = Number(identity.tmdbId || 0),
       tvdbId = Number(identity.tvdbId || 0),
@@ -5731,13 +5939,14 @@ export function createApplication(options = {}) {
       throw new Error(
         "The engine match does not have the requested external ID. Reopen Discover and try again.",
       );
-    if (await existingLibraryItem(domain, identity))
+    const engineInstanceId=String(resolvedPayload.engineInstanceId||'').trim()||null;
+    if (await existingLibraryItem(domain, identity,engineInstanceId))
       throw new Error(
         `${metadata.title || "This title"} is already in your library.`,
       );
     const [profiles, roots] = await Promise.all([
-      management.execute(domain, "profiles", "GET", {}),
-      management.execute(domain, "rootFolders", "GET", {}),
+      management.execute(domain, "profiles", "GET", {engineInstanceId}),
+      management.execute(domain, "rootFolders", "GET", {engineInstanceId}),
     ]);
     if (
       !roots.some(
@@ -5781,12 +5990,13 @@ export function createApplication(options = {}) {
                 searchForCutoffUnmetEpisodes: false,
               },
             });
+    const engineInstanceId=String(payload.engineInstanceId||record.engineInstanceId||'').trim()||null;
     const result = await management.execute(record.domain, "library", "POST", {
-      payload: addPayload,
+      payload: addPayload,engineInstanceId,
     });
     if (record.domain === "tv" && searchRequested) {
       const command = await management.execute("tv", "commands", "POST", {
-        payload: { name: "SeriesSearch", seriesId: result.id },
+        payload: { name: "SeriesSearch", seriesId: result.id },engineInstanceId,
       });
       await createSearchActivity(
         record.userId,
@@ -5794,6 +6004,7 @@ export function createApplication(options = {}) {
         command,
         {
           domain: "tv",
+          engineInstanceId,
           source: "request",
           scope: "series",
           title: result.title || metadata.title || record.title,
@@ -5808,7 +6019,7 @@ export function createApplication(options = {}) {
       let grabbed = false;
       try {
         const releases = await management.execute("movie", "releases", "GET", {
-            query: query,
+            query: query,engineInstanceId,
           }),
           candidates = Array.isArray(releases) ? releases : [],
           accepted = candidates.filter(eligibleRelease);
@@ -5822,6 +6033,7 @@ export function createApplication(options = {}) {
               "movie",
               selected,
               result.id,
+              engineInstanceId,
             );
           await recordDownloadDecisions(record.userId, "movie", query, candidates, {
             source: "request",
@@ -5833,6 +6045,7 @@ export function createApplication(options = {}) {
             grab,
             {
               domain: "movie",
+              engineInstanceId,
               source: "request",
               scope: "movie",
               movieId: result.id,
@@ -5859,6 +6072,7 @@ export function createApplication(options = {}) {
       if (!grabbed) {
         const command = await management.execute("movie", "commands", "POST", {
           payload: { name: "MoviesSearch", movieIds: [result.id] },
+          engineInstanceId,
         });
         await createSearchActivity(
           record.userId,
@@ -5866,6 +6080,7 @@ export function createApplication(options = {}) {
           command,
           {
             domain: "movie",
+            engineInstanceId,
             source: "request",
             scope: "movie",
             movieId: result.id,
@@ -5894,7 +6109,7 @@ export function createApplication(options = {}) {
           payload: undefined,
         });
     });
-    const publicId = `${record.domain === "movie" ? "movie" : "series"}_${Number(result.id)}`;
+    const publicId = `${record.domain === "movie" ? "movie" : "series"}_${engineInstanceId?`${engineInstanceId}_`:""}${Number(result.id)}`;
     try {
       let reconciliation = await sync.reconcileItem(record.domain, publicId);
       if (!reconciliation.item) {
@@ -5975,10 +6190,10 @@ export function createApplication(options = {}) {
                 (Array.isArray(libraryResult.value)
                   ? libraryResult.value
                   : []
-                ).map((item) => [
-                  Number(String(item.id).replace(/^(?:movie|series)_/, "")),
-                  item,
-                ]),
+                ).map((item) => {
+                  const ownedId=decodeOwnedMediaId(domain,String(item.id).replace(/^(?:movie|series)_/, ""));
+                  return[`${ownedId.engineInstanceId||item.engineInstanceId||"default"}:${Number(ownedId.id)}`,item];
+                }),
               ),
               queue: Array.isArray(operational.queue)
                 ? operational.queue
@@ -6050,7 +6265,8 @@ export function createApplication(options = {}) {
           };
         const snapshot = snapshots.get(record.domain),
           engineId = Number(record.engineId),
-          media = snapshot?.library.get(engineId);
+          owner=String(record.engineInstanceId||engineSettings.public().instances.find(item=>item.domain===record.domain&&item.isDefault)?.id||"default"),
+          media = snapshot?.library.get(`${owner}:${engineId}`);
         if (!snapshot?.available)
           return {
             ...record,
@@ -6063,10 +6279,10 @@ export function createApplication(options = {}) {
             canCancel: false,
           };
         const queued = snapshot?.queue.find(
-          (item) => requestEngineId(record.domain, item) === engineId,
+          (item) => requestEngineId(record.domain, item) === engineId&&String(item.engineInstanceId||"default")===owner,
         );
         const relatedHistory = (snapshot?.history || []).filter(
-          (item) => requestHistoryId(record.domain, item) === engineId,
+          (item) => requestHistoryId(record.domain, item) === engineId&&String(item.engineInstanceId||"default")===owner,
         );
         const failed = relatedHistory.find((item) =>
           String(item.eventType || "")
@@ -7378,6 +7594,12 @@ export function createApplication(options = {}) {
     );
     if (!item)
       throw new Error("The VynodeArr library title is no longer available");
+    const destinationState = await mediaDestinations.state(),
+      mappedInstances = new Set(destinationState.destinations
+        .filter((destination) => destination.domain === domain && String(destination.plexLibraryKey || "") === String(library.key))
+        .map((destination) => String(destination.engineInstanceId || "")));
+    if (mappedInstances.size && !mappedInstances.has(String(item.engineInstanceId || "")))
+      throw new Error("This title's engine instance is not associated with the selected Plex library");
     const plexItems = await plexService.libraryItems(
         settings.endpoint,
         token,
@@ -7414,15 +7636,17 @@ export function createApplication(options = {}) {
     domain: value.domain,
     templateName: value.templateName,
     plexLibraryTitle: value.plexLibraryTitle,
+    engineInstanceId: value.engineInstanceId || null,
+    engineInstanceName: value.engineInstanceName || null,
     appliedAt: value.appliedAt,
     restoredAt: value.restoredAt || null,
     variableValues: value.variableValues || {},
     status: value.restoredAt ? "restored" : "applied",
   });
-  async function originalPlexPoster(settings, ratingKey, fallbackPoster) {
+  async function originalPlexPoster(settings, libraryKey, ratingKey, fallbackPoster) {
     const stored = await plexPosterApplicationStore.read(),
       prior = (stored.applications || [])
-        .filter((item) => !item.restoredAt && String(item.ratingKey) === String(ratingKey) && item.serverMachineIdentifier === settings.server?.machineIdentifier)
+        .filter((item) => !item.restoredAt && String(item.libraryKey) === String(libraryKey) && String(item.ratingKey) === String(ratingKey) && item.serverMachineIdentifier === settings.server?.machineIdentifier)
         .sort((a, b) => String(a.appliedAt || "").localeCompare(String(b.appliedAt || "")))[0];
     if (!prior) return { ...fallbackPoster, managed: false };
     if (!/^plex_poster_[A-Za-z0-9-]+\.poster$/.test(String(prior.backupFile || ""))) throw new Error("The original Plex poster record is invalid");
@@ -7476,7 +7700,7 @@ export function createApplication(options = {}) {
         libraryKey: libraryKey,
         ratingKey: ratingKey,
       });
-    target.poster = await originalPlexPoster(target.settings, target.plex.ratingKey, target.poster);
+    target.poster = await originalPlexPoster(target.settings, target.library.key, target.plex.ratingKey, target.poster);
     const rendered = await renderedPlexPoster(target, template, session),
       id = `plex_poster_${randomUUID()}`,
       backupFile = `${id}.poster`,
@@ -7498,6 +7722,8 @@ export function createApplication(options = {}) {
       ratingKey: String(target.plex.ratingKey),
       domain: domain,
       mediaId: mediaId,
+      engineInstanceId: target.item.engineInstanceId || null,
+      engineInstanceName: target.item.engineInstanceName || null,
       title: target.item.title,
       templateId: template.id,
       templateName: template.name,
@@ -7642,7 +7868,7 @@ export function createApplication(options = {}) {
       const projected = await sync.item(domain, id);
       if (!projected) return null;
       try {
-        const adapter = registry.get(domain),
+        const adapter = sync.engines?.[domain]||registry.get(domain),
           live =
             domain === "movie"
               ? await adapter.getMovie(id)
@@ -7802,7 +8028,8 @@ export function createApplication(options = {}) {
       result = {};
     for (const record of stored.requests || []) {
       const keys =
-        targets.get(collectionMediaId(domain, record.engineId)) || [];
+        targets.get(collectionMediaId(domain, `${record.engineInstanceId?`${record.engineInstanceId}_`:""}${record.engineId}`)) ||
+        (!record.engineInstanceId?targets.get(collectionMediaId(domain, record.engineId)):null) || [];
       if (
         record.domain !== domain ||
         !keys.length ||
@@ -7830,7 +8057,8 @@ export function createApplication(options = {}) {
     }
     for (const record of stored.interests || []) {
       const keys =
-        targets.get(collectionMediaId(domain, record.engineId)) || [];
+        targets.get(collectionMediaId(domain, `${record.engineInstanceId?`${record.engineInstanceId}_`:""}${record.engineId}`)) ||
+        (!record.engineInstanceId?targets.get(collectionMediaId(domain, record.engineId)):null) || [];
       if (
         record.domain !== domain ||
         !keys.length ||
@@ -8760,13 +8988,14 @@ export function createApplication(options = {}) {
         if (url.pathname === "/api/storage/engine-path-verification" && req.method === "GET") {
           if (!administrator(res, session)) return;
           const domain = String(url.searchParams.get("domain") || ""),
-            path = normalizeMediaPath(url.searchParams.get("path"));
+            path = normalizeMediaPath(url.searchParams.get("path")),
+            engineInstanceId = String(url.searchParams.get("engineInstanceId") || "").trim() || null;
           if (!["movie", "tv"].includes(domain) || !path)
             throw new Error("Choose a valid engine path to verify");
           const [rootsValue, libraryValue, collectionsValue] = await Promise.all([
-              management.execute(domain, "rootFolders", "GET", {}),
-              management.execute(domain, "library", "GET", {}),
-              domain === "movie" ? management.execute("movie", "collections", "GET", {}).catch(() => []) : Promise.resolve([]),
+              management.execute(domain, "rootFolders", "GET", {engineInstanceId}),
+              management.execute(domain, "library", "GET", {engineInstanceId}),
+              domain === "movie" ? management.execute("movie", "collections", "GET", {engineInstanceId}).catch(() => []) : Promise.resolve([]),
             ]),
             roots = Array.isArray(rootsValue) ? rootsValue : [],
             library = Array.isArray(libraryValue) ? libraryValue : libraryValue?.records || [],
@@ -8802,9 +9031,10 @@ export function createApplication(options = {}) {
           if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
           const input = await body(req),
             domain = String(input.domain || ""),
+            engineInstanceId = String(input.engineInstanceId || "").trim() || null,
             sourceRoot = normalizeMediaPath(input.sourceRoot),
             targetRoot = normalizeMediaPath(input.targetRoot),
-            preview = await mediaPathMigrationPreview(domain, targetRoot, sourceRoot),
+            preview = await mediaPathMigrationPreview(domain, targetRoot, sourceRoot, engineInstanceId),
             match = preview.matches.find((item) => item.sourceRoot === sourceRoot);
           if (!match)
             throw new Error("The source and target engine roots do not point to the same physical folder");
@@ -8817,15 +9047,17 @@ export function createApplication(options = {}) {
                 rootFolderPath: targetRoot,
                 moveFiles: false,
               },
+              engineInstanceId: engineInstanceId,
             });
           let collectionsUpdated = 0;
           if (domain === "movie") {
-            const collections = await management.execute("movie", "collections", "GET", {}).catch(() => []);
+            const collections = await management.execute("movie", "collections", "GET", {engineInstanceId}).catch(() => []);
             for (const collection of Array.isArray(collections) ? collections : collections?.records || []) {
               if (!Number.isFinite(Number(collection.id)) || normalizeMediaPath(collection.rootFolderPath) !== sourceRoot) continue;
               await management.execute("movie", "collections", "PUT", {
                 id: Number(collection.id),
                 payload: { ...collection, rootFolderPath: targetRoot },
+                engineInstanceId: engineInstanceId,
               });
               collectionsUpdated += 1;
             }
@@ -8970,6 +9202,7 @@ export function createApplication(options = {}) {
         }
         if (url.pathname === "/api/media-destinations" && req.method === "GET") {
           const requestedDomain = url.searchParams.get("domain"),
+            requestedInstanceId = String(url.searchParams.get("engineInstanceId") || "").trim(),
             domains = requestedDomain ? [requestedDomain] : ["movie", "tv"];
           if (domains.some((value) => !["movie", "tv"].includes(value)))
             throw new Error("Choose Movies or Television");
@@ -8977,13 +9210,22 @@ export function createApplication(options = {}) {
           for (const domain of domains)
             if (!administratorSession && !session.user.permissions?.[domain === "movie" ? "movies" : "tv"])
               return json(res, 403, { error: { code: "forbidden", message: "This library is not available to your account." } });
-          const contexts = await Promise.all(domains.map((domain) => mediaDestinationContext(domain, administratorSession)));
+          const groupedContexts = await Promise.all(domains.map(async(domain) => {
+              if (!requestedInstanceId) return allMediaDestinationContexts(domain, administratorSession);
+              const instance = enabledEngineInstances(domain).find((item) => String(item.id || "") === requestedInstanceId);
+              if (!instance) throw new Error("Choose an available engine instance");
+              return [{ instance, context: await mediaDestinationContext(domain, administratorSession, instance.id) }];
+            })),
+            contexts = groupedContexts.flatMap((values) => values.map(({ instance, context }) => ({
+              ...context,
+              destinations: context.destinations.map((item) => ({ ...item, engineInstanceId: instance.id, engineInstanceName: instance.name })),
+            })));
           if (administratorSession && url.searchParams.get("includeUsage") === "true")
-            await Promise.all(domains.map(async(domain,index)=>{const raw=await management.execute(domain,"library","GET",{}).catch(()=>[]),items=Array.isArray(raw)?raw:raw?.records||[];contexts[index].destinations=contexts[index].destinations.map(destination=>{const root=String(destination.rootFolderPath||"").replaceAll("\\","/").replace(/\/+$/,"").toLowerCase(),titleCount=items.filter(item=>{const path=String(item.path||item.rootFolderPath||"").replaceAll("\\","/").toLowerCase();return path===root||path.startsWith(`${root}/`);}).length;return{...destination,titleCount};});}));
+            await Promise.all(contexts.map(async(context)=>{const destination=context.destinations[0];if(!destination)return;const raw=await management.execute(destination.domain,"library","GET",{engineInstanceId:destination.engineInstanceId}).catch(()=>[]),items=Array.isArray(raw)?raw:raw?.records||[];context.destinations=context.destinations.map(item=>{const root=String(item.rootFolderPath||"").replaceAll("\\","/").replace(/\/+$/,"").toLowerCase(),titleCount=items.filter(record=>{const path=String(record.path||record.rootFolderPath||"").replaceAll("\\","/").toLowerCase();return path===root||path.startsWith(`${root}/`);}).length;return{...item,titleCount};});}));
           return json(res, 200, {
             destinations: contexts.flatMap((value) => value.destinations),
-            roots: Object.fromEntries(domains.map((domain, index) => [domain, contexts[index].roots])),
-            profiles: Object.fromEntries(domains.map((domain, index) => [domain, contexts[index].profiles])),
+            roots: Object.fromEntries(domains.map((domain, index) => [domain, groupedContexts[index].flatMap(({ instance, context }) => context.roots.map((item) => ({ ...item, engineInstanceId: instance.id, engineInstanceName: instance.name })))])),
+            profiles: Object.fromEntries(domains.map((domain, index) => [domain, groupedContexts[index].flatMap(({ instance, context }) => context.profiles.map((item) => ({ ...item, engineInstanceId: instance.id, engineInstanceName: instance.name })))])),
             plexLibraries: [...new Map(contexts.flatMap((value) => value.plexLibraries).map((item) => [String(item.key), item])).values()],
           });
         }
@@ -8991,7 +9233,7 @@ export function createApplication(options = {}) {
           if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
           const input = await body(req),domain = input.domain === "tv" ? "tv" : input.domain === "movie" ? "movie" : null;
           if (!domain) throw new Error("Choose Movies or Television");
-          const context = await mediaDestinationContext(domain, true),record = await mediaDestinations.save(input, context);
+          const context = await mediaDestinationContext(domain, true, input.engineInstanceId || null),record = await mediaDestinations.save(input, context);
           await recordAudit(session, { category: "configuration", action: "media_destination.created", target: record.name, domain, summary: `Created the ${record.name} media destination.`, metadata: { destinationId: record.id, rootFolderPath: record.rootFolderPath } });
           return json(res, 201, { destination: record });
         }
@@ -9000,7 +9242,8 @@ export function createApplication(options = {}) {
           if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
           const input = await body(req),stored = await mediaDestinations.state(),existing = stored.destinations.find((item) => item.id === mediaDestinationMatch[1]);
           if (!existing) return json(res, 404, { error: { code: "not_found", message: "Media destination not found." } });
-          const context = await mediaDestinationContext(existing.domain, true),record = await mediaDestinations.save({ ...existing, ...input, id: existing.id, domain: existing.domain }, context);
+          const engineInstanceId = input.engineInstanceId || existing.engineInstanceId || null,
+            context = await mediaDestinationContext(existing.domain, true, engineInstanceId),record = await mediaDestinations.save({ ...existing, ...input, engineInstanceId, id: existing.id, domain: existing.domain }, context);
           await recordAudit(session, { category: "configuration", action: "media_destination.updated", target: record.name, domain: record.domain, summary: `Updated the ${record.name} media destination.`, metadata: { destinationId: record.id, rootFolderPath: record.rootFolderPath } });
           return json(res, 200, { destination: record });
         }
@@ -9568,7 +9811,18 @@ export function createApplication(options = {}) {
               (item) => String(item.id) === listId,
             );
           if (index < 0) throw new Error("The imported Reeltrack list no longer exists.");
-          const enabled = input.enabled === true;
+          const enabled = input.enabled === true,
+            destinationState = await mediaDestinations.state(),
+            movieDestination = destinationState.destinations.find((item) => item.domain === "movie" && item.id === String(input.movieMediaDestinationId || "")),
+            tvDestination = destinationState.destinations.find((item) => item.domain === "tv" && item.id === String(input.tvMediaDestinationId || "")),
+            plexMovieLibraryKey = String(input.plexMovieLibraryKey || movieDestination?.plexLibraryKey || ""),
+            plexTvLibraryKey = String(input.plexTvLibraryKey || tvDestination?.plexLibraryKey || "");
+          if (input.movieMediaDestinationId && !movieDestination) throw new Error("Choose an available movie destination.");
+          if (input.tvMediaDestinationId && !tvDestination) throw new Error("Choose an available television destination.");
+          if (movieDestination?.plexLibraryKey && String(movieDestination.plexLibraryKey) !== plexMovieLibraryKey)
+            throw new Error(`${movieDestination.name} is tied to a different Plex movie library. Update the destination mapping or choose its mapped library.`);
+          if (tvDestination?.plexLibraryKey && String(tvDestination.plexLibraryKey) !== plexTvLibraryKey)
+            throw new Error(`${tvDestination.name} is tied to a different Plex television library. Update the destination mapping or choose its mapped library.`);
           if (enabled) {
             const [settings, token, downloader] = await Promise.all([
               plexSettingsStore.read(),
@@ -9579,15 +9833,15 @@ export function createApplication(options = {}) {
               throw new Error("Connect Plex before enabling list automation.");
             if (!downloader.available) throw new Error(downloader.message || "yt-dlp is unavailable.");
             const domains = new Set((current.importedLists[index].items || []).map(reeltrackItemIdentity).filter((item) => item.tmdbId).map((item) => item.domain));
-            if (domains.has("movie") && !(settings.libraries || []).some((item) => item.type === "movie" && String(item.key) === String(input.plexMovieLibraryKey)))
+            if (domains.has("movie") && !(settings.libraries || []).some((item) => item.type === "movie" && String(item.key) === plexMovieLibraryKey))
               throw new Error("Choose a discovered Plex movie library.");
-            if (domains.has("tv") && !(settings.libraries || []).some((item) => item.type === "show" && String(item.key) === String(input.plexTvLibraryKey)))
+            if (domains.has("tv") && !(settings.libraries || []).some((item) => item.type === "show" && String(item.key) === plexTvLibraryKey))
               throw new Error("Choose a discovered Plex television library.");
             if (input.splitLibraryMode) {
               if (domains.has("movie") && !(settings.libraries || []).some((item) => item.type === "movie" && String(item.key) === String(input.plexMoviePlaceholderLibraryKey))) throw new Error("Choose a discovered Plex movie placeholder library.");
               if (domains.has("tv") && !(settings.libraries || []).some((item) => item.type === "show" && String(item.key) === String(input.plexTvPlaceholderLibraryKey))) throw new Error("Choose a discovered Plex television placeholder library.");
-              if (domains.has("movie") && String(input.plexMovieLibraryKey) === String(input.plexMoviePlaceholderLibraryKey)) throw new Error("Choose different real-media and placeholder movie libraries.");
-              if (domains.has("tv") && String(input.plexTvLibraryKey) === String(input.plexTvPlaceholderLibraryKey)) throw new Error("Choose different real-media and placeholder television libraries.");
+              if (domains.has("movie") && plexMovieLibraryKey === String(input.plexMoviePlaceholderLibraryKey)) throw new Error("Choose different real-media and placeholder movie libraries.");
+              if (domains.has("tv") && plexTvLibraryKey === String(input.plexTvPlaceholderLibraryKey)) throw new Error("Choose different real-media and placeholder television libraries.");
             }
             if (domains.has("movie")) mappedLibraryRoot("movie", input);
             if (domains.has("tv")) mappedLibraryRoot("tv", input);
@@ -9596,8 +9850,8 @@ export function createApplication(options = {}) {
             ...(current.importedLists[index].automation || {}),
             enabled,
             downloadTrailers: input.downloadTrailers !== false,
-            plexMovieLibraryKey: String(input.plexMovieLibraryKey || ""),
-            plexTvLibraryKey: String(input.plexTvLibraryKey || ""),
+            plexMovieLibraryKey,
+            plexTvLibraryKey,
             splitLibraryMode: input.splitLibraryMode === true,
             plexMoviePlaceholderLibraryKey: input.splitLibraryMode ? String(input.plexMoviePlaceholderLibraryKey || "") : "",
             plexTvPlaceholderLibraryKey: input.splitLibraryMode ? String(input.plexTvPlaceholderLibraryKey || "") : "",
@@ -9991,11 +10245,12 @@ export function createApplication(options = {}) {
           )
             throw new Error("Choose a valid movie or television title");
           const metadata = await discovery.details(domain, tmdbId),
-            identity = { tmdbId: tmdbId, tvdbId: metadata.tvdbId };
+            identity = { tmdbId: tmdbId, tvdbId: metadata.tvdbId },
+            engineInstanceId=String(url.searchParams.get('engineInstanceId')||'').trim()||null;
           let match;
           for (const term of lookupTermsForIdentity(domain, identity)) {
             const matches = await management.execute(domain, "lookup", "GET", {
-              query: { term: term },
+              query: { term: term },engineInstanceId,
             });
             match = exactEngineMatch(
               domain,
@@ -10007,6 +10262,7 @@ export function createApplication(options = {}) {
           const destinationContext = await mediaDestinationContext(
               domain,
               session.user.role === "administrator",
+              engineInstanceId,
             ),
             profiles = destinationContext.profiles,
             roots = destinationContext.roots;
@@ -10016,6 +10272,7 @@ export function createApplication(options = {}) {
             profiles: Array.isArray(profiles) ? profiles : [],
             roots: Array.isArray(roots) ? roots : [],
             destinations: destinationContext.destinations,
+            engines:engineSettings.public().instances.filter(item=>item.domain===domain&&item.enabled!==false).map(({id,name,isDefault})=>({id,name,isDefault})),
           });
         }
         if (url.pathname === "/api/discover/request" && req.method === "POST") {
@@ -10027,9 +10284,9 @@ export function createApplication(options = {}) {
           const input = await body(req),
             domain = String(input.domain || ""),
             tmdbId = Number(input.tmdbId),
-            payload = input.payload;
+            payload = {...input.payload,engineInstanceId:String(input.engineInstanceId||input.payload?.engineInstanceId||'').trim()||undefined};
           if (session.user.role !== "administrator" && payload?.mediaDestinationId) {
-            const allowed = await mediaDestinationContext(domain, false);
+            const allowed = await mediaDestinationContext(domain, false, payload.engineInstanceId);
             if (!allowed.destinations.some((item) => item.id === String(payload.mediaDestinationId)))
               throw new Error("Choose an available media destination");
           }
@@ -10065,6 +10322,8 @@ export function createApplication(options = {}) {
               userId: session.user.id,
               domain: domain,
               engineId: null,
+              engineInstanceId: resolvedPayload.engineInstanceId || null,
+              engineInstanceName:engineSettings.public().instances.find(item=>item.id===resolvedPayload.engineInstanceId)?.name||null,
               tmdbId: tmdbId,
               tvdbId: metadata.tvdbId || null,
               title: metadata.title || payload.title || "Untitled request",
@@ -10074,7 +10333,7 @@ export function createApplication(options = {}) {
               ...requestMetadata(metadata),
               mediaDestinationId: resolvedPayload.mediaDestinationId || null,
               destinationName: resolvedPayload.mediaDestinationId
-                ? (await mediaDestinationContext(domain, true)).destinations.find((item) => item.id === resolvedPayload.mediaDestinationId)?.name || null
+                ? (await mediaDestinationContext(domain, true, resolvedPayload.engineInstanceId)).destinations.find((item) => item.id === resolvedPayload.mediaDestinationId)?.name || null
                 : null,
               searchNow:
                 domain === "movie"
@@ -10765,6 +11024,7 @@ export function createApplication(options = {}) {
           if (record.status !== "pending_approval")
             await management.execute(record.domain, "library", "DELETE", {
               id: Number(record.engineId),
+              engineInstanceId:record.engineInstanceId,
               query:
                 record.domain === "movie"
                   ? { deleteFiles: false, addImportExclusion: false }
@@ -10788,7 +11048,7 @@ export function createApplication(options = {}) {
               });
           });
           if (record.status !== "pending_approval") {
-            const publicId = `${record.domain === "movie" ? "movie" : "series"}_${Number(record.engineId)}`;
+            const publicId = `${record.domain === "movie" ? "movie" : "series"}_${record.engineInstanceId?`${record.engineInstanceId}_`:""}${Number(record.engineId)}`;
             await sync.removeItem(record.domain, publicId);
             broadcastLibraryEvent({
               domain: record.domain,
@@ -10859,7 +11119,7 @@ export function createApplication(options = {}) {
                 record.domain,
                 "lookup",
                 "GET",
-                { query: { term: term } },
+                { query: { term: term },engineInstanceId:record.engineInstanceId },
               );
               match = exactEngineMatch(
                 record.domain,
@@ -10874,6 +11134,8 @@ export function createApplication(options = {}) {
               );
             const correctedPayload = {
               ...match,
+              engineInstanceId:record.engineInstanceId||payload.engineInstanceId,
+              mediaDestinationId:source.mediaDestinationId||payload.mediaDestinationId,
               rootFolderPath: payload.rootFolderPath,
               qualityProfileId: payload.qualityProfileId,
               monitored: payload.monitored,
@@ -10929,6 +11191,7 @@ export function createApplication(options = {}) {
             domain: record.domain,
             mediaId: Number(record.engineId),
             tmdbId: tmdbId,
+            engineInstanceId:record.engineInstanceId,
           });
           if (record.searchNow !== false)
             await management
@@ -10937,6 +11200,7 @@ export function createApplication(options = {}) {
                   record.domain === "movie"
                     ? { name: "MoviesSearch", movieIds: [Number(result.id)] }
                     : { name: "SeriesSearch", seriesId: Number(result.id) },
+                engineInstanceId:record.engineInstanceId,
               })
               .catch(() => {});
           const metadata = await discovery.details(record.domain, tmdbId),
@@ -11181,6 +11445,124 @@ export function createApplication(options = {}) {
             });
           await engineSettings.saveExternal(externalEngineSave[1], input, String(input.apiCredential || ""));
           return json(res, 200, { saved: true, settings: engineSettings.public(), validation: result });
+        }
+        const engineInstance = url.pathname.match(
+          /^\/api\/settings\/engines\/instances\/([^/]+)$/,
+        );
+        const engineInstanceTest = url.pathname.match(
+          /^\/api\/settings\/engines\/instances\/([^/]+)\/test$/,
+        );
+        const engineInstanceDefault = url.pathname.match(
+          /^\/api\/settings\/engines\/instances\/([^/]+)\/default$/,
+        );
+        const engineInstanceInventory = url.pathname.match(
+          /^\/api\/settings\/engines\/instances\/([^/]+)\/inventory$/,
+        );
+        const engineInstanceStorage = url.pathname.match(
+          /^\/api\/settings\/engines\/instances\/([^/]+)\/storage$/,
+        );
+        if (engineInstanceInventory && req.method === "GET") {
+          if (!administrator(res, session)) return;
+          const instance = engineSettings.public().instances.find((item) => item.id === engineInstanceInventory[1] && item.enabled !== false);
+          if (!instance) return json(res, 404, { error: { code: "engine_instance_not_found", message: "Engine instance was not found." } });
+          const resources = ["rootFolders", "profiles", "qualityDefinitions", "customFormats", "tags", "indexers", "downloadClients", "remotePathMappings", "notifications", "importLists", "naming", "mediaManagement", "downloadClientSettings", "delayProfiles", "restrictions", ...(instance.domain === "movie" ? ["releaseProfiles", "metadata"] : ["metadata"])];
+          const entries = await Promise.all(resources.map(async (resource) => {
+            try {
+              const value = await management.execute(instance.domain, resource, "GET", { engineInstanceId: instance.id });
+              const count = Array.isArray(value) ? value.length : Array.isArray(value?.records) ? value.records.length : value ? 1 : 0;
+              return { resource, available: true, manageable: true, count, value };
+            } catch (reason) {
+              return { resource, available: false, manageable: false, count: 0, error: reason instanceof Error ? reason.message : "This setting could not be read from the engine." };
+            }
+          }));
+          return json(res, 200, {
+            instance: { id: instance.id, name: instance.name, domain: instance.domain, isDefault: instance.isDefault },
+            summary: { identified: entries.filter((item) => item.available).length, unavailable: entries.filter((item) => !item.available).length, total: entries.length },
+            resources: entries,
+            storage: await instanceStorage(instance.id),
+            syncedAt: new Date().toISOString(),
+          });
+        }
+        if (engineInstanceStorage && req.method === "GET") {
+          if (!administrator(res, session)) return;
+          return json(res, 200, { mappings: await instanceStorage(engineInstanceStorage[1]) });
+        }
+        if (engineInstanceStorage && req.method === "PUT") {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          const instance = engineSettings.public().instances.find((item) => item.id === engineInstanceStorage[1] && item.enabled !== false);
+          if (!instance) return json(res, 404, { error: { code: "engine_instance_not_found", message: "Engine instance was not found." } });
+          const input = await body(req), enginePath = normalizeMediaPath(input.enginePath), vynodePath = normalizeMediaPath(input.vynodePath), hostPath = String(input.hostPath || "").trim();
+          if (!enginePath || !vynodePath || !vynodePath.startsWith("/")) throw new Error("Enter an absolute VynodeArr container path");
+          const rootsValue = await management.execute(instance.domain, "rootFolders", "GET", { engineInstanceId: instance.id }), roots = Array.isArray(rootsValue) ? rootsValue : rootsValue?.records || [], root = roots.find((item) => normalizeMediaPath(item.path) === enginePath);
+          if (!root) throw new Error("Choose a root folder currently reported by this engine instance");
+          const now = new Date().toISOString(), record = { engineInstanceId: instance.id, domain: instance.domain, enginePath, vynodePath, hostPath: hostPath || null, updatedAt: now };
+          await engineStorageMappingStore.update((current) => {
+            current.version = 1; current.mappings = Array.isArray(current.mappings) ? current.mappings : [];
+            const index = current.mappings.findIndex((item) => item.engineInstanceId === instance.id && normalizeMediaPath(item.enginePath) === enginePath);
+            if (index >= 0) current.mappings[index] = record; else current.mappings.push(record);
+            current.updatedAt = now; return current;
+          });
+          const mapping = await engineStorageStatus(instance, root, record);
+          await recordAudit(session, { category: "configuration", action: "engine_storage.mapped", target: `${instance.name}: ${enginePath}`, domain: instance.domain, summary: mapping.accessible ? `Verified ${vynodePath} for ${instance.name}.` : `Saved the intended ${vynodePath} mapping for ${instance.name}; a container restart is required after mounting the folder.`, metadata: { engineInstanceId: instance.id, enginePath, vynodePath, hostPath: hostPath || null, accessible: mapping.accessible } });
+          return json(res, 200, { mapping, restartRequired: mapping.restartRequired });
+        }
+        if (url.pathname === "/api/settings/engines/instances/test" && req.method === "POST") {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          const input = await body(req),domain=String(input.domain||"");
+          if(!["movie","tv"].includes(domain))return json(res,422,{error:{code:"invalid_engine_domain",message:"Choose a movie or TV engine."}});
+          return json(res,200,await testEngine(domain,input));
+        }
+        if (engineInstanceTest && req.method === "POST") {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          const input=await body(req),existing=await engineSettings.instanceRuntime(engineInstanceTest[1]);
+          if(!existing)return json(res,404,{error:{code:"engine_instance_not_found",message:"Engine instance was not found or has no saved credential."}});
+          return json(res,200,await testEngine(existing.domain,{...existing,...input,apiCredential:String(input.apiCredential||existing.apiCredential)}));
+        }
+        if (url.pathname === "/api/settings/engines/instances" && req.method === "POST") {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          const input=await body(req),domain=String(input.domain||""),result=await testEngine(domain,input);
+          if(!result.validated)return json(res,422,{error:{code:"engine_validation_failed",message:result.connection.safeError||"Engine validation did not succeed."}});
+          const instance=await engineSettings.createInstance(domain,input,String(input.apiCredential||""));
+          await rebuildFromSettings();
+          return json(res,201,{instance,settings:engineSettings.public(),validation:result});
+        }
+        if (engineInstance && req.method === "PUT") {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          const input=await body(req),existing=await engineSettings.instanceRuntime(engineInstance[1]);
+          if(!existing)return json(res,404,{error:{code:"engine_instance_not_found",message:"Engine instance was not found or has no saved credential."}});
+          const result=await testEngine(existing.domain,{...existing,...input,apiCredential:String(input.apiCredential||existing.apiCredential)});
+          if(!result.validated)return json(res,422,{error:{code:"engine_validation_failed",message:result.connection.safeError||"Engine validation did not succeed."}});
+          const instance=await engineSettings.updateInstance(engineInstance[1],input,String(input.apiCredential||""));
+          await rebuildFromSettings();
+          return json(res,200,{instance,settings:engineSettings.public(),validation:result});
+        }
+        if (engineInstanceDefault && req.method === "PUT") {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          const settings=await engineSettings.setDefaultInstance(engineInstanceDefault[1]);
+          await rebuildFromSettings();
+          return json(res,200,{settings});
+        }
+        if (engineInstance && req.method === "DELETE") {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          const instanceId = engineInstance[1],
+            destinationState = await mediaDestinations.state(),
+            ownedDestinations = (destinationState.destinations || []).filter(
+              (item) => String(item.engineInstanceId || "") === instanceId,
+            );
+          if (ownedDestinations.length)
+            return json(res, 409, {
+              error: {
+                code: "engine_instance_in_use",
+                message: `Move or remove ${ownedDestinations.length} media destination${ownedDestinations.length === 1 ? "" : "s"} assigned to this engine before removing it.`,
+              },
+            });
+          const settings=await engineSettings.removeInstance(instanceId);
+          await engineStorageMappingStore.update((current) => {
+            current.mappings = (Array.isArray(current.mappings) ? current.mappings : []).filter((item) => item.engineInstanceId !== instanceId);
+            current.updatedAt = new Date().toISOString(); return current;
+          });
+          await rebuildFromSettings();
+          return json(res,200,{settings});
         }
         if (
           url.pathname === "/api/settings/engines/repair" &&
@@ -12143,9 +12525,17 @@ export function createApplication(options = {}) {
               },
             });
           const entries = [];
+          const destinationState = await mediaDestinations.state();
           for (const library of libraries) {
             const domain = library.type === "movie" ? "movie" : "tv",
-              vynode = (await sync.list(domain)).map((item) => ({
+              mappedInstances = new Set(destinationState.destinations
+                .filter((item) => item.domain === domain && String(item.plexLibraryKey || "") === String(library.key))
+                .map((item) => String(item.engineInstanceId || ""))),
+              allVynode = await sync.list(domain),
+              scopedVynode = mappedInstances.size
+                ? allVynode.filter((item) => mappedInstances.has(String(item.engineInstanceId || "")))
+                : allVynode,
+              vynode = scopedVynode.map((item) => ({
                 ...item,
                 domain: domain,
               })),
@@ -12164,11 +12554,13 @@ export function createApplication(options = {}) {
                 return{
                   ...item,
                   variableValues:source?posterVariableValues(source,{plexAddedAt:Number.isFinite(date.getTime())?date.toISOString():null}):{},
-                  plexLibrary: {
+                   plexLibrary: {
                     key: library.key,
                     title: library.title,
                     type: library.type,
-                  },
+                   },
+                   engineInstanceId: source?.engineInstanceId || null,
+                   engineInstanceName: source?.engineInstanceName || null,
                 };
               }),
             );
@@ -13675,7 +14067,9 @@ export function createApplication(options = {}) {
         ) {
           if (!administrator(res, session)) return;
           const template = await guideTemplates.template(guideTemplateMatch[1]),
-            domain = template.domain || "movie";
+            domain = template.domain || "movie",
+            engineInstanceId = String(url.searchParams.get("engineInstanceId") || "").trim() || null,
+            executeGuide = (resource, method, options = {}) => management.execute(domain, resource, method, {...options, engineInstanceId});
           if (template.resourceType !== "customFormat") {
             const resources =
               {
@@ -13686,7 +14080,7 @@ export function createApplication(options = {}) {
               }[template.resourceType] || [];
             const values = await Promise.all(
               resources.map((resource) =>
-                management.execute(domain, resource, "GET"),
+                executeGuide(resource, "GET"),
               ),
             );
             const engine = Object.fromEntries(
@@ -13713,8 +14107,8 @@ export function createApplication(options = {}) {
             });
           }
           const [configuredValue, profilesValue] = await Promise.all([
-            management.execute(domain, "customFormats", "GET"),
-            management.execute(domain, "profiles", "GET"),
+            executeGuide("customFormats", "GET"),
+            executeGuide("profiles", "GET"),
           ]);
           const configured = Array.isArray(configuredValue)
               ? configuredValue
@@ -13751,6 +14145,8 @@ export function createApplication(options = {}) {
           const input = await body(req),
             template = await guideTemplates.template(guideTemplateMatch[1]),
             domain = template.domain || "movie",
+            engineInstanceId = String(input.engineInstanceId || "").trim() || null,
+            executeGuide = (resource, method, options = {}) => management.execute(domain, resource, method, {...options, engineInstanceId}),
             engineLabel = domain === "movie" ? "movie" : "TV";
           if (template.resourceType !== "customFormat") {
             if (!["implement", "reject"].includes(input.decision))
@@ -13783,7 +14179,7 @@ export function createApplication(options = {}) {
             }
             const previewChanges = [];
             if (template.resourceType === "naming") {
-              const current = await management.execute(domain, "naming", "GET"),
+              const current = await executeGuide("naming", "GET"),
                 reviewed = input.reviewed || {};
               const target =
                 domain === "movie"
@@ -13830,9 +14226,7 @@ export function createApplication(options = {}) {
                 ),
               );
             } else if (template.resourceType === "qualitySize") {
-              const definitionsValue = await management.execute(
-                  domain,
-                  "qualityDefinitions",
+              const definitionsValue = await executeGuide("qualityDefinitions",
                   "GET",
                 ),
                 definitions = Array.isArray(definitionsValue)
@@ -13874,7 +14268,7 @@ export function createApplication(options = {}) {
                           .map((item) => item.trash_id)) || [];
               const [sources, configuredValue] = await Promise.all([
                   guideTemplates.customFormatsByTrashIds(requested, domain),
-                  management.execute(domain, "customFormats", "GET"),
+                  executeGuide("customFormats", "GET"),
                 ]),
                 configured = Array.isArray(configuredValue)
                   ? configuredValue
@@ -13902,9 +14296,7 @@ export function createApplication(options = {}) {
                 );
               }
               if (template.resourceType === "qualityProfile") {
-                const profilesValue = await management.execute(
-                    domain,
-                    "profiles",
+                const profilesValue = await executeGuide("profiles",
                     "GET",
                   ),
                   profiles = Array.isArray(profilesValue) ? profilesValue : [],
@@ -13945,7 +14337,7 @@ export function createApplication(options = {}) {
             let message,
               resourceId = null;
             if (template.resourceType === "naming") {
-              const current = await management.execute(domain, "naming", "GET"),
+              const current = await executeGuide("naming", "GET"),
                 reviewed = input.reviewed || {};
               const payload =
                 domain === "movie"
@@ -13984,15 +14376,13 @@ export function createApplication(options = {}) {
                           current.seasonFolderFormat,
                       ),
                     };
-              await management.execute(domain, "naming", "PUT", {
+              await executeGuide("naming", "PUT", {
                 payload: payload,
               });
               resourceId = current.id;
               message = `TRaSH naming presets applied to ${engineLabel}-engine naming.`;
             } else if (template.resourceType === "qualitySize") {
-              const definitionsValue = await management.execute(
-                  domain,
-                  "qualityDefinitions",
+              const definitionsValue = await executeGuide("qualityDefinitions",
                   "GET",
                 ),
                 definitions = Array.isArray(definitionsValue)
@@ -14009,7 +14399,7 @@ export function createApplication(options = {}) {
                     String(recommendation.quality).toLowerCase(),
                 );
                 if (!definition) continue;
-                await management.execute(domain, "qualityDefinitions", "PUT", {
+                await executeGuide("qualityDefinitions", "PUT", {
                   id: String(definition.id),
                   payload: {
                     ...definition,
@@ -14034,15 +14424,11 @@ export function createApplication(options = {}) {
                   requested,
                   domain,
                 ),
-                schemasValue = await management.execute(
-                  domain,
-                  "customFormatSchemas",
+                schemasValue = await executeGuide("customFormatSchemas",
                   "GET",
                 ),
                 schemas = Array.isArray(schemasValue) ? schemasValue : [],
-                configuredValue = await management.execute(
-                  domain,
-                  "customFormats",
+                configuredValue = await executeGuide("customFormats",
                   "GET",
                 ),
                 configured = Array.isArray(configuredValue)
@@ -14059,11 +14445,11 @@ export function createApplication(options = {}) {
                   ),
                   payload = formatForMovieEngine(source.format, schemas);
                 const saved = existing
-                  ? await management.execute(domain, "customFormats", "PUT", {
+                  ? await executeGuide("customFormats", "PUT", {
                       id: String(existing.id),
                       payload: { ...payload, id: existing.id },
                     })
-                  : await management.execute(domain, "customFormats", "POST", {
+                  : await executeGuide("customFormats", "POST", {
                       payload: payload,
                     });
                 installed.set(String(trashId).toLowerCase(), {
@@ -14073,9 +14459,7 @@ export function createApplication(options = {}) {
                 });
               }
               if (template.resourceType === "customFormatGroup") {
-                const profilesValue = await management.execute(
-                    domain,
-                    "profiles",
+                const profilesValue = await executeGuide("profiles",
                     "GET",
                   ),
                   profiles = Array.isArray(profilesValue) ? profilesValue : [],
@@ -14106,21 +14490,17 @@ export function createApplication(options = {}) {
                       formatItems[index] = { ...formatItems[index], ...value };
                     else formatItems.push(value);
                   }
-                  await management.execute(domain, "profiles", "PUT", {
+                  await executeGuide("profiles", "PUT", {
                     id: String(profile.id),
                     payload: { ...profile, formatItems: formatItems },
                   });
                 }
                 message = `${template.template.name} applied with ${installed.size} custom formats.`;
               } else {
-                const schema = await management.execute(
-                    domain,
-                    "profileSchema",
+                const schema = await executeGuide("profileSchema",
                     "GET",
                   ),
-                  profilesValue = await management.execute(
-                    domain,
-                    "profiles",
+                  profilesValue = await executeGuide("profiles",
                     "GET",
                   ),
                   profiles = Array.isArray(profilesValue) ? profilesValue : [],
@@ -14197,11 +14577,11 @@ export function createApplication(options = {}) {
                       String(payload.name).toLowerCase(),
                   ),
                   saved = existing
-                    ? await management.execute(domain, "profiles", "PUT", {
+                    ? await executeGuide("profiles", "PUT", {
                         id: String(existing.id),
                         payload: { ...payload, id: existing.id },
                       })
-                    : await management.execute(domain, "profiles", "POST", {
+                    : await executeGuide("profiles", "POST", {
                         payload: payload,
                       });
                 resourceId = saved?.id || existing?.id;
@@ -14226,9 +14606,7 @@ export function createApplication(options = {}) {
               },
             });
           }
-          const configuredValue = await management.execute(
-              domain,
-              "customFormats",
+          const configuredValue = await executeGuide("customFormats",
               "GET",
             ),
             configured = Array.isArray(configuredValue) ? configuredValue : [],
@@ -14251,9 +14629,7 @@ export function createApplication(options = {}) {
             });
             message = `${template.format.name} rejected. No ${engineLabel}-engine settings were changed.`;
           } else if (input.decision === "implement") {
-            const schemasValue = await management.execute(
-                domain,
-                "customFormatSchemas",
+            const schemasValue = await executeGuide("customFormatSchemas",
                 "GET",
               ),
               schemas = Array.isArray(schemasValue) ? schemasValue : [];
@@ -14279,9 +14655,7 @@ export function createApplication(options = {}) {
                 ]
               : [];
             if (profileIds.length) {
-              const profilesValue = await management.execute(
-                  domain,
-                  "profiles",
+              const profilesValue = await executeGuide("profiles",
                   "GET",
                 ),
                 profiles = Array.isArray(profilesValue) ? profilesValue : [],
@@ -14317,11 +14691,11 @@ export function createApplication(options = {}) {
                 plan: plan,
               });
             const result = before.existing
-              ? await management.execute(domain, "customFormats", "PUT", {
+              ? await executeGuide("customFormats", "PUT", {
                   id: String(before.existing.id),
                   payload: { ...payload, id: before.existing.id },
                 })
-              : await management.execute(domain, "customFormats", "POST", {
+              : await executeGuide("customFormats", "POST", {
                   payload: payload,
                 });
             radarrId = result?.id || radarrId;
@@ -14331,9 +14705,7 @@ export function createApplication(options = {}) {
               );
               if (!Number.isFinite(score))
                 throw new Error("Choose a valid TRaSH score recommendation.");
-              const profilesValue = await management.execute(
-                  domain,
-                  "profiles",
+              const profilesValue = await executeGuide("profiles",
                   "GET",
                 ),
                 profiles = Array.isArray(profilesValue) ? profilesValue : [];
@@ -14357,7 +14729,7 @@ export function createApplication(options = {}) {
                 };
                 if (index >= 0) formatItems[index] = scoreItem;
                 else formatItems.push(scoreItem);
-                await management.execute(domain, "profiles", "PUT", {
+                await executeGuide("profiles", "PUT", {
                   id: String(profile.id),
                   payload: { ...profile, formatItems: formatItems },
                 });
@@ -14383,9 +14755,7 @@ export function createApplication(options = {}) {
             throw new Error(
               "Choose whether to implement or reject this template.",
             );
-          const latestValue = await management.execute(
-              domain,
-              "customFormats",
+          const latestValue = await executeGuide("customFormats",
               "GET",
             ),
             comparison = await guideTemplates.comparison(
@@ -14523,8 +14893,9 @@ export function createApplication(options = {}) {
                 return Promise.reject(
                   new Error("A queue item is missing its engine or identifier"),
                 );
+              const owned=decodeOwnedMediaId(domain,item.id);
               return management.execute(domain, "queue", "DELETE", {
-                id: String(item.id),
+                id: String(owned.id),engineInstanceId:owned.engineInstanceId,
                 query: {
                   removeFromClient: String(input.removeFromClient !== false),
                   blocklist: String(item.blocklist === true || input.blocklist === true),
@@ -14581,6 +14952,9 @@ export function createApplication(options = {}) {
           if (method !== "GET" && !requireCsrf(req, res, session)) return;
           const input = method === "GET" ? {} : await body(req);
           const query = Object.fromEntries(url.searchParams);
+          const domain=managementMatch[1],owned=decodeOwnedMediaId(domain,managementMatch[3]),queryInstance=String(query.engineInstanceId||'').trim()||null;
+          const requestedInstance=resolveOwnedEngineInstance(queryInstance,owned.engineInstanceId);
+          if(requestedInstance)delete query.engineInstanceId;
           let result;
           if (managementMatch[2] === "releases" && method === "GET") {
             const domain = managementMatch[1],
@@ -14593,6 +14967,7 @@ export function createApplication(options = {}) {
                           ([key]) => key !== "force",
                         ),
                       ),
+                      engineInstanceId:requestedInstance,
                     });
             result = await cachedInteractiveReleases(domain, query, load);
             if (domain === "tv" && !query.seriesId)
@@ -14625,21 +15000,28 @@ export function createApplication(options = {}) {
           } else {
             let payload =
               managementMatch[2] === "releases" && method === "POST"
-                ? await reacquireRelease(managementMatch[1], input)
+                ? await reacquireRelease(managementMatch[1], input,requestedInstance)
                 : managementMatch[1] === "tv" &&
                     managementMatch[2] === "library" &&
                     method === "POST"
                   ? televisionAddPayload(input)
                   : input;
             if (managementMatch[2] === "library" && method === "POST") {
-              payload = await applyMediaDestination(managementMatch[1], payload, true);
+              payload = await applyMediaDestination(managementMatch[1], { ...payload, engineInstanceId: requestedInstance }, true);
               if (managementMatch[1] === "tv") payload = televisionAddPayload(payload);
+            }
+            const forwardedPayload = payload && typeof payload === "object" && !Array.isArray(payload)
+              ? { ...payload }
+              : payload;
+            if (forwardedPayload) {
+              delete forwardedPayload.engineInstanceId;
+              delete forwardedPayload.engineInstanceName;
             }
             result = await management.execute(
               managementMatch[1],
               managementMatch[2],
               method,
-              { id: managementMatch[3], query: query, payload: payload },
+              { id: owned.id||managementMatch[3], query: query, payload: forwardedPayload, engineInstanceId:requestedInstance },
             );
             if (method === "POST" && managementMatch[2] === "releases") {
               const domain = managementMatch[1],
@@ -14927,6 +15309,12 @@ export function createApplication(options = {}) {
               }
             }
           }
+          const responseInstance = requestedInstance
+            ? engineSettings.public().instances.find((item) => item.id === requestedInstance)
+            : engineSettings.mode() === "external"
+              ? engineSettings.public().instances.find((item) => item.domain === domain && item.isDefault && item.enabled !== false)
+              : null;
+          result = attachEngineOwnership(result, responseInstance);
           return json(res, method === "POST" ? 201 : 200, { result: result });
         }
         if (url.pathname === "/api/manage/audit" && req.method === "GET") {
@@ -14950,6 +15338,7 @@ export function createApplication(options = {}) {
             domain: "movie",
             mediaId: Number(input.mediaId),
             tmdbId: Number(input.tmdbId),
+            engineInstanceId: input.engineInstanceId,
           });
           await operationsCenterStore.update((current) => {
             current.healthDismissed = current.healthDismissed || {};
@@ -15142,24 +15531,31 @@ export function createApplication(options = {}) {
                   sort: url.searchParams.get("sort"),
                   direction: url.searchParams.get("direction"),
                   randomSeed: url.searchParams.get("randomSeed"),
+                  engineInstanceId:url.searchParams.get("engineInstanceId"),
                 })
               : null,
             rawItems = page
               ? page.items
               : await sync.list("movie", { refresh: refresh }),
+            engineInstances=engineSettings.public().instances.filter(instance=>instance.domain==="movie"),
+            requestedInstance=String(url.searchParams.get("engineInstanceId")||"all"),
+            defaultInstance=engineInstances.find(instance=>instance.isDefault),
+            ownedItems=rawItems.map(item=>({...item,engineInstanceId:item.engineInstanceId||defaultInstance?.id})),
+            filteredItems=requestedInstance==="all"?ownedItems:ownedItems.filter(item=>item.engineInstanceId===requestedInstance),
             attention = refresh
-              ? await refreshAttention("movie", rawItems)
+              ? await refreshAttention("movie", filteredItems)
               : typeof projectionStore.attentionSummary === "function"
-                ? await projectionStore.attentionSummary("movie")
-                : cachedAttention("movie", rawItems),
-            summary = await librarySummary("movie", rawItems),
-            items = await decoratePosterArtwork("movie", rawItems, session);
+                ? await projectionStore.attentionSummary("movie", requestedInstance)
+                : cachedAttention("movie", filteredItems),
+            summary = await librarySummary("movie", filteredItems, requestedInstance),
+            items = await decoratePosterArtwork("movie", filteredItems, session);
           return json(res, 200, {
             items: items,
             attention: attention,
             summary: summary,
             mode: mode,
             sync: sync.snapshot().movie,
+            engines:engineInstances.map(({id,name,isDefault})=>({id,name,isDefault})),
             ...(page
               ? {
                   page: {
@@ -15217,7 +15613,7 @@ export function createApplication(options = {}) {
             } catch {}
           }
           const file = detail?.item
-              ? await trailerPlayback.find(domain, detail.item.location || detail.item.rootFolder)
+              ? await trailerPlayback.find(domain, await vynodeAccessiblePath(domain, detail.item.location || detail.item.rootFolder, detail.item.engineInstanceId || null))
               : null;
           if (!file) {
             res.writeHead(404, {
@@ -15264,24 +15660,31 @@ export function createApplication(options = {}) {
                   sort: url.searchParams.get("sort"),
                   direction: url.searchParams.get("direction"),
                   randomSeed: url.searchParams.get("randomSeed"),
+                  engineInstanceId:url.searchParams.get("engineInstanceId"),
                 })
               : null,
             rawItems = page
               ? page.items
               : await sync.list("tv", { refresh: refresh }),
+            engineInstances=engineSettings.public().instances.filter(instance=>instance.domain==="tv"),
+            requestedInstance=String(url.searchParams.get("engineInstanceId")||"all"),
+            defaultInstance=engineInstances.find(instance=>instance.isDefault),
+            ownedItems=rawItems.map(item=>({...item,engineInstanceId:item.engineInstanceId||defaultInstance?.id})),
+            filteredItems=requestedInstance==="all"?ownedItems:ownedItems.filter(item=>item.engineInstanceId===requestedInstance),
             attention = refresh
-              ? await refreshAttention("tv", rawItems)
+              ? await refreshAttention("tv", filteredItems)
               : typeof projectionStore.attentionSummary === "function"
-                ? await projectionStore.attentionSummary("tv")
-                : cachedAttention("tv", rawItems),
-            summary = await librarySummary("tv", rawItems),
-            items = await decoratePosterArtwork("tv", rawItems, session);
+                ? await projectionStore.attentionSummary("tv", requestedInstance)
+                : cachedAttention("tv", filteredItems),
+            summary = await librarySummary("tv", filteredItems, requestedInstance),
+            items = await decoratePosterArtwork("tv", filteredItems, session);
           return json(res, 200, {
             items: items,
             attention: attention,
             summary: summary,
             mode: mode,
             sync: sync.snapshot().tv,
+            engines:engineInstances.map(({id,name,isDefault})=>({id,name,isDefault})),
             ...(page
               ? {
                   page: {
@@ -15388,9 +15791,11 @@ export function createApplication(options = {}) {
             const domains = [
                 ...(movies ? ["movie"] : []),
                 ...(tv ? ["tv"] : []),
-              ],
+              ],configuredInstances=engineSettings.public().instances.filter(instance=>instance.enabled!==false&&domains.includes(instance.domain)),
+              targets=configuredInstances.length?configuredInstances:domains.map(domain=>({domain,id:null,name:null})),
               settled = await Promise.allSettled(
-                domains.map(async (domain) => {
+                targets.map(async (instance) => {
+                  const domain=instance.domain;
                   const result = await management.execute(
                     domain,
                     "calendar",
@@ -15402,11 +15807,12 @@ export function createApplication(options = {}) {
                         unmonitored: false,
                         ...(domain === "tv" ? { includeSeries: true } : {}),
                       },
+                      engineInstanceId:instance.id,
                     },
                   );
                   return (Array.isArray(result) ? result : [])
                     .filter((item) => item.monitored !== false)
-                    .map((item) => calendarItem(item, domain));
+                    .map((item) => ({...calendarItem(item, domain),engineInstanceId:instance.id||item.engineInstanceId,engineInstanceName:instance.name||item.engineInstanceName}));
                 }),
               );
             const live = settled.flatMap((result) =>
@@ -15446,7 +15852,7 @@ export function createApplication(options = {}) {
             items = [];
           for (const raw of reported) {
             const stableId = `health_${createHash("sha1")
-              .update(`${raw.domain || "media"}:${raw.source || ""}:${raw.message || ""}`)
+              .update(`${raw.domain || "media"}:${raw.engineInstanceId || "default"}:${raw.source || ""}:${raw.message || ""}`)
               .digest("hex")
               .slice(0, 20)}`;
             if (healthDismissed[stableId]) continue;
@@ -15459,8 +15865,9 @@ export function createApplication(options = {}) {
                   .trim(),
                 warningKey = normalizedTitle(warningTitle),
                 libraryItem = movies.find((movie) =>
-                  (oldTmdbId > 0 && Number(movie.tmdbId) === oldTmdbId) ||
-                  (warningKey && normalizedTitle(movie.title) === warningKey));
+                  (!raw.engineInstanceId || movie.engineInstanceId === raw.engineInstanceId) &&
+                  ((oldTmdbId > 0 && Number(movie.tmdbId) === oldTmdbId) ||
+                    (warningKey && normalizedTitle(movie.title) === warningKey)));
               let replacement = null;
               if (libraryItem && discovery.configured())
                 replacement = await discovery.enrich("movie", { title: libraryItem.title, year: libraryItem.year }).catch(() => null);
@@ -15485,19 +15892,20 @@ export function createApplication(options = {}) {
         }
         if (url.pathname === "/api/dashboard") {
           if (!permitted(res, session, "dashboard")) return;
-          if (dashboardSnapshot && dashboardSnapshotExpires > Date.now())
+          const requestedDashboardInstance=String(url.searchParams.get("engineInstanceId")||"all");
+          if (requestedDashboardInstance==="all"&&dashboardSnapshot && dashboardSnapshotExpires > Date.now())
             return json(res, 200, dashboardSnapshot, {
               "x-vynodearr-cache": "hit",
             });
-          if (!dashboardSnapshotRun)
-            dashboardSnapshotRun = (async () => {
+          if (!dashboardSnapshotRun||requestedDashboardInstance!=="all") {
+            const currentDashboardRun = (async () => {
               const [
-                  movies,
-                  tvItems,
-                  queue,
-                  history,
-                  calendar,
-                  health,
+                  rawMovies,
+                  rawTvItems,
+                  rawQueue,
+                  rawHistory,
+                  rawCalendar,
+                  rawHealth,
                   tvProfiles,
                 ] = await Promise.all([
                   sync.list("movie"),
@@ -15508,6 +15916,8 @@ export function createApplication(options = {}) {
                   sync.operations("health"),
                   management.execute("tv", "profiles", "GET").catch(() => []),
                 ]),
+                owns=item=>requestedDashboardInstance==="all"||item.engineInstanceId===requestedDashboardInstance,
+                movies=rawMovies.filter(owns),tvItems=rawTvItems.filter(owns),queue=rawQueue.filter(owns),history=rawHistory.filter(owns),calendar=rawCalendar.filter(owns),health=rawHealth.filter(owns),
                 profileNames = {
                   tv: new Map(
                     (Array.isArray(tvProfiles) ? tvProfiles : []).map(
@@ -15599,6 +16009,9 @@ export function createApplication(options = {}) {
                 },
               };
             })();
+            if(requestedDashboardInstance!=="all")return json(res,200,await currentDashboardRun,{"x-vynodearr-cache":"isolated"});
+            dashboardSnapshotRun=currentDashboardRun;
+          }
           try {
             dashboardSnapshot = await dashboardSnapshotRun;
             dashboardSnapshotExpires = Date.now() + 15e3;

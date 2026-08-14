@@ -32,9 +32,10 @@ import type { NotificationMountOptions } from './notification-types';
 import type { PosterOverlayMountOptions } from './poster-overlays-types';
 import type { LibraryReviewMountOptions } from './library-review-types';
 import type { OperationsMountOptions } from './operations-types';
+import type { SetupCenterMountOptions } from './setup-center-types';
 import { RouteErrorBoundary } from './error-boundary';
 
-let dashboardRoot:Root|null=null,dashboardElement:HTMLElement|null=null,fullDashboardRoot:Root|null=null,libraryRoot:Root|null=null,historyRoot:Root|null=null,queueRoot:Root|null=null,wantedRoot:Root|null=null,calendarRoot:Root|null=null,movieDetailRoot:Root|null=null,tvDetailRoot:Root|null=null,discoverRoot:Root|null=null,requestsRoot:Root|null=null,requestManagementRoot:Root|null=null,operationsRoot:Root|null=null,collectionsRoot:Root|null=null,reeltrackListsRoot:Root|null=null,addMediaRoot:Root|null=null,healthRoot:Root|null=null,accountRoot:Root|null=null,systemRoot:Root|null=null,selectionRulesRoot:Root|null=null,importMonitorRoot:Root|null=null,managementRoot:Root|null=null,mediaManagementRoot:Root|null=null,libraryHealthRoot:Root|null=null,libraryReviewRoot:Root|null=null,posterOverlaysRoot:Root|null=null,rootFoldersRoot:Root|null=null,providerSettingsRoot:Root|null=null,guideTemplatesRoot:Root|null=null,engineManagementRoot:Root|null=null,discoverSettingsRoot:Root|null=null,qualityProfilesRoot:Root|null=null,engineSetupRoot:Root|null=null,setupAuthRoot:Root|null=null,signInAuthRoot:Root|null=null,notificationsRoot:Root|null=null;
+let dashboardRoot:Root|null=null,dashboardElement:HTMLElement|null=null,fullDashboardRoot:Root|null=null,libraryRoot:Root|null=null,historyRoot:Root|null=null,queueRoot:Root|null=null,wantedRoot:Root|null=null,calendarRoot:Root|null=null,movieDetailRoot:Root|null=null,tvDetailRoot:Root|null=null,discoverRoot:Root|null=null,requestsRoot:Root|null=null,requestManagementRoot:Root|null=null,operationsRoot:Root|null=null,collectionsRoot:Root|null=null,reeltrackListsRoot:Root|null=null,addMediaRoot:Root|null=null,healthRoot:Root|null=null,accountRoot:Root|null=null,systemRoot:Root|null=null,selectionRulesRoot:Root|null=null,importMonitorRoot:Root|null=null,managementRoot:Root|null=null,mediaManagementRoot:Root|null=null,libraryHealthRoot:Root|null=null,libraryReviewRoot:Root|null=null,posterOverlaysRoot:Root|null=null,rootFoldersRoot:Root|null=null,providerSettingsRoot:Root|null=null,guideTemplatesRoot:Root|null=null,engineManagementRoot:Root|null=null,discoverSettingsRoot:Root|null=null,qualityProfilesRoot:Root|null=null,engineSetupRoot:Root|null=null,setupCenterRoot:Root|null=null,setupAuthRoot:Root|null=null,signInAuthRoot:Root|null=null,notificationsRoot:Root|null=null;
 const loading=(label:string)=><div className="panel skeleton react-route-loading">Loading {label}…</div>;
 
 const guarded=(children:ReactNode)=><RouteErrorBoundary>{children}</RouteErrorBoundary>;
@@ -114,6 +115,11 @@ function unmountHealth(){healthRoot?.unmount();healthRoot=null;}
 function mountHealth(element:HTMLElement,options:HealthMountOptions){
   unmountHealth();const root=createRoot(element);healthRoot=root;root.render(loading('health checks'));
   void import('./health').then(({HealthView})=>{if(healthRoot===root)root.render(guarded(<HealthView options={options}/>));});
+}
+function unmountSetupCenter(){setupCenterRoot?.unmount();setupCenterRoot=null;}
+function mountSetupCenter(element:HTMLElement,options:SetupCenterMountOptions){
+  unmountSetupCenter();const root=createRoot(element);setupCenterRoot=root;root.render(loading('setup center'));
+  void import('./setup-center').then(({SetupCenterView})=>{if(setupCenterRoot===root)root.render(guarded(<SetupCenterView options={options}/>));});
 }
 function unmountAccount(){accountRoot?.unmount();accountRoot=null;}
 function mountAccount(element:HTMLElement,options:AccountMountOptions){
@@ -211,7 +217,7 @@ function mountNotifications(element:HTMLElement,options:NotificationMountOptions
 }
 const routeImports:Record<string,()=>Promise<unknown>>={
   dashboard:()=>import('./dashboard'),discover:()=>import('./discover'),requests:()=>import('./my-requests'),'request-management':()=>import('./request-management'),operations:()=>import('./operations-center'),collections:()=>import('./collections'),lists:()=>import('./reeltrack-lists'),add:()=>import('./add-media'),movies:()=>import('./library'),tv:()=>import('./library'),
-  queue:()=>import('./queue'),history:()=>import('./history'),wanted:()=>import('./wanted'),calendar:()=>import('./calendar'),health:()=>import('./health'),
+  queue:()=>import('./queue'),history:()=>import('./history'),wanted:()=>import('./wanted'),calendar:()=>import('./calendar'),health:()=>import('./health'),setup:()=>import('./setup-center'),
   movie:()=>import('./movie-detail'),series:()=>import('./tv-detail'),settings:()=>Promise.all([import('./account'),import('./engine-management'),import('./engine-setup')]),system:()=>import('./system'),service:()=>Promise.all([import('./selection-rules'),import('./media-management'),import('./library-health'),import('./library-review'),import('./poster-overlays'),import('./root-folders'),import('./provider-settings'),import('./guide-templates'),import('./discover-settings'),import('./quality-profiles')]),management:()=>import('./management'),
 };
 function preloadRoute(route:string){void routeImports[route]?.();}
@@ -235,6 +241,7 @@ declare global {
     mountReeltrackLists:(element:HTMLElement,options:ReeltrackListsMountOptions)=>void;unmountReeltrackLists:()=>void;
     mountAddMedia:(element:HTMLElement,options:AddMediaMountOptions)=>void;unmountAddMedia:()=>void;
     mountHealth:(element:HTMLElement,options:HealthMountOptions)=>void;unmountHealth:()=>void;
+    mountSetupCenter:(element:HTMLElement,options:SetupCenterMountOptions)=>void;unmountSetupCenter:()=>void;
     mountAccount:(element:HTMLElement,options:AccountMountOptions)=>void;unmountAccount:()=>void;
     mountSystem:(element:HTMLElement,options:SystemMountOptions)=>void;unmountSystem:()=>void;
     mountSelectionRules:(element:HTMLElement,options:SelectionRulesMountOptions)=>void;unmountSelectionRules:()=>void;
@@ -256,4 +263,4 @@ declare global {
     preloadRoute:(route:string)=>void;
   }}
 }
-window.VynodeArrReact={mountDashboard,unmountDashboard,mountDashboardAnalytics,unmountDashboardAnalytics,mountLibrary,unmountLibrary,mountHistory,unmountHistory,mountQueue,unmountQueue,mountRequests,unmountRequests,mountRequestManagement,unmountRequestManagement,mountOperations,unmountOperations,mountWanted,unmountWanted,mountCalendar,unmountCalendar,mountMovieDetail,unmountMovieDetail,mountTvDetail,unmountTvDetail,mountDiscover,unmountDiscover,mountCollections,unmountCollections,mountReeltrackLists,unmountReeltrackLists,mountAddMedia,unmountAddMedia,mountHealth,unmountHealth,mountAccount,unmountAccount,mountSystem,unmountSystem,mountSelectionRules,unmountSelectionRules,mountImportMonitor,unmountImportMonitor,mountManagement,unmountManagement,mountMediaManagement,unmountMediaManagement,mountLibraryHealth,unmountLibraryHealth,mountLibraryReview,unmountLibraryReview,mountPosterOverlays,unmountPosterOverlays,mountRootFolders,unmountRootFolders,mountProviderSettings,unmountProviderSettings,mountGuideTemplates,unmountGuideTemplates,mountEngineManagement,unmountEngineManagement,mountDiscoverSettings,unmountDiscoverSettings,mountQualityProfiles,unmountQualityProfiles,mountEngineSetup,unmountEngineSetup,mountAuthentication,unmountAuthentication,mountNotifications,preloadRoute};
+window.VynodeArrReact={mountDashboard,unmountDashboard,mountDashboardAnalytics,unmountDashboardAnalytics,mountLibrary,unmountLibrary,mountHistory,unmountHistory,mountQueue,unmountQueue,mountRequests,unmountRequests,mountRequestManagement,unmountRequestManagement,mountOperations,unmountOperations,mountWanted,unmountWanted,mountCalendar,unmountCalendar,mountMovieDetail,unmountMovieDetail,mountTvDetail,unmountTvDetail,mountDiscover,unmountDiscover,mountCollections,unmountCollections,mountReeltrackLists,unmountReeltrackLists,mountAddMedia,unmountAddMedia,mountHealth,unmountHealth,mountSetupCenter,unmountSetupCenter,mountAccount,unmountAccount,mountSystem,unmountSystem,mountSelectionRules,unmountSelectionRules,mountImportMonitor,unmountImportMonitor,mountManagement,unmountManagement,mountMediaManagement,unmountMediaManagement,mountLibraryHealth,unmountLibraryHealth,mountLibraryReview,unmountLibraryReview,mountPosterOverlays,unmountPosterOverlays,mountRootFolders,unmountRootFolders,mountProviderSettings,unmountProviderSettings,mountGuideTemplates,unmountGuideTemplates,mountEngineManagement,unmountEngineManagement,mountDiscoverSettings,unmountDiscoverSettings,mountQualityProfiles,unmountQualityProfiles,mountEngineSetup,unmountEngineSetup,mountAuthentication,unmountAuthentication,mountNotifications,preloadRoute};

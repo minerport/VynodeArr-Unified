@@ -4,7 +4,6 @@ export function AccountTabs({active,administrator}:{active:AccountTab;administra
   return <nav className="settings-tabs" aria-label="Account settings">
     <a className={active==='account'?'active':undefined} href="#settings/account">My account</a>
     <a className={active==='sessions'?'active':undefined} href="#settings/sessions">Active sessions</a>
-    {administrator?<a className={active==='engines'?'active':undefined} href="#settings/engines">Engines</a>:null}
     {administrator?<a className={active==='users'?'active':undefined} href="#settings/users">Users</a>:null}
   </nav>;
 }

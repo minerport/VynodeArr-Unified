@@ -7,11 +7,15 @@ import {LibraryCatalogStore} from '../.server-build/packages/platform/src/librar
 
 test('SQLite library catalog imports projections and supports indexed paging, restore, events, and artwork',async()=>{
   const directory=await mkdtemp(join(tmpdir(),'vynodearr-catalog-')),legacy=join(directory,'projections.json'),database=join(directory,'library.sqlite');
-  await writeFile(legacy,JSON.stringify({domains:{movie:[{id:'movie_1',title:'Alpha',year:2024,monitoring:'all',state:'available',hasFile:true},{id:'movie_2',title:'Beta',year:2025,monitoring:'all',state:'missing'}],tv:[]},operations:{queue:[],history:[],calendar:[],health:[]}}));
+  await writeFile(legacy,JSON.stringify({domains:{movie:[{id:'movie_1',title:'Alpha',year:2024,monitoring:'all',state:'available',hasFile:true,engineInstanceId:'movies-a'},{id:'movie_2',title:'Beta',year:2025,monitoring:'all',state:'missing',engineInstanceId:'movies-b'}],tv:[]},operations:{queue:[],history:[],calendar:[],health:[]}}));
   const store=new LibraryCatalogStore(database,{legacyPath:legacy});
   try{
     await store.initialize();assert.equal(await store.countDomain('movie'),2);
     assert.deepEqual(await store.librarySummary('movie'),{total:2,monitored:2,covered:1});
+    assert.deepEqual(await store.librarySummary('movie','movies-a'),{total:1,monitored:1,covered:1});
+    assert.deepEqual(await store.librarySummary('movie','movies-b'),{total:1,monitored:1,covered:0});
+    assert.deepEqual(await store.attentionSummary('movie','movies-a'),{missing:0,cutoff:0});
+    assert.deepEqual(await store.attentionSummary('movie','movies-b'),{missing:1,cutoff:0});
     assert.deepEqual(await store.integrityCheck(),{ok:true,result:'ok'});
     assert.deepEqual(await store.domainIntegrity('movie'),{count:2,invalidPayloads:0,duplicateExternalIds:0,ok:true});
     await store.replaceDomain('movie',await store.domain('movie'));const synchronization=await store.synchronizationState('movie');assert.ok(synchronization.lastSuccess);assert.equal(synchronization.itemCount,2);

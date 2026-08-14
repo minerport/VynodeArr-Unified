@@ -7,6 +7,100 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.43] - 2026-08-14
+
+### Added
+
+- Added independently managed external movie and television engine instances,
+  with isolated credentials, settings, destinations, requests, searches, and
+  operational views for each instance or all instances together.
+- Added a guided Setup Center for engines, storage, search providers, download
+  clients, optional integrations, and final health validation.
+- Added application-wide search for titles, pages, settings, and setup routes.
+- Added portable Docker installation support, optional main-media mapping,
+  preflight validation, smoke testing, and documented multi-engine testing.
+
+### Changed
+
+- Made Movies, Television, Wanted, Queue, History, Calendar, Health, Dashboard,
+  and Action Center engine-aware while preserving existing single-engine and
+  bundled-engine installations.
+- Improved mobile Lists navigation and kept imported-list automation additive
+  and explicit.
+
+### Fixed
+
+- Prevented native IDs, destinations, Plex mappings, requests, artwork, and
+  notifications from crossing between engine instances.
+- Preserved managed trailer-placeholder overlays when a title leaves a provider
+  list but no valid real media file exists.
+- Kept healthy instance data visible when another configured engine is offline.
+
+## [2.0.43-rc.8] - 2026-08-14
+
+### Added
+
+- Added a dedicated Setup Center that places engines, storage, search and
+  download connections, optional integrations, and final health validation in
+  a clear first-time order while retaining every detailed setting and legacy
+  route.
+
+### Changed
+
+- Moved engine entry points out of personal Account Settings, renamed the
+  guided storage entry point to Storage & Destinations, and added concise
+  instructions explaining which setup requirements are essential or optional.
+
+### Fixed
+
+- Kept the imported-list selector on-screen on phones by separating its
+  navigation semantics from the application shell sidebar and bounding its
+  mobile height.
+- Preserved title overlays for managed trailer placeholders that leave a
+  synchronized provider list while no valid real media file exists. Collection
+  membership still follows the current list without deleting the trailer or
+  restoring its placeholder poster.
+
+## [2.0.43-rc.7] - 2026-08-14
+
+### Fixed
+
+- Corrected the clean-volume multi-engine Docker lab to use the published
+  image's port and persistent configuration path, and added a retained-lab mode
+  for browser validation.
+- Scoped library totals, monitored counts, coverage, missing counts, and cutoff
+  counts to the selected engine instance instead of retaining aggregate values.
+- Documented the required external-engine restart and one-to-one Plex library
+  ownership during multi-engine setup.
+
+## [2.0.43-rc.5] - 2026-08-14
+
+### Added
+
+- Added multiple independently configured external movie and television engine
+  instances, with encrypted credentials and isolated settings for each.
+- Added **All engines** and individual-instance views across Movies, Television,
+  Wanted, Queue, History, Calendar, Health, Dashboard, and Action Center.
+- Added engine-aware destinations, quality profiles, providers, selection rules,
+  guide templates, requests, automatic searches, and interactive grabs.
+
+### Fixed
+
+- Prevented identical native title IDs from different engine instances from
+  colliding in library records, request attribution, artwork, notifications,
+  search activity, and detail links.
+- Kept healthy instance data visible when another external engine is offline.
+- Preserved the selected engine throughout approval, correction, cancellation,
+  deletion, destination selection, and search workflows.
+
+### Compatibility
+
+- Existing bundled-engine and single-external-engine installations migrate to
+  one default instance without changing their current behavior or credentials.
+- Multi-engine mode is optional. Removing an additional instance does not alter
+  the remaining instance, and the bundled engines remain available unless the
+  administrator explicitly switches to external engines.
+
 ## [2.0.43-rc.4] - 2026-08-13
 
 ### Added
@@ -2656,7 +2750,18 @@ Open `http://localhost:8686`. Existing host media folders can be mapped to
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.40-rc.8...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.43...HEAD
+[2.0.43]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.42...v2.0.43
+[2.0.43-rc.8]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.43-rc.7...v2.0.43-rc.8
+[2.0.43-rc.7]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.43-rc.6...v2.0.43-rc.7
+[2.0.43-rc.6]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.43-rc.5...v2.0.43-rc.6
+[2.0.43-rc.5]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.43-rc.4...v2.0.43-rc.5
+[2.0.43-rc.4]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.43-rc.3...v2.0.43-rc.4
+[2.0.43-rc.3]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.43-rc.2...v2.0.43-rc.3
+[2.0.43-rc.2]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.43-rc.1...v2.0.43-rc.2
+[2.0.43-rc.1]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.42...v2.0.43-rc.1
+[2.0.42]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.41...v2.0.42
+[2.0.41]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.40...v2.0.41
 [2.0.40-rc.8]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.40-rc.7...v2.0.40-rc.8
 [2.0.40-rc.7]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.40-rc.6...v2.0.40-rc.7
 [2.0.40-rc.6]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.40-rc.5...v2.0.40-rc.6

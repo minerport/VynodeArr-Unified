@@ -14,6 +14,7 @@ const unmountMethods=[
   'unmountReeltrackLists',
   'unmountAddMedia',
   'unmountHealth',
+  'unmountSetupCenter',
   'unmountMovieDetail',
   'unmountTvDetail',
   'unmountDiscover',

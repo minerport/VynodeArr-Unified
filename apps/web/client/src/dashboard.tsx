@@ -2,35 +2,40 @@ import { useCallback,useState } from 'react';
 import { DashboardAnalyticsView } from './dashboard-analytics';
 import type { DashboardData,DashboardMountOptions,RecentActivityItem,RecentlyAddedItem } from './dashboard-types';
 import {useVisibleRefresh} from './use-visible-refresh';
+import {EngineInstanceFilter,useEngineInstances} from './engine-instance-control';
 
-const dashboardSnapshotKey='vynodearr.dashboardSnapshot';
+const dashboardSnapshotKey=(instanceId:string)=>`vynodearr.dashboardSnapshot.${instanceId}`;
 
-function readSnapshot():DashboardData|null {
+function readSnapshot(instanceId:string):DashboardData|null {
   try{
-    const value=JSON.parse(sessionStorage.getItem(dashboardSnapshotKey)||'null') as DashboardData|null;
+    const value=JSON.parse(sessionStorage.getItem(dashboardSnapshotKey(instanceId))||'null') as DashboardData|null;
     return value?.metrics?value:null;
   }catch{return null;}
 }
 
 export function DashboardRoute({options}:{options:DashboardMountOptions}){
-  const [data,setData]=useState<DashboardData|null>(()=>readSnapshot());
+  const [engineInstanceId,setEngineInstanceId]=useState('all');
+  const engineInstances=useEngineInstances(options.request);
+  const [data,setData]=useState<DashboardData|null>(()=>readSnapshot('all'));
   const [error,setError]=useState('');
 
   const load=useCallback(async()=>{
     try{
-      const value=await options.request<DashboardData>('/api/dashboard');
-      sessionStorage.setItem(dashboardSnapshotKey,JSON.stringify(value));
+      const value=await options.request<DashboardData>(`/api/dashboard?engineInstanceId=${encodeURIComponent(engineInstanceId)}`);
+      sessionStorage.setItem(dashboardSnapshotKey(engineInstanceId),JSON.stringify(value));
       setData(value);
       setError('');
     }catch(reason){
       setError(reason instanceof Error?reason.message:'Dashboard data is unavailable.');
     }
-  },[options]);
+  },[options,engineInstanceId]);
   useVisibleRefresh(load,15_000);
+
+  const chooseEngine=(value:string)=>{setEngineInstanceId(value);setData(readSnapshot(value));};
 
   if(!data&&!error)return <div className="panel skeleton react-route-loading">Loading dashboard…</div>;
   if(!data)return <div className="empty error-state"><h2>Dashboard unavailable</h2><p>{error}</p></div>;
-  return <><DashboardView data={data}/>{error?<div className="notice warning"><strong>Dashboard refresh delayed.</strong><p>{error}</p></div>:null}</>;
+  return <><div className="settings-context-bar"><EngineInstanceFilter instances={engineInstances} value={engineInstanceId} onChange={chooseEngine}/></div><DashboardView data={data}/>{error?<div className="notice warning"><strong>Dashboard refresh delayed.</strong><p>{error}</p></div>:null}</>;
 }
 
 function formatDate(value?:string){

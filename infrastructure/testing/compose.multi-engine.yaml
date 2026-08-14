@@ -1,0 +1,103 @@
+services:
+  init:
+    image: alpine:3.22
+    restart: "no"
+    volumes:
+      - radarr-a:/radarr-a
+      - radarr-b:/radarr-b
+      - sonarr-a:/sonarr-a
+      - sonarr-b:/sonarr-b
+      - movies-a:/movies-a
+      - movies-b:/movies-b
+      - tv-a:/tv-a
+      - tv-b:/tv-b
+      - vynode-data:/vynode-data
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        write_config() {
+          target="$$1"; port="$$2"; key="$$3"; name="$$4"
+          printf '%s\n' '<Config><BindAddress>*</BindAddress><Port>'"$$port"'</Port><EnableSsl>False</EnableSsl><LaunchBrowser>False</LaunchBrowser><ApiKey>'"$$key"'</ApiKey><AuthenticationMethod>External</AuthenticationMethod><AuthenticationRequired>Enabled</AuthenticationRequired><LogLevel>info</LogLevel><UrlBase></UrlBase><InstanceName>'"$$name"'</InstanceName><UpdateMechanism>Docker</UpdateMechanism></Config>' > "$$target/config.xml"
+        }
+        write_config /radarr-a 7878 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa 'Lab Radarr A'
+        write_config /radarr-b 7878 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb 'Lab Radarr B'
+        write_config /sonarr-a 8989 cccccccccccccccccccccccccccccccc 'Lab Sonarr A'
+        write_config /sonarr-b 8989 dddddddddddddddddddddddddddddddd 'Lab Sonarr B'
+        mkdir -p /movies-a /movies-b /tv-a /tv-b
+        chmod 0777 /movies-a /movies-b /tv-a /tv-b
+        mkdir -p /vynode-data
+        printf '%s\n' '{"version":3,"configured":false,"mode":"external","pendingMode":null,"movie":null,"tv":null,"external":{"movie":null,"tv":null},"instances":[],"updatedAt":null}' > /vynode-data/engine-settings.json
+        chmod 0666 /vynode-data/engine-settings.json
+
+  radarr-a:
+    image: lscr.io/linuxserver/radarr:latest
+    depends_on: { init: { condition: service_completed_successfully } }
+    environment: { PUID: "0", PGID: "0", TZ: America/New_York }
+    volumes: [radarr-a:/config, movies-a:/movies-a]
+    ports: ["127.0.0.1:17878:7878"]
+    networks: [lab]
+
+  radarr-b:
+    image: lscr.io/linuxserver/radarr:latest
+    depends_on: { init: { condition: service_completed_successfully } }
+    environment: { PUID: "0", PGID: "0", TZ: America/New_York }
+    volumes: [radarr-b:/config, movies-b:/movies-b]
+    ports: ["127.0.0.1:27878:7878"]
+    networks: [lab]
+
+  sonarr-a:
+    image: lscr.io/linuxserver/sonarr:latest
+    depends_on: { init: { condition: service_completed_successfully } }
+    environment: { PUID: "0", PGID: "0", TZ: America/New_York }
+    volumes: [sonarr-a:/config, tv-a:/tv-a]
+    ports: ["127.0.0.1:18989:8989"]
+    networks: [lab]
+
+  sonarr-b:
+    image: lscr.io/linuxserver/sonarr:latest
+    depends_on: { init: { condition: service_completed_successfully } }
+    environment: { PUID: "0", PGID: "0", TZ: America/New_York }
+    volumes: [sonarr-b:/config, tv-b:/tv-b]
+    ports: ["127.0.0.1:28989:8989"]
+    networks: [lab]
+
+  vynodearr:
+    image: ${VYNODEARR_TEST_IMAGE:-ghcr.io/minerport/vynodearr-unified:latest}
+    depends_on: [radarr-a, radarr-b, sonarr-a, sonarr-b]
+    environment:
+      VYNODEARR_DATA_MODE: engine
+      VYNODEARR_SECURE_COOKIES: "false"
+      MOVIE_ENGINE_HOST: radarr-a
+      MOVIE_ENGINE_PORT: "7878"
+      MOVIE_ENGINE_API_CREDENTIAL: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      TV_ENGINE_HOST: sonarr-a
+      TV_ENGINE_PORT: "8989"
+      TV_ENGINE_API_CREDENTIAL: cccccccccccccccccccccccccccccccc
+      VYNODEARR_BOOTSTRAP_ROOT_FOLDERS: "false"
+    volumes:
+      - vynode-data:/config/vynodearr
+      - movies-a:/movies-a
+      - movies-b:/movies-b
+      - tv-a:/tv-a
+      - tv-b:/tv-b
+      - ../../.server-build/apps/api/src:/app/apps/api/src:ro
+      - ../../apps/web/public:/app/apps/web/public:ro
+      - ../../.server-build/packages/platform/src:/app/packages/platform/src:ro
+    # The published Unraid image serves VynodeArr on its internal port 8686.
+    ports: ["127.0.0.1:18686:8686"]
+    networks: [lab]
+
+networks:
+  lab: {}
+
+volumes:
+  radarr-a: {}
+  radarr-b: {}
+  sonarr-a: {}
+  sonarr-b: {}
+  movies-a: {}
+  movies-b: {}
+  tv-a: {}
+  tv-b: {}
+  vynode-data: {}
