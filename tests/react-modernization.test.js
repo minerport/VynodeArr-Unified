@@ -51,7 +51,7 @@ test('Reeltrack Lists remains fluid while the viewport is resized',async()=>{
   assert.match(artStyles,/\.reeltrack-artwork-designer\{[^}]*display:flex!important[^}]*overflow:hidden!important/);assert.match(artStyles,/\.reeltrack-designer-grid\{[^}]*overflow:hidden[^}]*flex:1/);assert.match(artStyles,/\.reeltrack-designer-grid>aside,\.reeltrack-designer-grid>main\{[^}]*overflow-y:auto/);
   assert.match(artStyles,/\.reeltrack-designer-grid>aside::after,\.reeltrack-designer-grid>main::after\{[^}]*height:100%[^}]*min-height:100%/);
   assert.match(view,/async function persistAutomation/);assert.match(view,/await persistAutomation\(\);\s*const value = await request/);
-  assert.match(api,/kind:\s*"title",\s*exceptRatingKeys:\s*collectionMemberKeys/);assert.match(api,/ratingKeys:\s*splitCollections\s*\?\s*placeholderKeys\s*:\s*collectionMemberKeys/);
+  assert.match(api,/libraryKey:\s*library\.key,\s*domain,\s*kind:\s*"title",\s*exceptRatingKeys:\s*splitCollections\s*\?\s*placeholderKeys\s*:\s*collectionMemberKeys/);assert.match(api,/libraryKey:\s*realLibrary\.key,\s*domain,\s*kind:\s*"title",\s*exceptRatingKeys:\s*realRatingKeys/);assert.match(api,/ratingKeys:\s*splitCollections\s*\?\s*placeholderKeys\s*:\s*collectionMemberKeys/);
   assert.match(view,/Use a separate placeholder library/);assert.match(api,/splitLibraryMode/);assert.match(api,/realLibraryLocation/);
   assert.match(api,/realTitleTemplate\s*=\s*reeltrackPosterTemplate\(automation\.realTitleOverlayTemplate,\s*domain\)\s*\|\|\s*titleTemplate/);
   assert.match(api,/ratingKeys:\s*placeholderKeys/);assert.match(api,/ratingKeys:\s*realRatingKeys/);
@@ -576,6 +576,9 @@ test('storage folders and import review use a typed React route and analysis bou
   assert.match(api,/readFile\("\/proc\/self\/mountinfo"/);
   assert.match(api,/mainMediaConfigured: mountPoints\.has\("\/media"\)/);
   assert.match(types,/startImport:/);
+  assert.match(review,/initialRoot\.engineInstanceId/);
+  assert.match(review,/options\.startImport\(domain,items,root\.engineInstanceId\)/);
+  assert.match(api,/startImportJob[\s\S]*engineInstanceId[\s\S]*management\.execute\(domain, "library", "GET", \{ engineInstanceId \}\)/);
   assert.match(islands,/mountRootFolders/);
   assert.match(legacy,/showRootFoldersReact/);
   assert.match(legacy,/startImport:startBackgroundImport/);
@@ -600,7 +603,7 @@ test('storage folders and import review use a typed React route and analysis bou
   assert.match(review,/tmdb:\$\{value\}/);
   assert.match(review,/Search by title, TMDB ID, or IMDb ID/);
   assert.match(review,/Already imported match/);
-  assert.match(review,/options\.startImport\(domain,items\)/);
+  assert.match(review,/options\.startImport\(domain,items,root\.engineInstanceId\)/);
   assert.match(review,/Possible duplicate/);
   assert.match(review,/Newest copy/);
 });
@@ -1604,7 +1607,7 @@ test('movie and television details share lightweight hero trailer playback with 
 
 test('detail trailers prefer protected Plex extras before local and TMDB fallbacks',async()=>{
   const [api,plex,hero]=await Promise.all([read('apps/api/src/app.js'),read('packages/platform/src/plex-service.js'),read('apps/web/client/src/detail-hero-trailer.tsx')]);
-  assert.match(api,/plexService\.openTrailer/);assert.match(api,/trailerPlayback\.find/);assert.ok(api.indexOf('plexService.openTrailer')<api.indexOf('trailerPlayback.find(domain, detail.item.location'));
+  assert.match(api,/plexService\.openTrailer/);assert.match(api,/trailerPlayback\.find/);assert.ok(api.indexOf('plexService.openTrailer')<api.indexOf('trailerPlayback.find(domain,'));
   assert.match(plex,/includeExtras=1/);assert.match(plex,/x-plex-token/);assert.match(plex,/headers\.range/);assert.match(api,/content-range/);assert.match(hero,/youtube-nocookie\.com/);
 });
 

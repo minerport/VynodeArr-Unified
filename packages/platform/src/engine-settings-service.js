@@ -65,6 +65,7 @@ export class EngineSettingsService {
     this.#assertDomain(domain);
     const config=this.normalize(domain,input),name=String(input.name||'').trim();
     if(!name)throw new Error('Instance name is required');
+    if(this.value.instances.some(instance=>instance.domain===domain&&instance.name.toLowerCase()===name.toLowerCase()))throw new Error(`A ${domain==='movie'?'movie':'TV'} instance named ${name} already exists`);
     if(!config.host||!Number.isInteger(config.port)||config.port<1||config.port>65535)throw new Error('Enter a valid host and port');
     if(!credential)throw new Error('API key is required');
     const now=new Date().toISOString(),makeDefault=input.isDefault===true||!this.#defaultInstance(domain),instance={id:randomUUID(),name,domain,...config,enabled:input.enabled!==false,isDefault:makeDefault,createdAt:now,updatedAt:now};
@@ -80,6 +81,7 @@ export class EngineSettingsService {
     const instance=this.#instance(id);if(!instance)throw new Error('Engine instance was not found');
     const config=this.normalize(instance.domain,{...instance,...input}),name=String(input.name??instance.name).trim();
     if(!name)throw new Error('Instance name is required');
+    if(this.value.instances.some(item=>item.id!==id&&item.domain===instance.domain&&item.name.toLowerCase()===name.toLowerCase()))throw new Error(`A ${instance.domain==='movie'?'movie':'TV'} instance named ${name} already exists`);
     if(!config.host||!Number.isInteger(config.port)||config.port<1||config.port>65535)throw new Error('Enter a valid host and port');
     Object.assign(instance,config,{name,enabled:input.enabled!==false,updatedAt:new Date().toISOString()});
     if(input.isDefault===true)this.#setDefaultInMemory(instance.domain,instance.id);

@@ -7,6 +7,18 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.43-rc.6] - 2026-08-14
+
+### Fixed
+
+- Corrected the clean-volume multi-engine Docker lab to use the published
+  image's port and persistent configuration path, and added a retained-lab mode
+  for browser validation.
+- Scoped library totals, monitored counts, coverage, missing counts, and cutoff
+  counts to the selected engine instance instead of retaining aggregate values.
+- Documented the required external-engine restart and one-to-one Plex library
+  ownership during multi-engine setup.
+
 ## [2.0.43-rc.5] - 2026-08-14
 
 ### Added

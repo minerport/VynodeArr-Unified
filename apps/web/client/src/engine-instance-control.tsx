@@ -10,13 +10,12 @@ export function useEngineInstances(request:Request){
   return instances;
 }
 
-export function useEngineInstance(request:Request,domain:EngineInstanceDomain){
+export function useEngineInstance(request:Request,domain:EngineInstanceDomain,{allowAll=false}:{allowAll?:boolean}={}){
   const allInstances=useEngineInstances(request),instances=useMemo(()=>allInstances.filter(item=>item.domain===domain),[allInstances,domain]);
   const [instanceId,setInstanceId]=useState('');
-  useEffect(()=>{setInstanceId(current=>instances.some(item=>item.id===current)?current:(instances.find(item=>item.isDefault)||instances[0])?.id||'');},[instances]);
-  const query=useMemo(()=>instanceId?`engineInstanceId=${encodeURIComponent(instanceId)}`:'',[instanceId]);
-  const route=(path:string)=>query?`${path}${path.includes('?')?'&':'?'}${query}`:path;
-  return{instances,instanceId,setInstanceId,route,ready:!instances.length||Boolean(instanceId)};
+  useEffect(()=>{setInstanceId(current=>allowAll&&current==='all'?'all':instances.some(item=>item.id===current)?current:(allowAll&&instances.length>1?'all':(instances.find(item=>item.isDefault)||instances[0])?.id||''));},[instances,allowAll]);
+  const route=(path:string,ownedInstanceId?:string)=>{const id=ownedInstanceId||(instanceId==='all'?'':instanceId);return id?`${path}${path.includes('?')?'&':'?'}engineInstanceId=${encodeURIComponent(id)}`:path;};
+  return{instances,instanceId,setInstanceId,route,isAll:instanceId==='all',ready:!instances.length||Boolean(instanceId)};
 }
 
 export function EngineInstanceFilter({instances,value,onChange}:{instances:EngineInstance[];value:string;onChange:(value:string)=>void}){
@@ -27,4 +26,13 @@ export function EngineInstanceFilter({instances,value,onChange}:{instances:Engin
 export function EngineInstanceSelect({instances,value,onChange}:{instances:EngineInstance[];value:string;onChange:(value:string)=>void}){
   if(!instances.length)return null;
   return <label>Engine instance<select value={value} onChange={event=>onChange(event.target.value)}>{instances.map(item=><option key={item.id} value={item.id}>{item.name}{item.isDefault?' — default':''}</option>)}</select><small>Changes on this page apply only to this instance.</small></label>;
+}
+
+export async function loadForEngineInstances<T>(request:Request,instances:EngineInstance[],path:string){
+  const groups=await Promise.all(instances.map(async instance=>{
+    const separator=path.includes('?')?'&':'?';
+    const response=await request<{result:T[]}>(`${path}${separator}engineInstanceId=${encodeURIComponent(instance.id)}`);
+    return(response.result||[]).map(item=>({...item,engineInstanceId:instance.id,engineInstanceName:instance.name}));
+  }));
+  return groups.flat() as (T&{engineInstanceId:string;engineInstanceName:string})[];
 }

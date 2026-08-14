@@ -1,5 +1,5 @@
-import { mkdir, readFile, readdir, realpath, rename, stat, unlink, writeFile } from "node:fs/promises";
-import { watch } from "node:fs";
+import { access, mkdir, readFile, readdir, realpath, rename, stat, unlink, writeFile } from "node:fs/promises";
+import { constants as fsConstants, watch } from "node:fs";
 import {
   createCipheriv,
   createDecipheriv,
@@ -115,6 +115,20 @@ export function televisionAddPayload(input = {}) {
         addOptions.searchForCutoffUnmetEpisodes === true,
     },
   };
+}
+export function resolveOwnedEngineInstance(queryInstanceId, ownedInstanceId) {
+  const queryId=String(queryInstanceId||'').trim()||null,ownedId=String(ownedInstanceId||'').trim()||null;
+  if(queryId&&ownedId&&queryId!==ownedId)throw new Error('The media identifier belongs to a different engine instance');
+  return queryId||ownedId||null;
+}
+export function attachEngineOwnership(result, instance) {
+  if (!instance?.id || result == null) return result;
+  const own = (value) => value && typeof value === "object" && !Array.isArray(value)
+    ? { ...value, engineInstanceId: instance.id, engineInstanceName: instance.name || null }
+    : value;
+  if (Array.isArray(result)) return result.map(own);
+  if (Array.isArray(result.records)) return { ...result, records: result.records.map(own) };
+  return own(result);
 }
 export async function filesystemLocationIdentity(path) {
   const resolved = await realpath(String(path || "")),
@@ -643,8 +657,71 @@ export function createApplication(options = {}) {
       destinations: [],
       updatedAt: null,
     });
+  const engineStorageMappingStore =
+    options.engineStorageMappingStore ||
+    new JsonStore(join(dataDir, "engine-storage-mappings.json"), {
+      version: 1,
+      mappings: [],
+      updatedAt: null,
+    });
   const mediaDestinations =
     options.mediaDestinations || new MediaDestinationService(mediaDestinationStore);
+  const engineStorageStatus = async (instance, root, mapping = null) => {
+    const enginePath = normalizeMediaPath(root?.path),
+      vynodePath = normalizeMediaPath(mapping?.vynodePath || enginePath),
+      hostPath = String(mapping?.hostPath || "").trim();
+    let exists = false, directory = false, writable = false, error = null;
+    try {
+      const details = await stat(vynodePath);
+      exists = true;
+      directory = details.isDirectory();
+      if (directory) { await access(vynodePath, fsConstants.R_OK | fsConstants.W_OK); writable = true; }
+    } catch (reason) { error = reason instanceof Error ? reason.message : "The folder is not accessible."; }
+    const accessible = exists && directory && writable;
+    return {
+      engineInstanceId: instance.id,
+      engineInstanceName: instance.name,
+      domain: instance.domain,
+      enginePath,
+      vynodePath,
+      hostPath: hostPath || null,
+      mapped: Boolean(mapping),
+      exists,
+      directory,
+      writable,
+      accessible,
+      status: accessible ? "ready" : exists && directory ? "read-only" : mapping ? "not-mounted" : "mapping-required",
+      restartRequired: !accessible,
+      error: accessible ? null : error,
+      explanation: accessible
+        ? "VynodeArr can read and write this external-engine library folder."
+        : `The external engine can use ${enginePath}, but that path is not currently usable inside the VynodeArr container.`,
+      remediation: {
+        docker: hostPath ? `Add this volume to VynodeArr and recreate the container: ${hostPath}:${vynodePath}:rw` : `Map the same host folder used by ${instance.name} into the VynodeArr container at ${vynodePath} with read/write access.`,
+        unraid: hostPath ? `Edit the VynodeArr container, add a Path with host path ${hostPath} and container path ${vynodePath}, apply the change, then restart VynodeArr.` : `In Unraid, edit the VynodeArr container and add the same Host Path used by ${instance.name}. Set its Container Path to ${vynodePath}, use Read/Write access, apply, and restart VynodeArr.`,
+      },
+    };
+  };
+  async function instanceStorage(instanceId) {
+    const instance = engineSettings.public().instances.find((item) => item.id === instanceId && item.enabled !== false);
+    if (!instance) throw new Error("Choose an available engine instance");
+    const [rootsValue, stored] = await Promise.all([
+      management.execute(instance.domain, "rootFolders", "GET", { engineInstanceId: instance.id }),
+      engineStorageMappingStore.read(),
+    ]), roots = Array.isArray(rootsValue) ? rootsValue : rootsValue?.records || [], mappings = Array.isArray(stored.mappings) ? stored.mappings : [];
+    return Promise.all(roots.map((root) => engineStorageStatus(instance, root, mappings.find((item) => item.engineInstanceId === instance.id && normalizeMediaPath(item.enginePath) === normalizeMediaPath(root.path)))));
+  }
+  async function vynodeAccessiblePath(domain, enginePath, engineInstanceId = null) {
+    const source = normalizeMediaPath(enginePath);
+    if (!source || !engineInstanceId) return source;
+    const stored = await engineStorageMappingStore.read(), mappings = (Array.isArray(stored.mappings) ? stored.mappings : [])
+      .filter((item) => item.domain === domain && item.engineInstanceId === engineInstanceId)
+      .sort((left, right) => normalizeMediaPath(right.enginePath).length - normalizeMediaPath(left.enginePath).length),
+      mapping = mappings.find((item) => source === normalizeMediaPath(item.enginePath) || source.startsWith(`${normalizeMediaPath(item.enginePath)}/`));
+    if (!mapping) return source;
+    const engineRoot = normalizeMediaPath(mapping.enginePath), localRoot = normalizeMediaPath(mapping.vynodePath);
+    return `${localRoot}${source.slice(engineRoot.length)}`;
+  }
   const engineUpdateReview =
     options.engineUpdateReview ||
     new EngineUpdateReviewService({
@@ -670,6 +747,7 @@ export function createApplication(options = {}) {
     "engine-authentication.json",
     "download-folders.json",
     "media-destinations.json",
+    "engine-storage-mappings.json",
     "performance-settings.json",
     "projections.json",
   ];
@@ -1411,19 +1489,37 @@ export function createApplication(options = {}) {
     return !path || plexPathValue(path) === "/trailers" ? "/movies" : path;
   };
   async function mediaDestinationContext(domain, administrator = true, engineInstanceId = null) {
-    const [roots, profiles, plexSettings] = await Promise.all([
+    const domainInstances = engineSettings.public().instances.filter((item) => item.domain === domain && item.enabled !== false),
+      includeLegacy = !engineInstanceId || !domainInstances.length || domainInstances.some((item) => item.id === engineInstanceId && item.isDefault);
+    const [rawRoots, profiles, plexSettings] = await Promise.all([
       management.execute(domain, "rootFolders", "GET", {engineInstanceId}).catch(() => []),
       management.execute(domain, "profiles", "GET", {engineInstanceId}).catch(() => []),
       plexSettingsStore.read().catch(() => ({ libraries: [] })),
-    ]);
+    ]), instance = engineInstanceId ? domainInstances.find((item) => item.id === engineInstanceId) : null,
+      storage = instance ? await instanceStorage(instance.id).catch(() => []) : [],
+      roots = (Array.isArray(rawRoots) ? rawRoots : rawRoots?.records || []).map((root) => {
+        const mapped = storage.find((item) => normalizeMediaPath(item.enginePath) === normalizeMediaPath(root.path));
+        return mapped ? { ...root, accessible: mapped.accessible, vynodePath: mapped.vynodePath, storageStatus: mapped.status, restartRequired: mapped.restartRequired } : root;
+      });
     const destinations = await mediaDestinations.context(domain, {
       roots,
       profiles,
       plexLibraries: plexSettings.libraries || [],
       administrator,
       engineInstanceId,
+      includeLegacy,
     });
     return { destinations, roots, profiles, plexLibraries: plexSettings.libraries || [] };
+  }
+  const enabledEngineInstances = (domain) => {
+    const instances = engineSettings.public().instances.filter((item) => item.domain === domain && item.enabled !== false);
+    return instances.length ? instances : [{ id: null, name: domain === "tv" ? "Television" : "Movies", isDefault: true }];
+  };
+  async function allMediaDestinationContexts(domain, administrator = true) {
+    return Promise.all(enabledEngineInstances(domain).map(async (instance) => ({
+      instance,
+      context: await mediaDestinationContext(domain, administrator, instance.id),
+    })));
   }
   async function applyMediaDestination(domain, payload, administrator = true) {
     const destinationId = String(payload?.mediaDestinationId || "");
@@ -1445,12 +1541,16 @@ export function createApplication(options = {}) {
         .filter(({ identity }) => identity.domain === domain && identity.tmdbId);
       if (!candidates.length) continue;
       let records, profiles, roots, destinationContext;
+      const requestedDestinationId = String(preferredDestinationIds[domain] || ""),
+        destinationState = await mediaDestinations.state(),
+        storedDestination = destinationState.destinations.find((item) => item.id === requestedDestinationId),
+        engineInstanceId = storedDestination?.engineInstanceId || enabledEngineInstances(domain).find((item) => item.isDefault)?.id || null;
       try {
         [records, profiles, roots, destinationContext] = await Promise.all([
-          management.execute(domain, "library", "GET", {}),
-          management.execute(domain, "profiles", "GET", {}),
-          management.execute(domain, "rootFolders", "GET", {}),
-          mediaDestinationContext(domain, true),
+          management.execute(domain, "library", "GET", { engineInstanceId }),
+          management.execute(domain, "profiles", "GET", { engineInstanceId }),
+          management.execute(domain, "rootFolders", "GET", { engineInstanceId }),
+          mediaDestinationContext(domain, true, engineInstanceId),
         ]);
       } catch (error) {
         summary.failed += candidates.length;
@@ -1459,8 +1559,7 @@ export function createApplication(options = {}) {
         );
         continue;
       }
-      const requestedDestinationId = String(preferredDestinationIds[domain] || ""),
-        known = Array.isArray(records) ? records : records?.records || [],
+      const known = Array.isArray(records) ? records : records?.records || [],
         selectedDestination = destinationContext.destinations.find((item) => item.id === requestedDestinationId && item.ready),
         defaultDestination = selectedDestination || destinationContext.destinations.find((item) => item.isDefault && item.ready) || destinationContext.destinations.find((item) => item.ready),
         profile = (Array.isArray(profiles) ? profiles : []).find((item) => defaultDestination && Number(item.id) === Number(defaultDestination.qualityProfileId)) || (Array.isArray(profiles) ? profiles : [])[0],
@@ -1521,6 +1620,7 @@ export function createApplication(options = {}) {
           for (const term of lookupTermsForIdentity(domain, engineIdentity)) {
             const matches = await management.execute(domain, "lookup", "GET", {
               query: { term },
+              engineInstanceId,
             });
             match = exactEngineMatch(
               domain,
@@ -1553,10 +1653,11 @@ export function createApplication(options = {}) {
                   },
                 }),
           };
-          const destinationPayload = !preferredPath && defaultDestination ? mediaDestinations.apply(payload, defaultDestination) : payload,
-            added = await management.execute(domain, "library", "POST", {
-            payload: domain === "tv" ? televisionAddPayload(destinationPayload) : destinationPayload,
-          });
+           const destinationPayload = !preferredPath && defaultDestination ? mediaDestinations.apply(payload, defaultDestination) : payload,
+             added = await management.execute(domain, "library", "POST", {
+             payload: domain === "tv" ? televisionAddPayload(destinationPayload) : destinationPayload,
+             engineInstanceId,
+           });
           known.push(added || destinationPayload);
           summary.added += 1;
           domainAdded += 1;
@@ -1655,37 +1756,44 @@ export function createApplication(options = {}) {
       .jpeg({ quality: 92, chromaSubsampling: "4:4:4" })
       .toBuffer();
   }
-  async function reeltrackOriginalArtwork({ automation, endpoint, token, machineIdentifier, ratingKey, artworkPath, domain, kind }) {
+  async function reeltrackOriginalArtwork({ automation, endpoint, token, machineIdentifier, libraryKey, ratingKey, artworkPath, domain, kind }) {
     automation.artworkOriginals ||= {};
-    const key = `${machineIdentifier}:${domain}:${kind}:${ratingKey}`,
+    const normalizedLibraryKey = String(libraryKey || ""),
+      key = `${machineIdentifier}:${normalizedLibraryKey}:${domain}:${kind}:${ratingKey}`,
+      previousKey = `${machineIdentifier}:${domain}:${kind}:${ratingKey}`,
       legacyKey = `${machineIdentifier}:${ratingKey}`,
       legacy = automation.artworkOriginals[legacyKey],
-      existing = automation.artworkOriginals[key] || (legacy?.machineIdentifier === machineIdentifier && legacy?.domain === domain && legacy?.kind === kind ? legacy : null);
+      previous = automation.artworkOriginals[previousKey],
+      compatiblePrevious = previous?.machineIdentifier === machineIdentifier && previous?.domain === domain && previous?.kind === kind && (!previous.libraryKey || String(previous.libraryKey) === normalizedLibraryKey) ? previous : null,
+      compatibleLegacy = legacy?.machineIdentifier === machineIdentifier && legacy?.domain === domain && legacy?.kind === kind && (!legacy.libraryKey || String(legacy.libraryKey) === normalizedLibraryKey) ? legacy : null,
+      existing = automation.artworkOriginals[key] || compatiblePrevious || compatibleLegacy;
     if (existing?.backupFile && /^[a-f0-9-]{36}\.poster$/i.test(existing.backupFile)) {
       const body = await readFile(join(reeltrackArtworkBackupDir, existing.backupFile)).catch(() => null);
       if (body?.length && createHash("sha256").update(body).digest("hex") === existing.sha256) {
         automation.artworkOriginals[key] = existing;
+        if (compatiblePrevious === existing) delete automation.artworkOriginals[previousKey];
         if (legacy === existing) delete automation.artworkOriginals[legacyKey];
         return { body, contentType: existing.contentType, key, captured: false, synthetic: Boolean(existing.synthetic) };
       }
       delete automation.artworkOriginals[key];
+      if (compatiblePrevious === existing) delete automation.artworkOriginals[previousKey];
       if (legacy === existing) delete automation.artworkOriginals[legacyKey];
     }
     const synthetic = typeof plexService.artwork !== "function",
       current = !synthetic
         ? await plexService.artwork(endpoint, token, artworkPath || `/library/metadata/${ratingKey}/thumb`)
         : { body: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="600" height="900"><rect width="600" height="900" fill="#08111f"/></svg>'), contentType: "image/svg+xml" },
-      original = await originalPlexPoster({ server: { machineIdentifier } }, ratingKey, current),
+      original = await originalPlexPoster({ server: { machineIdentifier } }, normalizedLibraryKey, ratingKey, current),
       backupFile = `${randomUUID()}.poster`;
     await mkdir(reeltrackArtworkBackupDir, { recursive: true });
     await writeFile(join(reeltrackArtworkBackupDir, backupFile), original.body, { mode: 384, flag: "wx" });
-    automation.artworkOriginals[key] = { backupFile, contentType: original.contentType, sha256: createHash("sha256").update(original.body).digest("hex"), machineIdentifier, ratingKey: String(ratingKey), domain, kind, synthetic, capturedAt: new Date().toISOString() };
+    automation.artworkOriginals[key] = { backupFile, contentType: original.contentType, sha256: createHash("sha256").update(original.body).digest("hex"), machineIdentifier, libraryKey: normalizedLibraryKey, ratingKey: String(ratingKey), domain, kind, synthetic, capturedAt: new Date().toISOString() };
     return { ...original, key, captured: true };
   }
-  async function restoreReeltrackArtwork({ automation, endpoint, token, machineIdentifier, domain, kind, exceptRatingKeys = [] }) {
+  async function restoreReeltrackArtwork({ automation, endpoint, token, machineIdentifier, libraryKey = null, domain, kind, exceptRatingKeys = [] }) {
     const restored = [];
     const retained = new Set(exceptRatingKeys.map(String)),
-      records = Object.values(automation.artworkOriginals || {}).filter((item, index, all) => !item.synthetic && item.machineIdentifier === machineIdentifier && item.domain === domain && item.kind === kind && !retained.has(String(item.ratingKey)) && all.indexOf(item) === index);
+      records = Object.values(automation.artworkOriginals || {}).filter((item, index, all) => !item.synthetic && item.machineIdentifier === machineIdentifier && item.domain === domain && item.kind === kind && (libraryKey === null || !item.libraryKey || String(item.libraryKey) === String(libraryKey)) && !retained.has(String(item.ratingKey)) && all.indexOf(item) === index);
     for (const record of records) {
       if (!/^[a-f0-9-]{36}\.poster$/i.test(String(record.backupFile || ""))) continue;
       const body = await readFile(join(reeltrackArtworkBackupDir, record.backupFile)).catch(() => null);
@@ -1694,7 +1802,7 @@ export function createApplication(options = {}) {
     }
     return restored;
   }
-  async function applyReeltrackTitleArtwork({ template, endpoint, token, machineIdentifier, automation, items, ratingKeys, list, domain, syncedAt }) {
+  async function applyReeltrackTitleArtwork({ template, endpoint, token, machineIdentifier, libraryKey, automation, items, ratingKeys, list, domain, syncedAt }) {
     if (!template?.enabled || !template.layers?.length) return { applied: 0, failed: 0, errors: [] };
     let applied = 0, failed = 0;
     const errors = [];
@@ -1705,7 +1813,7 @@ export function createApplication(options = {}) {
           tmdbId = Number(identity?.split(":")[1] || pathTmdbId || 0),
           source = (list.items || []).find((value) => String(value.tmdbId || "") === String(tmdbId || "")) || {},
           metadata = tmdbId ? await discovery.details(domain, tmdbId).catch(() => null) : null,
-          original = await reeltrackOriginalArtwork({ automation, endpoint, token, machineIdentifier, ratingKey: plexItem.ratingKey, artworkPath: plexItem.thumb, domain, kind: "title" }).catch(() => null),
+          original = await reeltrackOriginalArtwork({ automation, endpoint, token, machineIdentifier, libraryKey, ratingKey: plexItem.ratingKey, artworkPath: plexItem.thumb, domain, kind: "title" }).catch(() => null),
           poster = original?.body || await remotePosterBuffer(domain, tmdbId);
         if (!poster?.length) throw new Error("No Plex or provider poster was available");
         const
@@ -2000,7 +2108,9 @@ export function createApplication(options = {}) {
         ).map((item) => item.ratingKey),
         collectionMemberKeys = [...new Set([...realRatingKeys, ...placeholderKeys])],
         splitCollections = automation.splitLibraryMode && String(library.key) !== String(realLibrary.key);
-      await restoreReeltrackArtwork({ automation, endpoint: plexSettings.endpoint, token: plexToken, machineIdentifier: plexSettings.server?.machineIdentifier || "", domain, kind: "title", exceptRatingKeys: collectionMemberKeys });
+      await restoreReeltrackArtwork({ automation, endpoint: plexSettings.endpoint, token: plexToken, machineIdentifier: plexSettings.server?.machineIdentifier || "", libraryKey: library.key, domain, kind: "title", exceptRatingKeys: splitCollections ? placeholderKeys : collectionMemberKeys });
+      if (splitCollections)
+        await restoreReeltrackArtwork({ automation, endpoint: plexSettings.endpoint, token: plexToken, machineIdentifier: plexSettings.server?.machineIdentifier || "", libraryKey: realLibrary.key, domain, kind: "title", exceptRatingKeys: realRatingKeys });
       const collection = await plexService.syncCollection(
           plexSettings.endpoint,
           plexToken,
@@ -2054,6 +2164,7 @@ export function createApplication(options = {}) {
           endpoint: plexSettings.endpoint,
           token: plexToken,
           machineIdentifier: plexSettings.server?.machineIdentifier || "",
+          libraryKey: library.key,
           automation,
           items: refreshedItems,
           ratingKeys: placeholderKeys,
@@ -2064,6 +2175,7 @@ export function createApplication(options = {}) {
         const realArtwork = await applyReeltrackTitleArtwork({
           template: realTitleTemplate, endpoint: plexSettings.endpoint, token: plexToken,
           machineIdentifier: plexSettings.server?.machineIdentifier || "", automation,
+          libraryKey: realLibrary.key,
           items: refreshedRealItems, ratingKeys: realRatingKeys, list, domain, syncedAt: runStartedAt,
         });
         totals.titlePosters += placeholderArtwork.applied + realArtwork.applied;
@@ -4452,9 +4564,9 @@ export function createApplication(options = {}) {
       return attention;
     }
   }
-  async function librarySummary(domain, items) {
+  async function librarySummary(domain, items, engineInstanceId = "all") {
     if (typeof projectionStore.librarySummary === "function")
-      return projectionStore.librarySummary(domain);
+      return projectionStore.librarySummary(domain, engineInstanceId);
     const records = Array.isArray(items) ? items : [],
       monitored = records.filter((item) => item.monitoring !== "none").length,
       covered = records.filter((item) =>
@@ -4592,7 +4704,8 @@ export function createApplication(options = {}) {
   }
   function scheduleImportedUpgradeRename(domain, item, event) {
     if (!truthyEngineValue(event?.data?.isUpgrade ?? event?.isUpgrade)) return;
-    const mediaId = Number(
+    const engineInstanceId = String(item.engineInstanceId || "").trim() || null,
+      mediaId = Number(
       domain === "movie"
         ? item.movieId || item.movie?.id
         : item.seriesId || item.series?.id || item.episode?.seriesId,
@@ -4609,14 +4722,14 @@ export function createApplication(options = {}) {
         item.title ||
         "unknown",
     );
-    const key = `${domain}:${mediaId}:${eventIdentity}`,
+    const key = `${domain}:${engineInstanceId || "default"}:${mediaId}:${eventIdentity}`,
       now = Date.now(),
       last = completedUpgradeRenames.get(key) || 0;
     if (now - last < 24 * 60 * 60 * 1e3) return;
     completedUpgradeRenames.set(key, now);
     void (async () => {
       try {
-        const naming = await management.execute(domain, "naming", "GET", {});
+        const naming = await management.execute(domain, "naming", "GET", { engineInstanceId });
         const renameEnabled =
           domain === "movie" ? naming?.renameMovies : naming?.renameEpisodes;
         if (!truthyEngineValue(renameEnabled)) return;
@@ -4626,6 +4739,7 @@ export function createApplication(options = {}) {
             : { name: "RenameSeries", seriesIds: [mediaId] };
         await management.execute(domain, "commands", "POST", {
           payload: payload,
+          engineInstanceId,
         });
         for (const delay of [2e3, 1e4, 3e4])
           setTimeout(
@@ -4633,7 +4747,7 @@ export function createApplication(options = {}) {
               sync
                 .reconcileItem(
                   domain,
-                  `${domain === "movie" ? "movie" : "series"}_${mediaId}`,
+                  `${domain === "movie" ? "movie" : "series"}_${engineInstanceId ? `${engineInstanceId}_` : ""}${mediaId}`,
                 )
                 .catch(() => {}),
             delay,
@@ -4648,7 +4762,8 @@ export function createApplication(options = {}) {
           completedUpgradeRenames.delete(recordKey);
   }
   function scheduleCompletedMediaRefresh(domain, item) {
-    const mediaId = Number(
+    const engineInstanceId = String(item.engineInstanceId || "").trim() || null,
+      mediaId = Number(
       domain === "movie"
         ? item.movieId || item.movie?.id
         : item.seriesId || item.series?.id || item.episode?.seriesId,
@@ -4668,10 +4783,11 @@ export function createApplication(options = {}) {
         try {
           await management.execute(domain, "commands", "POST", {
             payload: payload,
+            engineInstanceId,
           });
           await sync.reconcileItem(
             domain,
-            `${domain === "movie" ? "movie" : "series"}_${mediaId}`,
+            `${domain === "movie" ? "movie" : "series"}_${engineInstanceId ? `${engineInstanceId}_` : ""}${mediaId}`,
           );
         } catch {}
       }, delay);
@@ -4689,7 +4805,9 @@ export function createApplication(options = {}) {
     new Promise((resolve) => setTimeout(resolve, milliseconds));
   function startImportJob(userId, input) {
     const domain = input.domain,
-      label = domain === "movie" ? "Movies" : "Television",
+      engineInstanceId = String(input.engineInstanceId || "").trim() || null,
+      instance = engineInstanceId ? engineSettings.public().instances.find((item) => item.id === engineInstanceId && item.domain === domain && item.enabled !== false) : null,
+      label = instance?.name || (domain === "movie" ? "Movies" : "Television"),
       items = Array.isArray(input.items) ? input.items : [];
     if (
       !["movie", "tv"].includes(domain) ||
@@ -4697,10 +4815,14 @@ export function createApplication(options = {}) {
       items.length > 5e3
     )
       throw new Error("Select between 1 and 5,000 titles to import");
+    if (engineInstanceId && !instance)
+      throw new Error("Choose an available engine instance");
     const job = {
       id: `import_${randomUUID()}`,
       userId: userId,
       domain: domain,
+      engineInstanceId: engineInstanceId,
+      engineInstanceName: instance?.name || null,
       label: label,
       status: "queued",
       total: items.length,
@@ -4718,7 +4840,7 @@ export function createApplication(options = {}) {
       job.status = "running";
       const known = new Set();
       try {
-        const existing = await management.execute(domain, "library", "GET", {});
+        const existing = await management.execute(domain, "library", "GET", { engineInstanceId });
         for (const record of Array.isArray(existing)
           ? existing
           : existing?.records || [])
@@ -4736,6 +4858,7 @@ export function createApplication(options = {}) {
         try {
           await management.execute(domain, "library", "POST", {
             payload: item.payload,
+            engineInstanceId,
           });
           job.completed += 1;
           for (const key of keys) known.add(key);
@@ -4914,7 +5037,9 @@ export function createApplication(options = {}) {
     return publicSearchJob(job);
   }
   async function rebuildFromSettings() {
-    const runtime = await engineSettings.runtime();
+    const runtime = engineSettings.mode() === "external"
+      ? await engineSettings.externalRuntime()
+      : await engineSettings.runtime();
     if (!runtime) return;
     movie = new MovieEngineAdapter(runtime.movie);
     tv = new TvEngineAdapter(runtime.tv);
@@ -7452,6 +7577,12 @@ export function createApplication(options = {}) {
     );
     if (!item)
       throw new Error("The VynodeArr library title is no longer available");
+    const destinationState = await mediaDestinations.state(),
+      mappedInstances = new Set(destinationState.destinations
+        .filter((destination) => destination.domain === domain && String(destination.plexLibraryKey || "") === String(library.key))
+        .map((destination) => String(destination.engineInstanceId || "")));
+    if (mappedInstances.size && !mappedInstances.has(String(item.engineInstanceId || "")))
+      throw new Error("This title's engine instance is not associated with the selected Plex library");
     const plexItems = await plexService.libraryItems(
         settings.endpoint,
         token,
@@ -7488,15 +7619,17 @@ export function createApplication(options = {}) {
     domain: value.domain,
     templateName: value.templateName,
     plexLibraryTitle: value.plexLibraryTitle,
+    engineInstanceId: value.engineInstanceId || null,
+    engineInstanceName: value.engineInstanceName || null,
     appliedAt: value.appliedAt,
     restoredAt: value.restoredAt || null,
     variableValues: value.variableValues || {},
     status: value.restoredAt ? "restored" : "applied",
   });
-  async function originalPlexPoster(settings, ratingKey, fallbackPoster) {
+  async function originalPlexPoster(settings, libraryKey, ratingKey, fallbackPoster) {
     const stored = await plexPosterApplicationStore.read(),
       prior = (stored.applications || [])
-        .filter((item) => !item.restoredAt && String(item.ratingKey) === String(ratingKey) && item.serverMachineIdentifier === settings.server?.machineIdentifier)
+        .filter((item) => !item.restoredAt && String(item.libraryKey) === String(libraryKey) && String(item.ratingKey) === String(ratingKey) && item.serverMachineIdentifier === settings.server?.machineIdentifier)
         .sort((a, b) => String(a.appliedAt || "").localeCompare(String(b.appliedAt || "")))[0];
     if (!prior) return { ...fallbackPoster, managed: false };
     if (!/^plex_poster_[A-Za-z0-9-]+\.poster$/.test(String(prior.backupFile || ""))) throw new Error("The original Plex poster record is invalid");
@@ -7550,7 +7683,7 @@ export function createApplication(options = {}) {
         libraryKey: libraryKey,
         ratingKey: ratingKey,
       });
-    target.poster = await originalPlexPoster(target.settings, target.plex.ratingKey, target.poster);
+    target.poster = await originalPlexPoster(target.settings, target.library.key, target.plex.ratingKey, target.poster);
     const rendered = await renderedPlexPoster(target, template, session),
       id = `plex_poster_${randomUUID()}`,
       backupFile = `${id}.poster`,
@@ -7572,6 +7705,8 @@ export function createApplication(options = {}) {
       ratingKey: String(target.plex.ratingKey),
       domain: domain,
       mediaId: mediaId,
+      engineInstanceId: target.item.engineInstanceId || null,
+      engineInstanceName: target.item.engineInstanceName || null,
       title: target.item.title,
       templateId: template.id,
       templateName: template.name,
@@ -9050,6 +9185,7 @@ export function createApplication(options = {}) {
         }
         if (url.pathname === "/api/media-destinations" && req.method === "GET") {
           const requestedDomain = url.searchParams.get("domain"),
+            requestedInstanceId = String(url.searchParams.get("engineInstanceId") || "").trim(),
             domains = requestedDomain ? [requestedDomain] : ["movie", "tv"];
           if (domains.some((value) => !["movie", "tv"].includes(value)))
             throw new Error("Choose Movies or Television");
@@ -9057,13 +9193,22 @@ export function createApplication(options = {}) {
           for (const domain of domains)
             if (!administratorSession && !session.user.permissions?.[domain === "movie" ? "movies" : "tv"])
               return json(res, 403, { error: { code: "forbidden", message: "This library is not available to your account." } });
-          const contexts = await Promise.all(domains.map((domain) => mediaDestinationContext(domain, administratorSession)));
+          const groupedContexts = await Promise.all(domains.map(async(domain) => {
+              if (!requestedInstanceId) return allMediaDestinationContexts(domain, administratorSession);
+              const instance = enabledEngineInstances(domain).find((item) => String(item.id || "") === requestedInstanceId);
+              if (!instance) throw new Error("Choose an available engine instance");
+              return [{ instance, context: await mediaDestinationContext(domain, administratorSession, instance.id) }];
+            })),
+            contexts = groupedContexts.flatMap((values) => values.map(({ instance, context }) => ({
+              ...context,
+              destinations: context.destinations.map((item) => ({ ...item, engineInstanceId: instance.id, engineInstanceName: instance.name })),
+            })));
           if (administratorSession && url.searchParams.get("includeUsage") === "true")
-            await Promise.all(domains.map(async(domain,index)=>{const raw=await management.execute(domain,"library","GET",{}).catch(()=>[]),items=Array.isArray(raw)?raw:raw?.records||[];contexts[index].destinations=contexts[index].destinations.map(destination=>{const root=String(destination.rootFolderPath||"").replaceAll("\\","/").replace(/\/+$/,"").toLowerCase(),titleCount=items.filter(item=>{const path=String(item.path||item.rootFolderPath||"").replaceAll("\\","/").toLowerCase();return path===root||path.startsWith(`${root}/`);}).length;return{...destination,titleCount};});}));
+            await Promise.all(contexts.map(async(context)=>{const destination=context.destinations[0];if(!destination)return;const raw=await management.execute(destination.domain,"library","GET",{engineInstanceId:destination.engineInstanceId}).catch(()=>[]),items=Array.isArray(raw)?raw:raw?.records||[];context.destinations=context.destinations.map(item=>{const root=String(item.rootFolderPath||"").replaceAll("\\","/").replace(/\/+$/,"").toLowerCase(),titleCount=items.filter(record=>{const path=String(record.path||record.rootFolderPath||"").replaceAll("\\","/").toLowerCase();return path===root||path.startsWith(`${root}/`);}).length;return{...item,titleCount};});}));
           return json(res, 200, {
             destinations: contexts.flatMap((value) => value.destinations),
-            roots: Object.fromEntries(domains.map((domain, index) => [domain, contexts[index].roots])),
-            profiles: Object.fromEntries(domains.map((domain, index) => [domain, contexts[index].profiles])),
+            roots: Object.fromEntries(domains.map((domain, index) => [domain, groupedContexts[index].flatMap(({ instance, context }) => context.roots.map((item) => ({ ...item, engineInstanceId: instance.id, engineInstanceName: instance.name })))])),
+            profiles: Object.fromEntries(domains.map((domain, index) => [domain, groupedContexts[index].flatMap(({ instance, context }) => context.profiles.map((item) => ({ ...item, engineInstanceId: instance.id, engineInstanceName: instance.name })))])),
             plexLibraries: [...new Map(contexts.flatMap((value) => value.plexLibraries).map((item) => [String(item.key), item])).values()],
           });
         }
@@ -9071,7 +9216,7 @@ export function createApplication(options = {}) {
           if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
           const input = await body(req),domain = input.domain === "tv" ? "tv" : input.domain === "movie" ? "movie" : null;
           if (!domain) throw new Error("Choose Movies or Television");
-          const context = await mediaDestinationContext(domain, true),record = await mediaDestinations.save(input, context);
+          const context = await mediaDestinationContext(domain, true, input.engineInstanceId || null),record = await mediaDestinations.save(input, context);
           await recordAudit(session, { category: "configuration", action: "media_destination.created", target: record.name, domain, summary: `Created the ${record.name} media destination.`, metadata: { destinationId: record.id, rootFolderPath: record.rootFolderPath } });
           return json(res, 201, { destination: record });
         }
@@ -9080,7 +9225,8 @@ export function createApplication(options = {}) {
           if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
           const input = await body(req),stored = await mediaDestinations.state(),existing = stored.destinations.find((item) => item.id === mediaDestinationMatch[1]);
           if (!existing) return json(res, 404, { error: { code: "not_found", message: "Media destination not found." } });
-          const context = await mediaDestinationContext(existing.domain, true),record = await mediaDestinations.save({ ...existing, ...input, id: existing.id, domain: existing.domain }, context);
+          const engineInstanceId = input.engineInstanceId || existing.engineInstanceId || null,
+            context = await mediaDestinationContext(existing.domain, true, engineInstanceId),record = await mediaDestinations.save({ ...existing, ...input, engineInstanceId, id: existing.id, domain: existing.domain }, context);
           await recordAudit(session, { category: "configuration", action: "media_destination.updated", target: record.name, domain: record.domain, summary: `Updated the ${record.name} media destination.`, metadata: { destinationId: record.id, rootFolderPath: record.rootFolderPath } });
           return json(res, 200, { destination: record });
         }
@@ -9648,7 +9794,18 @@ export function createApplication(options = {}) {
               (item) => String(item.id) === listId,
             );
           if (index < 0) throw new Error("The imported Reeltrack list no longer exists.");
-          const enabled = input.enabled === true;
+          const enabled = input.enabled === true,
+            destinationState = await mediaDestinations.state(),
+            movieDestination = destinationState.destinations.find((item) => item.domain === "movie" && item.id === String(input.movieMediaDestinationId || "")),
+            tvDestination = destinationState.destinations.find((item) => item.domain === "tv" && item.id === String(input.tvMediaDestinationId || "")),
+            plexMovieLibraryKey = String(input.plexMovieLibraryKey || movieDestination?.plexLibraryKey || ""),
+            plexTvLibraryKey = String(input.plexTvLibraryKey || tvDestination?.plexLibraryKey || "");
+          if (input.movieMediaDestinationId && !movieDestination) throw new Error("Choose an available movie destination.");
+          if (input.tvMediaDestinationId && !tvDestination) throw new Error("Choose an available television destination.");
+          if (movieDestination?.plexLibraryKey && String(movieDestination.plexLibraryKey) !== plexMovieLibraryKey)
+            throw new Error(`${movieDestination.name} is tied to a different Plex movie library. Update the destination mapping or choose its mapped library.`);
+          if (tvDestination?.plexLibraryKey && String(tvDestination.plexLibraryKey) !== plexTvLibraryKey)
+            throw new Error(`${tvDestination.name} is tied to a different Plex television library. Update the destination mapping or choose its mapped library.`);
           if (enabled) {
             const [settings, token, downloader] = await Promise.all([
               plexSettingsStore.read(),
@@ -9659,15 +9816,15 @@ export function createApplication(options = {}) {
               throw new Error("Connect Plex before enabling list automation.");
             if (!downloader.available) throw new Error(downloader.message || "yt-dlp is unavailable.");
             const domains = new Set((current.importedLists[index].items || []).map(reeltrackItemIdentity).filter((item) => item.tmdbId).map((item) => item.domain));
-            if (domains.has("movie") && !(settings.libraries || []).some((item) => item.type === "movie" && String(item.key) === String(input.plexMovieLibraryKey)))
+            if (domains.has("movie") && !(settings.libraries || []).some((item) => item.type === "movie" && String(item.key) === plexMovieLibraryKey))
               throw new Error("Choose a discovered Plex movie library.");
-            if (domains.has("tv") && !(settings.libraries || []).some((item) => item.type === "show" && String(item.key) === String(input.plexTvLibraryKey)))
+            if (domains.has("tv") && !(settings.libraries || []).some((item) => item.type === "show" && String(item.key) === plexTvLibraryKey))
               throw new Error("Choose a discovered Plex television library.");
             if (input.splitLibraryMode) {
               if (domains.has("movie") && !(settings.libraries || []).some((item) => item.type === "movie" && String(item.key) === String(input.plexMoviePlaceholderLibraryKey))) throw new Error("Choose a discovered Plex movie placeholder library.");
               if (domains.has("tv") && !(settings.libraries || []).some((item) => item.type === "show" && String(item.key) === String(input.plexTvPlaceholderLibraryKey))) throw new Error("Choose a discovered Plex television placeholder library.");
-              if (domains.has("movie") && String(input.plexMovieLibraryKey) === String(input.plexMoviePlaceholderLibraryKey)) throw new Error("Choose different real-media and placeholder movie libraries.");
-              if (domains.has("tv") && String(input.plexTvLibraryKey) === String(input.plexTvPlaceholderLibraryKey)) throw new Error("Choose different real-media and placeholder television libraries.");
+              if (domains.has("movie") && plexMovieLibraryKey === String(input.plexMoviePlaceholderLibraryKey)) throw new Error("Choose different real-media and placeholder movie libraries.");
+              if (domains.has("tv") && plexTvLibraryKey === String(input.plexTvPlaceholderLibraryKey)) throw new Error("Choose different real-media and placeholder television libraries.");
             }
             if (domains.has("movie")) mappedLibraryRoot("movie", input);
             if (domains.has("tv")) mappedLibraryRoot("tv", input);
@@ -9676,8 +9833,8 @@ export function createApplication(options = {}) {
             ...(current.importedLists[index].automation || {}),
             enabled,
             downloadTrailers: input.downloadTrailers !== false,
-            plexMovieLibraryKey: String(input.plexMovieLibraryKey || ""),
-            plexTvLibraryKey: String(input.plexTvLibraryKey || ""),
+            plexMovieLibraryKey,
+            plexTvLibraryKey,
             splitLibraryMode: input.splitLibraryMode === true,
             plexMoviePlaceholderLibraryKey: input.splitLibraryMode ? String(input.plexMoviePlaceholderLibraryKey || "") : "",
             plexTvPlaceholderLibraryKey: input.splitLibraryMode ? String(input.plexTvPlaceholderLibraryKey || "") : "",
@@ -11281,6 +11438,57 @@ export function createApplication(options = {}) {
         const engineInstanceDefault = url.pathname.match(
           /^\/api\/settings\/engines\/instances\/([^/]+)\/default$/,
         );
+        const engineInstanceInventory = url.pathname.match(
+          /^\/api\/settings\/engines\/instances\/([^/]+)\/inventory$/,
+        );
+        const engineInstanceStorage = url.pathname.match(
+          /^\/api\/settings\/engines\/instances\/([^/]+)\/storage$/,
+        );
+        if (engineInstanceInventory && req.method === "GET") {
+          if (!administrator(res, session)) return;
+          const instance = engineSettings.public().instances.find((item) => item.id === engineInstanceInventory[1] && item.enabled !== false);
+          if (!instance) return json(res, 404, { error: { code: "engine_instance_not_found", message: "Engine instance was not found." } });
+          const resources = ["rootFolders", "profiles", "qualityDefinitions", "customFormats", "tags", "indexers", "downloadClients", "remotePathMappings", "notifications", "importLists", "naming", "mediaManagement", "downloadClientSettings", "delayProfiles", "restrictions", ...(instance.domain === "movie" ? ["releaseProfiles", "metadata"] : ["metadata"])];
+          const entries = await Promise.all(resources.map(async (resource) => {
+            try {
+              const value = await management.execute(instance.domain, resource, "GET", { engineInstanceId: instance.id });
+              const count = Array.isArray(value) ? value.length : Array.isArray(value?.records) ? value.records.length : value ? 1 : 0;
+              return { resource, available: true, manageable: true, count, value };
+            } catch (reason) {
+              return { resource, available: false, manageable: false, count: 0, error: reason instanceof Error ? reason.message : "This setting could not be read from the engine." };
+            }
+          }));
+          return json(res, 200, {
+            instance: { id: instance.id, name: instance.name, domain: instance.domain, isDefault: instance.isDefault },
+            summary: { identified: entries.filter((item) => item.available).length, unavailable: entries.filter((item) => !item.available).length, total: entries.length },
+            resources: entries,
+            storage: await instanceStorage(instance.id),
+            syncedAt: new Date().toISOString(),
+          });
+        }
+        if (engineInstanceStorage && req.method === "GET") {
+          if (!administrator(res, session)) return;
+          return json(res, 200, { mappings: await instanceStorage(engineInstanceStorage[1]) });
+        }
+        if (engineInstanceStorage && req.method === "PUT") {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          const instance = engineSettings.public().instances.find((item) => item.id === engineInstanceStorage[1] && item.enabled !== false);
+          if (!instance) return json(res, 404, { error: { code: "engine_instance_not_found", message: "Engine instance was not found." } });
+          const input = await body(req), enginePath = normalizeMediaPath(input.enginePath), vynodePath = normalizeMediaPath(input.vynodePath), hostPath = String(input.hostPath || "").trim();
+          if (!enginePath || !vynodePath || !vynodePath.startsWith("/")) throw new Error("Enter an absolute VynodeArr container path");
+          const rootsValue = await management.execute(instance.domain, "rootFolders", "GET", { engineInstanceId: instance.id }), roots = Array.isArray(rootsValue) ? rootsValue : rootsValue?.records || [], root = roots.find((item) => normalizeMediaPath(item.path) === enginePath);
+          if (!root) throw new Error("Choose a root folder currently reported by this engine instance");
+          const now = new Date().toISOString(), record = { engineInstanceId: instance.id, domain: instance.domain, enginePath, vynodePath, hostPath: hostPath || null, updatedAt: now };
+          await engineStorageMappingStore.update((current) => {
+            current.version = 1; current.mappings = Array.isArray(current.mappings) ? current.mappings : [];
+            const index = current.mappings.findIndex((item) => item.engineInstanceId === instance.id && normalizeMediaPath(item.enginePath) === enginePath);
+            if (index >= 0) current.mappings[index] = record; else current.mappings.push(record);
+            current.updatedAt = now; return current;
+          });
+          const mapping = await engineStorageStatus(instance, root, record);
+          await recordAudit(session, { category: "configuration", action: "engine_storage.mapped", target: `${instance.name}: ${enginePath}`, domain: instance.domain, summary: mapping.accessible ? `Verified ${vynodePath} for ${instance.name}.` : `Saved the intended ${vynodePath} mapping for ${instance.name}; a container restart is required after mounting the folder.`, metadata: { engineInstanceId: instance.id, enginePath, vynodePath, hostPath: hostPath || null, accessible: mapping.accessible } });
+          return json(res, 200, { mapping, restartRequired: mapping.restartRequired });
+        }
         if (url.pathname === "/api/settings/engines/instances/test" && req.method === "POST") {
           if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
           const input = await body(req),domain=String(input.domain||"");
@@ -11298,6 +11506,7 @@ export function createApplication(options = {}) {
           const input=await body(req),domain=String(input.domain||""),result=await testEngine(domain,input);
           if(!result.validated)return json(res,422,{error:{code:"engine_validation_failed",message:result.connection.safeError||"Engine validation did not succeed."}});
           const instance=await engineSettings.createInstance(domain,input,String(input.apiCredential||""));
+          await rebuildFromSettings();
           return json(res,201,{instance,settings:engineSettings.public(),validation:result});
         }
         if (engineInstance && req.method === "PUT") {
@@ -11307,11 +11516,14 @@ export function createApplication(options = {}) {
           const result=await testEngine(existing.domain,{...existing,...input,apiCredential:String(input.apiCredential||existing.apiCredential)});
           if(!result.validated)return json(res,422,{error:{code:"engine_validation_failed",message:result.connection.safeError||"Engine validation did not succeed."}});
           const instance=await engineSettings.updateInstance(engineInstance[1],input,String(input.apiCredential||""));
+          await rebuildFromSettings();
           return json(res,200,{instance,settings:engineSettings.public(),validation:result});
         }
         if (engineInstanceDefault && req.method === "PUT") {
           if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
-          return json(res,200,{settings:await engineSettings.setDefaultInstance(engineInstanceDefault[1])});
+          const settings=await engineSettings.setDefaultInstance(engineInstanceDefault[1]);
+          await rebuildFromSettings();
+          return json(res,200,{settings});
         }
         if (engineInstance && req.method === "DELETE") {
           if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
@@ -11327,7 +11539,13 @@ export function createApplication(options = {}) {
                 message: `Move or remove ${ownedDestinations.length} media destination${ownedDestinations.length === 1 ? "" : "s"} assigned to this engine before removing it.`,
               },
             });
-          return json(res,200,{settings:await engineSettings.removeInstance(instanceId)});
+          const settings=await engineSettings.removeInstance(instanceId);
+          await engineStorageMappingStore.update((current) => {
+            current.mappings = (Array.isArray(current.mappings) ? current.mappings : []).filter((item) => item.engineInstanceId !== instanceId);
+            current.updatedAt = new Date().toISOString(); return current;
+          });
+          await rebuildFromSettings();
+          return json(res,200,{settings});
         }
         if (
           url.pathname === "/api/settings/engines/repair" &&
@@ -12290,9 +12508,17 @@ export function createApplication(options = {}) {
               },
             });
           const entries = [];
+          const destinationState = await mediaDestinations.state();
           for (const library of libraries) {
             const domain = library.type === "movie" ? "movie" : "tv",
-              vynode = (await sync.list(domain)).map((item) => ({
+              mappedInstances = new Set(destinationState.destinations
+                .filter((item) => item.domain === domain && String(item.plexLibraryKey || "") === String(library.key))
+                .map((item) => String(item.engineInstanceId || ""))),
+              allVynode = await sync.list(domain),
+              scopedVynode = mappedInstances.size
+                ? allVynode.filter((item) => mappedInstances.has(String(item.engineInstanceId || "")))
+                : allVynode,
+              vynode = scopedVynode.map((item) => ({
                 ...item,
                 domain: domain,
               })),
@@ -12311,11 +12537,13 @@ export function createApplication(options = {}) {
                 return{
                   ...item,
                   variableValues:source?posterVariableValues(source,{plexAddedAt:Number.isFinite(date.getTime())?date.toISOString():null}):{},
-                  plexLibrary: {
+                   plexLibrary: {
                     key: library.key,
                     title: library.title,
                     type: library.type,
-                  },
+                   },
+                   engineInstanceId: source?.engineInstanceId || null,
+                   engineInstanceName: source?.engineInstanceName || null,
                 };
               }),
             );
@@ -14707,7 +14935,8 @@ export function createApplication(options = {}) {
           if (method !== "GET" && !requireCsrf(req, res, session)) return;
           const input = method === "GET" ? {} : await body(req);
           const query = Object.fromEntries(url.searchParams);
-          const domain=managementMatch[1],owned=decodeOwnedMediaId(domain,managementMatch[3]),requestedInstance=String(query.engineInstanceId||owned.engineInstanceId||'').trim()||null;
+          const domain=managementMatch[1],owned=decodeOwnedMediaId(domain,managementMatch[3]),queryInstance=String(query.engineInstanceId||'').trim()||null;
+          const requestedInstance=resolveOwnedEngineInstance(queryInstance,owned.engineInstanceId);
           if(requestedInstance)delete query.engineInstanceId;
           let result;
           if (managementMatch[2] === "releases" && method === "GET") {
@@ -14761,14 +14990,21 @@ export function createApplication(options = {}) {
                   ? televisionAddPayload(input)
                   : input;
             if (managementMatch[2] === "library" && method === "POST") {
-              payload = await applyMediaDestination(managementMatch[1], payload, true);
+              payload = await applyMediaDestination(managementMatch[1], { ...payload, engineInstanceId: requestedInstance }, true);
               if (managementMatch[1] === "tv") payload = televisionAddPayload(payload);
+            }
+            const forwardedPayload = payload && typeof payload === "object" && !Array.isArray(payload)
+              ? { ...payload }
+              : payload;
+            if (forwardedPayload) {
+              delete forwardedPayload.engineInstanceId;
+              delete forwardedPayload.engineInstanceName;
             }
             result = await management.execute(
               managementMatch[1],
               managementMatch[2],
               method,
-              { id: owned.id||managementMatch[3], query: query, payload: payload, engineInstanceId:requestedInstance },
+              { id: owned.id||managementMatch[3], query: query, payload: forwardedPayload, engineInstanceId:requestedInstance },
             );
             if (method === "POST" && managementMatch[2] === "releases") {
               const domain = managementMatch[1],
@@ -15056,6 +15292,12 @@ export function createApplication(options = {}) {
               }
             }
           }
+          const responseInstance = requestedInstance
+            ? engineSettings.public().instances.find((item) => item.id === requestedInstance)
+            : engineSettings.mode() === "external"
+              ? engineSettings.public().instances.find((item) => item.domain === domain && item.isDefault && item.enabled !== false)
+              : null;
+          result = attachEngineOwnership(result, responseInstance);
           return json(res, method === "POST" ? 201 : 200, { result: result });
         }
         if (url.pathname === "/api/manage/audit" && req.method === "GET") {
@@ -15278,17 +15520,17 @@ export function createApplication(options = {}) {
             rawItems = page
               ? page.items
               : await sync.list("movie", { refresh: refresh }),
-            attention = refresh
-              ? await refreshAttention("movie", rawItems)
-              : typeof projectionStore.attentionSummary === "function"
-                ? await projectionStore.attentionSummary("movie")
-                : cachedAttention("movie", rawItems),
-            summary = await librarySummary("movie", rawItems),
             engineInstances=engineSettings.public().instances.filter(instance=>instance.domain==="movie"),
             requestedInstance=String(url.searchParams.get("engineInstanceId")||"all"),
             defaultInstance=engineInstances.find(instance=>instance.isDefault),
             ownedItems=rawItems.map(item=>({...item,engineInstanceId:item.engineInstanceId||defaultInstance?.id})),
             filteredItems=requestedInstance==="all"?ownedItems:ownedItems.filter(item=>item.engineInstanceId===requestedInstance),
+            attention = refresh
+              ? await refreshAttention("movie", filteredItems)
+              : typeof projectionStore.attentionSummary === "function"
+                ? await projectionStore.attentionSummary("movie", requestedInstance)
+                : cachedAttention("movie", filteredItems),
+            summary = await librarySummary("movie", filteredItems, requestedInstance),
             items = await decoratePosterArtwork("movie", filteredItems, session);
           return json(res, 200, {
             items: items,
@@ -15354,7 +15596,7 @@ export function createApplication(options = {}) {
             } catch {}
           }
           const file = detail?.item
-              ? await trailerPlayback.find(domain, detail.item.location || detail.item.rootFolder)
+              ? await trailerPlayback.find(domain, await vynodeAccessiblePath(domain, detail.item.location || detail.item.rootFolder, detail.item.engineInstanceId || null))
               : null;
           if (!file) {
             res.writeHead(404, {
@@ -15407,17 +15649,17 @@ export function createApplication(options = {}) {
             rawItems = page
               ? page.items
               : await sync.list("tv", { refresh: refresh }),
-            attention = refresh
-              ? await refreshAttention("tv", rawItems)
-              : typeof projectionStore.attentionSummary === "function"
-                ? await projectionStore.attentionSummary("tv")
-                : cachedAttention("tv", rawItems),
-            summary = await librarySummary("tv", rawItems),
             engineInstances=engineSettings.public().instances.filter(instance=>instance.domain==="tv"),
             requestedInstance=String(url.searchParams.get("engineInstanceId")||"all"),
             defaultInstance=engineInstances.find(instance=>instance.isDefault),
             ownedItems=rawItems.map(item=>({...item,engineInstanceId:item.engineInstanceId||defaultInstance?.id})),
             filteredItems=requestedInstance==="all"?ownedItems:ownedItems.filter(item=>item.engineInstanceId===requestedInstance),
+            attention = refresh
+              ? await refreshAttention("tv", filteredItems)
+              : typeof projectionStore.attentionSummary === "function"
+                ? await projectionStore.attentionSummary("tv", requestedInstance)
+                : cachedAttention("tv", filteredItems),
+            summary = await librarySummary("tv", filteredItems, requestedInstance),
             items = await decoratePosterArtwork("tv", filteredItems, session);
           return json(res, 200, {
             items: items,

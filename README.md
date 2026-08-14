@@ -700,13 +700,19 @@ installation continues to work without additional configuration.
 2. Add each external Radarr-compatible movie or Sonarr-compatible television
    instance with a unique friendly name, server URL, and API key.
 3. Test each connection before saving. Credentials are encrypted independently.
-4. Open **Service Settings → Root Folders** and create destinations for the
+4. Restart the VynodeArr container when prompted so the private gateway loads
+   the complete instance registry. Saved connections remain available during
+   the restart.
+5. Open **Service Settings → Root Folders** and create destinations for the
    matching instance. A destination, root folder, profile, and tags always
    belong to one engine instance.
-5. Choose one default destination per media type and engine where appropriate.
-6. Review profiles, providers, selection rules, and guide templates using the
+6. Choose one default destination per media type and engine where appropriate.
+7. If Plex is connected, associate each destination with the Plex library that
+   sees the same media path. VynodeArr prevents one Plex library from being
+   assigned ambiguously across different engine instances.
+8. Review profiles, providers, selection rules, and guide templates using the
    engine selector at the top of each page.
-7. Use **All engines** on library and activity pages for a combined view, or
+9. Use **All engines** on library and activity pages for a combined view, or
    select one named instance to inspect and manage it independently.
 
 When adding or requesting a title, VynodeArr carries the chosen destination and

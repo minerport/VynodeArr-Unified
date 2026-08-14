@@ -41,7 +41,7 @@ function startImportMonitor(){
   importMonitorMounted=true;importProgress.hidden=false;
   mount(importProgress,{request:api,notify,onMilestone:job=>void refreshLibraryAtImportMilestone(job)});
 }
-function startBackgroundImport(domain,items){return queueBackgroundImport({domain,items,request:api,notify});}
+function startBackgroundImport(domain,items,engineInstanceId){return queueBackgroundImport({domain,items,engineInstanceId,request:api,notify});}
 async function mapWithConcurrency(items,limit,worker){const results=new Array(items.length),queue={next:0};await Promise.all(Array.from({length:Math.min(limit,items.length)},async()=>{while(queue.next<items.length){const index=queue.next++;results[index]=await worker(items[index],index);}}));return results;}
 function applyUser(user){
   applyUserPresentation(state,user,{accountName:document.querySelector('#account-name'),accountRole:document.querySelector('#account-role'),avatar:document.querySelector('#avatar'),documentElement:document.documentElement});

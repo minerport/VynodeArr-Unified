@@ -2,11 +2,11 @@ import { useCallback, useEffect, useState } from "react";
 import type { ComponentType } from "react";
 import type { MigrationDialogProps } from "./root-folder-migration-dialog";
 import type MediaFolderChildren from "./media-folder-children";
-import type { AvailableLibraryFoldersResponse, Directory, DownloadFolders, MediaDestination, MediaDestinationResponse, PathMigrationPreview, RootFolder, RootFoldersMountOptions, StorageDomain } from "./root-folders-types";
+import type { AvailableLibraryFoldersResponse, Directory, DownloadFolders, EngineInventory, EngineStorageMapping, MediaDestination, MediaDestinationResponse, PathMigrationPreview, RootFolder, RootFoldersMountOptions, StorageDomain } from "./root-folders-types";
 import { ServiceTabs } from "./service-tabs";
 import { LibraryImportReview } from "./library-import-review";
 import { ModalPortal } from "./modal-portal";
-import { EngineInstanceSelect, useEngineInstance } from "./engine-instance-control";
+import { EngineInstanceFilter, useEngineInstance } from "./engine-instance-control";
 
 const clean = (value: string) => (value === "/" ? "/" : value.replace(/\/+$/, "") || "/");
 const parent = (value: string) => clean(value).split("/").slice(0, -1).join("/") || "/";
@@ -15,6 +15,20 @@ const size = (bytes = 0) => {
   return gb >= 1024 ? `${(gb / 1024).toFixed(gb >= 10240 ? 0 : 1)} TB` : `${Math.round(gb)} GB`;
 };
 const message = (reason: unknown) => (reason instanceof Error ? reason.message : "Storage settings are unavailable.");
+function ExternalStorageRow({ mapping, busy, onSave }: { mapping: EngineStorageMapping; busy: boolean; onSave: (mapping: EngineStorageMapping, vynodePath: string, hostPath: string) => Promise<void> }) {
+  const [vynodePath, setVynodePath] = useState(mapping.vynodePath), [hostPath, setHostPath] = useState(mapping.hostPath || "");
+  useEffect(() => { setVynodePath(mapping.vynodePath); setHostPath(mapping.hostPath || ""); }, [mapping.vynodePath, mapping.hostPath]);
+  return <article className="media-destination-card external-storage-row">
+    <span className={`storage-path-state ${mapping.accessible ? "available" : "unavailable"}`} />
+    <div><strong>{mapping.enginePath}</strong><small>{mapping.explanation}</small><small>Status: {mapping.status.replaceAll("-", " ")}</small></div>
+    <div className="external-storage-fields">
+      <label>VynodeArr container path<input value={vynodePath} onChange={(event) => setVynodePath(event.target.value)} placeholder="/media/Movies" /></label>
+      <label>Host path <span className="muted">(recommended)</span><input value={hostPath} onChange={(event) => setHostPath(event.target.value)} placeholder="/mnt/user/media/Movies" /></label>
+      <button className="primary" disabled={busy || !vynodePath.trim()} onClick={() => void onSave(mapping, vynodePath, hostPath)}>{busy ? "Checking…" : "Save and verify"}</button>
+    </div>
+    {!mapping.accessible ? <div className="notice"><strong>How to fix this</strong><p>{mapping.remediation.unraid}</p><p><code>{mapping.remediation.docker}</code></p></div> : null}
+  </article>;
+}
 export function RootFoldersView({ options }: { options: RootFoldersMountOptions }) {
   const [domain, setDomain] = useState<StorageDomain>("movie"),
     [roots, setRoots] = useState<RootFolder[]>([]),
@@ -23,6 +37,8 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
     [destinationData, setDestinationData] = useState<MediaDestinationResponse | null>(null),
     [editingDestination, setEditingDestination] = useState<MediaDestination | null>(null),
     [availableFolders, setAvailableFolders] = useState<AvailableLibraryFoldersResponse | null>(null),
+    [inventory, setInventory] = useState<EngineInventory | null>(null),
+    [inventories, setInventories] = useState<EngineInventory[]>([]),
     [rootPath, setRootPath] = useState("/movies"),
     [downloadPath, setDownloadPath] = useState("/downloads"),
     [loading, setLoading] = useState(true),
@@ -38,24 +54,47 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
     [current, setCurrent] = useState("/"),
     [directories, setDirectories] = useState<Directory[]>([]),
     [browseError, setBrowseError] = useState("");
-  const engine = useEngineInstance(options.request, domain);
+  const engine = useEngineInstance(options.request, domain, { allowAll: true });
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const [rootValue, downloadValue, destinationValue, availableValue] = await Promise.all([options.request<{ result: RootFolder[] }>(engine.route(`/api/manage/${domain}/rootFolders`)), options.request<DownloadFolders>("/api/settings/download-folders"), options.request<MediaDestinationResponse>(engine.route(`/api/media-destinations?domain=${domain}&includeUsage=true`)), options.request<AvailableLibraryFoldersResponse>("/api/storage/available-library-folders")]);
+      if (engine.isAll) {
+        const groups = await Promise.all(engine.instances.map(async (instance) => {
+          const suffix = `engineInstanceId=${encodeURIComponent(instance.id)}`;
+          const [rootValue, destinationValue, inventoryValue] = await Promise.all([
+            options.request<{ result: RootFolder[] }>(`/api/manage/${domain}/rootFolders?${suffix}`),
+            options.request<MediaDestinationResponse>(`/api/media-destinations?domain=${domain}&includeUsage=true&${suffix}`),
+            options.request<EngineInventory>(`/api/settings/engines/instances/${encodeURIComponent(instance.id)}/inventory`),
+          ]);
+          return { instance, roots: (rootValue.result || []).map(root => ({ ...root, engineInstanceId: instance.id, engineInstanceName: instance.name })), destinations: (destinationValue.destinations || []).map(destination => ({ ...destination, engineInstanceId: instance.id, engineInstanceName: instance.name })), inventory: inventoryValue };
+        }));
+        setRoots(groups.flatMap(group => group.roots));setDestinations(groups.flatMap(group => group.destinations));setInventories(groups.map(group => group.inventory));setInventory(null);setDestinationData(null);setAvailableFolders(null);return;
+      }
+      const [rootValue, downloadValue, destinationValue, availableValue, inventoryValue] = await Promise.all([options.request<{ result: RootFolder[] }>(engine.route(`/api/manage/${domain}/rootFolders`)), options.request<DownloadFolders>("/api/settings/download-folders"), options.request<MediaDestinationResponse>(engine.route(`/api/media-destinations?domain=${domain}&includeUsage=true`)), options.request<AvailableLibraryFoldersResponse>("/api/storage/available-library-folders"), engine.instanceId ? options.request<EngineInventory>(`/api/settings/engines/instances/${encodeURIComponent(engine.instanceId)}/inventory`) : Promise.resolve(null)]);
       setRoots(rootValue.result || []);
       setDownloads(downloadValue || {});
       setDestinationData(destinationValue);
       setDestinations(destinationValue.destinations || []);
       setAvailableFolders(availableValue);
+      setInventory(inventoryValue);
+      setInventories(inventoryValue ? [inventoryValue] : []);
       setDownloadPath(clean(downloadValue?.[domain]?.path || "/downloads"));
     } catch (reason) {
       setError(message(reason));
     } finally {
       setLoading(false);
     }
-  }, [domain, options, engine.instanceId]);
+  }, [domain, options, engine.instanceId, engine.isAll, engine.instances]);
+  const saveExternalStorage = async (mapping: EngineStorageMapping, vynodePath: string, hostPath: string) => {
+    setBusy(`storage-${mapping.enginePath}`);
+    try {
+      const value = await options.request<{ mapping: EngineStorageMapping; restartRequired: boolean }>(`/api/settings/engines/instances/${encodeURIComponent(mapping.engineInstanceId)}/storage`, { method: "PUT", body: JSON.stringify({ enginePath: mapping.enginePath, vynodePath, hostPath }) });
+      options.notify(value.mapping.accessible ? "Storage mapping verified. VynodeArr can use this folder." : "Mapping saved. Update the container path, apply it, and manually restart VynodeArr.", value.mapping.accessible ? "success" : "warning");
+      await load();
+    } catch (reason) { options.notify(message(reason), "error"); }
+    finally { setBusy(""); }
+  };
   useEffect(() => {
     setRootPath(domain === "movie" ? "/movies" : "/tv");
     void load();
@@ -113,7 +152,7 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
       });
       setEditingDestination((value) => (value ? { ...value, rootFolderPath: path } : value));
       setBrowser(null);
-      options.notify("Library folder added. Finish the destination settings, then save.");
+      options.notify("Library folder added. Complete and save the destination.");
       await load();
     } catch (reason) {
       options.notify(message(reason), "error");
@@ -126,7 +165,7 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
     try {
       const targetRoute=targetDomain===domain?engine.route(`/api/manage/${targetDomain}/rootFolders`):`/api/manage/${targetDomain}/rootFolders`;
       await options.request(targetRoute, { method: "POST", body: JSON.stringify({ path }) });
-      options.notify(`${path} registered with the ${targetDomain === "movie" ? "movie" : "television"} engine. Set up its Media Destination below.`);
+      options.notify(`${path} added to the ${targetDomain === "movie" ? "movie" : "television"} engine. Configure its destination below.`);
       await load();
     } catch (reason) {
       options.notify(message(reason), "error");
@@ -143,7 +182,7 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
     setExpandedMediaPath(path);
   };
   const remove = async (root: RootFolder) => {
-    if (!confirm(`Remove ${root.path} as a library folder? Media files will not be deleted.`)) return;
+    if (!confirm(`Remove ${root.path} as a library folder? Files stay in place.`)) return;
     setBusy(String(root.id));
     try {
       await options.request(engine.route(`/api/manage/${domain}/rootFolders/${root.id}`), {
@@ -201,7 +240,7 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
       setEditingDestination(destination);
       return;
     }
-    if (!confirm(`Remove ${destination.name}? Existing media and engine root folders will not be changed.`)) return;
+    if (!confirm(`Remove ${destination.name}? Media and engine folders stay unchanged.`)) return;
     setBusy(`destination-${destination.id}`);
     try {
       await options.request(engine.route(`/api/media-destinations/${destination.id}`), {
@@ -257,8 +296,8 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
         if (result.verification) verified = result.engineUpdated && result.verification.vynodeArrSynchronized && result.verification.engineTitlesRemaining === 0 && result.verification.engineCollectionsRemaining === 0;
         setMigrationProgress((current) => current ? { ...current, completed: Math.min(total, updated) } : current);
       }
-      if (!verified) throw new Error("The engine and VynodeArr mapping could not be verified after the update.");
-      options.notify(`${updated} location${updated === 1 ? "" : "s"} updated in the engine and VynodeArr. The old path now has zero references. No files were moved.`);
+      if (!verified) throw new Error("Could not verify the updated engine and VynodeArr paths.");
+      options.notify(`${updated} location${updated === 1 ? "" : "s"} updated. The old path now has zero references. No files moved.`);
       setMigration(null);
       setMigrationProgress(null);
       await load();
@@ -270,6 +309,16 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
   };
   const samePath = clean(rootPath) === clean(downloadPath);
   const directMappings = (availableFolders?.folders || []).filter((item) => item.domain === domain), mediaChildren = availableFolders?.mediaChildren || [];
+  if (engine.isAll) return <div className="root-folders-react-route">
+    <div className="hero storage-hero"><div><span className="eyebrow">SERVICE SETTINGS</span><h1>Storage Folders</h1><p className="lede">Review every instance together. Choose one instance to change paths or defaults.</p></div></div>
+    <ServiceTabs active="root-folders" />
+    <div className="management-toolbar engine-instance-toolbar"><EngineInstanceFilter instances={engine.instances} value={engine.instanceId} onChange={engine.setInstanceId}/><label>Library<select value={domain} onChange={event=>setDomain(event.target.value as StorageDomain)}><option value="movie">Movies</option><option value="tv">Television</option></select></label></div>
+    {error?<div className="panel error-state"><h2>Storage settings unavailable</h2><p>{error}</p><button className="secondary" onClick={()=>void load()}>Try again</button></div>:loading?<div className="panel skeleton">Loading engine storage…</div>:<>
+      <section className="panel"><div className="panel-heading"><div><span className="eyebrow">ENGINE ROOTS</span><h2>Library folders by instance</h2></div><span className="badge">{roots.length}</span></div><div className="media-destination-list">{roots.map(root=><article className="media-destination-card" key={`${root.engineInstanceId}-${root.id}`}><div><strong>{root.path}</strong><span className="badge">{root.engineInstanceName}</span><small>{root.accessible===false?'Not accessible to VynodeArr':`${size(root.freeSpace)} free`}</small></div></article>)}</div></section>
+      <section className="panel"><div className="panel-heading"><div><span className="eyebrow">DESTINATIONS</span><h2>Defaults and routing by instance</h2></div><span className="badge">{destinations.length}</span></div><div className="media-destination-list">{destinations.map(destination=><article className="media-destination-card" key={`${destination.engineInstanceId}-${destination.id}`}><div><strong>{destination.name}</strong><span className="badge">{destination.engineInstanceName}</span><small>{destination.rootFolderPath} · {destination.qualityProfile?.name||`Profile ${destination.qualityProfileId}`}</small></div><div>{destination.isDefault?<span className="badge green">Default</span>:null}{destination.plexLibrary?<span className="badge">Plex: {destination.plexLibrary.title}</span>:null}</div></article>)}</div></section>
+      <section className="panel"><div className="panel-heading"><div><span className="eyebrow">PATH VISIBILITY</span><h2>External storage status</h2></div></div><div className="media-destination-list">{inventories.flatMap(value=>value.storage).map(mapping=><article className="media-destination-card" key={`${mapping.engineInstanceId}-${mapping.enginePath}`}><span className={`storage-path-state ${mapping.accessible?'available':'unavailable'}`}/><div><strong>{mapping.enginePath}</strong><span className="badge">{mapping.engineInstanceName}</span><small>{mapping.vynodePath||'No VynodeArr path mapped'} · {mapping.status.replaceAll('-',' ')}</small></div></article>)}</div></section>
+    </>}
+  </div>;
   return (
     <div className="root-folders-react-route">
       <div className="hero storage-hero">
@@ -280,7 +329,13 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
         </div>
       </div>
       <ServiceTabs active="root-folders" />
-      <div className="management-toolbar engine-instance-toolbar"><EngineInstanceSelect instances={engine.instances} value={engine.instanceId} onChange={engine.setInstanceId}/></div>
+      <div className="management-toolbar engine-instance-toolbar"><EngineInstanceFilter instances={engine.instances} value={engine.instanceId} onChange={engine.setInstanceId}/></div>
+      {engine.instanceId && inventory ? <section className="panel external-instance-inventory">
+        <div className="panel-heading"><div><span className="eyebrow">EXTERNAL INSTANCE BUNDLE</span><h2>{inventory.instance.name}</h2><p className="muted">VynodeArr identified {inventory.summary.identified} of {inventory.summary.total} supported settings groups. These remain authoritative in the external instance and can be managed from VynodeArr with this instance selected.</p></div><span className={`badge ${inventory.summary.unavailable ? "amber" : "green"}`}>{inventory.summary.unavailable ? `${inventory.summary.unavailable} unavailable` : "Settings synced"}</span></div>
+        <div className="button-row inventory-summary">{inventory.resources.map((resource) => <span className={`badge ${resource.available ? "green" : "amber"}`} key={resource.resource}>{resource.resource.replace(/([A-Z])/g, " $1")} · {resource.available ? resource.count : "unavailable"}</span>)}</div>
+        <div className="panel-heading"><div><h3>Match engine storage to VynodeArr</h3><p className="muted">Do not change the paths in Radarr or Sonarr. For each engine root, enter the path where that same physical folder is visible inside the VynodeArr container. The optional host path lets VynodeArr provide exact Docker and Unraid instructions.</p></div></div>
+        <div className="media-destination-list">{inventory.storage.map((mapping) => <ExternalStorageRow key={mapping.enginePath} mapping={mapping} busy={busy === `storage-${mapping.enginePath}`} onSave={saveExternalStorage} />)}</div>
+      </section> : null}
       <section className="storage-engine-bar">
         <div>
           <span className="eyebrow">CONFIGURING</span>

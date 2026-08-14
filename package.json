@@ -1,6 +1,6 @@
 {
   "name": "vynodearr",
-  "version": "2.0.43-rc.5",
+  "version": "2.0.43-rc.6",
   "private": true,
   "type": "module",
   "engines": {
@@ -13,6 +13,7 @@
     "check:web-bundle": "node scripts/check-web-bundle.mjs",
     "start": "npm run build:server && node .server-build/apps/api/src/server.js",
     "test": "npm run build:server && node --test tests/*.test.js",
+    "test:multi-engine:docker": "node scripts/test-multi-engine-docker.mjs",
     "check:branding": "node scripts/check-branding.mjs",
     "build": "npm run build:web && npm run build:server && node scripts/build.mjs",
     "validate:deployment": "node scripts/validate-deployment.mjs",

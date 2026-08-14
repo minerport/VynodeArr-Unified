@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { EngineManagementService } from '../.server-build/packages/platform/src/engine-management-service.js';
 import { EngineSettingsService } from '../.server-build/packages/platform/src/engine-settings-service.js';
-import { filesystemLocationIdentity, televisionAddPayload } from '../.server-build/apps/api/src/app.js';
+import { attachEngineOwnership, filesystemLocationIdentity, resolveOwnedEngineInstance, televisionAddPayload } from '../.server-build/apps/api/src/app.js';
 
 test('filesystem location identity recognizes repeated paths to the same folder',async()=>{
   const directory=await mkdtemp(join(tmpdir(),'vynodearr-location-'));
@@ -198,6 +198,32 @@ test('external engines are staged together and activate only after restart',asyn
   }finally{await rm(directory,{recursive:true,force:true});}
 });
 
+test('management gateway keeps identical native ids isolated by engine instance',async()=>{
+  const primary={get:async()=>[{id:7,title:'Primary'}]},secondary={get:async()=>[{id:7,title:'Secondary'}]},service=new EngineManagementService({get:()=>({client:primary})});
+  service.setInstances([{id:'movie-primary',domain:'movie',client:primary},{id:'movie-secondary',domain:'movie',client:secondary},{id:'tv-secondary',domain:'tv',client:secondary}]);
+  assert.equal((await service.execute('movie','library','GET',{engineInstanceId:'movie-primary'}))[0].title,'Primary');
+  assert.equal((await service.execute('movie','library','GET',{engineInstanceId:'movie-secondary'}))[0].title,'Secondary');
+  await assert.rejects(()=>service.execute('movie','library','GET',{engineInstanceId:'tv-secondary'}),/selected engine instance is unavailable/);
+  await assert.rejects(()=>service.execute('movie','library','GET',{engineInstanceId:'missing'}),/selected engine instance is unavailable/);
+  assert.equal(resolveOwnedEngineInstance('', 'movie-primary'),'movie-primary');
+  assert.equal(resolveOwnedEngineInstance('movie-secondary', ''),'movie-secondary');
+  assert.throws(()=>resolveOwnedEngineInstance('movie-secondary','movie-primary'),/belongs to a different engine instance/);
+});
+
+test('management responses carry authoritative engine ownership',()=>{
+  const instance={id:'movie-4k',name:'4K Movies'};
+  assert.deepEqual(attachEngineOwnership([{id:1},{id:2,engineInstanceId:'stale'}],instance),[
+    {id:1,engineInstanceId:'movie-4k',engineInstanceName:'4K Movies'},
+    {id:2,engineInstanceId:'movie-4k',engineInstanceName:'4K Movies'},
+  ]);
+  assert.deepEqual(attachEngineOwnership({page:1,totalRecords:1,records:[{id:7}]},instance),{
+    page:1,totalRecords:1,records:[{id:7,engineInstanceId:'movie-4k',engineInstanceName:'4K Movies'}],
+  });
+  assert.deepEqual(attachEngineOwnership({id:9},instance),{id:9,engineInstanceId:'movie-4k',engineInstanceName:'4K Movies'});
+  assert.equal(attachEngineOwnership(null,instance),null);
+  assert.equal(attachEngineOwnership('ready',instance),'ready');
+});
+
 test('multi-engine browser behavior remains owned by typed React routes',async()=>{
   const [legacyShell,control,management,library,guideTemplates,wanted,queue,history,calendar,health,dashboard,operations,requests,notifications]=await Promise.all([
     readFile(new URL('../apps/web/client/src/app-shell.ts',import.meta.url),'utf8'),
@@ -207,7 +233,8 @@ test('multi-engine browser behavior remains owned by typed React routes',async()
     readFile(new URL('../apps/web/client/src/guide-templates.tsx',import.meta.url),'utf8'),
     ...['wanted','queue','history','calendar','health','dashboard','operations-center','request-management','notifications'].map(name=>readFile(new URL(`../apps/web/client/src/${name}.tsx`,import.meta.url),'utf8')),
   ]);
-  assert.doesNotMatch(legacyShell,/engineInstanceId|EngineInstanceSelect|useEngineInstance/);
+  assert.doesNotMatch(legacyShell,/EngineInstanceSelect|useEngineInstance/);
+  assert.match(legacyShell,/startBackgroundImport\(domain,items,engineInstanceId\)/);
   for(const source of [control,management,library,guideTemplates])assert.match(source,/engineInstance|EngineInstance/);
   assert.match(control,/useEngineInstance/);
   assert.match(guideTemplates,/EngineInstanceSelect/);
