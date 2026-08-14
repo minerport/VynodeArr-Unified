@@ -7,6 +7,35 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.43] - 2026-08-14
+
+### Added
+
+- Added independently managed external movie and television engine instances,
+  with isolated credentials, settings, destinations, requests, searches, and
+  operational views for each instance or all instances together.
+- Added a guided Setup Center for engines, storage, search providers, download
+  clients, optional integrations, and final health validation.
+- Added application-wide search for titles, pages, settings, and setup routes.
+- Added portable Docker installation support, optional main-media mapping,
+  preflight validation, smoke testing, and documented multi-engine testing.
+
+### Changed
+
+- Made Movies, Television, Wanted, Queue, History, Calendar, Health, Dashboard,
+  and Action Center engine-aware while preserving existing single-engine and
+  bundled-engine installations.
+- Improved mobile Lists navigation and kept imported-list automation additive
+  and explicit.
+
+### Fixed
+
+- Prevented native IDs, destinations, Plex mappings, requests, artwork, and
+  notifications from crossing between engine instances.
+- Preserved managed trailer-placeholder overlays when a title leaves a provider
+  list but no valid real media file exists.
+- Kept healthy instance data visible when another configured engine is offline.
+
 ## [2.0.43-rc.8] - 2026-08-14
 
 ### Added
