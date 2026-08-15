@@ -7,6 +7,21 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.45-rc.1] - 2026-08-15
+
+### Changed
+
+- Rebuilt the mobile Movies and Television controls as compact, independently
+  scrollable rows for engine selection, status filters, search, sorting, and
+  view selection.
+- Reduced the mobile bulk-selection area and provided concise mobile action
+  labels while preserving the complete desktop controls and behavior.
+
+### Fixed
+
+- Prevented the Movies and Television toolbars from consuming excessive
+  vertical space on phones when filters or view controls wrap.
+
 ## [2.0.44] - 2026-08-14
 
 ### Changed
