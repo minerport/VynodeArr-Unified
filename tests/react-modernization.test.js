@@ -1381,6 +1381,9 @@ test('poster overlay canvas remains full width inside the editor preview column'
   const layout=await read('apps/web/client/src/poster-overlay-editor-layout.css');
   assert.match(layout,/\.overlay-editor \.overlay-preview-column\{[^}]*grid-template-columns:minmax\(0,1fr\)/);
   assert.match(layout,/\.overlay-editor \.overlay-preview-column>\*\{grid-column:1\/-1\}/);
+  assert.match(layout,/\.overlay-editor \.overlay-preview-column \.overlay-preview\{[^}]*width:min\(100%,300px\)[^}]*height:450px[^}]*min-height:450px/);
+  assert.match(layout,/@media\(max-width:980px\)[\s\S]*overlay-preview\{[^}]*width:min\(100%,220px\)[^}]*height:330px/);
+  assert.match(layout,/@media\(max-width:640px\)[\s\S]*overlay-preview\{[^}]*width:min\(100%,190px\)[^}]*height:285px/);
 });
 test('poster overlay desktop columns scroll independently without clipping content',async()=>{
   const layout=await read('apps/web/client/src/poster-overlay-editor-layout.css');
