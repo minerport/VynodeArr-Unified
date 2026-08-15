@@ -9824,15 +9824,16 @@ export function createApplication(options = {}) {
             );
           if (index < 0) throw new Error("The imported Reeltrack list no longer exists.");
           const enabled = input.enabled === true,
+            domains = new Set((current.importedLists[index].items || []).map(reeltrackItemIdentity).filter((item) => item.tmdbId).map((item) => item.domain)),
             destinationState = await mediaDestinations.state(),
-            movieDestination = destinationState.destinations.find((item) => item.domain === "movie" && item.id === String(input.movieMediaDestinationId || "")),
-            tvDestination = destinationState.destinations.find((item) => item.domain === "tv" && item.id === String(input.tvMediaDestinationId || "")),
+            movieDestination = domains.has("movie") ? destinationState.destinations.find((item) => item.domain === "movie" && item.id === String(input.movieMediaDestinationId || "")) : null,
+            tvDestination = domains.has("tv") ? destinationState.destinations.find((item) => item.domain === "tv" && item.id === String(input.tvMediaDestinationId || "")) : null,
             plexMovieLibraryKey = String(movieDestination?.plexLibraryKey || input.plexMovieLibraryKey || ""),
             plexTvLibraryKey = String(tvDestination?.plexLibraryKey || input.plexTvLibraryKey || ""),
             movieHostRoot = String(movieDestination?.vynodePath || input.movieHostRoot || localLibraryRoot("movie")),
             tvHostRoot = String(tvDestination?.vynodePath || input.tvHostRoot || localLibraryRoot("tv"));
-          if (input.movieMediaDestinationId && !movieDestination) throw new Error("Choose an available movie destination.");
-          if (input.tvMediaDestinationId && !tvDestination) throw new Error("Choose an available television destination.");
+          if (domains.has("movie") && input.movieMediaDestinationId && !movieDestination) throw new Error("Choose an available movie destination.");
+          if (domains.has("tv") && input.tvMediaDestinationId && !tvDestination) throw new Error("Choose an available television destination.");
           if (movieDestination?.plexLibraryKey && String(movieDestination.plexLibraryKey) !== plexMovieLibraryKey)
             throw new Error(`${movieDestination.name} is tied to a different Plex movie library. Update the destination mapping or choose its mapped library.`);
           if (tvDestination?.plexLibraryKey && String(tvDestination.plexLibraryKey) !== plexTvLibraryKey)
@@ -9846,7 +9847,6 @@ export function createApplication(options = {}) {
             if (!settings.endpoint || !token)
               throw new Error("Connect Plex before enabling list automation.");
             if (!downloader.available) throw new Error(downloader.message || "yt-dlp is unavailable.");
-            const domains = new Set((current.importedLists[index].items || []).map(reeltrackItemIdentity).filter((item) => item.tmdbId).map((item) => item.domain));
             if (domains.has("movie") && !(settings.libraries || []).some((item) => item.type === "movie" && String(item.key) === plexMovieLibraryKey))
               throw new Error("Choose a discovered Plex movie library.");
             if (domains.has("tv") && !(settings.libraries || []).some((item) => item.type === "show" && String(item.key) === plexTvLibraryKey))
@@ -9864,15 +9864,15 @@ export function createApplication(options = {}) {
             ...(current.importedLists[index].automation || {}),
             enabled,
             downloadTrailers: input.downloadTrailers !== false,
-            plexMovieLibraryKey,
-            plexTvLibraryKey,
+            plexMovieLibraryKey: domains.has("movie") ? plexMovieLibraryKey : "",
+            plexTvLibraryKey: domains.has("tv") ? plexTvLibraryKey : "",
             splitLibraryMode: input.splitLibraryMode === true,
-            plexMoviePlaceholderLibraryKey: input.splitLibraryMode ? String(input.plexMoviePlaceholderLibraryKey || "") : "",
-            plexTvPlaceholderLibraryKey: input.splitLibraryMode ? String(input.plexTvPlaceholderLibraryKey || "") : "",
-            moviePlaceholderHostRoot: input.splitLibraryMode ? String(input.moviePlaceholderHostRoot || movieHostRoot) : "",
-            tvPlaceholderHostRoot: input.splitLibraryMode ? String(input.tvPlaceholderHostRoot || tvHostRoot) : "",
-            movieMediaDestinationId: String(input.movieMediaDestinationId || ""),
-            tvMediaDestinationId: String(input.tvMediaDestinationId || ""),
+            plexMoviePlaceholderLibraryKey: input.splitLibraryMode && domains.has("movie") ? String(input.plexMoviePlaceholderLibraryKey || "") : "",
+            plexTvPlaceholderLibraryKey: input.splitLibraryMode && domains.has("tv") ? String(input.plexTvPlaceholderLibraryKey || "") : "",
+            moviePlaceholderHostRoot: input.splitLibraryMode && domains.has("movie") ? String(input.moviePlaceholderHostRoot || movieHostRoot) : "",
+            tvPlaceholderHostRoot: input.splitLibraryMode && domains.has("tv") ? String(input.tvPlaceholderHostRoot || tvHostRoot) : "",
+            movieMediaDestinationId: domains.has("movie") ? String(input.movieMediaDestinationId || "") : "",
+            tvMediaDestinationId: domains.has("tv") ? String(input.tvMediaDestinationId || "") : "",
             movieHostRoot,
             tvHostRoot,
             collectionName:

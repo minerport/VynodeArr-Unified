@@ -310,23 +310,26 @@ export function ReeltrackListsView({
   }
   async function persistAutomation() {
     if (!selected) throw new Error("No list.");
+    const domains = new Set((selected.items || []).map((item) => item.domain)),
+      hasMovies = domains.has("movie"),
+      hasTelevision = domains.has("tv");
     return request<{ item: ReeltrackList }>(
         `/api/reeltrack/imported-lists/${encodeURIComponent(selected.id)}/automation`,
         {
           method: "PUT",
           body: JSON.stringify({
             enabled: automationEnabled,
-            plexMovieLibraryKey: automationMovieLibraryKey,
-            plexTvLibraryKey: automationTvLibraryKey,
+            plexMovieLibraryKey: hasMovies ? automationMovieLibraryKey : "",
+            plexTvLibraryKey: hasTelevision ? automationTvLibraryKey : "",
             splitLibraryMode,
-            plexMoviePlaceholderLibraryKey: moviePlaceholderLibraryKey,
-            plexTvPlaceholderLibraryKey: tvPlaceholderLibraryKey,
-            moviePlaceholderHostRoot,
-            tvPlaceholderHostRoot,
-            movieMediaDestinationId,
-            tvMediaDestinationId,
-            movieHostRoot,
-            tvHostRoot,
+            plexMoviePlaceholderLibraryKey: hasMovies ? moviePlaceholderLibraryKey : "",
+            plexTvPlaceholderLibraryKey: hasTelevision ? tvPlaceholderLibraryKey : "",
+            moviePlaceholderHostRoot: hasMovies ? moviePlaceholderHostRoot : "",
+            tvPlaceholderHostRoot: hasTelevision ? tvPlaceholderHostRoot : "",
+            movieMediaDestinationId: hasMovies ? movieMediaDestinationId : "",
+            tvMediaDestinationId: hasTelevision ? tvMediaDestinationId : "",
+            movieHostRoot: hasMovies ? movieHostRoot : "",
+            tvHostRoot: hasTelevision ? tvHostRoot : "",
             collectionName: automationCollectionName || selected.name,
             collectionPosterTemplate,
             titleOverlayTemplate,
@@ -676,7 +679,7 @@ export function ReeltrackListsView({
                         {(trailerStatus?.libraries || []).filter((library) => library.type === type).map((library) => <option key={library.key} value={library.key}>{library.title}</option>)}
                       </select>
                       {value ? <small>Plex reference: {compatibility.location || "not reported"}</small> : null}
-                      {value ? <div className="storage-path-control"><input aria-label={`${domain} host folder`} readOnly value={compatibility.hostRoot}/>{destination?.vynodePath ? null : <button className="secondary" type="button" onClick={() => openHostBrowser(domain)}>Choose host folder</button>}</div> : null}
+                      {value ? <div className="storage-path-control"><input aria-label={`${domain} host folder`} readOnly value={compatibility.hostRoot}/>{destination?.vynodePath ? null : <button className="secondary" type="button" onClick={() => openHostBrowser(domain)}>Choose folder</button>}</div> : null}
                     </label><label>{type === "movie" ? "Movie" : "Television"} destination<select value={domain === "movie" ? movieMediaDestinationId : tvMediaDestinationId} onChange={(event) => chooseMediaDestination(domain,event.target.value)}><option value="">Use engine default</option>{mediaDestinations.filter((item) => item.domain === domain).map((item) => <option key={item.id} value={item.id} disabled={!item.ready}>{item.engineInstanceName ? `${item.engineInstanceName} · ` : ""}{item.name}{item.isDefault ? " — default" : ""}{item.ready ? "" : " — unavailable"}</option>)}</select></label>{value && !compatibility.compatible ? <div className="reeltrack-root-warning"><span>This media engine has no configured root. Configure its own path under Storage Folders; it may differ from both paths shown above.</span><a className="button-link secondary" href="#service/root-folders">Review storage folders</a></div> : value ? <small className="reeltrack-root-ready">Ready</small> : null}</div>;
                   })}
                   <label>
@@ -798,8 +801,8 @@ export function ReeltrackListsView({
                         {(trailerStatus?.libraries || []).filter((library) => library.type === "movie").map((library) => <option key={library.key} value={library.key}>{library.title}</option>)}
                       </select>
                       <small>Plex stores this library at {rootCompatibility("movie").location || "an unreported location"}.</small>
-                      <div className="storage-path-control"><input aria-label="Movie host folder" readOnly value={movieHostRoot}/>{selectedMediaDestination("movie")?.vynodePath ? null : <button className="secondary" type="button" onClick={() => openHostBrowser("movie")}>Choose host folder</button>}</div>
-                    </label><label><span>VynodeArr movie destination</span><select value={movieMediaDestinationId} onChange={(event) => chooseMediaDestination("movie",event.target.value)}><option value="">Use engine default</option>{mediaDestinations.filter((item) => item.domain === "movie").map((item) => <option key={item.id} value={item.id} disabled={!item.ready}>{item.engineInstanceName ? `${item.engineInstanceName} · ` : ""}{item.name}{item.isDefault ? " — default" : ""}{item.ready ? "" : " — unavailable"}</option>)}</select></label>{automationMovieLibraryKey && !rootCompatibility("movie").compatible ? <div className="reeltrack-root-warning"><span>Movie storage still needs a compatible engine root.</span><a className="button-link secondary" href="#service/root-folders">Review folders</a></div> : <small className="reeltrack-root-ready">Ready</small>}</div> : null}
+                      <div className="storage-path-control"><input aria-label="Movie host folder" readOnly value={movieHostRoot}/>{selectedMediaDestination("movie")?.vynodePath ? null : <button className="secondary" type="button" onClick={() => openHostBrowser("movie")}>Choose folder</button>}</div>
+                    </label><label><span>Movie destination</span><select value={movieMediaDestinationId} onChange={(event) => chooseMediaDestination("movie",event.target.value)}><option value="">Use engine default</option>{mediaDestinations.filter((item) => item.domain === "movie").map((item) => <option key={item.id} value={item.id} disabled={!item.ready}>{item.engineInstanceName ? `${item.engineInstanceName} · ` : ""}{item.name}{item.isDefault ? " — default" : ""}{item.ready ? "" : " — unavailable"}</option>)}</select></label>{automationMovieLibraryKey && !rootCompatibility("movie").compatible ? <div className="reeltrack-root-warning"><span>Movie storage still needs a compatible engine root.</span><a className="button-link secondary" href="#service/root-folders">Review folders</a></div> : <small className="reeltrack-root-ready">Ready</small>}</div> : null}
                     {selected?.items?.some((item) => item.domain === "tv") ? <div className="reeltrack-plex-target"><label>
                       <span>Television library</span>
                       <select value={automationTvLibraryKey} onChange={(event) => setAutomationTvLibraryKey(event.target.value)}>
@@ -807,16 +810,16 @@ export function ReeltrackListsView({
                         {(trailerStatus?.libraries || []).filter((library) => library.type === "show").map((library) => <option key={library.key} value={library.key}>{library.title}</option>)}
                       </select>
                       <small>Plex stores this library at {rootCompatibility("tv").location || "an unreported location"}.</small>
-                      <div className="storage-path-control"><input aria-label="Television host folder" readOnly value={tvHostRoot}/>{selectedMediaDestination("tv")?.vynodePath ? null : <button className="secondary" type="button" onClick={() => openHostBrowser("tv")}>Choose host folder</button>}</div>
-                    </label><label><span>VynodeArr television destination</span><select value={tvMediaDestinationId} onChange={(event) => chooseMediaDestination("tv",event.target.value)}><option value="">Use engine default</option>{mediaDestinations.filter((item) => item.domain === "tv").map((item) => <option key={item.id} value={item.id} disabled={!item.ready}>{item.engineInstanceName ? `${item.engineInstanceName} · ` : ""}{item.name}{item.isDefault ? " — default" : ""}{item.ready ? "" : " — unavailable"}</option>)}</select></label>{automationTvLibraryKey && !rootCompatibility("tv").compatible ? <div className="reeltrack-root-warning"><span>Television storage still needs a compatible engine root.</span><a className="button-link secondary" href="#service/root-folders">Review folders</a></div> : <small className="reeltrack-root-ready">Ready</small>}</div> : null}
+                      <div className="storage-path-control"><input aria-label="Television host folder" readOnly value={tvHostRoot}/>{selectedMediaDestination("tv")?.vynodePath ? null : <button className="secondary" type="button" onClick={() => openHostBrowser("tv")}>Choose folder</button>}</div>
+                    </label><label><span>TV destination</span><select value={tvMediaDestinationId} onChange={(event) => chooseMediaDestination("tv",event.target.value)}><option value="">Use engine default</option>{mediaDestinations.filter((item) => item.domain === "tv").map((item) => <option key={item.id} value={item.id} disabled={!item.ready}>{item.engineInstanceName ? `${item.engineInstanceName} · ` : ""}{item.name}{item.isDefault ? " — default" : ""}{item.ready ? "" : " — unavailable"}</option>)}</select></label>{automationTvLibraryKey && !rootCompatibility("tv").compatible ? <div className="reeltrack-root-warning"><span>Television storage still needs a compatible engine root.</span><a className="button-link secondary" href="#service/root-folders">Review folders</a></div> : <small className="reeltrack-root-ready">Ready</small>}</div> : null}
                     </div>
                     <label className="reeltrack-automation-toggle reeltrack-split-library-toggle">
                       <input type="checkbox" checked={splitLibraryMode} onChange={(event) => setSplitLibraryMode(event.target.checked)} />
                       <span><strong>Use a separate placeholder library <em>Optional</em></strong><small>Keep trailer-only titles in a separate Plex library. Real media remains in the library selected above, and VynodeArr maintains a matching collection in each library.</small></span>
                     </label>
                     {splitLibraryMode ? <div className="reeltrack-automation-fields reeltrack-library-fields reeltrack-placeholder-fields">
-                      {selected?.items?.some((item) => item.domain === "movie") ? <div className="reeltrack-plex-target"><label><span>Movie placeholder library</span><select value={moviePlaceholderLibraryKey} onChange={(event) => { const key=event.target.value,location=trailerStatus?.libraries?.find((library)=>library.key===key)?.locations?.[0]||"";setMoviePlaceholderLibraryKey(key);if(location.startsWith("/media/"))setMoviePlaceholderHostRoot(location); }}><option value="">Choose a different movie library</option>{(trailerStatus?.libraries || []).filter((library) => library.type === "movie" && library.key !== automationMovieLibraryKey).map((library) => <option key={library.key} value={library.key}>{library.title}</option>)}</select><small>Only trailer placeholders that do not have real media appear here. Map its own VynodeArr-visible folder below.</small><div className="storage-path-control"><input aria-label="Movie placeholder host folder" readOnly value={moviePlaceholderHostRoot}/><button className="secondary" type="button" onClick={() => openHostBrowser("moviePlaceholder")}>Choose host folder</button></div></label></div> : null}
-                      {selected?.items?.some((item) => item.domain === "tv") ? <div className="reeltrack-plex-target"><label><span>Television placeholder library</span><select value={tvPlaceholderLibraryKey} onChange={(event) => { const key=event.target.value,location=trailerStatus?.libraries?.find((library)=>library.key===key)?.locations?.[0]||"";setTvPlaceholderLibraryKey(key);if(location.startsWith("/media/"))setTvPlaceholderHostRoot(location); }}><option value="">Choose a different television library</option>{(trailerStatus?.libraries || []).filter((library) => library.type === "show" && library.key !== automationTvLibraryKey).map((library) => <option key={library.key} value={library.key}>{library.title}</option>)}</select><small>Only trailer placeholders that do not have real media appear here. Map its own VynodeArr-visible folder below.</small><div className="storage-path-control"><input aria-label="Television placeholder host folder" readOnly value={tvPlaceholderHostRoot}/><button className="secondary" type="button" onClick={() => openHostBrowser("tvPlaceholder")}>Choose host folder</button></div></label></div> : null}
+                      {selected?.items?.some((item) => item.domain === "movie") ? <div className="reeltrack-plex-target"><label><span>Movie placeholder library</span><select value={moviePlaceholderLibraryKey} onChange={(event) => { const key=event.target.value,location=trailerStatus?.libraries?.find((library)=>library.key===key)?.locations?.[0]||"";setMoviePlaceholderLibraryKey(key);if(location.startsWith("/media/"))setMoviePlaceholderHostRoot(location); }}><option value="">Choose a different movie library</option>{(trailerStatus?.libraries || []).filter((library) => library.type === "movie" && library.key !== automationMovieLibraryKey).map((library) => <option key={library.key} value={library.key}>{library.title}</option>)}</select><small>Only trailer placeholders that do not have real media appear here. Map its own VynodeArr-visible folder below.</small><div className="storage-path-control"><input aria-label="Movie placeholder host folder" readOnly value={moviePlaceholderHostRoot}/><button className="secondary" type="button" onClick={() => openHostBrowser("moviePlaceholder")}>Choose folder</button></div></label></div> : null}
+                      {selected?.items?.some((item) => item.domain === "tv") ? <div className="reeltrack-plex-target"><label><span>Television placeholder library</span><select value={tvPlaceholderLibraryKey} onChange={(event) => { const key=event.target.value,location=trailerStatus?.libraries?.find((library)=>library.key===key)?.locations?.[0]||"";setTvPlaceholderLibraryKey(key);if(location.startsWith("/media/"))setTvPlaceholderHostRoot(location); }}><option value="">Choose a different television library</option>{(trailerStatus?.libraries || []).filter((library) => library.type === "show" && library.key !== automationTvLibraryKey).map((library) => <option key={library.key} value={library.key}>{library.title}</option>)}</select><small>Only trailer placeholders that do not have real media appear here. Map its own VynodeArr-visible folder below.</small><div className="storage-path-control"><input aria-label="Television placeholder host folder" readOnly value={tvPlaceholderHostRoot}/><button className="secondary" type="button" onClick={() => openHostBrowser("tvPlaceholder")}>Choose folder</button></div></label></div> : null}
                     </div> : null}
                   </div>
                 ) : null}
