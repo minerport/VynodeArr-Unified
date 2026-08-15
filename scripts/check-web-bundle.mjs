@@ -116,6 +116,9 @@ const reeltrackDraftImportAllowance={route:100};
 // Imported-list names are width-constrained and ellipsized on phones so a long
 // provider title cannot expand the horizontal selector or the entire page.
 const reeltrackColumnOverscrollAllowance={css:450};
+// Movie and television libraries share one compact phone toolbar with separate
+// engine, status, search, sort, view, and bulk-action rows.
+const mobileLibraryToolbarAllowance={css:1_100};
 // Optional split-library automation adds explicit real and placeholder Plex
 // destinations, host mappings, validation, and promotion controls to Lists only.
 const reeltrackSplitLibraryAllowance={route:5_200};
@@ -126,7 +129,7 @@ else if(entry.bytes>limits.entry)failures.push(`React entry is ${entry.bytes} by
 if(!shell)failures.push('The TypeScript application shell bundle was not produced.');
 else if(shell.bytes>limits.shell+mobileAllowance.shell+reeltrackAllowance.shell+libraryReviewAllowance.shell+mediaRemovalAllowance.shell)failures.push(`Application shell is ${shell.bytes} bytes (limit ${limits.shell+mobileAllowance.shell+reeltrackAllowance.shell+libraryReviewAllowance.shell+mediaRemovalAllowance.shell}).`);
 for(const chunk of routeChunks){const routeLimit=limits.route+(chunk.name.startsWith('system-')?performanceAllowance.systemRoute:0)+(chunk.name.startsWith('poster-overlays-')?posterOverlayAllowance.route+overlayAssignmentClarityAllowance.route:0)+(chunk.name.startsWith('root-folders-')?storageMappingAllowance.route+mediaDestinationChoiceAllowance.rootFoldersRoute+storagePathMigrationAllowance.route+storagePathProgressAllowance.route+storageEngineVerificationAllowance.route+nestedMediaFolderAllowance.route+multiEngineStorageAllowance.route:0)+(chunk.name.startsWith('reeltrack-lists-')?mediaDestinationChoiceAllowance.reeltrackRoute+mixedListSectionsAllowance.route+reeltrackRealTitleOverlayAllowance.route+reeltrackTrailerRepairAllowance.route+reeltrackDraftImportAllowance.route+reeltrackSplitLibraryAllowance.route:0);if(chunk.bytes>routeLimit)failures.push(`${chunk.name} is ${chunk.bytes} bytes (route limit ${routeLimit}).`);}
-if(stylesheet&&stylesheet.bytes>limits.css+mobileAllowance.css+performanceAllowance.css+posterOverlayAllowance.css+reeltrackAllowance.css+trailerDownloadAllowance.css+managedListCompactAllowance.css+artworkDesignerAllowance.css+libraryReviewAllowance.css+mediaRemovalAllowance.css+releaseBrowserAllowance.css+managedCollectionSetupAllowance.css+overlayAssignmentClarityAllowance.css+reeltrackApiKeyLinkAllowance.css+mobileActivityControlsAllowance.css+staticOverlayCssAllowance.css+mixedListSectionsAllowance.css+reeltrackColumnOverscrollAllowance.css)failures.push(`React stylesheet exceeds its intentional feature budget.`);
+if(stylesheet&&stylesheet.bytes>limits.css+mobileAllowance.css+performanceAllowance.css+posterOverlayAllowance.css+reeltrackAllowance.css+trailerDownloadAllowance.css+managedListCompactAllowance.css+artworkDesignerAllowance.css+libraryReviewAllowance.css+mediaRemovalAllowance.css+releaseBrowserAllowance.css+managedCollectionSetupAllowance.css+overlayAssignmentClarityAllowance.css+reeltrackApiKeyLinkAllowance.css+mobileActivityControlsAllowance.css+staticOverlayCssAllowance.css+mixedListSectionsAllowance.css+reeltrackColumnOverscrollAllowance.css+mobileLibraryToolbarAllowance.css)failures.push(`React stylesheet exceeds its intentional feature budget.`);
 
 if(failures.length){
   console.error(`Web bundle budget failed:\n- ${failures.join('\n- ')}`);
