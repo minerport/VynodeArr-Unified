@@ -1456,9 +1456,9 @@ test('movie and television library controls form a compact shared mobile workspa
   assert.match(library,/react-library-view-controls/);
   assert.match(library,/bulk-library-toolbar/);
   assert.match(styles,/@media\(max-width:760px\)\{[\s\S]*\.react-library-toolbar\{display:grid;grid-template-columns:1fr/);
-  assert.match(styles,/\.react-library-toolbar \.filters\{display:grid;grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
-  assert.match(styles,/\.react-library-view-controls\{display:grid;grid-template-columns:repeat\(4,minmax\(44px,1fr\)\)/);
-  assert.match(styles,/\.react-library \.bulk-library-toolbar\{display:grid;grid-template-columns:1fr auto/);
+  assert.match(styles,/\.react-library-toolbar \.filters\{display:flex;gap:\.35rem;max-width:100%;overflow-x:auto/);
+  assert.match(styles,/\.react-library-view-controls\{display:flex;gap:\.35rem;max-width:100%;overflow-x:auto/);
+  assert.match(styles,/\.react-library \.bulk-library-toolbar\{display:grid;grid-template-columns:minmax\(0,1fr\) auto auto/);
 });
 
 test('request entry points always explain engine ownership and preserve isolated routing choices',async()=>{

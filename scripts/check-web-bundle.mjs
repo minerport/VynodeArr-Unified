@@ -118,7 +118,7 @@ const reeltrackDraftImportAllowance={route:100};
 const reeltrackColumnOverscrollAllowance={css:450};
 // Movie and television libraries share one compact phone toolbar with separate
 // engine, status, search, sort, view, and bulk-action rows.
-const mobileLibraryToolbarAllowance={css:1_100};
+const mobileLibraryToolbarAllowance={css:2_100};
 
 // The setup overview collapses its multi-link navigation into a single native
 // selector on phones and tightens the introductory cards for narrow screens.

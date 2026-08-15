@@ -57,6 +57,7 @@
 .view-cards .card-body,.view-compact .card-body,.view-list .card-body{overflow:hidden}
 .summary small{display:block;margin-top:.25rem;color:var(--muted);font-size:.68rem}
 .react-library-search-missing{margin-left:auto;white-space:nowrap}
+.bulk-action-short{display:none}
 .library-alphabet-rail{position:fixed;z-index:4;right:max(.45rem,calc((100vw - 1600px)/2 + .45rem));bottom:2rem;display:grid;grid-template-rows:repeat(27,minmax(0,1fr));width:2rem;padding:.3rem .22rem;border:1px solid rgba(68,82,112,.72);border-radius:999px;background:rgba(8,13,24,.9);box-shadow:0 12px 35px rgba(0,0,0,.35);backdrop-filter:blur(12px);touch-action:none;user-select:none}
 .library-alphabet-rail button{position:relative;z-index:2;display:grid;min-width:0;min-height:0;padding:0;border:0;border-radius:50%;background:transparent;color:#8e9ab0;font-size:.58rem;font-weight:800;line-height:1;place-items:center;cursor:pointer}
 .library-alphabet-rail button:hover,.library-alphabet-rail button.active{color:#fff}.library-alphabet-rail button:disabled{opacity:.2;cursor:default}
@@ -66,22 +67,30 @@
 @media(max-width:900px){.react-library-search-missing{margin-left:0}}
 @media(max-width:760px){.react-library-search{order:3;width:100%}.react-library-search input{flex:1;width:auto}.view-cards{grid-template-columns:1fr}.view-cards .react-library-card{grid-template-columns:6rem 1fr}.react-library .view-list .react-library-card .card-body{display:block}.view-list .react-library-list-details{margin-top:.9rem}.view-list .react-library-card-actions{margin-top:.9rem}.react-library-heading{display:block}.react-library-heading .library-status-badges{justify-content:flex-start;margin-top:.4rem}.library-alphabet-rail{display:none}.library-results-grid,.react-library>.empty,.react-library>.library-load-more{margin-right:0}}
 @media(max-width:760px){
-  .react-library-toolbar{display:grid;grid-template-columns:1fr;gap:.75rem;padding:.85rem;align-items:stretch}
-  .react-library-engine-filter{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:.65rem;color:var(--muted);font-size:.72rem;font-weight:800}
+  .react-library-toolbar{display:grid;grid-template-columns:1fr;gap:.55rem;padding:.65rem;align-items:stretch}
+  .react-library-engine-filter{display:grid;grid-template-columns:3.25rem minmax(0,1fr);align-items:center;gap:.45rem;color:var(--muted);font-size:.68rem;font-weight:800}
   .react-library-engine-filter select{width:100%;min-width:0}
-  .react-library-toolbar .filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.45rem}
-  .react-library-toolbar .filters>*{min-width:0;min-height:42px;padding:.5rem .35rem}
-  .react-library-toolbar .filters>*:last-child{grid-column:span 2}
-  .react-library-search{display:grid;grid-template-columns:1fr;gap:.35rem;order:0}
+  .react-library-toolbar .filters{display:flex;gap:.35rem;max-width:100%;overflow-x:auto;padding:.05rem 0 .2rem;scrollbar-width:none;overscroll-behavior-inline:contain}
+  .react-library-toolbar .filters::-webkit-scrollbar{display:none}
+  .react-library-toolbar .filters>*{flex:0 0 auto;min-width:0;min-height:36px;padding:.42rem .65rem;white-space:nowrap}
+  .react-library-search{display:block;order:0}
+  .react-library-search-label{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
   .react-library-search-field,.react-library-search input{width:100%;min-width:0}
   .react-library-sort-controls{min-width:0}
   .react-library-sort-controls .sort{min-width:0;width:100%}
-  .react-library-view-controls{display:grid;grid-template-columns:repeat(4,minmax(44px,1fr));gap:.45rem}
-  .react-library-sort-controls{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1fr) 44px}
-  .react-library-view-controls>.icon-button{width:100%}
-  .react-library .bulk-library-toolbar{display:grid;grid-template-columns:1fr auto;gap:.65rem;min-height:0;padding:.8rem}
+  .react-library-view-controls{display:flex;gap:.35rem;max-width:100%;overflow-x:auto;scrollbar-width:none}
+  .react-library-view-controls::-webkit-scrollbar{display:none}
+  .react-library-sort-controls{display:grid;grid-template-columns:minmax(8rem,1fr) 40px;flex:1 0 12rem}
+  .react-library-view-controls>.icon-button{flex:0 0 40px;width:40px;min-width:40px;min-height:40px;padding:.4rem}
+  .react-library .bulk-library-toolbar{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:.45rem;min-height:0;padding:.65rem;align-items:center}
   .react-library .bulk-library-toolbar .check,.react-library .bulk-selected-count{width:auto;margin:0;align-self:center}
-  .react-library .bulk-library-toolbar button{min-width:0;min-height:44px;margin:0}
+  .react-library .bulk-selected-count{grid-column:1/-1;grid-row:1;color:var(--muted);font-size:.72rem;text-align:right;pointer-events:none}
+  .react-library .bulk-library-toolbar .check{grid-column:1/-1;grid-row:1;justify-self:start;position:relative;z-index:1}
+  .react-library .bulk-library-toolbar button{min-width:0;min-height:40px;margin:0;padding:.45rem .65rem;white-space:nowrap}
+  .react-library .bulk-library-toolbar button:first-of-type{grid-column:2}
+  .react-library .bulk-library-toolbar button:last-of-type{grid-column:3}
+  .bulk-action-wide{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  .bulk-action-short{display:inline}
   .react-poster-quick-actions{gap:.4rem}
   .react-poster-quick-actions a,.react-poster-quick-actions button{min-width:44px;min-height:44px;padding:.45rem .55rem;font-size:.68rem}
   .react-poster-quick-actions .react-poster-quality{min-height:32px}

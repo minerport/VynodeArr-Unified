@@ -1018,7 +1018,7 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
         </div>
       </div>
       <div className="toolbar react-library-toolbar">
-        <label className="react-library-engine-filter">Engine instance<select aria-label={`Filter ${movie?'movies':'television'} by engine instance`} value={engineInstanceId} onChange={event=>{setEngineInstanceId(event.target.value);setSelected(new Set());}}><option value="all">All instances</option>{engineOptions.map(engine=><option value={engine.id} key={engine.id}>{engine.name}{engine.isDefault?' (Default)':''}</option>)}</select></label>
+        <label className="react-library-engine-filter"><span>Engine</span><select aria-label={`Filter ${movie?'movies':'television'} by engine instance`} value={engineInstanceId} onChange={event=>{setEngineInstanceId(event.target.value);setSelected(new Set());}}><option value="all">All instances</option>{engineOptions.map(engine=><option value={engine.id} key={engine.id}>{engine.name}{engine.isDefault?' (Default)':''}</option>)}</select></label>
         <div className="filters">
           {["all", "monitored", "unmonitored", "missing", "cutoff"].map(
             (value) => (
@@ -1048,7 +1048,7 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
           </button>
         ) : null}
         <label className="react-library-search">
-          Filter titles
+          <span className="react-library-search-label">Filter titles</span>
           <span className="react-library-search-field">
             <input
               value={query}
@@ -1138,8 +1138,8 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
       {options.administrator ? <div className="bulk-library-toolbar">
         <label className="check"><input type="checkbox" checked={Boolean(visible.slice(0,limit).length)&&visible.slice(0,limit).every(item=>selected.has(item.id))} onChange={event=>toggleVisible(event.target.checked)}/> Select visible</label>
         <strong className="bulk-selected-count">{selectedItems.length} selected</strong>
-        <button className="secondary" disabled={!selectedItems.length||Boolean(bulkBusy)} onClick={()=>void renameSelected()}>{bulkBusy==='rename'?'Organizing…':'Rename selected'}</button>
-        <button className="secondary" disabled={!selectedItems.length||Boolean(bulkBusy)} onClick={()=>void scanSelected()}>{bulkBusy==='scan'?'Queueing scan…':'Refresh & scan selected'}</button>
+        <button className="secondary" disabled={!selectedItems.length||Boolean(bulkBusy)} onClick={()=>void renameSelected()}>{bulkBusy==='rename'?'Organizing…':<><span className="bulk-action-wide">Rename selected</span><span className="bulk-action-short" aria-hidden="true">Rename</span></>}</button>
+        <button className="secondary" aria-label="Refresh & scan selected" disabled={!selectedItems.length||Boolean(bulkBusy)} onClick={()=>void scanSelected()}>{bulkBusy==='scan'?'Queueing scan…':<><span className="bulk-action-wide">Refresh &amp; scan selected</span><span className="bulk-action-short" aria-hidden="true">Refresh &amp; scan</span></>}</button>
       </div> : null}
       <div ref={gridRef} className={`grid view-${view} library-results-grid`}>
         {visible.slice(0, limit).map((item) => (
