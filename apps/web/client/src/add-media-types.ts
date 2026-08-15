@@ -2,7 +2,7 @@ export type AddMediaDomain='movie'|'tv';
 
 export interface AddMediaProfile { id:number;name:string }
 export interface AddMediaRoot { path:string }
-export interface AddMediaDestination {id:string;name:string;rootFolderPath:string;qualityProfileId:number;isDefault?:boolean;ready?:boolean;qualityProfile?:AddMediaProfile|null;plexLibrary?:{title?:string}|null}
+export interface AddMediaDestination {id:string;name:string;rootFolderPath:string;qualityProfileId:number;isDefault?:boolean;ready?:boolean;qualityProfile?:AddMediaProfile|null;plexLibrary?:{title?:string}|null;engineInstanceName?:string|null}
 export interface AddMediaImage { coverType?:string;remoteUrl?:string }
 export interface AddMediaResult {
   title:string;

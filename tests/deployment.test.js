@@ -105,7 +105,7 @@ test('README and Unraid metadata use the current product tour assets',async()=>{
 
 test('README installs the published Docker image and documents persistent release paths',async()=>{
   const readme=await readFile(new URL('../README.md',import.meta.url),'utf8');
-  const dockerSection=readme.match(/### Docker\n([\s\S]*?)\n### Credential encryption/)?.[1]||'';
+  const dockerSection=readme.match(/### Docker\r?\n([\s\S]*?)\r?\n### Credential encryption/)?.[1]||'';
   for(const value of ['ghcr.io/minerport/vynodearr-unified:latest','docker compose pull','docker compose up -d','/config','/media','/downloads','VYNODEARR_DOWNLOAD_CLIENT_REMOTE_PATH'])assert.ok(dockerSection.includes(value),value);
   assert.match(dockerSection,/self-contained/i);
   assert.match(dockerSection,/Building the development stack from source/);

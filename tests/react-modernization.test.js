@@ -1441,6 +1441,31 @@ test('My Requests owns request tracking, correction, cancellation, and permissio
   assert.match(styles,/\.my-request-match-dialog/);
 });
 
+test('request entry points always explain engine ownership and preserve isolated routing choices',async()=>{
+  const [discover,add,routing,styles,server]=await Promise.all([
+    read('apps/web/client/src/discover-request.tsx'),
+    read('apps/web/client/src/add-media.tsx'),
+    read('apps/web/client/src/request-routing.tsx'),
+    read('apps/web/public/styles.css'),
+    read('apps/api/src/app.js')
+  ]);
+  for(const source of [discover,add]){
+    assert.match(source,/RequestEngineField/);
+    assert.match(source,/RequestRoutingSummary/);
+    assert.match(source,/rememberRoute/);
+    assert.match(source,/engineInstanceId/);
+  }
+  assert.match(routing,/VynodeArr Movies/);
+  assert.match(routing,/VynodeArr Television/);
+  assert.match(routing,/engines\.length>1/);
+  assert.match(routing,/REQUEST ROUTING/);
+  assert.match(routing,/Engine/);assert.match(routing,/Folder/);assert.match(routing,/Quality/);assert.match(routing,/Plex library/);
+  assert.match(styles,/\.request-routing-summary/);
+  assert.match(styles,/@media\(max-width:650px\)[^{]*\{\.request-routing-summary>div\{display:grid/);
+  assert.match(server,/payload = \{\.\.\.input\.payload,engineInstanceId:/);
+  assert.match(server,/mediaDestinationContext\(domain, false, payload\.engineInstanceId\)/);
+});
+
 test('Discover approval policy and administrator request history have typed poster-rich interfaces',async()=>{
   const [account,accountTypes,adminRequests,types,islands,routing,dispatch,shell,server,auth,html,styles]=await Promise.all([
     read('apps/web/client/src/account.tsx'),read('apps/web/client/src/account-types.ts'),read('apps/web/client/src/request-management.tsx'),
