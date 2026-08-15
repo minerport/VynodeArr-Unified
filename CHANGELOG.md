@@ -7,6 +7,18 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.45-rc.6] - 2026-08-15
+
+### Changed
+
+- Allowed a separate placeholder Plex library to use its own independently
+  selected VynodeArr-visible host folder, including folders mapped under `/media`.
+
+### Fixed
+
+- Stopped newly added movie and television destinations from becoming defaults
+  unless the user explicitly selects the default option.
+
 ## [2.0.45-rc.5] - 2026-08-15
 
 ### Fixed
