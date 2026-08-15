@@ -1380,6 +1380,16 @@ test('poster overlay editor provides bounded layer fields and a shape library',a
   assert.match(layout,/overlay-preview-column>label select\{box-sizing:border-box;width:100%;min-width:0\}/);
 });
 
+test('poster overlay editor offers editable polished quick items',async()=>{
+  const [rail,presets,styles]=await Promise.all([read('apps/web/client/src/poster-overlay-editor-rail.tsx'),read('apps/web/client/src/poster-overlay-item-presets.ts'),read('apps/web/client/src/poster-overlays-runtime.css')]);
+  assert.match(rail,/Quick overlay items/);
+  assert.match(rail,/freely change its text, metadata, color, size, shape, and position/);
+  for(const item of ['Media status','Quality','Audio & subtitles','Ratings','Release & airing','Edition','Source & service','Personal label'])assert.match(presets,new RegExp(item.replace(/[&]/g,'\\&')));
+  assert.match(presets,/overlayLayerFromPreset/);
+  assert.match(styles,/\.overlay-item-sample\{/);
+  assert.match(styles,/box-shadow:inset 0 1px/);
+});
+
 test('poster overlay editor uses four focused desktop columns and a sequential mobile workflow',async()=>{
   const conditionStyles=await read('apps/web/client/src/poster-overlay-conditions.css'),layout=await read('apps/web/client/src/poster-overlay-editor-layout.css'),editor=await read('apps/web/client/src/poster-overlays.tsx');
   assert.match(conditionStyles,/overlay-condition-row\{grid-column:1\/-1;grid-row:2;width:100%/);

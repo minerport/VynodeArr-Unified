@@ -128,6 +128,9 @@ const mobileSetupOverviewAllowance={css:800};
 // explanatory overview is lazy-loaded; this allowance covers only navigation
 // orchestration and the responsive workspace presentation.
 const overlayWorkspaceAllowance={route:1_600,css:3_000};
+// The overlay editor includes eight compact, illustrated starter items. They
+// remain ordinary editable layers; this covers only their lazy editor gallery.
+const overlayItemPresetAllowance={css:1_000};
 // Optional split-library automation adds explicit real and placeholder Plex
 // destinations, host mappings, validation, and promotion controls to Lists only.
 const reeltrackSplitLibraryAllowance={route:5_200};
@@ -138,7 +141,7 @@ else if(entry.bytes>limits.entry)failures.push(`React entry is ${entry.bytes} by
 if(!shell)failures.push('The TypeScript application shell bundle was not produced.');
 else if(shell.bytes>limits.shell+mobileAllowance.shell+reeltrackAllowance.shell+libraryReviewAllowance.shell+mediaRemovalAllowance.shell)failures.push(`Application shell is ${shell.bytes} bytes (limit ${limits.shell+mobileAllowance.shell+reeltrackAllowance.shell+libraryReviewAllowance.shell+mediaRemovalAllowance.shell}).`);
 for(const chunk of routeChunks){const routeLimit=limits.route+(chunk.name.startsWith('system-')?performanceAllowance.systemRoute:0)+(chunk.name.startsWith('poster-overlays-')?posterOverlayAllowance.route+overlayAssignmentClarityAllowance.route+overlayWorkspaceAllowance.route:0)+(chunk.name.startsWith('root-folders-')?storageMappingAllowance.route+mediaDestinationChoiceAllowance.rootFoldersRoute+storagePathMigrationAllowance.route+storagePathProgressAllowance.route+storageEngineVerificationAllowance.route+nestedMediaFolderAllowance.route+multiEngineStorageAllowance.route:0)+(chunk.name.startsWith('reeltrack-lists-')?mediaDestinationChoiceAllowance.reeltrackRoute+mixedListSectionsAllowance.route+reeltrackRealTitleOverlayAllowance.route+reeltrackTrailerRepairAllowance.route+reeltrackDraftImportAllowance.route+reeltrackSplitLibraryAllowance.route:0);if(chunk.bytes>routeLimit)failures.push(`${chunk.name} is ${chunk.bytes} bytes (route limit ${routeLimit}).`);}
-if(stylesheet&&stylesheet.bytes>limits.css+mobileAllowance.css+performanceAllowance.css+posterOverlayAllowance.css+reeltrackAllowance.css+trailerDownloadAllowance.css+managedListCompactAllowance.css+artworkDesignerAllowance.css+libraryReviewAllowance.css+mediaRemovalAllowance.css+releaseBrowserAllowance.css+managedCollectionSetupAllowance.css+overlayAssignmentClarityAllowance.css+reeltrackApiKeyLinkAllowance.css+mobileActivityControlsAllowance.css+staticOverlayCssAllowance.css+mixedListSectionsAllowance.css+reeltrackColumnOverscrollAllowance.css+mobileLibraryToolbarAllowance.css+mobileSetupOverviewAllowance.css+overlayWorkspaceAllowance.css)failures.push(`React stylesheet exceeds its intentional feature budget.`);
+if(stylesheet&&stylesheet.bytes>limits.css+mobileAllowance.css+performanceAllowance.css+posterOverlayAllowance.css+reeltrackAllowance.css+trailerDownloadAllowance.css+managedListCompactAllowance.css+artworkDesignerAllowance.css+libraryReviewAllowance.css+mediaRemovalAllowance.css+releaseBrowserAllowance.css+managedCollectionSetupAllowance.css+overlayAssignmentClarityAllowance.css+reeltrackApiKeyLinkAllowance.css+mobileActivityControlsAllowance.css+staticOverlayCssAllowance.css+mixedListSectionsAllowance.css+reeltrackColumnOverscrollAllowance.css+mobileLibraryToolbarAllowance.css+mobileSetupOverviewAllowance.css+overlayWorkspaceAllowance.css+overlayItemPresetAllowance.css)failures.push(`React stylesheet exceeds its intentional feature budget.`);
 
 if(failures.length){
   console.error(`Web bundle budget failed:\n- ${failures.join('\n- ')}`);

@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import type { OverlayDomain, OverlayLayer, OverlayTemplate } from "./poster-overlays-types";
 import { PosterIcon, posterIcons } from "./poster-overlay-icons";
+import { overlayItemPresets, type OverlayItemPreset } from "./poster-overlay-item-presets";
 import "./poster-overlay-editor-layout.css";
 
 const shapes: Array<[OverlayLayer["shape"], string, CSSProperties]> = [
@@ -25,9 +26,10 @@ type Props = {
   onAddText: () => void;
   onAddIcon: (name: string) => void;
   onAddShape: (shape: OverlayLayer["shape"]) => void;
+  onAddPreset: (preset: OverlayItemPreset) => void;
 };
 
-export default function EditorRail({ editing, selectedId, query, onQuery, onSelect, onChange, onAddText, onAddIcon, onAddShape }: Props) {
+export default function EditorRail({ editing, selectedId, query, onQuery, onSelect, onChange, onAddText, onAddIcon, onAddShape, onAddPreset }: Props) {
   const icons = posterIcons.filter(([, label]) => !query || label.toLowerCase().includes(query.toLowerCase()));
   return (
     <aside className="overlay-editor-rail">
@@ -65,6 +67,15 @@ export default function EditorRail({ editing, selectedId, query, onQuery, onSele
             <span>{index + 1}</span>
             <strong>{layer.kind === "icon" ? posterIcons.find(([id]) => id === layer.iconName)?.[1] || "Icon" : layer.kind === "shape" ? `${layer.shape} shape` : layer.variable.replaceAll("_", " ")}</strong>
             <small>{layer.enabled ? "On" : "Off"}</small>
+          </button>
+        ))}
+      </div>
+      <div className="overlay-item-heading"><h3>Quick overlay items</h3><small className="muted">Add a polished starter, then freely change its text, metadata, color, size, shape, and position.</small></div>
+      <div className="overlay-item-presets">
+        {overlayItemPresets.map((preset) => (
+          <button className="secondary" title={`Add ${preset.name}`} onClick={() => onAddPreset(preset)} key={preset.id}>
+            <span className={`overlay-item-sample shape-${preset.shape}`} style={{ color: preset.foreground, background: preset.background }}><PosterIcon name={preset.icon} /><strong>{preset.name}</strong></span>
+            <small>{preset.description}</small>
           </button>
         ))}
       </div>
