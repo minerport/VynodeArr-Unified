@@ -545,6 +545,7 @@ export function createApplication(options = {}) {
       binary: env.VYNODEARR_YTDLP_BINARY || "yt-dlp",
       movieRoot: env.VYNODEARR_TRAILER_DIR || env.VYNODEARR_MOVIE_LIBRARY_PATH || "/movies",
       tvRoot: env.VYNODEARR_TV_LIBRARY_PATH || "/tv",
+      sharedRoots: ["/media"],
     });
   const trailerPlayback =
     options.trailerPlayback ||
@@ -1477,12 +1478,13 @@ export function createApplication(options = {}) {
   const localLibraryRoot = (domain) => domain === "tv"
     ? env.VYNODEARR_TV_LIBRARY_PATH || "/tv"
     : env.VYNODEARR_TRAILER_DIR || env.VYNODEARR_MOVIE_LIBRARY_PATH || "/movies";
-  const mappedLibraryRoot = (domain, automation = {}) => {
-    const configured = resolve(localLibraryRoot(domain)),
-      requested = resolve(String(domain === "tv" ? automation.tvHostRoot || configured : automation.movieHostRoot || configured));
-    if (requested !== configured && !requested.startsWith(`${configured}${process.platform === "win32" ? "\\" : "/"}`))
-      throw new Error(`The mapped ${domain === "tv" ? "television" : "movie"} host folder is outside VynodeArr's configured library root.`);
+  const mappedHostRoot = (domain, value) => {
+    const requested = resolve(String(value || localLibraryRoot(domain))), configured = resolve(localLibraryRoot(domain)), shared = resolve("/media"), allowed = [configured, shared].some((root) => requested === root || requested.startsWith(`${root}${sep}`));
+    if (!allowed) throw new Error(`The mapped ${domain === "tv" ? "television" : "movie"} host folder is outside VynodeArr's configured library roots.`);
     return requested;
+  };
+  const mappedLibraryRoot = (domain, automation = {}) => {
+    return mappedHostRoot(domain, domain === "tv" ? automation.tvHostRoot : automation.movieHostRoot);
   };
   const plexMovieRootValue = (value) => {
     const path = String(value || "").trim();
@@ -1921,10 +1923,7 @@ export function createApplication(options = {}) {
             placeholderLocalRoot = automation.splitLibraryMode
               ? resolve(String(domain === "tv" ? automation.tvPlaceholderHostRoot : automation.moviePlaceholderHostRoot))
               : realLocalRoot;
-          if (automation.splitLibraryMode) {
-            const configuredRoot = resolve(localLibraryRoot(domain));
-            if (placeholderLocalRoot !== configuredRoot && !placeholderLocalRoot.startsWith(`${configuredRoot}${sep}`)) throw new Error("The placeholder folder must be inside the configured media root.");
-          }
+          if (automation.splitLibraryMode) mappedHostRoot(domain, placeholderLocalRoot);
           return { domain, library: placeholderLibrary, libraryLocation: placeholderLibraryLocation, localRoot: placeholderLocalRoot, plexItems: placeholderPlexItems || realPlexItems, realLibrary, realLibraryLocation, realLocalRoot, realPlexItems };
         }));
       const libraryAdds = await addReeltrackItemsToLibraries(
@@ -9386,10 +9385,11 @@ export function createApplication(options = {}) {
         ) {
           if (!administrator(res, session)) return;
           const domain = url.searchParams.get("domain") === "tv" ? "tv" : "movie",
-            root = resolve(localLibraryRoot(domain)),
-            requested = resolve(String(url.searchParams.get("path") || root));
-          if (requested !== root && !requested.startsWith(`${root}${process.platform === "win32" ? "\\" : "/"}`))
-            throw new Error("Choose a folder inside the configured VynodeArr library root.");
+            configuredRoot = resolve(localLibraryRoot(domain)), sharedRoot = resolve("/media"),
+            requested = resolve(String(url.searchParams.get("path") || configuredRoot)),
+            root = requested === sharedRoot || requested.startsWith(`${sharedRoot}${sep}`) ? sharedRoot : configuredRoot;
+          if (requested !== root && !requested.startsWith(`${root}${sep}`))
+            throw new Error("Choose a folder inside a configured VynodeArr library root.");
           const directories = (await readdir(requested, { withFileTypes: true }))
             .filter((entry) => entry.isDirectory())
             .map((entry) => ({ name: entry.name, path: join(requested, entry.name) }))

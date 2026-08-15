@@ -132,8 +132,9 @@ const overlayWorkspaceAllowance={route:1_600,css:3_000};
 // remain ordinary editable layers; this covers only their lazy editor gallery.
 const overlayItemPresetAllowance={css:1_000};
 // Optional split-library automation adds explicit real and placeholder Plex
-// destinations, host mappings, validation, and promotion controls to Lists only.
-const reeltrackSplitLibraryAllowance={route:5_200};
+// destinations, independent /media host-folder browsing and mapping, validation,
+// and promotion controls to Lists only.
+const reeltrackSplitLibraryAllowance={route:6_100};
 // Engine scoping now lives beside the dashboard and library content it affects,
 // while Lists opens on titles and keeps Plex automation in a focused subview.
 // Keep that navigation and responsive presentation isolated to the Lists route
