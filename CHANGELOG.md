@@ -7,6 +7,23 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.45-rc.4] - 2026-08-15
+
+### Changed
+
+- Moved Dashboard movie and television engine scopes beside the operational
+  summary they control and clarified engine selection on both library pages.
+- Made imported list titles the primary Lists workspace and moved Plex sync,
+  trailers, collections, and list artwork into a dedicated automation subpage.
+- Added direct Setup Overview links to list browsing and list automation.
+
+### Fixed
+
+- Prevented manual VynodeArr-to-Plex matching from recursively calling itself
+  and failing with a maximum call stack error.
+- Restored natural sizing and direct drag-and-resize behavior for quick overlay
+  items in the poster editor.
+
 ## [2.0.45-rc.3] - 2026-08-15
 
 ### Added

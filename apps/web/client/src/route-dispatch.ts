@@ -11,7 +11,7 @@ export type RouteAction=
   |{name:'operations'}
   |{name:'library';kind:LibraryKind}
   |{name:'collections'}
-  |{name:'lists'}
+  |{name:'lists';section:'titles'|'automation'}
   |{name:'addMedia'}
   |{name:'wanted'}
   |{name:'movieDetail';id:string}
@@ -53,7 +53,7 @@ export function resolveRouteAction(route:AppRoute,state:RouteActionState):RouteA
       :{name:'library',kind:key};
   }
   if(key==='collections')return{name:'collections'};
-  if(key==='lists')return{name:'lists'};
+  if(key==='lists')return{name:'lists',section:parts[1]==='automation'?'automation':'titles'};
   if(key==='add')return{name:'addMedia'};
   if(key==='wanted')return{name:'wanted'};
   if(key==='movie')return{name:'movieDetail',id:parts[1]||''};

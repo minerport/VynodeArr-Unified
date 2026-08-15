@@ -54,4 +54,5 @@ export interface ReeltrackListsMountOptions {
   request:<T=unknown>(path:string,options?:RequestInit)=>Promise<T>;
   notify:(message:string,tone?:string)=>void;
   administrator:boolean;
+  initialSection?:'titles'|'automation';
 }

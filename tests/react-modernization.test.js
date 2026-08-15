@@ -19,6 +19,7 @@ test('Reeltrack Lists remains fluid while the viewport is resized',async()=>{
   assert.match(view,/List titles/);
   assert.match(view,/Plex sync & overlays/);
   assert.match(view,/listPage === "automation"/);
+  assert.match(view,/options\.initialSection==='automation'/);
   assert.match(styles,/\.reeltrack-list-sections\s*\{[^}]*grid-template-columns:\s*repeat\(2/);
   assert.doesNotMatch(view,/<aside className="reeltrack-list-nav">/);
   assert.match(view,/Choose host folder/);
@@ -710,6 +711,8 @@ test('setup overview stays inside the phone viewport without becoming another sh
     read('apps/web/public/index.html')
   ]);
   assert.match(setup,/className="setup-intro-note"/);
+  assert.match(setup,/href="#lists">Review list titles/);
+  assert.match(setup,/href="#lists\/automation">Configure list automation/);
   assert.doesNotMatch(setup,/<aside>/);
   assert.match(foundation,/\.react-setup-center\{width:100%;max-width:100%;min-width:0;overflow-x:clip\}/);
   assert.match(setupNav,/Setup section/);

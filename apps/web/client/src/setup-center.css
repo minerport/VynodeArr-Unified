@@ -7,3 +7,4 @@
   .setup-intro-note{padding:.8rem}
   .setup-step-card .button-link,.setup-guidance-card .button-link,.setup-next-step .button-link{width:auto;justify-self:start;padding:.65rem .8rem}
 }
+.setup-card-actions{display:flex;flex-wrap:wrap;gap:.55rem}
