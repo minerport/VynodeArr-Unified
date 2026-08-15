@@ -24,6 +24,7 @@ const notificationHost=document.querySelector('#notification-root');let notifica
 void import('./modal-scroll-restoration').then(({installModalScrollRestoration})=>installModalScrollRestoration(window,document));
 document.querySelector('nav a[href="#movies"]')?.insertAdjacentHTML('afterend','<a href="#collections">Collections</a>');
 document.querySelector('nav a[href="#collections"]')?.insertAdjacentHTML('afterend','<a href="#lists">Lists</a>');
+document.querySelector('nav a[href="#lists"]')?.insertAdjacentHTML('afterend','<a href="#service/poster-overlays">Overlays</a>');
 const nav=[...document.querySelectorAll('nav a')],state=createAppState();
 const notify=createNotifier(toast);
 const api=createApiClient({

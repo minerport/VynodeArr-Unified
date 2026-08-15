@@ -22,7 +22,7 @@ const destinations:SearchItem[]=[
   ["Library Health","Review media-engine health warnings","#service/library-health","errors warnings","Setting"],
   ["Library Review","Compare Plex, VynodeArr, and folders","#service/library-review","matching scanned files","Setting"],
   ["Media Management","Configure naming and organization","#service/media-management","rename folders files","Setting"],
-  ["Poster Overlays and Plex","Connect Plex and manage poster artwork","#service/poster-overlays","plex server token artwork styles","Setting"],
+  ["Overlays","Design styles, manage assignments, and safely update Plex artwork","#service/poster-overlays","poster overlays plex server token artwork styles assignments","Page"],
   ["Quality Profiles","Configure qualities, upgrades, and cutoffs","#service/profiles","resolution sizes","Setting"],
   ["Custom Formats","Configure custom format scoring","#service/custom-formats","scores release rules","Setting"],
   ["Guide Templates","Apply reusable quality templates","#service/guide-templates","trash guides presets","Setting"],

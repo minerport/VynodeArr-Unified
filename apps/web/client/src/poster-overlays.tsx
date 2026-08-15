@@ -49,6 +49,9 @@ const PlexConnectionPanel = lazy(() =>
 const ApplicationReview = lazy(
   () => import("./poster-overlay-application-review"),
 );
+const OverlayWorkspaceOverview = lazy(
+  () => import("./overlay-workspace-overview"),
+);
 const EditorRail = lazy(() => import("./poster-overlay-editor-rail"));
 const LayerIdentity = lazy(() => import("./poster-overlay-layer-identity"));
 const OverlayConditions = lazy(() => import("./poster-overlay-conditions"));
@@ -392,6 +395,9 @@ export function PosterOverlaysView({
     [yearTo, setYearTo] = useState(""),
     [availability, setAvailability] = useState(""),
     [monitoring, setMonitoring] = useState("");
+  const [workspace, setWorkspace] = useState<
+    "overview" | "templates" | "assignments" | "plex"
+  >("overview");
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -640,25 +646,46 @@ export function PosterOverlaysView({
       <style>{styles + responsiveLayoutStyles}</style>
       <div className="hero">
         <div>
-          <span className="eyebrow">ARTWORK</span>
-          <h1>Poster Overlay Studio</h1>
+          <span className="eyebrow">ARTWORK WORKSPACE</span>
+          <h1>Overlays</h1>
           <p className="lede">
-            Reusable poster styles with original-art fallback.
+            Design reusable poster styles, choose where they appear, and safely manage Plex artwork from one place.
           </p>
         </div>
+        <button type="button" className="primary" onClick={() => {setWorkspace("templates");setPreviewId("");setEditing(blankTemplate());}}>
+          Create style
+        </button>
       </div>
       <ServiceTabs active="poster-overlays" />
-      <Suspense
-        fallback={
-          <div className="panel skeleton">Loading Plex connection…</div>
-        }
-      >
-        <PlexConnectionPanel options={options} templates={templates} variables={variables} />
-      </Suspense>
+      <nav className="overlay-workspace-nav" aria-label="Overlay workspace">
+        {([
+          ["overview", "Overview"],
+          ["templates", "Templates"],
+          ["assignments", "Assignments"],
+          ["plex", "Plex artwork"],
+        ] as const).map(([value,label])=><button type="button" className={workspace===value?"active":""} aria-current={workspace===value?"page":undefined} onClick={()=>setWorkspace(value)} key={value}>{label}</button>)}
+      </nav>
+      {workspace === "overview" ? (
+        <Suspense fallback={<div className="panel skeleton">Loading overlay overview…</div>}>
+          <OverlayWorkspaceOverview
+            templateCount={templates.length}
+            vynodeCount={templates.filter(item=>item.target==="vynode").length}
+            plexCount={templates.filter(item=>item.target==="plex").length}
+            assignmentCount={assignments.length}
+            onNavigate={setWorkspace}
+          />
+        </Suspense>
+      ) : null}
+      {workspace === "plex" ? (
+        <Suspense fallback={<div className="panel skeleton">Loading Plex artwork tools…</div>}>
+          <PlexConnectionPanel options={options} templates={templates} variables={variables} />
+        </Suspense>
+      ) : null}
       {loading ? (
-        <div className="panel skeleton">Loading poster styles…</div>
+        workspace === "templates" || workspace === "assignments" ? <div className="panel skeleton">Loading overlay workspace…</div> : null
       ) : (
-        <div className="overlay-studio-grid">
+        workspace === "templates" || workspace === "assignments" ? <div className={`overlay-studio-grid overlay-workspace-${workspace}`}>
+          {workspace === "templates" ? (
           <section className="panel overlay-template-panel">
             <div className="panel-heading">
               <div>
@@ -759,6 +786,8 @@ export function PosterOverlaysView({
               })}
             </div>
           </section>
+          ) : null}
+          {workspace === "assignments" ? (
           <section className="panel overlay-assignment-panel">
             <div className="panel-heading">
               <div>
@@ -994,7 +1023,8 @@ export function PosterOverlaysView({
               </p>
             ) : null}
           </section>
-        </div>
+          ) : null}
+        </div> : null
       )}
       {applicationReview ? (
         <Suspense>

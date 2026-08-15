@@ -44,7 +44,7 @@ const tabs: Array<{ section: ServiceSection; label: string; href: string; group:
   },
   {
     section: "poster-overlays",
-    label: "Poster Overlays",
+    label: "Overlays",
     href: "#service/poster-overlays",
     group: "Library",
   },

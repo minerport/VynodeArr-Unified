@@ -1120,7 +1120,7 @@ test('global shell controls and presentation have typed ownership',async()=>{
   assert.match(controller,/wireGlobalSearch\(options\.globalSearch/);
   assert.match(globalSearch,/export function wireGlobalSearch/);
   assert.match(globalSearch,/Search titles, pages, and settings/);
-  assert.match(globalSearch,/Poster Overlays and Plex/);
+  assert.match(globalSearch,/\["Overlays","Design styles, manage assignments, and safely update Plex artwork"/);
   assert.match(globalSearch,/mediaItems\(state\.movies,"Movie","movie"\)/);
   assert.match(globalSearch,/mediaItems\(state\.tv,"Television","series"\)/);
   assert.match(controller,/addEventListener\('beforeunload'/);
@@ -1269,6 +1269,24 @@ test('poster overlay creation stays available beside the style list',async()=>{
   assert.match(source,/className="overlay-new-action"/);
   assert.match(source,/Create new style/);
   assert.match(source,/\.overlay-new-action\{display:grid;grid-template-columns:auto 1fr;width:100%\}/);
+});
+
+test('overlay operations share one guided workspace without losing Plex or assignment tools',async()=>{
+  const [source,overview,styles,shell]=await Promise.all([
+    read('apps/web/client/src/poster-overlays.tsx'),
+    read('apps/web/client/src/overlay-workspace-overview.tsx'),
+    read('apps/web/client/src/poster-overlays-runtime.css'),
+    read('apps/web/client/src/app-shell.ts'),
+  ]);
+  for(const section of ['Overview','Templates','Assignments','Plex artwork'])assert.match(source,new RegExp(`"${section}"`));
+  assert.match(overview,/Choose what you want to change/);
+  assert.match(source,/lazy\(\s*\(\) => import\("\.\/overlay-workspace-overview"\)/);
+  assert.match(source,/PlexConnectionPanel options=\{options\} templates=\{templates\} variables=\{variables\}/);
+  assert.match(source,/Active assignments/);
+  assert.match(source,/Create new style/);
+  assert.match(styles,/\.overlay-workspace-nav\{display:grid;grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
+  assert.match(styles,/@media\(max-width:760px\)\{\.overlay-workspace-nav\{display:flex;overflow-x:auto/);
+  assert.match(shell,/<a href="#service\/poster-overlays">Overlays<\/a>/);
 });
 
 test('poster overlay editor layers retain drag and resize pointer input',async()=>{
