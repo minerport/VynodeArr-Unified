@@ -44,7 +44,7 @@ consistent experience and account system.
 
 ## Current release
 
-Version **2.0.44** is the current stable release and is published as the
+Version **2.0.45** is the current stable release and is published as the
 `latest` image. Administrators can use the bundled media engines, connect one
 existing external movie and television engine, or manage multiple independent
 external instances. Each instance keeps its credentials, settings,

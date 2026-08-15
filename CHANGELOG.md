@@ -7,6 +7,36 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.45] - 2026-08-15
+
+### Added
+
+- Added a guided Overlays workspace with reusable polished quick items,
+  assignments, Plex artwork operations, and direct global navigation.
+- Added separate list artwork designs for collection posters, trailer
+  placeholders, existing real titles, and titles downloaded after initially
+  appearing as placeholders.
+
+### Changed
+
+- Reorganized Lists so imported titles are the primary view while Plex sync,
+  trailers, collections, destinations, schedules, and artwork live in a
+  focused automation workspace.
+- Simplified list imports and destination setup for movie-only, television-only,
+  and mixed-media lists while retaining independent Plex, host, and engine
+  paths and optional placeholder libraries.
+- Refined Dashboard, Movies, Television, Setup Overview, and overlay editing
+  layouts across desktop and mobile without removing existing capabilities.
+
+### Fixed
+
+- Corrected list destination validation, linked-folder reuse, collection poster
+  restoration, title artwork restoration, and lifecycle overlay application.
+- Prevented unchecked destinations from becoming defaults and allowed separate
+  placeholder libraries to use independently mapped host folders.
+- Fixed manual Plex matching recursion, overlay item sizing and direct resizing,
+  setup navigation links, and compact mobile library controls.
+
 ## [2.0.45-rc.8] - 2026-08-15
 
 ### Added
