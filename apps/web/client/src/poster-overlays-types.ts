@@ -70,6 +70,11 @@ export interface OverlayTemplate {
   previewPosterKey?: string;
   tvFileAggregation: "most_common" | "best" | "lowest" | "mixed" | "latest";
   layers: OverlayLayer[];
+  variants?: Array<{
+    id: string;
+    name: string;
+    layers: OverlayLayer[];
+  }>;
   plexBadges: {
     monitored: boolean;
     availability: boolean;

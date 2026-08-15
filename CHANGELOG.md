@@ -7,6 +7,32 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.46] - 2026-08-15
+
+### Added
+
+- Added reusable overlay layouts, import and export tools, design validation,
+  undo and redo history, keyboard movement, and impact review before applying
+  a style.
+- Added endpoint-level connection diagnostics for external Radarr and Sonarr
+  instances covering library, queue, calendar, and health capabilities.
+
+### Changed
+
+- Expanded the overlay editor with reusable shape layouts, safer bounded
+  controls, clearer condition feedback, and compact editing tools without
+  removing existing layer, typography, condition, or assignment capabilities.
+- Renaming a saved overlay style now updates its generated assignment labels
+  while preserving deliberately customized assignment names.
+
+### Fixed
+
+- External engine setup now identifies the exact Radarr or Sonarr capability
+  that returned an unsupported response instead of reporting only a generic
+  connection failure.
+- Corrected overlay design state handling, conditional typography guidance,
+  layer editing behavior, and assignment previews.
+
 ## [2.0.45] - 2026-08-15
 
 ### Added

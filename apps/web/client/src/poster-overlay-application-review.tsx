@@ -92,7 +92,7 @@ export default function ApplicationReview({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
-  const sample = items[0];
+  const sample = items[0], assessed=items.map(item=>({item,visible:template.layers.filter(layer=>{const resolved=resolveConditionalLayer(layer,item.artwork?.overlayValues||{});return overlayLayerVisible(resolved,valueFor(resolved,item),item.artwork?.overlayValues||{});}).length})),willRender=assessed.filter(result=>result.visible>0).length,withoutVisibleLayers=assessed.length-willRender;
   return (
     <ModalPortal>
       <div className="overlay-editor-backdrop">
@@ -119,6 +119,13 @@ export default function ApplicationReview({
                   Add this style to {label}. It will be combined with any other compatible VynodeArr styles already assigned to the same titles. Custom layers render above the poster, status badges, and card details.
                 </p>
               </div>
+              <div className="overlay-application-summary" aria-label="Application summary">
+                <div><strong>{items.length||"Dynamic"}</strong><small>titles in scope</small></div>
+                <div><strong>{items.length?willRender:"Evaluated live"}</strong><small>currently receive a visible layer</small></div>
+                <div><strong>{items.length?withoutVisibleLayers:"—"}</strong><small>currently skipped by layer conditions</small></div>
+                <div><strong>{template.layers.filter(layer=>layer.enabled).length}</strong><small>enabled layers per matching title</small></div>
+              </div>
+              {withoutVisibleLayers?<div className="notice warning"><strong>Some titles do not currently match a visible layer</strong><p>They remain in the assignment and will be reevaluated automatically when their metadata changes.</p></div>:null}
               <div className="overlay-media-picker">
                 {items.slice(0, 8).map((item) => (
                   <label key={item.id}>

@@ -9,6 +9,12 @@ export const overlayClientId = () =>
 
 const conditionMatches=(rule:OverlayLayer["conditions"]["rules"][number],values:Record<string,unknown>)=>{const actual=String(values[rule.variable]??"").trim(),expected=String(rule.value??"").trim(),left=actual.toLowerCase(),right=expected.toLowerCase(),numbers=actual!==""&&expected!==""&&Number.isFinite(Number(actual))&&Number.isFinite(Number(expected));if(rule.operator==="falsy")return !actual;if(rule.operator==="equals")return left===right;if(rule.operator==="not_equals")return left!==right;if(rule.operator==="contains")return left.includes(right);if(rule.operator==="not_contains")return !left.includes(right);if(rule.operator==="greater_than")return numbers&&Number(actual)>Number(expected);if(rule.operator==="less_than")return numbers&&Number(actual)<Number(expected);if(rule.operator==="greater_than_or_equal")return numbers&&Number(actual)>=Number(expected);if(rule.operator==="less_than_or_equal")return numbers&&Number(actual)<=Number(expected);return Boolean(actual)};
 const groupMatches=(group:OverlayLayer["conditions"],values:Record<string,unknown>)=>{const results=(group?.rules||[]).map(rule=>conditionMatches(rule,values));return group?.join==="or"?results.some(Boolean):results.every(Boolean)};
+export function overlayConditionStatus(layer:OverlayLayer,values:Record<string,unknown>={}) {
+  const matches=[...(layer.styleRules||[])].sort((a,b)=>(a.rank||999)-(b.rank||999)).filter(rule=>groupMatches(rule.conditions,values));
+  const applied=layer.styleMode==="merge"?matches:matches.slice(0,1);
+  const diagnostics=[...(layer.styleRules||[])].sort((a,b)=>(a.rank||999)-(b.rank||999)).map(rule=>({id:rule.id,name:rule.name,matches:groupMatches(rule.conditions,values),rules:rule.conditions.rules.map(condition=>({variable:condition.variable,actual:String(values[condition.variable]??""),operator:condition.operator,expected:condition.value,matches:conditionMatches(condition,values)}))}));
+  return { matches, applied, diagnostics, overriddenKeys:[...new Set(applied.flatMap(rule=>Object.keys(rule.overrides||{})))] };
+}
 export function resolveConditionalLayer(layer:OverlayLayer,values:Record<string,unknown>={}){const matches=[...(layer.styleRules||[])].sort((a,b)=>(a.rank||999)-(b.rank||999)).filter(rule=>groupMatches(rule.conditions,values)),chosen=layer.styleMode==="merge"?matches:matches.slice(0,1);return chosen.reduce((resolved,rule)=>({...resolved,...rule.overrides}),layer)}
 
 export function overlayLayerVisible(layer: OverlayLayer, value: unknown, values: Record<string,unknown> = {}) {

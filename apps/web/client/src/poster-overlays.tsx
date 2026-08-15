@@ -4,7 +4,10 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useReducer,
+  useRef,
   useState,
+  type SetStateAction,
 } from "react";
 import { ServiceTabs } from "./service-tabs";
 import { ModalPortal } from "./modal-portal";
@@ -21,12 +24,14 @@ import type {
 } from "./poster-overlays-types";
 import {
   OverlayLayerView,
+  overlayConditionStatus,
   overlayClientId,
   overlayLayerVisible,
   resolveConditionalLayer,
 } from "./poster-overlay-layer";
 import { PosterLayerContent } from "./poster-overlay-icons";
 import { overlayLayerFromPreset } from "./poster-overlay-item-presets";
+import { accessibilityIssues, downloadTemplate, transformLayers, validateImportedTemplate, type AlignmentAction } from "./poster-overlay-editor-tools";
 import "./poster-overlay-inspector.css";
 import "./poster-overlays-runtime.css";
 const styles = `.poster-overlay-route{display:grid;gap:20px}.overlay-studio-grid{display:grid;grid-template-columns:minmax(320px,.8fr) minmax(420px,1.2fr);gap:20px}.overlay-template-list{display:grid;gap:14px}.overlay-template-card{display:grid;grid-template-columns:92px 1fr;gap:14px;align-items:center;padding:12px;border:1px solid var(--border);border-radius:14px}.overlay-template-card small,.overlay-media-picker small{display:block;color:var(--muted)}.overlay-preview{position:relative;width:min(100%,300px);aspect-ratio:2/3;overflow:hidden;border:1px solid var(--border);border-radius:14px;background:linear-gradient(145deg,#24324b,#07101d 62%,#02060d) center/cover;box-shadow:inset 0 -100px 80px -70px #000}.overlay-preview-layer{font-weight:800}.overlay-scope-row,.overlay-layer-editor{display:grid;grid-template-columns:1fr 1fr;gap:10px}.overlay-media-picker{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;max-height:360px;overflow:auto}.overlay-media-picker label{display:grid;grid-template-columns:auto 38px 1fr;gap:8px;align-items:center;padding:8px;border:1px solid var(--border);border-radius:10px}.overlay-media-picker img{width:38px;aspect-ratio:2/3;object-fit:cover}.overlay-editor-backdrop{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:20px;background:#000c}.overlay-editor{display:grid;grid-template-rows:auto minmax(0,1fr) auto;width:min(1100px,100%);max-height:calc(100dvh - 40px);overflow:hidden;border:1px solid var(--border);border-radius:18px;background:var(--panel,#08111f)}.overlay-editor-grid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:20px;overflow:auto;padding:20px}.overlay-editor-fields{display:grid;gap:12px}.overlay-layer-editor{padding:12px;border:1px solid var(--border);border-radius:12px}.overlay-preview-column{display:grid;align-content:start;justify-items:center;gap:10px;position:sticky;top:0}.overlay-editor-footer{display:flex;justify-content:flex-end;gap:10px;padding:16px 20px;border-top:1px solid var(--border)}@media(max-width:800px){.overlay-studio-grid,.overlay-scope-row,.overlay-media-picker,.overlay-editor-grid,.overlay-layer-editor{grid-template-columns:1fr}.overlay-editor-backdrop{padding:0}.overlay-editor{width:100%;height:100dvh;max-height:none;border:0;border-radius:0}.overlay-editor-grid{padding:14px}.overlay-preview-column{position:static;order:-1}.overlay-preview-column .overlay-preview{width:180px}.poster-overlay-route .hero>.primary{width:100%}}`;
@@ -132,6 +137,24 @@ const blankTemplate = (): OverlayTemplate => ({
     rating: false,
   },
 });
+type EditorHistory = { present: OverlayTemplate | null; past: OverlayTemplate[]; future: OverlayTemplate[] };
+type EditorHistoryAction =
+  | { type: "set"; value: SetStateAction<OverlayTemplate | null> }
+  | { type: "undo" }
+  | { type: "redo" };
+const editorHistoryReducer = (state: EditorHistory, action: EditorHistoryAction): EditorHistory => {
+  if (action.type === "undo") {
+    const previous = state.past.at(-1);
+    return previous ? { present: previous, past: state.past.slice(0, -1), future: state.present ? [state.present, ...state.future].slice(0, 40) : state.future } : state;
+  }
+  if (action.type === "redo") {
+    const next = state.future[0];
+    return next ? { present: next, past: state.present ? [...state.past, state.present].slice(-40) : state.past, future: state.future.slice(1) } : state;
+  }
+  const next = typeof action.value === "function" ? action.value(state.present) : action.value;
+  if (!state.present || !next) return { present: next, past: [], future: [] };
+  return { present: next, past: [...state.past, state.present].slice(-40), future: [] };
+};
 const errorText = (reason: unknown) =>
   reason instanceof Error
     ? reason.message
@@ -370,8 +393,9 @@ export function PosterOverlaysView({
     [userCollections, setUserCollections] = useState<OverlayUserCollection[]>(
       [],
     ),
-    [editing, setEditing] = useState<OverlayTemplate | null>(null),
+    [editorHistory, dispatchEditor] = useReducer(editorHistoryReducer, { present: null, past: [], future: [] }),
     [selectedLayerId, setSelectedLayerId] = useState(""),
+    [selectedLayerIds, setSelectedLayerIds] = useState<string[]>([]),
     [collapsedLayerIds, setCollapsedLayerIds] = useState<string[]>([]),
     [iconQuery, setIconQuery] = useState(""),
     [previewId, setPreviewId] = useState(""),
@@ -397,6 +421,12 @@ export function PosterOverlaysView({
     [yearTo, setYearTo] = useState(""),
     [availability, setAvailability] = useState(""),
     [monitoring, setMonitoring] = useState("");
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const [recoverableDraft, setRecoverableDraft] = useState<OverlayTemplate | null>(()=>{
+    try{return JSON.parse(localStorage.getItem("vynodearr.poster-overlay-draft")||"null")?.template||null;}catch{return null;}
+  });
+  const editing = editorHistory.present;
+  const setEditing = useCallback((value: SetStateAction<OverlayTemplate | null>) => dispatchEditor({ type: "set", value }), []);
   const [workspace, setWorkspace] = useState<
     "overview" | "templates" | "assignments" | "plex"
   >("overview");
@@ -453,15 +483,26 @@ export function PosterOverlaysView({
     if (
       editing &&
       !editing.layers.some((layer) => layer.id === selectedLayerId)
-    )
-      setSelectedLayerId(editing.layers[0]?.id || "");
+    ) {
+      const firstId=editing.layers[0]?.id||"";
+      setSelectedLayerId(firstId);
+      setSelectedLayerIds(firstId?[firstId]:[]);
+    }
   }, [editing, selectedLayerId]);
+  useEffect(()=>{
+    if(!editing||!editorHistory.past.length)return;
+    const timer=window.setTimeout(()=>{
+      localStorage.setItem("vynodearr.poster-overlay-draft",JSON.stringify({savedAt:new Date().toISOString(),template:editing}));
+      setRecoverableDraft(editing);
+    },400);
+    return()=>window.clearTimeout(timer);
+  },[editing,editorHistory.past.length]);
   useEffect(() => {
     if (!editing || !selectedLayerId) return;
     scrollLayerSettings(selectedLayerId);
   }, [selectedLayerId, editing?.layers.length]);
   useEffect(()=>setPreviewLimit(100),[editing?.target,editing?.domain]);
-  const selectLayer=(id:string)=>{setCollapsedLayerIds(value=>value.filter(item=>item!==id));setSelectedLayerId(id);requestAnimationFrame(()=>scrollLayerSettings(id));};
+  const selectLayer=(id:string,additive=false)=>{setCollapsedLayerIds(value=>value.filter(item=>item!==id));setSelectedLayerId(id);setSelectedLayerIds(current=>additive?(current.includes(id)?current.filter(item=>item!==id):[...current,id]):[id]);requestAnimationFrame(()=>scrollLayerSettings(id));};
   useEffect(()=>setMediaLimit(100),[domain,query,scope]);
   const filteredMedia = useMemo(
     () =>
@@ -505,6 +546,8 @@ export function PosterOverlaysView({
             ? "Poster style updated."
             : "Poster style saved.",
       );
+      localStorage.removeItem("vynodearr.poster-overlay-draft");
+      setRecoverableDraft(null);
       setEditing(null);
       await load();
     } catch (reason) {
@@ -605,7 +648,19 @@ export function PosterOverlaysView({
   };
   const editTemplate = (template: OverlayTemplate) => {
     setPreviewId(template.previewPosterKey || "");
+    setSelectedLayerId("");
+    setSelectedLayerIds([]);
     setEditing(structuredClone(template));
+  };
+  const assignmentName = (item: OverlayAssignment) => {
+    const template = templates.find(
+        (candidate) => candidate.id === item.templateId,
+      ),
+      separator = item.name.indexOf(" — ");
+    if (!template) return item.name;
+    return separator >= 0
+      ? `${template.name}${item.name.slice(separator)}`
+      : item.name;
   };
   const selectedLayer = editing?.layers.find(
       (layer) => layer.id === selectedLayerId,
@@ -643,6 +698,28 @@ export function PosterOverlaysView({
             }
           : current,
       );
+  const selectedLayerPreviewValues: Record<string, unknown> = { ...(previewMedia?.artwork?.overlayValues || {}) };
+  if (selectedLayer) {
+    for (const rule of [
+      ...(selectedLayer.conditions?.rules || []),
+      ...(selectedLayer.styleRules || []).flatMap((style) => style.conditions.rules),
+    ]) if (!String(selectedLayerPreviewValues[rule.variable] ?? "").trim()) selectedLayerPreviewValues[rule.variable] = previewValue(rule.variable, previewMedia);
+  }
+  const selectedLayerConditionStatus = selectedLayer ? overlayConditionStatus(selectedLayer, selectedLayerPreviewValues) : null;
+  const editorAccessibilityIssues = editing ? accessibilityIssues(editing) : [];
+  const applyLayerTool=(action:AlignmentAction)=>setEditing(current=>current?{...current,layers:transformLayers(current.layers,selectedLayerIds.length?selectedLayerIds:[selectedLayerId],action)}:current);
+  const groupSelectedLayers=()=>{
+    if(!editing||selectedLayerIds.length<2)return;
+    const groupId=`group_${overlayClientId()}`;
+    setEditing({...editing,layers:editing.layers.map(layer=>selectedLayerIds.includes(layer.id)?{...layer,groupId}:layer)});
+  };
+  const ungroupSelectedLayers=()=>setEditing(current=>current?{...current,layers:current.layers.map(layer=>selectedLayerIds.includes(layer.id)?{...layer,groupId:undefined}:layer)}:current);
+  const saveVariant=()=>{
+    if(!editing)return;
+    const name=window.prompt("Name this template variant",`Variant ${(editing.variants?.length||0)+1}`)?.trim();
+    if(!name)return;
+    setEditing({...editing,variants:[...(editing.variants||[]),{id:`variant_${overlayClientId()}`,name,layers:structuredClone(editing.layers)}]});
+  };
   return (
     <div className="poster-overlay-route">
       <style>{styles + responsiveLayoutStyles}</style>
@@ -696,11 +773,17 @@ export function PosterOverlaysView({
               </div>
               <div className="overlay-new-action">
                 <span className="badge">{templates.length}</span>
+                <input ref={importInputRef} type="file" accept="application/json,.json" hidden onChange={async event=>{
+                  const file=event.target.files?.[0];event.currentTarget.value="";if(!file)return;
+                  try{const template=validateImportedTemplate(JSON.parse(await file.text()));setPreviewId("");setEditing(template as OverlayTemplate);options.notify("Template validated. Review it, then save to import it.");}catch(reason){options.notify(errorText(reason),"error");}
+                }}/>
+                <button type="button" className="secondary" onClick={()=>importInputRef.current?.click()}>Import</button>
                 <button type="button" className="primary" onClick={() => {setPreviewId("");setEditing(blankTemplate());}}>
                   Create new style
                 </button>
               </div>
             </div>
+            {recoverableDraft&&!editing?<div className="notice overlay-draft-recovery"><div><strong>Unsaved poster draft available</strong><p>Resume the most recent local draft or discard it. Drafts stay in this browser only.</p></div><div className="form-actions"><button className="secondary" onClick={()=>{setPreviewId(recoverableDraft.previewPosterKey||"");setEditing(structuredClone(recoverableDraft));}}>Resume draft</button><button className="danger" onClick={()=>{localStorage.removeItem("vynodearr.poster-overlay-draft");setRecoverableDraft(null);}}>Discard</button></div></div>:null}
             <div className="overlay-template-list">
               {(["vynode", "plex"] as const).map((target) => {
                 const groupedTemplates = templates.filter(
@@ -764,6 +847,7 @@ export function PosterOverlaysView({
                       >
                         Duplicate
                       </button>
+                      <button className="secondary" onClick={()=>downloadTemplate(template)}>Export</button>
                       <button
                         className="danger"
                         onClick={() => void removeTemplate(template)}
@@ -990,7 +1074,7 @@ export function PosterOverlaysView({
             {assignments.map((item) => (
               <div className="data-row" key={item.id}>
                 <span>
-                  <strong>{item.name}</strong>
+                  <strong>{assignmentName(item)}</strong>
                   <small>
                     {item.scope.domain} · {item.scope.type}
                     {item.scope.type === "items"
@@ -1071,18 +1155,38 @@ export function PosterOverlaysView({
                     </p>
                   ) : null}
                 </div>
-                <button className="secondary" onClick={() => setEditing(null)}>
-                  Close
-                </button>
+                <div className="overlay-editor-history-actions" aria-label="Edit history">
+                  <button className="secondary" disabled={!editorHistory.past.length} onClick={() => dispatchEditor({ type: "undo" })}>Undo</button>
+                  <button className="secondary" disabled={!editorHistory.future.length} onClick={() => dispatchEditor({ type: "redo" })}>Redo</button>
+                  <button className="secondary" onClick={() => setEditing(null)}>Close</button>
+                </div>
               </div>
               <div className="overlay-editor-grid">
                 <Suspense>
                   <EditorRail
                     editing={editing}
                     selectedId={selectedLayerId}
+                    selectedIds={selectedLayerIds}
                     query={iconQuery}
                     onQuery={setIconQuery}
                     onSelect={selectLayer}
+                    onDuplicate={(id) => {
+                      const source = editing.layers.find((layer) => layer.id === id);
+                      if (!source) return;
+                      const copy = { ...structuredClone(source), id: `layer_${overlayClientId()}`, groupId: undefined };
+                      const index = editing.layers.findIndex((layer) => layer.id === id);
+                      const layers = [...editing.layers];
+                      layers.splice(index + 1, 0, copy);
+                      setEditing({ ...editing, layers });
+                      selectLayer(copy.id);
+                    }}
+                    onMove={(id, direction) => {
+                      const index = editing.layers.findIndex((layer) => layer.id === id), target = index + direction;
+                      if (index < 0 || target < 0 || target >= editing.layers.length) return;
+                      const layers = [...editing.layers];
+                      [layers[index], layers[target]] = [layers[target], layers[index]];
+                      setEditing({ ...editing, layers });
+                    }}
                     onChange={(changes) => {
                       if (changes.domain !== undefined && changes.domain !== editing.domain)
                         setPreviewId("");
@@ -1145,6 +1249,18 @@ export function PosterOverlaysView({
                   />
                 </Suspense>
                 <div className="overlay-editor-fields">
+                  <section className="overlay-layout-tools" aria-label="Layer layout tools">
+                    <div><strong>Arrange layers</strong><small className="muted">Ctrl/Cmd-click or Shift-click layer names to select several. Grouped layers move together on the poster.</small></div>
+                    <div className="overlay-layout-actions">
+                      <button className="secondary" disabled={selectedLayerIds.length<2} onClick={groupSelectedLayers}>Group</button>
+                      <button className="secondary" disabled={!selectedLayerIds.length} onClick={ungroupSelectedLayers}>Ungroup</button>
+                      {([['left','Left'],['center-x','Center'],['right','Right'],['top','Top'],['center-y','Middle'],['bottom','Bottom'],['distribute-x','Space across'],['distribute-y','Space down'],['safe','Safe margin']] as Array<[AlignmentAction,string]>).map(([action,label])=><button className="secondary" disabled={!selectedLayerId} onClick={()=>applyLayerTool(action)} key={action}>{label}</button>)}
+                    </div>
+                    <div className="overlay-variant-tools">
+                      <button className="secondary" onClick={saveVariant}>Save current as variant</button>
+                      {(editing.variants||[]).map(variant=><span className="overlay-variant" key={variant.id}><button className="secondary" onClick={()=>setEditing({...editing,layers:structuredClone(variant.layers)})}>{variant.name}</button><button className="danger" aria-label={`Delete ${variant.name}`} onClick={()=>setEditing({...editing,variants:editing.variants?.filter(item=>item.id!==variant.id)})}>×</button></span>)}
+                    </div>
+                  </section>
                   {!editing.layers.length ? (
                     <div className="empty compact overlay-layer-empty">
                       <strong>No layers yet</strong>
@@ -1162,6 +1278,7 @@ export function PosterOverlaysView({
                     </Suspense>
                   ) : null}
                   {editing.layers.map((layer, index) => {
+                    const hasRankedConditions = Boolean(layer.styleRules?.length);
                     const update = (changes: Partial<OverlayLayer>) =>
                       setEditing({
                         ...editing,
@@ -1327,7 +1444,11 @@ export function PosterOverlaysView({
                           <div className="overlay-control-group-heading overlay-type-heading">
                             <span className="eyebrow">TYPOGRAPHY</span>
                             <strong>Refine readability</strong>
-                            <small className="muted">Control type, alignment, spacing, and opacity.</small>
+                            <small className="muted">
+                              {hasRankedConditions
+                                ? "These are the default typography settings. A matching ranked condition overrides only the typography options enabled for that condition; titles that match this layer but no ranked condition use these defaults."
+                                : "Control type, alignment, spacing, and opacity."}
+                            </small>
                           </div>
                           <label className="overlay-layer-toggle overlay-poster-aware">
                             <span>Adaptive poster contrast</span>
@@ -1566,11 +1687,10 @@ export function PosterOverlaysView({
                     onLayerSelect={selectLayer}
                     selectedLayerId={selectedLayerId}
                     onLayerChange={(id, changes) =>
-                      setEditing({
-                        ...editing,
-                        layers: editing.layers.map((layer) =>
-                          layer.id === id ? { ...layer, ...changes } : layer,
-                        ),
+                      setEditing(current=>{
+                        if(!current)return current;
+                        const source=current.layers.find(layer=>layer.id===id),dx=changes.x===undefined||!source?0:changes.x-source.x,dy=changes.y===undefined||!source?0:changes.y-source.y;
+                        return {...current,layers:current.layers.map(layer=>layer.id===id?{...layer,...changes}:source?.groupId&&layer.groupId===source.groupId&&(dx||dy)?{...layer,position:"custom",x:Math.max(0,Math.min(100-layer.width,layer.x+dx)),y:Math.max(0,Math.min(96,layer.y+dy))}:layer)};
                       })
                     }
                   />
@@ -1578,9 +1698,24 @@ export function PosterOverlaysView({
                     Preview values demonstrate placement. Saved posters use each
                     title’s real metadata.
                   </p>
+                  <section className={`overlay-accessibility-check ${editorAccessibilityIssues.length?"warning":"ready"}`} aria-live="polite">
+                    <strong>{editorAccessibilityIssues.length?`${editorAccessibilityIssues.length} design check${editorAccessibilityIssues.length===1?"":"s"}`:"Design checks passed"}</strong>
+                    {editorAccessibilityIssues.length?<ul>{editorAccessibilityIssues.map(issue=><li key={issue}>{issue}</li>)}</ul>:<small>Contrast, readable type, bounds, and layer collisions look good.</small>}
+                  </section>
                 </div>
                 {selectedLayer ? (
                   <div className="overlay-condition-row">
+                    <div className="notice overlay-condition-live-status" role="status">
+                      <strong>{selectedLayerConditionStatus?.applied.length ? `Preview uses ${selectedLayerConditionStatus.applied.map((rule) => rule.name).join(", ")}` : "Preview uses layer defaults"}</strong>
+                      <small className="muted">
+                        {selectedLayerConditionStatus?.applied.length
+                          ? `${selectedLayerConditionStatus.overriddenKeys.length} setting${selectedLayerConditionStatus.overriddenKeys.length === 1 ? "" : "s"} overridden; all other settings inherit the layer defaults.`
+                          : selectedLayer.styleRules?.length
+                            ? "No ranked sub-condition matches this preview title. Matching titles without a ranked match use the defaults."
+                            : "No ranked sub-conditions are configured for this layer."}
+                      </small>
+                      {selectedLayerConditionStatus?.diagnostics.length?<details className="overlay-condition-diagnostics"><summary>Why conditions did or did not match</summary>{selectedLayerConditionStatus.diagnostics.map(rule=><div className={rule.matches?"matches":"misses"} key={rule.id}><strong>{rule.matches?"✓":"×"} {rule.name}</strong>{rule.rules.map((condition,index)=><small key={`${condition.variable}:${index}`}>{condition.matches?"✓":"×"} {condition.variable.replaceAll("_"," ")} is “{condition.actual||"empty"}” · {condition.operator.replaceAll("_"," ")} {condition.expected?`“${condition.expected}”`:""}</small>)}</div>)}</details>:null}
+                    </div>
                     <Suspense>
                       <OverlayConditions
                         layer={selectedLayer}

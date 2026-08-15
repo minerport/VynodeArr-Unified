@@ -19,9 +19,12 @@ const shapes: Array<[OverlayLayer["shape"], string, CSSProperties]> = [
 type Props = {
   editing: OverlayTemplate;
   selectedId: string;
+  selectedIds: string[];
   query: string;
   onQuery: (value: string) => void;
-  onSelect: (id: string) => void;
+  onSelect: (id: string, additive?: boolean) => void;
+  onDuplicate: (id: string) => void;
+  onMove: (id: string, direction: -1 | 1) => void;
   onChange: (changes: Partial<OverlayTemplate>) => void;
   onAddText: () => void;
   onAddIcon: (name: string) => void;
@@ -29,7 +32,7 @@ type Props = {
   onAddPreset: (preset: OverlayItemPreset) => void;
 };
 
-export default function EditorRail({ editing, selectedId, query, onQuery, onSelect, onChange, onAddText, onAddIcon, onAddShape, onAddPreset }: Props) {
+export default function EditorRail({ editing, selectedId, selectedIds, query, onQuery, onSelect, onDuplicate, onMove, onChange, onAddText, onAddIcon, onAddShape, onAddPreset }: Props) {
   const icons = posterIcons.filter(([, label]) => !query || label.toLowerCase().includes(query.toLowerCase()));
   return (
     <aside className="overlay-editor-rail">
@@ -63,11 +66,18 @@ export default function EditorRail({ editing, selectedId, query, onQuery, onSele
       {!editing.layers.length ? <p className="muted overlay-layer-list-empty">Start with text, a shape, or an icon.</p> : null}
       <div className="overlay-layer-list">
         {editing.layers.map((layer, index) => (
-          <button className={layer.id === selectedId ? "active secondary" : "secondary"} onClick={() => onSelect(layer.id)} key={layer.id}>
-            <span>{index + 1}</span>
-            <strong>{layer.kind === "icon" ? posterIcons.find(([id]) => id === layer.iconName)?.[1] || "Icon" : layer.kind === "shape" ? `${layer.shape} shape` : layer.variable.replaceAll("_", " ")}</strong>
-            <small>{layer.enabled ? "On" : "Off"}</small>
-          </button>
+          <div className={`overlay-layer-list-row${selectedIds.includes(layer.id) ? " active" : ""}`} key={layer.id}>
+            <button className="secondary overlay-layer-select" onClick={(event) => onSelect(layer.id, event.ctrlKey || event.metaKey || event.shiftKey)}>
+              <span>{index + 1}</span>
+              <strong>{layer.kind === "icon" ? posterIcons.find(([id]) => id === layer.iconName)?.[1] || "Icon" : layer.kind === "shape" ? `${layer.shape} shape` : layer.variable.replaceAll("_", " ")}</strong>
+              <small>{layer.enabled ? "On" : "Off"}</small>
+            </button>
+            <div className="overlay-layer-row-actions">
+              <button type="button" className="secondary" aria-label={`Move layer ${index + 1} up`} disabled={index === 0} onClick={() => onMove(layer.id, -1)}>&uarr;</button>
+              <button type="button" className="secondary" aria-label={`Move layer ${index + 1} down`} disabled={index === editing.layers.length - 1} onClick={() => onMove(layer.id, 1)}>&darr;</button>
+              <button type="button" className="secondary" onClick={() => onDuplicate(layer.id)}>Duplicate</button>
+            </div>
+          </div>
         ))}
       </div>
       <div className="overlay-item-heading"><h3>Quick overlay items</h3><small className="muted">Add a polished starter, then freely change its text, metadata, color, size, shape, and position.</small></div>

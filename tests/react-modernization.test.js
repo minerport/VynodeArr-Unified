@@ -1443,6 +1443,14 @@ test('poster overlay sub-conditions are ranked and expose inherited appearance o
   assert.match(types,/rank: number/);assert.match(service,/sort\(\(a,\s*b\)\s*=>\s*a\.rank\s*-\s*b\.rank\)/);
 });
 
+test('poster overlay typography explains ranked-condition defaults without disabling controls',async()=>{
+  const editor=await read('apps/web/client/src/poster-overlays.tsx');
+  assert.match(editor,/const hasRankedConditions = Boolean\(layer\.styleRules\?\.length\)/);
+  assert.match(editor,/These are the default typography settings/);
+  assert.match(editor,/titles that match this layer but no ranked condition use these defaults/);
+  assert.doesNotMatch(editor,/disabled=\{isRankedOverride/);
+});
+
 test('icon and shape editors keep artwork separate from optional variables',async()=>{
   const identity=await read('apps/web/client/src/poster-overlay-layer-identity.tsx');
   assert.match(identity,/Icon artwork/);assert.match(identity,/Optional variable/);assert.match(identity,/Variable placement/);assert.match(identity,/Shape with optional metadata/);
@@ -1691,6 +1699,32 @@ test('new poster styles require explicit media and destination choices',async()=
   assert.match(studio,/item\.domain === editing\.domain/);
   assert.match(rail,/Choose Movies or Television/);
   assert.doesNotMatch(rail,/<option value="all">Movies & television<\/option>/);
+});
+
+test('poster overlay editor supports safe layer management, bounded history, and live condition feedback',async()=>{
+  const [studio,rail,layer,styles]=await Promise.all([
+    read('apps/web/client/src/poster-overlays.tsx'),
+    read('apps/web/client/src/poster-overlay-editor-rail.tsx'),
+    read('apps/web/client/src/poster-overlay-layer.tsx'),
+    read('apps/web/client/src/poster-overlay-editor-layout.css')
+  ]);
+  for(const value of ['editorHistoryReducer','type: "undo"','type: "redo"','.slice(-40)','onDuplicate','onMove','Preview uses layer defaults','setting${selectedLayerConditionStatus.overriddenKeys.length'])assert.ok(studio.includes(value),value);
+  for(const value of ['overlay-layer-row-actions','Duplicate','Move layer ${index + 1} up','Move layer ${index + 1} down'])assert.ok(rail.includes(value),value);
+  assert.match(layer,/export function overlayConditionStatus/);
+  assert.match(styles,/overlay-editor-history-actions/);
+  assert.match(styles,/overlay-layer-list-row\.active/);
+});
+
+test('poster overlay studio supports reusable layouts, portable templates, recovery, design checks, and impact review',async()=>{
+  const [studio,rail,tools,layer,review,styles,platform]=await Promise.all([
+    read('apps/web/client/src/poster-overlays.tsx'),read('apps/web/client/src/poster-overlay-editor-rail.tsx'),read('apps/web/client/src/poster-overlay-editor-tools.tsx'),read('apps/web/client/src/poster-overlay-layer.tsx'),read('apps/web/client/src/poster-overlay-application-review.tsx'),read('apps/web/client/src/poster-overlay-editor-layout.css'),read('packages/platform/src/poster-overlay-service.js')
+  ]);
+  for(const value of ['selectedLayerIds','groupSelectedLayers','transformLayers','Save current as variant','vynodearr.poster-overlay-draft','validateImportedTemplate','downloadTemplate','editorAccessibilityIssues','Why conditions did or did not match'])assert.ok(studio.includes(value),value);
+  assert.match(rail,/event\.ctrlKey \|\| event\.metaKey \|\| event\.shiftKey/);
+  for(const value of ['export function transformLayers','accessibilityIssues','validateImportedTemplate','downloadTemplate'])assert.ok(tools.includes(value),value);
+  assert.match(layer,/diagnostics/);assert.match(review,/overlay-application-summary/);assert.match(review,/currently skipped by layer conditions/);
+  assert.match(styles,/overlay-layout-tools/);assert.match(styles,/overlay-accessibility/);assert.match(styles,/overlay-condition-diagnostics/);assert.match(styles,/overlay-draft-recovery/);
+  assert.match(platform,/const variants = Array\.isArray\(input\.variants\)/);assert.match(platform,/variants,/);
 });
 
 test('movie library review keeps Plex and VynodeArr lists independent while allowing TMDB rematches',async()=>{

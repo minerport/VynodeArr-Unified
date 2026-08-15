@@ -139,6 +139,12 @@ test('overlay groups persist as editor metadata without changing render order',(
   assert.equal(template.layers[1].groupId,'group_badge');
 });
 
+test('poster overlay variants are bounded and sanitized like their parent template',()=>{
+  const template=sanitizeOverlayTemplate({variants:[{id:'variant_custom',name:' Compact ',layers:[{id:'variant_layer',groupId:'group_badge',variable:'title',fontSize:999},{id:'variant_shape',groupId:'group_badge',kind:'shape',variable:'custom_text'}]}]});
+  assert.equal(template.variants.length,1);assert.equal(template.variants[0].name,'Compact');assert.equal(template.variants[0].layers.length,2);
+  assert.equal(template.variants[0].layers[0].fontSize,96);assert.equal(template.variants[0].layers[0].groupId,'group_badge');assert.equal(template.variants[0].layers[1].groupId,'group_badge');
+});
+
 test('poster variables expose Reeltrack collection artwork values',()=>{
   const values=posterVariableValues({collectionName:'Weekend picks',collectionTitleCount:14,collectionMediaType:'Movies',collectionLastSync:'2026-08-08T12:00:00Z'},{now:'2026-08-08T13:00:00Z'});
   assert.equal(values.collection_name,'Weekend picks');assert.equal(values.collection_title_count,14);assert.equal(values.collection_media_type,'Movies');assert.equal(values.collection_last_sync,'Aug 8');

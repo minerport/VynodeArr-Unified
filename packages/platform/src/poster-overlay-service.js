@@ -381,6 +381,17 @@ export function sanitizeOverlayTemplate(input = {}, existing = null) {
   const layers = Array.isArray(input.layers)
     ? input.layers.slice(0, 12).map(sanitizeOverlayLayer)
     : [];
+  const variants = Array.isArray(input.variants)
+    ? input.variants.slice(0, 8).map((variant, variantIndex) => ({
+        id: /^variant_[A-Za-z0-9_-]+$/.test(String(variant?.id || ""))
+          ? String(variant.id)
+          : `variant_${variantIndex}_${randomUUID()}`,
+        name: cleanText(variant?.name || `Variant ${variantIndex + 1}`, 50),
+        layers: Array.isArray(variant?.layers)
+          ? variant.layers.slice(0, 12).map(sanitizeOverlayLayer)
+          : [],
+      }))
+    : existing?.variants || [];
   const badges = input.plexBadges || existing?.plexBadges || {};
   const legacyTarget = Object.values(badges).some(Boolean) ? "plex" : "vynode",
     target = ["vynode", "plex"].includes(input.target)
@@ -410,6 +421,7 @@ export function sanitizeOverlayTemplate(input = {}, existing = null) {
     previewPosterKey: cleanText(input.previewPosterKey || existing?.previewPosterKey, 200),
     tvFileAggregation,
     layers,
+    variants,
     plexBadges: {
       monitored: badges.monitored === true,
       availability: badges.availability === true,

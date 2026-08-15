@@ -5578,33 +5578,81 @@ export function createApplication(options = {}) {
         : new TvEngineAdapter(config);
     const connection = await adapter.testConnection();
     let counts = null;
+    let checks = [];
     if (
       connection.reachable &&
       connection.authenticated &&
       connection.compatible
     ) {
-      const [library, queue, calendar, health] = await Promise.all([
-        domain === "movie"
-          ? adapter.listMovies({ limit: 1e4 })
-          : adapter.listSeries({ limit: 1e4 }),
-        adapter.getQueue(),
-        adapter.getCalendar(),
-        adapter.getHealth(),
-      ]);
-      counts = {
-        library: library.length,
-        queue: queue.length,
-        calendar: calendar.length,
-        health: health.length,
-      };
+      const capabilities = [
+        {
+          key: "library",
+          label: domain === "movie" ? "Movie library" : "Series library",
+          endpoint: domain === "movie" ? "/api/v3/movie" : "/api/v3/series",
+          run: () =>
+            domain === "movie"
+              ? adapter.listMovies({ limit: 1e4 })
+              : adapter.listSeries({ limit: 1e4 }),
+        },
+        {
+          key: "queue",
+          label: "Queue",
+          endpoint: "/api/v3/queue",
+          run: () => adapter.getQueue(),
+        },
+        {
+          key: "calendar",
+          label: "Calendar",
+          endpoint: "/api/v3/calendar",
+          run: () => adapter.getCalendar(),
+        },
+        {
+          key: "health",
+          label: "Health",
+          endpoint: "/api/v3/health",
+          run: () => adapter.getHealth(),
+        },
+      ];
+      const results = await Promise.allSettled(
+        capabilities.map((capability) => capability.run()),
+      );
+      counts = {};
+      checks = results.map((result, index) => {
+        const capability = capabilities[index];
+        if (result.status === "fulfilled") {
+          const count = Array.isArray(result.value) ? result.value.length : 0;
+          counts[capability.key] = count;
+          return {
+            key: capability.key,
+            label: capability.label,
+            endpoint: capability.endpoint,
+            ok: true,
+            count: count,
+            safeError: null,
+          };
+        }
+        counts[capability.key] = 0;
+        return {
+          key: capability.key,
+          label: capability.label,
+          endpoint: capability.endpoint,
+          ok: false,
+          count: null,
+          safeError:
+            result.reason?.safeMessage ||
+            `${capability.label} returned an unsupported response`,
+        };
+      });
     }
     return {
       connection: connection,
       counts: counts,
+      checks: checks,
       validated: Boolean(
         connection.reachable &&
         connection.authenticated &&
-        connection.compatible,
+        connection.compatible &&
+        checks.every((check) => check.ok),
       ),
     };
   }
@@ -12940,6 +12988,19 @@ export function createApplication(options = {}) {
             state.templates = (state.templates || []).map((item) =>
               item.id === template.id ? template : item,
             );
+            state.assignments = (state.assignments || []).map((item) => {
+              if (item.templateId !== template.id) return item;
+              const priorName = String(item.name || ""),
+                oldPrefix = `${existing.name} —`;
+              if (priorName === existing.name)
+                return { ...item, name: template.name };
+              if (priorName.startsWith(oldPrefix))
+                return {
+                  ...item,
+                  name: `${template.name}${priorName.slice(existing.name.length)}`,
+                };
+              return item;
+            });
           });
           clearPosterOverlayCache();
           await recordAudit(session, {

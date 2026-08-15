@@ -76,6 +76,14 @@ export interface EngineValidation {
   validated:boolean;
   connection:EngineConnection;
   counts?:Record<string,number>|null;
+  checks?:Array<{
+    key:string;
+    label:string;
+    endpoint:string;
+    ok:boolean;
+    count:number|null;
+    safeError?:string|null;
+  }>;
 }
 
 export interface EngineManagementMountOptions {
