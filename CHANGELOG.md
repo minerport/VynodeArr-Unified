@@ -7,6 +7,14 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.45-rc.5] - 2026-08-15
+
+### Fixed
+
+- Kept quick overlay item previews compact in the editor's left column.
+- Replaced the ambiguous green media-status artwork with a clear checkmark
+  without changing the applied overlay's position or sizing.
+
 ## [2.0.45-rc.4] - 2026-08-15
 
 ### Changed
