@@ -2152,8 +2152,14 @@ export function createApplication(options = {}) {
         if (collection.ratingKey && collectionTemplate?.enabled && collectionTemplate.layers?.length) {
           try {
             // Render the configured collection design after membership is reconciled. Existing
-            // regular collections retain their rating key; newly created collections may not
-            // expose a generated thumbnail immediately, so this upload remains self-contained.
+            // regular collections retain their rating key. Capture Plex's current generated or
+            // selected artwork before replacing it so Restore original is a real rollback.
+            await reeltrackOriginalArtwork({
+              automation, endpoint: plexSettings.endpoint, token: plexToken,
+              machineIdentifier: plexSettings.server?.machineIdentifier || "",
+              libraryKey: library.key, ratingKey: collection.ratingKey,
+              artworkPath: `/library/metadata/${collection.ratingKey}/thumb`, domain, kind: "collection",
+            });
             const rendered = await renderedReeltrackArtwork(
               collectionTemplate,
               reeltrackPosterItem({
@@ -2167,6 +2173,12 @@ export function createApplication(options = {}) {
             await plexService.uploadPoster(plexSettings.endpoint, plexToken, collection.ratingKey, rendered, "image/jpeg");
             totals.collectionPosters += 1;
             if (splitCollections && realCollection.ratingKey) {
+              await reeltrackOriginalArtwork({
+                automation, endpoint: plexSettings.endpoint, token: plexToken,
+                machineIdentifier: plexSettings.server?.machineIdentifier || "",
+                libraryKey: realLibrary.key, ratingKey: realCollection.ratingKey,
+                artworkPath: `/library/metadata/${realCollection.ratingKey}/thumb`, domain, kind: "collection",
+              });
               await plexService.uploadPoster(plexSettings.endpoint, plexToken, realCollection.ratingKey, rendered, "image/jpeg");
               totals.collectionPosters += 1;
             }
