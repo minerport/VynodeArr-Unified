@@ -7,6 +7,19 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.45-rc.3] - 2026-08-15
+
+### Added
+
+- Added eight polished quick overlay items for media status, quality, audio and
+  subtitles, ratings, release and airing, editions, sources, and personal labels.
+
+### Changed
+
+- Quick overlay items remain ordinary editable layers, allowing unrestricted
+  customization through the existing metadata, color, size, opacity,
+  typography, shape, position, condition, and stacking controls.
+
 ## [2.0.45-rc.2] - 2026-08-15
 
 ### Added
