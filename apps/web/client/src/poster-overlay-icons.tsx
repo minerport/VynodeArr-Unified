@@ -14,6 +14,7 @@ export const posterIcons = [
   ["network", "Network", "M5 7h14v10H5zM2 10h3M19 10h3M9 20h6M12 17v3"],
   ["stream", "Streaming", "M4 7h16v10H4zM9 4h6M8 20h8M10 10l5 2-5 2z"],
   ["download", "Downloaded", "M12 3v12M7 10l5 5 5-5M4 20h16"],
+  ["check", "Available", "M5 12l4 4L19 6"],
   ["monitor", "Monitored", "M2 12s4-7 10-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 9a3 3 0 100 6 3 3 0 000-6z"],
   ["missing", "Missing", "M12 3a9 9 0 110 18 9 9 0 010-18zM12 7v6M12 17h.01"],
   ["filmstrip", "Film strip", "M3 5h18v14H3zM3 9h18M3 15h18M7 5v4M12 5v4M17 5v4M7 15v4M12 15v4M17 15v4"],

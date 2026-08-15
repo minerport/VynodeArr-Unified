@@ -39,7 +39,7 @@
 .overlay-item-presets>button{display:grid;gap:6px;width:100%;min-width:0;padding:8px;text-align:left}
 .overlay-item-presets>button>small{color:var(--muted);font-size:.68rem;line-height:1.3}
 .overlay-item-sample{display:flex;align-items:center;gap:7px;width:fit-content;max-width:100%;padding:6px 9px;border:1px solid color-mix(in srgb,currentColor 35%,transparent);border-radius:8px;box-shadow:inset 0 1px rgba(255,255,255,.12),0 4px 12px rgba(0,0,0,.22);font-size:.66rem;letter-spacing:.035em;text-transform:uppercase}
-.overlay-item-sample svg{flex:0 0 auto;width:17px;height:17px}
+.overlay-item-sample svg{flex:0 0 17px;width:17px!important;height:17px!important}
 .overlay-item-sample strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .overlay-item-sample.shape-pill{border-radius:999px}.overlay-item-sample.shape-square{border-radius:0}.overlay-item-sample.shape-ticket{clip-path:polygon(4% 0,96% 0,100% 22%,96% 50%,100% 78%,96% 100%,4% 100%,0 78%,4% 50%,0 22%)}.overlay-item-sample.shape-ribbon{clip-path:polygon(0 0,94% 0,100% 50%,94% 100%,0 100%,5% 50%)}.overlay-item-sample.shape-tag{clip-path:polygon(0 0,88% 0,100% 50%,88% 100%,0 100%)}.overlay-item-sample.shape-hexagon{clip-path:polygon(8% 0,92% 0,100% 50%,92% 100%,8% 100%,0 50%)}.overlay-item-sample.shape-chevron{clip-path:polygon(0 0,88% 0,100% 50%,88% 100%,0 100%,12% 50%)}
 .overlay-application-preview{position:relative;width:min(240px,100%);aspect-ratio:2/3;overflow:hidden;border:1px solid var(--border);border-radius:14px;background:center/cover}

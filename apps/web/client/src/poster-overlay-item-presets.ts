@@ -17,7 +17,7 @@ export type OverlayItemPreset = {
 };
 
 export const overlayItemPresets: OverlayItemPreset[] = [
-  { id: "media-status", name: "Media status", description: "Monitored, available, missing, or upgrade status.", variable: "availability", icon: "monitor", shape: "pill", foreground: "#9af4c4", background: "#0b5b3a", x: 4, y: 4, width: 43 },
+  { id: "media-status", name: "Media status", description: "Monitored, available, missing, or upgrade status.", variable: "availability", icon: "check", shape: "pill", foreground: "#9af4c4", background: "#0b5b3a", x: 4, y: 4, width: 43 },
   { id: "quality", name: "Quality", description: "Resolution, HDR, codec, or quality profile.", variable: "resolution", icon: "resolution", shape: "rounded", foreground: "#d8b4fe", background: "#4c1d95", x: 4, y: 4, width: 34 },
   { id: "audio", name: "Audio & subtitles", description: "Audio format, channels, language, or captions.", variable: "audio_codec", icon: "audio", shape: "tag", foreground: "#a5f3fc", background: "#075985", x: 4, y: 4, width: 42 },
   { id: "rating", name: "Ratings", description: "A compact score or audience-facing rating badge.", variable: "rating", icon: "star", shape: "pill", foreground: "#fde68a", background: "#111827", x: 66, y: 88, width: 30, prefix: "★ " },

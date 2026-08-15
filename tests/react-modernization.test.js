@@ -1398,6 +1398,8 @@ test('poster overlay editor offers editable polished quick items',async()=>{
   assert.match(styles,/\.overlay-item-sample\{/);
   assert.match(styles,/box-shadow:inset 0 1px/);
   assert.match(presets,/iconSize: 18/);
+  assert.match(presets,/icon: "check"/);
+  assert.match(styles,/\.overlay-item-sample svg\{[^}]*width:17px!important[^}]*height:17px!important/);
   assert.match(styles,/cursor:nwse-resize/);
 });
 
