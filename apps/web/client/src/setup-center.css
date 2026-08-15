@@ -1,0 +1,9 @@
+.setup-center-mobile-nav{display:none}
+@media(max-width:760px){
+  .setup-center-nav{display:none}
+  .setup-center-mobile-nav{display:grid;gap:.35rem;margin:0 0 1rem;padding:.8rem;border:1px solid var(--line);border-radius:.8rem;background:var(--ui-control-surface);color:var(--muted);font-size:.72rem;font-weight:800}
+  .setup-center-mobile-nav select{width:100%;min-width:0}
+  .setup-intro{padding:.85rem}
+  .setup-intro-note{padding:.8rem}
+  .setup-step-card .button-link,.setup-guidance-card .button-link,.setup-next-step .button-link{width:auto;justify-self:start;padding:.65rem .8rem}
+}

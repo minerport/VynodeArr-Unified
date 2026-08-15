@@ -687,7 +687,8 @@ test('administrator setup navigation retains access to engine API-key management
   assert.match(account,/AccountTabs/);
   assert.doesNotMatch(tabs,/href="#settings\/engines">Engines/);
   assert.match(setup,/SetupNav/);
-  assert.match(setupNav,/href="#setup\/engines">Media engines/);
+  assert.match(setupNav,/\['engines','Media engines','#setup\/engines'\]/);
+  assert.match(setupNav,/setup-center-mobile-nav/);
   assert.match(index,/href="#setup\/engines">Media Engines/);
   assert.match(dispatch,/parts\[1\]==='engines'/);
   assert.match(shell,/case'engineManagement':return showEngineManagement\(\)/);
@@ -696,16 +697,20 @@ test('administrator setup navigation retains access to engine API-key management
 });
 
 test('setup overview stays inside the phone viewport without becoming another shell sidebar',async()=>{
-  const [setup,foundation,index]=await Promise.all([
+  const [setup,setupNav,setupStyles,foundation,index]=await Promise.all([
     read('apps/web/client/src/setup-center.tsx'),
+    read('apps/web/client/src/setup-nav.tsx'),
+    read('apps/web/client/src/setup-center.css'),
     read('apps/web/public/ui-foundation.css'),
     read('apps/web/public/index.html')
   ]);
   assert.match(setup,/className="setup-intro-note"/);
   assert.doesNotMatch(setup,/<aside>/);
   assert.match(foundation,/\.react-setup-center\{width:100%;max-width:100%;min-width:0;overflow-x:clip\}/);
-  assert.match(foundation,/@media\(max-width:760px\).*\.setup-center-nav\{display:grid;grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/s);
-  assert.match(foundation,/@media\(max-width:390px\)\{\.setup-center-nav\{grid-template-columns:1fr\}/);
+  assert.match(setupNav,/Setup section/);
+  assert.match(setupStyles,/@media\(max-width:760px\)/);
+  assert.match(setupStyles,/\.setup-center-nav\{display:none\}/);
+  assert.match(setupStyles,/\.setup-center-mobile-nav\{display:grid/);
   assert.match(index,/ui-foundation\.css\?v=20260814-setup-mobile/);
 });
 

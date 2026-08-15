@@ -1,5 +1,6 @@
 import type {SetupCenterMountOptions} from './setup-center-types';
 import {SetupNav} from './setup-nav';
+import './setup-center.css';
 
 const steps=[
   {number:'1',title:'Media engines',description:'Choose the built-in engines or connect the compatible movie and television instances you already use.',href:'#setup/engines',action:'Review media engines'},
