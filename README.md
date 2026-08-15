@@ -44,7 +44,7 @@ consistent experience and account system.
 
 ## Current release
 
-Version **2.0.43** is the current stable release and is published as the
+Version **2.0.44** is the current stable release and is published as the
 `latest` image. Administrators can use the bundled media engines, connect one
 existing external movie and television engine, or manage multiple independent
 external instances. Each instance keeps its credentials, settings,
@@ -53,7 +53,10 @@ calendar, and wanted-media workflows isolated.
 
 New installations can follow the in-app **Setup Center** to configure engines,
 storage and destinations, quality preferences, indexers, download clients,
-optional integrations, and a final health check in a clear order.
+optional integrations, and a final health check in a clear order. On phones,
+the setup sections use one compact selector, and the Movies and Television
+toolbars keep engine, status, search, sort, view, and bulk actions organized
+without overflowing the viewport.
 
 Reeltrack and compatible mixed-media lists remain unified while showing clear
 Movies and Television sections. Plex synchronization is additive: scheduled

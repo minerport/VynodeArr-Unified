@@ -7,6 +7,25 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.44] - 2026-08-14
+
+### Changed
+
+- Clarified request routing so users can see which movie or television engine
+  will receive a request, while keeping the selector hidden when there is only
+  one valid destination.
+- Added independent Movie and Television engine filters to the Dashboard, with
+  an All instances option for each media type.
+- Reorganized the mobile Movies and Television controls into compact rows for
+  engine, status, search, sorting, view selection, and bulk actions.
+- Replaced the oversized mobile Setup Center navigation with one compact setup
+  section selector and tightened the introductory and step-card spacing.
+
+### Fixed
+
+- Prevented the mobile library and Setup Overview controls from overflowing,
+  overlapping the application shell, or pushing primary actions off-screen.
+
 ## [2.0.43] - 2026-08-14
 
 ### Added
@@ -2750,7 +2769,8 @@ Open `http://localhost:8686`. Existing host media folders can be mapped to
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.43...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.44...HEAD
+[2.0.44]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.43...v2.0.44
 [2.0.43]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.42...v2.0.43
 [2.0.43-rc.8]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.43-rc.7...v2.0.43-rc.8
 [2.0.43-rc.7]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.43-rc.6...v2.0.43-rc.7
