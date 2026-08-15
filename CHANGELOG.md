@@ -7,6 +7,21 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.45-rc.2] - 2026-08-15
+
+### Added
+
+- Added one guided Overlays workspace with focused Overview, Templates,
+  Assignments, and Plex artwork views.
+- Added a direct Overlays entry to primary navigation and global search.
+
+### Changed
+
+- Explained VynodeArr display overlays and managed Plex artwork separately,
+  with a clear destination, template, scope, preview, and apply workflow.
+- Lazy-loaded the workspace overview to keep the main overlay editor bundle
+  focused while preserving every existing editor and artwork operation.
+
 ## [2.0.45-rc.1] - 2026-08-15
 
 ### Changed
