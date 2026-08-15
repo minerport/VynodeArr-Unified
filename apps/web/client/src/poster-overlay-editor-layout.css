@@ -29,7 +29,8 @@
 .overlay-editor .overlay-preview-column>*{grid-column:1/-1}
 .overlay-editor .overlay-preview-column>label{box-sizing:border-box;width:100%}
 .overlay-editor .overlay-preview-column>label select{box-sizing:border-box;width:100%;min-width:0}
-.overlay-editor .overlay-preview-column .overlay-preview{width:min(100%,300px);height:450px;min-height:450px;align-self:start}
+.overlay-editor .overlay-preview-column .overlay-preview{width:min(100%,300px);align-self:start}
+.overlay-editor .overlay-canvas-stage{height:474px;min-height:474px;max-height:474px;align-self:start}
 .overlay-editor .overlay-preview-hint{max-width:100%;margin:4px 0 0;text-align:center;line-height:1.45}
 .overlay-before-after{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%}.overlay-before-after figure{display:grid;gap:4px;justify-items:center;margin:0}.overlay-before-after .overlay-application-preview{width:100%}.overlay-before-after figcaption{color:var(--muted);font-size:.75rem}
 .overlay-editor .overlay-condition-rule,.overlay-editor .overlay-style-overrides{grid-template-columns:1fr}
@@ -69,7 +70,8 @@
  .overlay-editor .overlay-editor-grid{display:grid;grid-template-columns:minmax(0,1fr);grid-template-areas:"rail" "fields" "conditions" "preview";grid-template-rows:repeat(4,max-content)!important;grid-auto-rows:max-content;gap:12px;height:100%!important;min-height:0;padding:12px;overflow-x:hidden;overflow-y:auto}
  .overlay-editor .overlay-editor-rail,.overlay-editor .overlay-editor-fields,.overlay-editor .overlay-editor-grid>.overlay-condition-row{grid-row:auto!important;align-self:start;height:max-content!important;min-height:min-content!important;max-height:none!important;overflow:visible!important;padding:14px;scrollbar-gutter:auto}
  .overlay-editor .overlay-preview-column{position:static;height:max-content!important;min-height:min-content!important;max-height:none!important;padding:14px;overflow:visible!important;scrollbar-gutter:auto}
- .overlay-editor .overlay-preview-column .overlay-preview{width:min(100%,220px);height:330px;min-height:330px}
+ .overlay-editor .overlay-preview-column .overlay-preview{width:min(100%,220px)}
+ .overlay-editor .overlay-canvas-stage{height:354px;min-height:354px;max-height:354px}
  .overlay-editor .overlay-editor-rail{grid-template-columns:1fr 1fr!important;width:100%!important}
  .overlay-editor .overlay-editor-footer{position:sticky;bottom:0;z-index:3;padding:10px 12px;box-shadow:0 -12px 30px #0009}
 }
@@ -79,7 +81,8 @@
  .overlay-editor-history-actions{display:grid!important;grid-template-columns:1fr 1fr 1fr}.overlay-editor-history-actions button{min-width:0!important;padding-inline:8px}
  .overlay-editor .overlay-editor-rail{grid-template-columns:1fr!important}
  .overlay-editor .overlay-layer-body,.overlay-editor .overlay-control-grid{grid-template-columns:1fr!important}
- .overlay-editor .overlay-preview-column .overlay-preview{width:min(100%,190px);height:285px;min-height:285px}
+ .overlay-editor .overlay-preview-column .overlay-preview{width:min(100%,190px)}
+ .overlay-editor .overlay-canvas-stage{height:309px;min-height:309px;max-height:309px}
  .overlay-editor .overlay-editor-footer{display:grid;grid-template-columns:1fr 1fr}
  .overlay-editor .overlay-save-guidance{grid-column:1/-1;width:100%}
  .overlay-editor .overlay-editor-footer button{width:100%;min-height:46px}

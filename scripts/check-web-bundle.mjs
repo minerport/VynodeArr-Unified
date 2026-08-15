@@ -145,7 +145,7 @@ const overlayPrecisionCanvasAllowance={route:300};
 const overlayCompletionAllowance={route:2_400,css:2_600};
 // Independent Overlay Studio columns and compact arrangement controls keep all
 // editor content reachable without expanding the full-screen workspace.
-const overlayIndependentColumnsAllowance={css:600};
+const overlayIndependentColumnsAllowance={css:700};
 // Optional split-library automation adds explicit real and placeholder Plex
 // destinations, independent /media host-folder browsing and mapping, validation,
 // and promotion controls to Lists only.

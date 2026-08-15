@@ -1381,9 +1381,10 @@ test('poster overlay canvas remains full width inside the editor preview column'
   const layout=await read('apps/web/client/src/poster-overlay-editor-layout.css');
   assert.match(layout,/\.overlay-editor \.overlay-preview-column\{[^}]*grid-template-columns:minmax\(0,1fr\)/);
   assert.match(layout,/\.overlay-editor \.overlay-preview-column>\*\{grid-column:1\/-1\}/);
-  assert.match(layout,/\.overlay-editor \.overlay-preview-column \.overlay-preview\{[^}]*width:min\(100%,300px\)[^}]*height:450px[^}]*min-height:450px/);
-  assert.match(layout,/@media\(max-width:980px\)[\s\S]*overlay-preview\{[^}]*width:min\(100%,220px\)[^}]*height:330px/);
-  assert.match(layout,/@media\(max-width:640px\)[\s\S]*overlay-preview\{[^}]*width:min\(100%,190px\)[^}]*height:285px/);
+  assert.match(layout,/\.overlay-editor \.overlay-canvas-stage\{height:474px;min-height:474px;max-height:474px/);
+  assert.match(layout,/@media\(max-width:980px\)[\s\S]*overlay-canvas-stage\{height:354px;min-height:354px;max-height:354px/);
+  assert.match(layout,/@media\(max-width:640px\)[\s\S]*overlay-canvas-stage\{height:309px;min-height:309px;max-height:309px/);
+  assert.match(await read('apps/web/client/src/poster-overlays.tsx'),/width:`\$\{3\*canvasView\.zoom\}px`,height:`\$\{4\.5\*canvasView\.zoom\}px`,minHeight:/);
 });
 test('poster overlay desktop columns scroll independently without clipping content',async()=>{
   const layout=await read('apps/web/client/src/poster-overlay-editor-layout.css');

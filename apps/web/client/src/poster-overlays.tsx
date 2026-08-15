@@ -227,7 +227,7 @@ function Preview({
       className="overlay-preview"
       style={{
         containerType: "inline-size",
-        ...(canvasView?{width:`${3*canvasView.zoom}px`}:{}),
+        ...(canvasView?{width:`${3*canvasView.zoom}px`,height:`${4.5*canvasView.zoom}px`,minHeight:`${4.5*canvasView.zoom}px`,flex:"0 0 auto"}:{}),
         ...(poster ? { backgroundImage: `url(${poster})` } : {}),
       }}
     >
