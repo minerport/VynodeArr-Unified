@@ -26,7 +26,10 @@ test('Reeltrack Lists remains fluid while the viewport is resized',async()=>{
   assert.match(view,/Get your API key at reeltrack\.vynodehub\.com/);
   for(const guidance of ['Keep this list in sync with Plex','1. Turn on automatic management','2','Choose where titles belong','Name it and choose a schedule','Customize artwork','Original Plex artwork is backed up','Last sync results','Save and apply settings'])assert.ok(view.includes(guidance),guidance);
   assert.match(view,/MAP HOST FOLDER/);
-  assert.match(view,/destination\?\.vynodePath \? null : <button/);
+  assert.match(view,/selectedMediaDestination\("movie"\)\?\.vynodePath \? null : <button/);
+  assert.match(view,/automation:\s*\{ enabled: false \}/);
+  assert.match(view,/Configure after import/);
+  assert.doesNotMatch(view,/Prepare Plex settings for after import/);
   assert.match(view,/Movie destination/);
   assert.match(view,/TV destination/);
   assert.match(view,/movieMediaDestinationId/);
