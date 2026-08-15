@@ -173,6 +173,7 @@ function Preview({
   target,
   onLayerChange,
   onLayerSelect,
+  selectedLayerId,
 }: {
   template: OverlayTemplate;
   poster?: string;
@@ -180,6 +181,7 @@ function Preview({
   target?: "vynode" | "plex";
   onLayerChange?: (id: string, changes: Partial<OverlayLayer>) => void;
   onLayerSelect?: (id: string) => void;
+  selectedLayerId?: string;
 }) {
   const [drag, setDrag] = useState<{
     id: string;
@@ -240,7 +242,8 @@ function Preview({
             : 0;
         return (
           <OverlayLayerView
-            className="overlay-preview-layer"
+            className={`overlay-preview-layer${selectedLayerId === layer.id ? " selected" : ""}`}
+            title="Drag to move · pull the blue corner to resize"
             key={layer.id}
             layer={resolvedLayer}
             style={{
@@ -323,16 +326,14 @@ function Preview({
                         ),
                       ),
                     };
-                    if (layer.kind === "shape") {
-                      changes.height = Math.max(
-                        3,
-                        Math.min(
-                          100 - y,
-                          startHeight +
-                            ((move.clientY - startY) / posterHeight) * 100,
-                        ),
-                      );
-                    }
+                    changes.height = Math.max(
+                      3,
+                      Math.min(
+                        100 - y,
+                        startHeight +
+                          ((move.clientY - startY) / posterHeight) * 100,
+                      ),
+                    );
                     onLayerChange(layer.id, changes);
                   };
                   const finish = () => {
@@ -1563,6 +1564,7 @@ export function PosterOverlaysView({
                       previewMedia?.artwork?.url
                     }
                     onLayerSelect={selectLayer}
+                    selectedLayerId={selectedLayerId}
                     onLayerChange={(id, changes) =>
                       setEditing({
                         ...editing,

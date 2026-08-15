@@ -1140,7 +1140,8 @@ export function renderOverlaySvg({
         layer.fontSize,
       ).length,
       naturalHeight =
-        layer.kind === "icon" || layer.shape === "circle"
+        layer.shape === "circle" ||
+        (layer.kind === "icon" && layer.contentPosition === "none")
           ? boxWidth
           : layer.fontSize * 1.15 * Math.max(1, lineCount) + layer.padding * 2,
       boxHeight =
@@ -1166,22 +1167,19 @@ export function renderOverlaySvg({
           (boxWidth * layer.iconSize) / 100 - layer.padding * 2,
         ),
         path = overlayIconPaths[layer.iconName] || overlayIconPaths.movie,
-        offset = (layer.fontSize + layer.contentGap) / 2,
         ix =
-          x +
-          (boxWidth - size) / 2 +
-          (showText && layer.contentPosition === "left"
-            ? offset
-            : showText && layer.contentPosition === "right"
-              ? -offset
-              : 0),
+          showText && layer.contentPosition === "right"
+            ? x + layer.padding
+            : showText && layer.contentPosition === "left"
+              ? x + boxWidth - layer.padding - size
+              : x + (boxWidth - size) / 2,
         iy =
           y +
           (boxHeight - size) / 2 +
           (showText && layer.contentPosition === "above"
-            ? offset
+            ? (layer.fontSize + layer.contentGap) / 2
             : showText && layer.contentPosition === "below"
-              ? -offset
+              ? -(layer.fontSize + layer.contentGap) / 2
               : 0);
       rendered.push(
         `<g>${shape}<path d="${path}" transform="translate(${ix} ${iy}) scale(${size / 24})" fill="none" stroke="${xml(layer.iconColor)}" stroke-opacity="${layer.textOpacity}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>${showText ? textSvg : ""}</g>`,

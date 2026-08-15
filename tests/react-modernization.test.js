@@ -1388,6 +1388,8 @@ test('poster overlay editor offers editable polished quick items',async()=>{
   assert.match(presets,/overlayLayerFromPreset/);
   assert.match(styles,/\.overlay-item-sample\{/);
   assert.match(styles,/box-shadow:inset 0 1px/);
+  assert.match(presets,/iconSize: 18/);
+  assert.match(styles,/cursor:nwse-resize/);
 });
 
 test('poster overlay editor uses four focused desktop columns and a sequential mobile workflow',async()=>{

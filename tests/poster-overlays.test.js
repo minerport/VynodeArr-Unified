@@ -112,6 +112,13 @@ test('theatrical artwork icons render as editable overlay layers',()=>{
   }
 });
 
+test('icon badges with text keep a compact natural height',()=>{
+  const poster=Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="600" height="900"/>'),template=sanitizeOverlayTemplate({layers:[{kind:'icon',iconName:'monitor',iconSize:18,variable:'availability',contentPosition:'right',width:40,fontSize:28,padding:10}]});
+  const rendered=renderOverlaySvg({poster,contentType:'image/svg+xml',template,item:{title:'Example',availability:'Available'}}).toString();
+  assert.match(rendered,/height="52\.1[0-9]+"/);
+  assert.doesNotMatch(rendered,/height="240"/);
+});
+
 test('decorative custom-text artwork does not inherit a visible placeholder label',()=>{
   const shape=sanitizeOverlayLayer({kind:'shape',variable:'custom_text',label:'Custom text',width:40,height:10}),icon=sanitizeOverlayLayer({kind:'icon',variable:'custom_text',label:'',iconName:'filmstrip'});
   assert.equal(shape.label,'');assert.equal(icon.label,'');
