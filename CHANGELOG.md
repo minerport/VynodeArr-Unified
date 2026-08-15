@@ -7,6 +7,22 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.45-rc.7] - 2026-08-15
+
+### Changed
+
+- Simplified Reeltrack list imports so they create a draft first and show only
+  the movie and television destination settings required by the imported list.
+- Reused linked Plex and VynodeArr destinations automatically while retaining
+  manual host-folder controls for unlinked and legacy configurations.
+
+### Fixed
+
+- Restored original Plex collection artwork reliably when removing a managed
+  list collection poster.
+- Prevented movie-only lists from requiring television destinations, and vice
+  versa, while retaining independent settings for mixed-media lists.
+
 ## [2.0.45-rc.6] - 2026-08-15
 
 ### Changed
