@@ -13,7 +13,7 @@ const allowed=(value,displayName)=>({
 
 export class EngineSettingsService {
   constructor({path,vaultPath,masterKey,defaults,bundled=false}) {
-    this.store=new JsonStore(path,{version:3,configured:false,mode:bundled?'bundled':'external',pendingMode:null,movie:null,tv:null,external:{movie:null,tv:null},instances:[],updatedAt:null});
+    const source=bundled?'bundled':'external';this.store=new JsonStore(path,{version:4,configured:false,mode:source,pendingMode:null,modes:{movie:source,tv:source},pendingModes:{movie:null,tv:null},movie:null,tv:null,external:{movie:null,tv:null},instances:[],updatedAt:null});
     this.vault=new EncryptedCredentialVault(vaultPath,masterKey);this.defaults=defaults;this.bundled=bundled;this.value=null;
   }
   async initialize(){
@@ -22,15 +22,17 @@ export class EngineSettingsService {
     if(!this.value.external)this.value.external={movie:null,tv:null};
     if(!Array.isArray(this.value.instances))this.value.instances=[];
     if(!Object.hasOwn(this.value,'pendingMode'))this.value.pendingMode=null;
+    if(!this.value.modes){const legacy=['bundled','external'].includes(this.value.mode)?this.value.mode:(this.bundled?'bundled':'external');this.value.modes={movie:legacy,tv:legacy};}
+    if(!this.value.pendingModes)this.value.pendingModes={movie:this.value.pendingMode||null,tv:this.value.pendingMode||null};
     await this.#migrateExternalInstances();
-    this.value.version=3;
+    this.#syncLegacyModes();this.value.version=4;
     if(!this.configured()&&this.defaults?.dataMode==='engine'&&this.defaults.movie?.apiCredential&&this.defaults.tv?.apiCredential){
       await this.save('movie',this.defaults.movie,this.defaults.movie.apiCredential);
       await this.save('tv',this.defaults.tv,this.defaults.tv.apiCredential);
     } else await this.store.write(this.value);
   }
-  mode(){return this.value?.mode|| (this.bundled?'bundled':'external');}
-  pendingMode(){return this.value?.pendingMode||null;}
+  mode(domain){if(domain)return this.value?.modes?.[domain]||(this.bundled?'bundled':'external');const values=['movie','tv'].map(value=>this.mode(value));return values[0]===values[1]?values[0]:'mixed';}
+  pendingMode(domain){if(domain)return this.value?.pendingModes?.[domain]||null;const values=['movie','tv'].map(value=>this.pendingMode(value)).filter(Boolean);return values.length?(values.every(value=>value===values[0])?values[0]:'mixed'):null;}
   configured(){return Boolean(this.value?.configured&&this.value.movie&&this.value.tv);}
   async runtime(){
     if(!this.configured())return null;
@@ -40,7 +42,7 @@ export class EngineSettingsService {
   public(){
     const domain=(name,displayName)=>this.value?.[name]?{...publicEngineConfiguration({...this.value[name],apiCredential:'configured'}),host:this.value[name].host,port:this.value[name].port,urlBase:this.value[name].urlBase,configured:true}:{...publicEngineConfiguration(this.defaults[name]),host:'',port:this.defaults[name].port,urlBase:'',configured:false,displayName};
     const externalDomain=(name,displayName)=>this.value?.external?.[name]?{...publicEngineConfiguration({...this.value.external[name],apiCredential:'configured'}),host:this.value.external[name].host,port:this.value.external[name].port,urlBase:this.value.external[name].urlBase,configured:true}:{...publicEngineConfiguration(this.defaults[name]),host:'',port:this.defaults[name].port,urlBase:'',configured:false,displayName};
-    return{configured:this.configured(),mode:this.mode(),pendingMode:this.pendingMode(),restartRequired:Boolean(this.pendingMode()),movie:domain('movie','Movies'),tv:domain('tv','TV'),external:{movie:externalDomain('movie','Movies'),tv:externalDomain('tv','TV')},instances:this.value.instances.map(instance=>this.#publicInstance(instance)),updatedAt:this.value?.updatedAt||null};
+    return{configured:this.configured(),mode:this.mode(),pendingMode:this.pendingMode(),modes:{movie:this.mode('movie'),tv:this.mode('tv')},pendingModes:{movie:this.pendingMode('movie'),tv:this.pendingMode('tv')},restartRequired:Boolean(this.pendingMode()),movie:domain('movie','Movies'),tv:domain('tv','TV'),external:{movie:externalDomain('movie','Movies'),tv:externalDomain('tv','TV')},instances:this.value.instances.map(instance=>this.#publicInstance(instance)),updatedAt:this.value?.updatedAt||null};
   }
   normalize(domain,input){return allowed(input,domain==='movie'?'Movies':'TV');}
   async save(domain,input,credential){
@@ -120,7 +122,7 @@ export class EngineSettingsService {
   #instanceCredentialKey(id){return `external-instance:${id}`;}
   #setDefaultInMemory(domain,id){for(const instance of this.value.instances)if(instance.domain===domain)instance.isDefault=instance.id===id;const pending=this.#instance(id);if(pending)pending.isDefault=true;}
   #publicInstance(instance){return{id:instance.id,name:instance.name,domain:instance.domain,enabled:instance.enabled!==false,isDefault:Boolean(instance.isDefault),createdAt:instance.createdAt,updatedAt:instance.updatedAt,...publicEngineConfiguration({...instance,apiCredential:'configured'}),host:instance.host,port:instance.port,urlBase:instance.urlBase,configured:true,credentialConfigured:true};}
-  async #persist(){this.value.updatedAt=new Date().toISOString();this.value.version=3;await this.store.write(this.value);}
+  async #persist(){this.value.updatedAt=new Date().toISOString();this.value.version=4;await this.store.write(this.value);}
   async #migrateExternalInstances(){
     for(const domain of ['movie','tv']){
       const legacy=this.value.external?.[domain];if(!legacy||this.value.instances.some(instance=>instance.domain===domain))continue;
@@ -130,22 +132,19 @@ export class EngineSettingsService {
     }
     for(const domain of ['movie','tv']){const values=this.value.instances.filter(instance=>instance.domain===domain);if(values.length&&!values.some(instance=>instance.isDefault))values[0].isDefault=true;}
   }
-  async requestMode(mode){
+  async requestMode(domain,mode){
+    if(mode===undefined){mode=domain;for(const value of ['movie','tv'])await this.requestMode(value,mode);return this.public();}
+    this.#assertDomain(domain);
     if(!['bundled','external'].includes(mode))throw new Error('Choose bundled or external engine mode');
-    if(mode==='external'&&!await this.externalRuntime())throw new Error('Validate and save both external engines before switching modes');
-    this.value.pendingMode=mode===this.mode()?null:mode;this.value.updatedAt=new Date().toISOString();await this.store.write(this.value);return this.public();
+    if(mode==='external'&&!await this.defaultInstanceRuntime(domain))throw new Error(`Validate and save an external ${domain==='movie'?'movie':'TV'} engine before switching modes`);
+    this.value.pendingModes[domain]=mode===this.mode(domain)?null:mode;this.#syncLegacyModes();this.value.updatedAt=new Date().toISOString();await this.store.write(this.value);return this.public();
   }
   async applyPendingMode(){
-    if(!this.value?.pendingMode)return false;
-    const next=this.value.pendingMode;
-    if(next==='external'){
-      const runtime=await this.externalRuntime();if(!runtime)throw new Error('External engine credentials are incomplete');
-      for(const domain of ['movie','tv']){this.value[domain]=this.normalize(domain,runtime[domain]);await this.vault.replace(domain,runtime[domain].apiCredential);}
-    }else{
-      for(const domain of ['movie','tv']){this.value[domain]=this.normalize(domain,this.defaults[domain]);if(this.defaults[domain].apiCredential)await this.vault.replace(domain,this.defaults[domain].apiCredential);}
-    }
-    this.value.mode=next;this.value.pendingMode=null;this.value.configured=Boolean(this.value.movie&&this.value.tv);this.value.updatedAt=new Date().toISOString();await this.store.write(this.value);return true;
+    if(!this.pendingMode())return false;
+    for(const domain of ['movie','tv']){const next=this.pendingMode(domain);if(!next)continue;if(next==='external'){const runtime=await this.defaultInstanceRuntime(domain);if(!runtime)throw new Error(`External ${domain} engine credentials are incomplete`);this.value[domain]=this.normalize(domain,runtime);await this.vault.replace(domain,runtime.apiCredential);}else{this.value[domain]=this.normalize(domain,this.defaults[domain]);if(this.defaults[domain].apiCredential)await this.vault.replace(domain,this.defaults[domain].apiCredential);}this.value.modes[domain]=next;this.value.pendingModes[domain]=null;}
+    this.#syncLegacyModes();this.value.configured=Boolean(this.value.movie&&this.value.tv);this.value.updatedAt=new Date().toISOString();await this.store.write(this.value);return true;
   }
+  #syncLegacyModes(){const modes=this.value.modes||{},pending=this.value.pendingModes||{};this.value.mode=modes.movie===modes.tv?modes.movie:'mixed';this.value.pendingMode=pending.movie===pending.tv?pending.movie:(pending.movie||pending.tv?'mixed':null);}
   async discoveryCredential(){return await this.vault.get('tmdb')||'';}
   async saveDiscoveryCredential(credential){
     const value=String(credential||'').trim();if(!value)throw new Error('TMDB read access token is required');

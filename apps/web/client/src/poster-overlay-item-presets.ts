@@ -1,4 +1,4 @@
-import type { OverlayLayer } from "./poster-overlays-types";
+import type { OverlayAsset, OverlayLayer } from "./poster-overlays-types";
 
 export type OverlayItemPreset = {
   id: string;
@@ -61,3 +61,5 @@ export function overlayLayerFromPreset(preset: OverlayItemPreset, base: OverlayL
     },
   };
 }
+
+export function overlayLayerFromAsset(asset:OverlayAsset):OverlayLayer{return{id:`layer_${crypto.randomUUID()}`,name:asset.name,label:"",variable:"custom_text",kind:"image",assetId:asset.id,assetName:asset.name,imageFit:"contain",imageOpacity:1,iconName:"movie",contentPosition:"none",position:"custom",x:32.5,y:41,width:35,height:18,prefix:"",suffix:"",foreground:"#ffffff",background:"#111827",fontSize:32,fontFamily:"sans",fontWeight:700,textAlign:"left",textTransform:"none",textOpacity:1,backgroundOpacity:0,padding:2,borderRadius:0,posterAware:false,shape:"square",enabled:true,condition:{operator:"truthy",value:""},conditions:{join:"and",rules:[{variable:"custom_text",operator:"truthy",value:""}]},styleMode:"first",styleRules:[]}}

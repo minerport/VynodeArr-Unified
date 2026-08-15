@@ -178,22 +178,33 @@ test('environment engine credentials auto-configure the private gateway once',as
   }finally{await rm(directory,{recursive:true,force:true});}
 });
 
-test('external engines are staged together and activate only after restart',async()=>{
+test('external movie and television engines activate independently after restart',async()=>{
   const directory=await mkdtemp(join(tmpdir(),'vynodearr-external-'));
   try{
     const defaults={dataMode:'engine',movie:{enabled:true,host:'127.0.0.1',port:7878,apiCredential:'bundled-movie'},tv:{enabled:true,host:'127.0.0.1',port:8989,apiCredential:'bundled-tv'}};
     const service=new EngineSettingsService({path:join(directory,'settings.json'),vaultPath:join(directory,'credentials.enc'),masterKey:'test-master-key-with-32-characters',defaults,bundled:true});
     await service.initialize();
     assert.equal(service.mode(),'bundled');
-    await assert.rejects(()=>service.requestMode('external'),/both external engines/i);
+    await assert.rejects(()=>service.requestMode('movie','external'),/external movie engine/i);
     await service.saveExternal('movie',{...defaults.movie,host:'radarr.local'},'external-movie');
-    await service.saveExternal('tv',{...defaults.tv,host:'sonarr.local'},'external-tv');
-    await service.requestMode('external');
+    await service.requestMode('movie','external');
     assert.equal(service.mode(),'bundled');
+    assert.equal(service.pendingMode('movie'),'external');
+    assert.equal(service.pendingMode('tv'),null);
+    await service.applyPendingMode();
+    assert.equal(service.mode(),'mixed');
+    assert.equal(service.mode('movie'),'external');
+    assert.equal(service.mode('tv'),'bundled');
+    let runtime=await service.runtime();
+    assert.equal(runtime.movie.host,'radarr.local');
+    assert.equal(runtime.tv.host,'127.0.0.1');
+    await service.saveExternal('tv',{...defaults.tv,host:'sonarr.local'},'external-tv');
+    await service.requestMode('tv','external');
+    assert.equal(service.mode(),'mixed');
     assert.equal(service.public().restartRequired,true);
     await service.applyPendingMode();
     assert.equal(service.mode(),'external');
-    const runtime=await service.runtime();
+    runtime=await service.runtime();
     assert.equal(runtime.movie.host,'radarr.local');
     assert.equal(runtime.tv.host,'sonarr.local');
     assert.equal(runtime.movie.apiCredential,'external-movie');

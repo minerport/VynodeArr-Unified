@@ -26,6 +26,12 @@ test('movie adapter recognizes scanned media when the engine reports disk usage 
   const adapter=new MovieEngineAdapter({enabled:true},new FakeClient({movie:[pendingFile],queue:{records:[]},'wanted/cutoff':{records:[]}})),item=(await adapter.listMovies())[0];
   assert.equal(item.hasFile,true);assert.equal(item.state,'available');assert.equal(item.quality,'Detected media');
 });
+test('movie library reads use the bounded large-response path and isolate malformed records',async()=>{
+  let request;
+  const client={async get(path,query,options){if(path==='movie'){request={query,options};return[null,movieRecord];}if(path==='queue'||path==='wanted/cutoff')return{records:[]};return[];}};
+  const items=await new MovieEngineAdapter({enabled:true},client).listMovies();
+  assert.equal(items.length,1);assert.equal(items[0].id,'movie_1');assert.equal(request.query.excludeLocalCovers,true);assert.equal(request.options.maxResponseBytes,128*1024*1024);
+});
 test('engine attention summaries use authoritative wanted totals',async()=>{
   const values={'wanted/missing':{records:[],totalRecords:30},'wanted/cutoff':{records:[],totalRecords:1000}};
   assert.deepEqual(await new MovieEngineAdapter({enabled:true},new FakeClient(values)).getAttentionSummary(),{missing:30,cutoff:1000});

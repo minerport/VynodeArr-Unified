@@ -9,11 +9,30 @@ export type OverlayPosition =
   | "custom";
 export interface OverlayLayer {
   id: string;
+  /** User-facing editor name; it does not affect rendered content. */
+  name?: string;
+  /** Locked layers remain visible but cannot be moved or resized on the canvas. */
+  locked?: boolean;
   /** Optional editor grouping identifier. Rendering order remains layer based. */
   groupId?: string;
+  componentId?: string;
+  componentInstanceId?: string;
+  componentLayerId?: string;
+  componentOverrides?: Array<"content"|"appearance"|"geometry"|"visibility">;
+  groupLayout?: "free" | "row" | "column";
+  groupGap?: number;
+  groupAlign?: "start" | "center" | "end";
   label: string;
   variable: string;
-  kind: "text" | "icon" | "shape";
+  /** Optional text expression such as "{title} ({year})". */
+  contentTemplate?: string;
+  fallbackText?: string;
+  missingBehavior?: "hide" | "fallback";
+  kind: "text" | "icon" | "shape" | "image";
+  assetId?: string;
+  assetName?: string;
+  imageFit?: "contain" | "cover" | "fill";
+  imageOpacity?: number;
   iconName: string;
   iconColor?: string;
   iconSize?: number;
@@ -42,6 +61,12 @@ export interface OverlayLayer {
   shape: "rounded" | "square" | "pill" | "circle" | "ticket" | "ribbon" | "tag" | "hexagon" | "chevron";
   padding: number;
   borderRadius: number;
+  rotation?: number;
+  borderWidth?: number;
+  borderColor?: string;
+  textStrokeWidth?: number;
+  textStrokeColor?: string;
+  shadow?: "none" | "soft" | "strong" | "glow";
   enabled: boolean;
   condition: { operator: "truthy" | "equals" | "not_equals"; value: string };
   conditions: {
@@ -70,6 +95,7 @@ export interface OverlayTemplate {
   previewPosterKey?: string;
   tvFileAggregation: "most_common" | "best" | "lowest" | "mixed" | "latest";
   layers: OverlayLayer[];
+  components?: Array<{id:string;name:string;layers:OverlayLayer[]}>;
   variants?: Array<{
     id: string;
     name: string;
@@ -94,6 +120,7 @@ export interface OverlayTemplate {
   createdAt?: string;
   updatedAt?: string;
 }
+export interface OverlayAsset { id:string;name:string;mime:string;size:number;createdAt?:string;preview:string }
 export interface OverlayAssignment {
   id: string;
   templateId: string;

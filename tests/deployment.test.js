@@ -118,12 +118,12 @@ test('bundled engines require authentication from every address by default',asyn
   assert.doesNotMatch(entrypoint,/DisabledForLocalAddresses/);
 });
 
-test('Unraid startup disables bundled engines only after an explicit external-mode switch',async()=>{
+test('Unraid startup disables each bundled engine only after its domain switches external',async()=>{
   const [entrypoint,image]=await Promise.all([
     readFile(new URL('../infrastructure/unraid/entrypoint.sh',import.meta.url),'utf8'),
     readFile(new URL('../Dockerfile.unraid',import.meta.url),'utf8')
   ]);
-  for(const value of ['engine-settings.json','pendingMode',"v.pendingMode||v.mode||'bundled'",'if [ "$engine_mode" = bundled ]'])assert.ok(entrypoint.includes(value),value);
+  for(const value of ['engine-settings.json','pendingModes','movie_engine_mode','tv_engine_mode','VYNODEARR_MOVIE_ENGINE_MODE','VYNODEARR_TV_ENGINE_MODE','[ "$movie_engine_mode" = bundled ]','[ "$tv_engine_mode" = bundled ]'])assert.ok(entrypoint.includes(value),value);
   assert.match(image,/127\.0\.0\.1:8686\/healthz/);
   assert.doesNotMatch(image,/Promise\.all\(\[8686,7878,8989\]/);
 });

@@ -535,6 +535,7 @@ export function createApplication(options = {}) {
       applications: [],
     });
   const plexPosterBackupDir = join(dataDir, "plex-poster-backups"),
+    posterOverlayAssetDir = join(dataDir, "poster-overlay-assets"),
     reeltrackPosterBackgroundDir = join(dataDir, "reeltrack-poster-backgrounds"),
     reeltrackArtworkBackupDir = join(dataDir, "reeltrack-artwork-originals");
   const plexService = options.plexService || new PlexService();
@@ -1729,7 +1730,7 @@ export function createApplication(options = {}) {
   }
   async function renderedReeltrackArtwork(template, item, poster = null) {
     const sharp = (await import("sharp")).default,
-      overlay = renderOverlaySvg({
+      overlay = await renderManagedOverlay({
         poster: Buffer.alloc(0),
         template,
         item,
@@ -2734,7 +2735,7 @@ export function createApplication(options = {}) {
       : null;
   const enginesConfigured = () =>
     mode === "fixture" || engineSettings.configured();
-  const bundledEnginesActive = () => engineSettings.mode() === "bundled";
+  const bundledEnginesActive = (domain) => domain?engineSettings.mode(domain)==="bundled":["movie","tv"].some(value=>engineSettings.mode(value)==="bundled");
   const management = new EngineManagementService(registry);
   const decodeOwnedMediaId=(domain,id)=>{
     const raw=String(id||''),prefix=domain==='movie'?'movie_':'series_',value=raw.startsWith(prefix)?raw.slice(prefix.length):raw;
@@ -5100,18 +5101,16 @@ export function createApplication(options = {}) {
     return publicSearchJob(job);
   }
   async function rebuildFromSettings() {
-    const runtime = engineSettings.mode() === "external"
-      ? await engineSettings.externalRuntime()
-      : await engineSettings.runtime();
+    const runtime = await engineSettings.runtime();
     if (!runtime) return;
     movie = new MovieEngineAdapter(runtime.movie);
     tv = new TvEngineAdapter(runtime.tv);
     registry.register("movie", movie).register("tv", tv);
-    if(engineSettings.mode()==="external"){
-      const configured=engineSettings.public().instances.filter(instance=>instance.enabled!==false),groups={movie:[],tv:[]};
+    if(engineSettings.mode()!=="bundled"){
+      const configured=engineSettings.public().instances.filter(instance=>instance.enabled!==false&&engineSettings.mode(instance.domain)==="external"),groups={movie:[],tv:[]};
       for(const instance of configured){const value=await engineSettings.instanceRuntime(instance.id);if(!value)continue;groups[instance.domain].push({...instance,adapter:instance.domain==="movie"?new MovieEngineAdapter(value):new TvEngineAdapter(value)});}
-      const movieRead=groups.movie.length?new MultiInstanceReadAdapter("movie",groups.movie):movie,
-        tvRead=groups.tv.length?new MultiInstanceReadAdapter("tv",groups.tv):tv;
+      const movieRead=engineSettings.mode("movie")==="external"&&groups.movie.length?new MultiInstanceReadAdapter("movie",groups.movie):movie,
+        tvRead=engineSettings.mode("tv")==="external"&&groups.tv.length?new MultiInstanceReadAdapter("tv",groups.tv):tv;
       sync.setEngines(movieRead,tvRead);
       management.setInstances([...groups.movie,...groups.tv].map(instance=>({id:instance.id,domain:instance.domain,client:instance.adapter.client})));
     }else{sync.setEngines(movie, tv);management.setInstances([]);}
@@ -5128,6 +5127,7 @@ export function createApplication(options = {}) {
       ["movie", "/movies"],
       ["tv", "/tv"],
     ]) {
+      if(!bundledEnginesActive(domain))continue;
       const client = registry.get(domain).client,
         roots = await client.get("rootfolder");
       if (Array.isArray(roots) && roots.length === 0)
@@ -5144,6 +5144,7 @@ export function createApplication(options = {}) {
     const saved = await downloadFolderStore.read();
     const results = [];
     for (const domain of selectedDomain ? [selectedDomain] : ["movie", "tv"]) {
+      if(!bundledEnginesActive(domain))continue;
       try {
         const remotePath = downloadClientRemotePath(domain),
           localPath =
@@ -5314,14 +5315,14 @@ export function createApplication(options = {}) {
       return;
     const value = await engineAuthenticationStore.read();
     if (value.initialized) return;
+    const bundledDomains=["movie","tv"].filter(domain=>bundledEnginesActive(domain));
     await Promise.all(
-      ["movie", "tv"].map((domain) =>
+      bundledDomains.map((domain) =>
         setEngineAuthentication(domain, true, { record: false }),
       ),
     );
     value.initialized = true;
-    value.movie = { required: true };
-    value.tv = { required: true };
+    for(const domain of bundledDomains)value[domain]={required:true};
     value.updatedAt = new Date().toISOString();
     await engineAuthenticationStore.write(value);
   }
@@ -5346,21 +5347,14 @@ export function createApplication(options = {}) {
           ""
         );
       },
-      [movieKey, tvKey] = await Promise.all([readKey("movie"), readKey("tv")]);
-    if (!movieKey || !tvKey) return false;
-    await engineSettings.save(
-      "movie",
-      configured?.movie || baseConfig.movie,
-      movieKey,
-    );
-    await engineSettings.save("tv", configured?.tv || baseConfig.tv, tvKey);
-    return true;
+      domains=["movie","tv"].filter(domain=>bundledEnginesActive(domain));
+    let restored=false;for(const domain of domains){const key=await readKey(domain);if(!key)continue;await engineSettings.save(domain,configured?.[domain]||baseConfig[domain],key);restored=true;}return restored;
   }
   async function ensureEngineWebhook(domain) {
     if (
       mode !== "engine" ||
       String(env.VYNODEARR_BUNDLED_ENGINES || "false") !== "true" ||
-      !bundledEnginesActive()
+      !bundledEnginesActive(domain)
     )
       return;
     const name = "VynodeArr Catalog Events",
@@ -5665,10 +5659,8 @@ export function createApplication(options = {}) {
         "Automatic connection repair is only available for bundled engines",
       );
     await rebuildFromSettings();
-    let checks = await Promise.all([
-      registry.movie().testConnection(),
-      registry.tv().testConnection(),
-    ]);
+    const domains=["movie","tv"].filter(domain=>bundledEnginesActive(domain));
+    let checks = await Promise.all(domains.map(domain=>registry.get(domain).testConnection()));
     if (
       checks.some(
         (check) =>
@@ -5680,10 +5672,7 @@ export function createApplication(options = {}) {
           "Installation-managed engine credentials are unavailable",
         );
       await rebuildFromSettings();
-      checks = await Promise.all([
-        registry.movie().testConnection(),
-        registry.tv().testConnection(),
-      ]);
+      checks = await Promise.all(domains.map(domain=>registry.get(domain).testConnection()));
     }
     if (
       checks.some(
@@ -5693,7 +5682,7 @@ export function createApplication(options = {}) {
     )
       throw new Error("Automatic engine reconnection did not succeed");
     await sync.startup();
-    return ["movie", "tv"];
+    return domains;
   }
   async function completeEngineRestore(domain, previousStartTime) {
     let connection = null,
@@ -7573,7 +7562,13 @@ export function createApplication(options = {}) {
         layers: (template.layers || []).map(sanitizeOverlayLayer),
       })),
       assignments: stored.assignments || [],
+      assets: (stored.assets || []).filter((asset) => /^asset_[A-Za-z0-9-]+$/.test(String(asset.id || ""))).map((asset)=>({id:asset.id,name:String(asset.name||"Image").slice(0,80),mime:asset.mime,size:Number(asset.size)||0,createdAt:asset.createdAt,preview:`/api/poster-overlays/assets/${asset.id}`})),
     };
+  }
+  async function renderManagedOverlay(input) {
+    const stored=await posterOverlayStore.read(),available=new Map((stored.assets||[]).map(asset=>[asset.id,asset])),ids=new Set((input.template?.layers||[]).filter(layer=>layer.kind==="image"&&layer.assetId).map(layer=>layer.assetId)),assets={};
+    await Promise.all([...ids].map(async id=>{const asset=available.get(id);if(!asset||!/^[a-f0-9-]{36}\.(?:jpg|png|webp)$/i.test(String(asset.file||"")))return;const value=await readFile(join(posterOverlayAssetDir,asset.file)).catch(()=>null);if(value)assets[id]=`data:${asset.mime};base64,${value.toString("base64")}`;}));
+    return renderOverlaySvg({...input,assets});
   }
   async function overlayForItem(domain, item, configuration = null) {
     const state = configuration || (await posterOverlayConfiguration());
@@ -7756,7 +7751,7 @@ export function createApplication(options = {}) {
         template,
         session,
       ),
-      overlay = renderOverlaySvg({
+      overlay = await renderManagedOverlay({
         poster: Buffer.alloc(0),
         template: template,
         item: item,
@@ -11486,36 +11481,35 @@ export function createApplication(options = {}) {
         ) {
           if (!administrator(res, session) || !requireCsrf(req, res, session))
             return;
-          const input = await body(req),
+          const input = await body(req),domain=String(input.domain||""),
             requested = String(input.mode || "");
+          if(!["movie","tv"].includes(domain))return json(res,422,{error:{code:"engine_domain_required",message:"Choose Movies or Television before switching engine source."}});
           if (requested === "external") {
-            const runtime = await engineSettings.externalRuntime();
+            const runtime = await engineSettings.defaultInstanceRuntime(domain);
             if (!runtime)
               return json(res, 422, {
                 error: {
                   code: "external_engines_incomplete",
                   message:
-                    "Validate and save both external engines before switching modes.",
+                    `Validate and save an external ${domain === "movie" ? "movie" : "TV"} engine before switching it.`,
                 },
               });
-            const checks = await Promise.all(
-              ["movie", "tv"].map((domain) => testEngine(domain, runtime[domain])),
-            );
-            if (checks.some((check) => !check.validated))
+            const check = await testEngine(domain, runtime);
+            if (!check.validated)
               return json(res, 422, {
                 error: {
                   code: "external_engines_unavailable",
                   message:
-                    "Both external engines must be reachable and compatible before activation.",
+                    `The external ${domain === "movie" ? "movie" : "TV"} engine must be reachable and compatible before activation.`,
                 },
               });
           }
-          const settings = await engineSettings.requestMode(requested);
+          const settings = await engineSettings.requestMode(domain,requested);
           await recordAudit(session, {
             category: "configuration",
             action: "engine.mode_requested",
             target: "Engine mode",
-            summary: `Scheduled ${requested} engine mode for the next restart.`,
+            summary: `Scheduled ${requested} ${domain} engine mode for the next restart.`,
           });
           return json(res, 200, { settings, restartRequired: settings.restartRequired });
         }
@@ -11529,16 +11523,16 @@ export function createApplication(options = {}) {
           if (!administrator(res, session) || !requireCsrf(req, res, session))
             return;
           const input = await body(req),
-            existing = await engineSettings.externalRuntime(),
-            credential = String(input.apiCredential || existing?.[externalEngineTest[1]]?.apiCredential || "");
+            existing = await engineSettings.defaultInstanceRuntime(externalEngineTest[1]),
+            credential = String(input.apiCredential || existing?.apiCredential || "");
           return json(res, 200, await testEngine(externalEngineTest[1], { ...input, apiCredential: credential }));
         }
         if (externalEngineSave && req.method === "PUT") {
           if (!administrator(res, session) || !requireCsrf(req, res, session))
             return;
           const input = await body(req),
-            existing = await engineSettings.externalRuntime(),
-            credential = String(input.apiCredential || existing?.[externalEngineSave[1]]?.apiCredential || ""),
+            existing = await engineSettings.defaultInstanceRuntime(externalEngineSave[1]),
+            credential = String(input.apiCredential || existing?.apiCredential || ""),
             result = await testEngine(externalEngineSave[1], { ...input, apiCredential: credential });
           if (!result.validated)
             return json(res, 422, {
@@ -12391,6 +12385,36 @@ export function createApplication(options = {}) {
             ...configuration,
             variables: posterVariables,
           });
+        }
+        if (url.pathname === "/api/poster-overlays/assets" && req.method === "POST") {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          const input=await body(req,8e6),match=String(input.image||"").match(/^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/i);
+          if(!match)throw new Error("Choose a JPEG, PNG, or WebP image.");
+          const image=Buffer.from(match[2],"base64");
+          if(!image.length||image.length>5e6)throw new Error("Overlay images must be 5 MB or smaller.");
+          const sharp=(await import("sharp")).default,metadata=await sharp(image).metadata();
+          if(!metadata.width||!metadata.height||!['jpeg','png','webp'].includes(metadata.format))throw new Error("The uploaded overlay image is invalid.");
+          if(metadata.width>8000||metadata.height>8000)throw new Error("Overlay images cannot exceed 8000 × 8000 pixels.");
+          const extension=metadata.format==="jpeg"?"jpg":metadata.format,mime=metadata.format==="jpeg"?"image/jpeg":`image/${metadata.format}`,file=`${randomUUID()}.${extension}`,asset={id:`asset_${randomUUID()}`,file,name:String(input.name||"Overlay image").replace(/[\u0000-\u001f\u007f]/g,"").trim().slice(0,80)||"Overlay image",mime,size:image.length,createdAt:new Date().toISOString()};
+          await mkdir(posterOverlayAssetDir,{recursive:true});await writeFile(join(posterOverlayAssetDir,file),image,{mode:384,flag:"wx"});
+          await posterOverlayStore.update(current=>{current.assets=current.assets||[];current.assets.push(asset);});
+          return json(res,201,{asset:{id:asset.id,name:asset.name,mime,size:asset.size,createdAt:asset.createdAt,preview:`/api/poster-overlays/assets/${asset.id}`}});
+        }
+        const overlayAssetMatch=url.pathname.match(/^\/api\/poster-overlays\/assets\/(asset_[A-Za-z0-9-]+)$/);
+        if(overlayAssetMatch&&req.method==="GET"){
+          if(!administrator(res,session))return;
+          const stored=await posterOverlayStore.read(),asset=(stored.assets||[]).find(item=>item.id===overlayAssetMatch[1]);
+          if(!asset||!/^[a-f0-9-]{36}\.(?:jpg|png|webp)$/i.test(String(asset.file||"")))return json(res,404,{message:"Overlay image unavailable"});
+          const image=await readFile(join(posterOverlayAssetDir,asset.file)).catch(()=>null);if(!image)return json(res,404,{message:"Overlay image unavailable"});
+          res.writeHead(200,{"content-type":asset.mime,"cache-control":"private, max-age=86400","content-length":String(image.length),"x-content-type-options":"nosniff"});return res.end(image);
+        }
+        if(overlayAssetMatch&&req.method==="DELETE"){
+          if(!administrator(res,session)||!requireCsrf(req,res,session))return;
+          const stored=await posterOverlayStore.read(),used=(stored.templates||[]).some(template=>[...(template.layers||[]),...(template.variants||[]).flatMap(variant=>variant.layers||[]),...(template.components||[]).flatMap(component=>component.layers||[])].some(layer=>layer.assetId===overlayAssetMatch[1]));
+          if(used)return json(res,409,{error:{code:"asset_in_use",message:"Remove this image from every poster style before deleting it."}});
+          const asset=(stored.assets||[]).find(item=>item.id===overlayAssetMatch[1]);if(!asset)return json(res,404,{message:"Overlay image unavailable"});
+          if(/^[a-f0-9-]{36}\.(?:jpg|png|webp)$/i.test(String(asset.file||"")))await unlink(join(posterOverlayAssetDir,asset.file)).catch(()=>{});
+          await posterOverlayStore.update(current=>{current.assets=(current.assets||[]).filter(item=>item.id!==overlayAssetMatch[1]);});return json(res,200,{deleted:true});
         }
         if (url.pathname === "/api/library-review/movies" && req.method === "GET") {
           if (!administrator(res, session)) return;
@@ -15428,7 +15452,7 @@ export function createApplication(options = {}) {
           }
           const responseInstance = requestedInstance
             ? engineSettings.public().instances.find((item) => item.id === requestedInstance)
-            : engineSettings.mode() === "external"
+            : engineSettings.mode(domain) === "external"
               ? engineSettings.public().instances.find((item) => item.domain === domain && item.isDefault && item.enabled !== false)
               : null;
           result = attachEngineOwnership(result, responseInstance);
@@ -15533,7 +15557,7 @@ export function createApplication(options = {}) {
                   renderKey = `${domain}:${item.id}:${revision}`;
                 let rendered = posterOverlayCache.get(renderKey);
                 if (!rendered) {
-                  rendered = renderOverlaySvg({
+                  rendered = await renderManagedOverlay({
                     poster: value.body,
                     contentType: value.contentType,
                     template: template,
@@ -15605,7 +15629,7 @@ export function createApplication(options = {}) {
               key = `${domain}:${item.id}:${revision}`;
             let rendered = posterOverlayCache.get(key);
             if (!rendered) {
-              rendered = renderOverlaySvg({
+              rendered = await renderManagedOverlay({
                 poster: original.body,
                 contentType: original.contentType,
                 template: template,
@@ -16163,6 +16187,8 @@ export function createApplication(options = {}) {
             mode: mode,
             engineMode: engineSettings.mode(),
             pendingMode: engineSettings.pendingMode(),
+            engineModes: {movie:engineSettings.mode("movie"),tv:engineSettings.mode("tv")},
+            pendingModes: {movie:engineSettings.pendingMode("movie"),tv:engineSettings.pendingMode("tv")},
             restartRequired: Boolean(engineSettings.pendingMode()),
             managed: bundledEnginesActive(),
             configured: engineSettings.configured(),

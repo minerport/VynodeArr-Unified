@@ -48,17 +48,17 @@ export class ReadOnlyEngineClient {
       if(this.activeRequests<limit)start();else this.pendingRequests.push(start);
     });
   }
-  #request(url: URL,options:{method?: string;payload?: unknown;timeoutMs?: number;notFoundNull?: boolean}={}){
+  #request(url: URL,options:{method?: string;payload?: unknown;timeoutMs?: number;notFoundNull?: boolean;maxResponseBytes?:number}={}){
     return this.#schedule(()=>this.#performRequest(url,options));
   }
-  #performRequest(url: URL,{method='GET',payload,timeoutMs=this.config.timeoutMs,notFoundNull=false}:{method?: string;payload?: unknown;timeoutMs?: number;notFoundNull?: boolean}={}){
+  #performRequest(url: URL,{method='GET',payload,timeoutMs=this.config.timeoutMs,notFoundNull=false,maxResponseBytes=32*1024*1024}:{method?: string;payload?: unknown;timeoutMs?: number;notFoundNull?: boolean;maxResponseBytes?:number}={}){
     return new Promise<any>((resolve,reject)=>{
       const transport=url.protocol==='https:'?httpsRequest:httpRequest;
       const encoded=payload===undefined?null:Buffer.from(JSON.stringify(payload));
       const options:any={method,headers:{accept:'application/json','x-api-key':this.config.apiCredential,...(encoded?{'content-type':'application/json','content-length':encoded.length}:{})},rejectUnauthorized:this.config.tlsVerify};
       const req=transport(url,options,(res)=>{
         const chunks: Buffer[]=[];let size=0;
-        res.on('data',(chunk)=>{size+=chunk.length;if(size>32*1024*1024){req.destroy(engineError.invalid());return;}chunks.push(chunk);});
+        res.on('data',(chunk)=>{size+=chunk.length;if(size>maxResponseBytes){req.destroy(engineError.invalid('Engine response exceeded the safe size limit'));return;}chunks.push(chunk);});
         res.on('end',()=>{
           if(res.statusCode===401||res.statusCode===403)return reject(engineError.authentication());
           if(notFoundNull&&res.statusCode===404)return resolve(null);
@@ -105,12 +105,12 @@ export class ReadOnlyEngineClient {
       req.setTimeout(this.config.timeoutMs,()=>req.destroy(engineError.timeout(this.domain)));req.on('error',reject);req.end();
     });
   }
-  async get(path: string,query?: Record<string, unknown>): Promise<any>{
+  async get(path: string,query?: Record<string, unknown>,options:{maxResponseBytes?:number}={}): Promise<any>{
     if(!this.config.enabled)throw engineError.unavailable(this.domain);
     this.#beforeCircuit();
     let lastError: any;
     for(let attempt=0;attempt<=this.config.retries;attempt+=1){
-      try{const value=await this.#request(this.buildUrl(path,query));this.#circuitSuccess();return value;}
+      try{const value=await this.#request(this.buildUrl(path,query),options);this.#circuitSuccess();return value;}
       catch(error:any){lastError=error;if(error?.code==='engine_authentication_failed')break;}
     }
     this.#circuitFailure(lastError);

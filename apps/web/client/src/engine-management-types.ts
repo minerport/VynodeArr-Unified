@@ -38,8 +38,10 @@ export interface EngineSummary {
 
 export interface EngineSystem {
   managed:boolean;
-  engineMode:'bundled'|'external';
-  pendingMode?:'bundled'|'external'|null;
+  engineMode:'bundled'|'external'|'mixed';
+  pendingMode?:'bundled'|'external'|'mixed'|null;
+  engineModes:{movie:'bundled'|'external';tv:'bundled'|'external'};
+  pendingModes:{movie:'bundled'|'external'|null;tv:'bundled'|'external'|null};
   restartRequired?:boolean;
   configured:boolean;
   engines:EngineSummary[];
@@ -53,8 +55,10 @@ export interface EngineAuthenticationSettings {
 
 export interface EngineSettings {
   configured:boolean;
-  mode:'bundled'|'external';
-  pendingMode?:'bundled'|'external'|null;
+  mode:'bundled'|'external'|'mixed';
+  pendingMode?:'bundled'|'external'|'mixed'|null;
+  modes:{movie:'bundled'|'external';tv:'bundled'|'external'};
+  pendingModes:{movie:'bundled'|'external'|null;tv:'bundled'|'external'|null};
   restartRequired?:boolean;
   movie:EngineConfiguration;
   tv:EngineConfiguration;

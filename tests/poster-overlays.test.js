@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {aggregateOverlayFileMetadata,assignmentMatches,posterVariableValues,renderOverlaySvg,resolveConditionalOverlayLayer,resolveOverlayTemplate,sanitizeOverlayAssignment,sanitizeOverlayLayer,sanitizeOverlayTemplate} from '../packages/platform/src/poster-overlay-service.js';
+import {aggregateOverlayFileMetadata,assignmentMatches,posterVariableValues,renderOverlaySvg,resolveConditionalOverlayLayer,resolveOverlayLayerContent,resolveOverlayTemplate,sanitizeOverlayAssignment,sanitizeOverlayLayer,sanitizeOverlayTemplate} from '../packages/platform/src/poster-overlay-service.js';
 
 test('poster overlay inputs are bounded and unsafe SVG content is escaped',()=>{
   const template=sanitizeOverlayTemplate({name:'<script>alert(1)</script>',domain:'movie',plexBadges:{monitored:true,availability:'yes'},layers:[{variable:'title',position:'custom',x:-12,y:500,width:9,fontSize:999,fontFamily:'serif',fontWeight:900,textAlign:'center',textOpacity:2,backgroundOpacity:-1,padding:99,borderRadius:99,foreground:'red',background:'#123456',prefix:'  <',suffix:'>  '}]});
@@ -28,6 +28,30 @@ test('Plex overlay SVG can render as a transparent composite with selected live 
 test('full-width poster layers anchor consistently and retain adaptive contrast',()=>{
   const layer=sanitizeOverlayLayer({variable:'resolution',position:'custom',x:42,width:100,posterAware:true});
   assert.equal(layer.width,100);assert.equal(layer.x,0);assert.equal(layer.posterAware,true);
+});
+
+test('professional layer appearance and editor metadata are bounded and rendered',()=>{
+  const layer=sanitizeOverlayLayer({name:'  Feature badge  ',locked:true,variable:'title',rotation:999,borderWidth:99,borderColor:'#12abef',textStrokeWidth:99,textStrokeColor:'#010203',shadow:'strong'});
+  assert.equal(layer.name,'Feature badge');assert.equal(layer.locked,true);assert.equal(layer.rotation,180);assert.equal(layer.borderWidth,20);assert.equal(layer.textStrokeWidth,12);assert.equal(layer.shadow,'strong');
+  const svg=renderOverlaySvg({poster:Buffer.from('poster'),template:sanitizeOverlayTemplate({layers:[layer]}),item:{title:'Movie'}}).toString();
+  assert.match(svg,/rotate\(180 /);assert.match(svg,/stroke="#12abef" stroke-width="20"/);assert.match(svg,/stroke="#010203" stroke-width="12"/);assert.match(svg,/filter="url\(#shadow-strong\)"/);
+});
+
+test('overlay content expressions combine metadata and support explicit missing fallbacks',()=>{
+  const layer=sanitizeOverlayLayer({variable:'title',contentTemplate:'{title} ({year}) · {certification}',fallbackText:'Coming soon',missingBehavior:'fallback'});
+  assert.equal(resolveOverlayLayerContent(layer,{title:'Arrival',year:2016,certification:'PG-13'}),'Arrival (2016) · PG-13');
+  assert.equal(resolveOverlayLayerContent(layer,{}),'Coming soon');
+  assert.equal(sanitizeOverlayLayer({contentTemplate:'x'.repeat(300),fallbackText:'y'.repeat(200),missingBehavior:'anything'}).contentTemplate.length,240);
+  assert.equal(sanitizeOverlayLayer({missingBehavior:'anything'}).missingBehavior,'hide');
+  const svg=renderOverlaySvg({poster:Buffer.from('poster'),template:{layers:[layer]},item:{title:'Arrival',year:2016,certification:'PG-13'}}).toString();
+  assert.match(svg,/Arrival \(2016\) · PG-13/);
+});
+
+test('managed image layers are sanitized and render only supplied asset sources',()=>{
+  const layer=sanitizeOverlayLayer({kind:'image',variable:'custom_text',label:'',assetId:'asset_1234-abc',assetName:'Studio logo',imageFit:'cover',imageOpacity:2,width:30,height:20});
+  assert.equal(layer.kind,'image');assert.equal(layer.assetId,'asset_1234-abc');assert.equal(layer.imageFit,'cover');assert.equal(layer.imageOpacity,1);
+  const template=sanitizeOverlayTemplate({layers:[layer]}),without=renderOverlaySvg({poster:Buffer.from('poster'),template,item:{}}).toString(),withAsset=renderOverlaySvg({poster:Buffer.from('poster'),template,item:{},assets:{'asset_1234-abc':'data:image/png;base64,cG5n'}}).toString();
+  assert.doesNotMatch(without,/cG5n/);assert.match(withAsset,/<image href="data:image\/png;base64,cG5n"/);assert.match(withAsset,/preserveAspectRatio="xMidYMid slice"/);
 });
 
 test('media icon layers are valid variables and render into composed artwork',()=>{
@@ -133,10 +157,17 @@ test('explicit layer heights resize text and icon artwork in exact output',()=>{
   assert.match(svg,/height="162"/);
 });
 
-test('overlay groups persist as editor metadata without changing render order',()=>{
-  const template=sanitizeOverlayTemplate({layers:[{id:'layer_one',groupId:'group_badge',variable:'title'},{id:'layer_two',groupId:'group_badge',kind:'shape',variable:'custom_text'}]});
+test('overlay groups persist layout metadata without changing render order',()=>{
+  const template=sanitizeOverlayTemplate({layers:[{id:'layer_one',groupId:'group_badge',groupLayout:'row',groupGap:99,groupAlign:'center',variable:'title'},{id:'layer_two',groupId:'group_badge',kind:'shape',variable:'custom_text'}]});
   assert.equal(template.layers[0].groupId,'group_badge');
+  assert.equal(template.layers[0].groupLayout,'row');assert.equal(template.layers[0].groupGap,10);assert.equal(template.layers[0].groupAlign,'center');
   assert.equal(template.layers[1].groupId,'group_badge');
+});
+test('poster templates sanitize reusable components and component instance identity',()=>{
+  const template=sanitizeOverlayTemplate({layers:[],components:[{id:'component_rating',name:'Rating block',layers:[{variable:'rating',componentId:'component_rating',componentInstanceId:'component_instance_one',componentLayerId:'layer_source',componentOverrides:['content','geometry','unsafe']}]}]});
+  assert.equal(template.components.length,1);assert.equal(template.components[0].name,'Rating block');assert.equal(template.components[0].layers[0].componentId,'component_rating');assert.equal(template.components[0].layers[0].componentInstanceId,'component_instance_one');
+  assert.equal(template.components[0].layers[0].componentLayerId,'layer_source');assert.deepEqual(template.components[0].layers[0].componentOverrides,['content','geometry']);
+  assert.equal(sanitizeOverlayTemplate({components:Array.from({length:20},(_,index)=>({name:`C${index}`,layers:[{variable:'title'}]}))}).components.length,12);
 });
 
 test('poster overlay variants are bounded and sanitized like their parent template',()=>{

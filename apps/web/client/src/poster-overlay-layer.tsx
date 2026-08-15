@@ -16,7 +16,6 @@ export function overlayConditionStatus(layer:OverlayLayer,values:Record<string,u
   return { matches, applied, diagnostics, overriddenKeys:[...new Set(applied.flatMap(rule=>Object.keys(rule.overrides||{})))] };
 }
 export function resolveConditionalLayer(layer:OverlayLayer,values:Record<string,unknown>={}){const matches=[...(layer.styleRules||[])].sort((a,b)=>(a.rank||999)-(b.rank||999)).filter(rule=>groupMatches(rule.conditions,values)),chosen=layer.styleMode==="merge"?matches:matches.slice(0,1);return chosen.reduce((resolved,rule)=>({...resolved,...rule.overrides}),layer)}
-
 export function overlayLayerVisible(layer: OverlayLayer, value: unknown, values: Record<string,unknown> = {}) {
   if (!layer.enabled) return false;
   const artworkOnly = layer.kind !== "text" && layer.variable === "custom_text" && !String(value ?? "").trim();
@@ -37,6 +36,7 @@ export function overlayLayerStyle(layer: OverlayLayer): CSSProperties {
   const height = Math.min(100, Math.max(0, layer.height ?? 0));
   const x = width >= 100 ? 0 : Math.min(100 - width, Math.max(0, layer.x ?? 0));
   const adaptive = layer.posterAware === true;
+  const shadows = { none: undefined, soft: "0 3px 10px rgba(0,0,0,.45)", strong: "0 6px 18px rgba(0,0,0,.8)", glow: `0 0 14px ${rgba(layer.foreground, .8)}` } as const;
   const shapes: Record<OverlayLayer["shape"], CSSProperties> = {
     rounded: {}, square: { borderRadius: 0 }, pill: { borderRadius: "999px" },
     circle: height > 0 ? { borderRadius: "50%" } : { borderRadius: "50%", aspectRatio: "1", width: `${Math.min(width, 40)}%` },
@@ -64,6 +64,10 @@ export function overlayLayerStyle(layer: OverlayLayer): CSSProperties {
     fontSize: `${(layer.fontSize / 6).toFixed(3)}cqi`,
     padding: `${(layer.padding / 6).toFixed(3)}cqi`,
     borderRadius: `${(layer.borderRadius / 6).toFixed(3)}cqi`,
+    border: (layer.borderWidth || 0) > 0 ? `${layer.borderWidth}px solid ${layer.borderColor || "#ffffff"}` : undefined,
+    transform: layer.rotation ? `rotate(${layer.rotation}deg)` : undefined,
+    filter: shadows[layer.shadow || "none"],
+    WebkitTextStroke: (layer.textStrokeWidth || 0) > 0 ? `${layer.textStrokeWidth}px ${layer.textStrokeColor || "#000000"}` : undefined,
     backdropFilter: adaptive ? "blur(7px) saturate(.8) brightness(.72)" : undefined,
     WebkitBackdropFilter: adaptive ? "blur(7px) saturate(.8) brightness(.72)" : undefined,
     textShadow: adaptive ? "0 1px 2px rgba(0,0,0,.95),0 0 8px rgba(0,0,0,.7)" : undefined,

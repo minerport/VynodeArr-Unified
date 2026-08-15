@@ -28,12 +28,15 @@ export const posterIcons = [
   ["ticket", "Ticket", "M3 7h18v4a2 2 0 000 4v4H3v-4a2 2 0 000-4zM9 7v10"],
 ] as const;
 export const posterIconPath = (name: string) => posterIcons.find(([id]) => id === name)?.[2] || posterIcons[0][2];
+export function hydratePreviewValues(layers:OverlayLayer[],values:Record<string,unknown>,fallback:(key:string)=>string){for(const layer of layers){const keys=[layer.variable,...[...(layer.contentTemplate||"").matchAll(/\{([a-z0-9_]+)\}/gi)].map(match=>match[1]),...(layer.conditions?.rules||[]).map(rule=>rule.variable),...(layer.styleRules||[]).flatMap(style=>style.conditions.rules.map(rule=>rule.variable))];for(const key of keys)if(key!=="custom_text"&&!String(values[key]??"").trim())values[key]=fallback(key)}return values}
+export function resolveLayerContent(layer:OverlayLayer,values:Record<string,unknown>={}){const template=layer.contentTemplate||"",tokens=[...template.matchAll(/\{([a-z0-9_]+)\}/gi)];let value:unknown=layer.variable==="custom_text"?layer.label:values[layer.variable];if(template){const hasValue=!tokens.length||tokens.some(([,key])=>String(values[key]??"").trim());value=hasValue?template.replace(/\{([a-z0-9_]+)\}/gi,(_,key)=>String(values[key]??"")):""}if(!String(value??"").trim()&&layer.missingBehavior==="fallback")value=layer.fallbackText;return String(value??"")}
 export function PosterIcon({ name }: { name: string }) {
   return <svg viewBox="0 0 24 24" aria-hidden="true" style={{display:"block",width:"100%",height:"auto",aspectRatio:"1",color:"inherit"}}><path d={posterIconPath(name)} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>;
 }
 export function PosterLayerContent({layer,text}:{layer:OverlayLayer;text:string}){
   const kind=layer.kind||(layer.variable==="icon"?"icon":"text"),position=layer.contentPosition||"none";
   const textStyle:CSSProperties|undefined=layer.textFit==="wrap"?{display:"-webkit-box",whiteSpace:"normal",overflowWrap:"anywhere",WebkitBoxOrient:"vertical",WebkitLineClamp:layer.maxLines||2,overflow:"hidden"}:layer.textFit==="shrink"?{display:"block",fontSize:`${Math.max(42,Math.min(100,2800/Math.max(28,text.length)))}%`,whiteSpace:"nowrap"}:undefined;
+  if(kind==="image")return layer.assetId?<img src={`/api/poster-overlays/assets/${layer.assetId}`} alt={layer.assetName||layer.name||"Overlay image"} style={{display:"block",width:"100%",height:"100%",objectFit:layer.imageFit||"contain",opacity:layer.imageOpacity??1}}/>:null;
   if(kind!=="icon")return <span style={textStyle}>{text}</span>;
   const iconStyle={display:"block",width:`${layer.iconSize||70}%`,color:layer.iconColor||layer.foreground,flex:"0 0 auto"} as const;
   if(position==="inside")return <span style={{display:"grid",placeItems:"center",position:"relative",width:"100%"}}><span style={iconStyle}><PosterIcon name={layer.iconName||layer.label}/></span>{text?<span style={{position:"absolute",inset:0,display:"grid",placeItems:"center",overflow:"hidden",textShadow:"0 1px 4px #000",...textStyle}}>{text}</span>:null}</span>;

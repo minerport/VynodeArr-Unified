@@ -205,7 +205,7 @@ export function sanitizeOverlayLayer(input = {}, index = 0) {
       ? String(input.variable)
       : "title",
     legacyIcon = rawVariable === "icon",
-    kind = ["text", "icon", "shape"].includes(input.kind)
+    kind = ["text", "icon", "shape", "image"].includes(input.kind)
       ? input.kind
       : legacyIcon
         ? "icon"
@@ -295,9 +295,25 @@ export function sanitizeOverlayLayer(input = {}, index = 0) {
       ? String(input.id)
       : `layer_${index}_${randomUUID()}`,
     groupId: /^group_[A-Za-z0-9_-]+$/.test(String(input.groupId || "")) ? String(input.groupId) : undefined,
+    componentId: /^component_[A-Za-z0-9_-]+$/.test(String(input.componentId || "")) ? String(input.componentId) : undefined,
+    componentInstanceId: /^component_instance_[A-Za-z0-9_-]+$/.test(String(input.componentInstanceId || "")) ? String(input.componentInstanceId) : undefined,
+    componentLayerId: /^layer_[A-Za-z0-9_-]+$/.test(String(input.componentLayerId || "")) ? String(input.componentLayerId) : undefined,
+    componentOverrides: Array.isArray(input.componentOverrides) ? [...new Set(input.componentOverrides.filter(value => ["content", "appearance", "geometry", "visibility"].includes(value)))].slice(0, 4) : [],
+    groupLayout: ["free", "row", "column"].includes(input.groupLayout) ? input.groupLayout : "free",
+    groupGap: Math.max(0, Math.min(10, Number(input.groupGap) || 0)),
+    groupAlign: ["start", "center", "end"].includes(input.groupAlign) ? input.groupAlign : "start",
+    name: cleanText(input.name || `Layer ${index + 1}`, 50),
+    locked: input.locked === true,
     label,
     variable,
+    contentTemplate: cleanText(input.contentTemplate, 240),
+    fallbackText: cleanText(input.fallbackText, 120),
+    missingBehavior: input.missingBehavior === "fallback" ? "fallback" : "hide",
     kind,
+    assetId: /^asset_[A-Za-z0-9-]+$/.test(String(input.assetId || "")) ? String(input.assetId) : "",
+    assetName: cleanText(input.assetName, 80),
+    imageFit: ["contain", "cover", "fill"].includes(input.imageFit) ? input.imageFit : "contain",
+    imageOpacity: Math.max(0, Math.min(1, Number.isFinite(Number(input.imageOpacity)) ? Number(input.imageOpacity) : 1)),
     iconName,
     iconColor,
     iconSize,
@@ -369,6 +385,12 @@ export function sanitizeOverlayLayer(input = {}, index = 0) {
           : 18,
       ),
     ),
+    rotation: Math.max(-180, Math.min(180, Number(input.rotation) || 0)),
+    borderWidth: Math.max(0, Math.min(20, Number(input.borderWidth) || 0)),
+    borderColor: cleanColor(input.borderColor, "#ffffff"),
+    textStrokeWidth: Math.max(0, Math.min(12, Number(input.textStrokeWidth) || 0)),
+    textStrokeColor: cleanColor(input.textStrokeColor, "#000000"),
+    shadow: ["none", "soft", "strong", "glow"].includes(input.shadow) ? input.shadow : "none",
     enabled: input.enabled !== false,
     condition: { operator: legacy.operator, value: legacy.value },
     conditions,
@@ -392,6 +414,7 @@ export function sanitizeOverlayTemplate(input = {}, existing = null) {
           : [],
       }))
     : existing?.variants || [];
+  const components=Array.isArray(input.components)?input.components.slice(0,12).map((component,index)=>({id:/^component_[A-Za-z0-9_-]+$/.test(String(component?.id||""))?String(component.id):`component_${index}_${randomUUID()}`,name:cleanText(component?.name||`Component ${index+1}`,50),layers:Array.isArray(component?.layers)?component.layers.slice(0,12).map(sanitizeOverlayLayer):[]})).filter(component=>component.layers.length):existing?.components||[];
   const badges = input.plexBadges || existing?.plexBadges || {};
   const legacyTarget = Object.values(badges).some(Boolean) ? "plex" : "vynode",
     target = ["vynode", "plex"].includes(input.target)
@@ -422,6 +445,7 @@ export function sanitizeOverlayTemplate(input = {}, existing = null) {
     tvFileAggregation,
     layers,
     variants,
+    components,
     plexBadges: {
       monitored: badges.monitored === true,
       availability: badges.availability === true,
@@ -983,6 +1007,16 @@ const visible = (layer, value, values) => {
     );
   return group.join === "or" ? results.some(Boolean) : results.every(Boolean);
 };
+export const resolveOverlayLayerContent = (layer, values = {}) => {
+  const template = String(layer.contentTemplate || ""), tokens = [...template.matchAll(/\{([a-z0-9_]+)\}/gi)];
+  let value = layer.variable === "custom_text" ? layer.label : values[layer.variable];
+  if (template) {
+    const hasValue = !tokens.length || tokens.some(([, key]) => String(values[key] ?? "").trim());
+    value = hasValue ? template.replace(/\{([a-z0-9_]+)\}/gi, (_, key) => String(values[key] ?? "")) : "";
+  }
+  if (!String(value ?? "").trim() && layer.missingBehavior === "fallback") value = layer.fallbackText;
+  return String(value ?? "");
+};
 const overlayIconPaths = {
   movie: "M4 6h16v12H4zM7 3l2 3m3-3 2 3m3-3 2 3",
   television: "M3 6h18v13H3zM8 22h8M9 2l3 4 3-4",
@@ -1012,7 +1046,7 @@ const overlayIconPaths = {
   ticket: "M3 7h18v4a2 2 0 000 4v4H3v-4a2 2 0 000-4zM9 7v10",
 };
 const overlayShape = (layer, x, y, w, h) => {
-  const fill = `fill="${xml(layer.background)}" fill-opacity="${layer.backgroundOpacity}"`,
+  const fill = `fill="${xml(layer.background)}" fill-opacity="${layer.backgroundOpacity}"${layer.borderWidth > 0 ? ` stroke="${xml(layer.borderColor)}" stroke-width="${layer.borderWidth}"` : ""}`,
     p = (px, py) => `${x + (w * px) / 100},${y + (h * py) / 100}`;
   if (layer.shape === "circle")
     return `<ellipse cx="${x + w / 2}" cy="${y + h / 2}" rx="${w / 2}" ry="${h / 2}" ${fill}/>`;
@@ -1084,7 +1118,7 @@ const overlayText = (text, layer, x, y, w, h, fontFamilies) => {
           : x + layer.padding,
     lineHeight = size * 1.15,
     start = y + h / 2 - ((lines.length - 1) * lineHeight) / 2 + size * 0.34;
-  return `<text x="${tx}" y="${start}" text-anchor="${anchor}" xml:space="preserve" style="white-space:pre" fill="${xml(layer.foreground)}" fill-opacity="${layer.textOpacity}" font-family="${xml(fontFamilies[layer.fontFamily])}" font-size="${size}" font-weight="${layer.fontWeight}">${lines.map((line, index) => `<tspan x="${tx}" dy="${index ? lineHeight : 0}">${xml(line)}</tspan>`).join("")}</text>`;
+  return `<text x="${tx}" y="${start}" text-anchor="${anchor}" xml:space="preserve" style="white-space:pre" fill="${xml(layer.foreground)}" fill-opacity="${layer.textOpacity}"${layer.textStrokeWidth > 0 ? ` stroke="${xml(layer.textStrokeColor)}" stroke-width="${layer.textStrokeWidth}" paint-order="stroke fill" stroke-linejoin="round"` : ""} font-family="${xml(fontFamilies[layer.fontFamily])}" font-size="${size}" font-weight="${layer.fontWeight}">${lines.map((line, index) => `<tspan x="${tx}" dy="${index ? lineHeight : 0}">${xml(line)}</tspan>`).join("")}</text>`;
 };
 const plexBadgeSvg = (template, item, values) => {
   if (template.target !== "plex") return "";
@@ -1116,6 +1150,7 @@ export function renderOverlaySvg({
   item,
   context = {},
   includePoster = true,
+  assets = {},
 }) {
   const values = posterVariableValues(item, context),
     layers = (template.layers || [])
@@ -1124,10 +1159,7 @@ export function renderOverlaySvg({
           resolved = resolveConditionalOverlayLayer(sanitized, values);
         return {
           layer: resolved,
-          value:
-            resolved.variable === "custom_text"
-              ? resolved.label
-              : values[resolved.variable],
+          value: resolveOverlayLayerContent(resolved, values),
         };
       })
       .filter(({ layer, value }) => visible(layer, value, values)),
@@ -1171,8 +1203,15 @@ export function renderOverlaySvg({
         boxWidth,
         boxHeight,
         fontFamilies,
-      );
-    if (layer.kind === "icon") {
+      ),
+      transform = layer.rotation ? ` transform="rotate(${layer.rotation} ${x + boxWidth / 2} ${y + boxHeight / 2})"` : "",
+      effect = layer.shadow && layer.shadow !== "none" ? ` filter="url(#shadow-${layer.shadow})"` : "";
+    if (layer.kind === "image") {
+      const href=assets[layer.assetId];
+      if(!href)continue;
+      const fit=layer.imageFit==="cover"?"xMidYMid slice":layer.imageFit==="fill"?"none":"xMidYMid meet";
+      rendered.push(`<g${transform}${effect}>${shape}<image href="${xml(href)}" x="${x+layer.padding}" y="${y+layer.padding}" width="${Math.max(1,boxWidth-layer.padding*2)}" height="${Math.max(1,boxHeight-layer.padding*2)}" preserveAspectRatio="${fit}" opacity="${layer.imageOpacity}"/></g>`);
+    } else if (layer.kind === "icon") {
       const showText = layer.contentPosition !== "none" && text,
         size = Math.max(
           12,
@@ -1194,16 +1233,16 @@ export function renderOverlaySvg({
               ? -(layer.fontSize + layer.contentGap) / 2
               : 0);
       rendered.push(
-        `<g>${shape}<path d="${path}" transform="translate(${ix} ${iy}) scale(${size / 24})" fill="none" stroke="${xml(layer.iconColor)}" stroke-opacity="${layer.textOpacity}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>${showText ? textSvg : ""}</g>`,
+        `<g${transform}${effect}>${shape}<path d="${path}" transform="translate(${ix} ${iy}) scale(${size / 24})" fill="none" stroke="${xml(layer.iconColor)}" stroke-opacity="${layer.textOpacity}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>${showText ? textSvg : ""}</g>`,
       );
-    } else rendered.push(`<g>${shape}${textSvg}</g>`);
+    } else rendered.push(`<g${transform}${effect}>${shape}${textSvg}</g>`);
   }
   const source = `data:${contentType};base64,${Buffer.from(poster).toString("base64")}`,
     posterSvg = includePoster
       ? `<image href="${source}" width="${width}" height="${height}" preserveAspectRatio="xMidYMid slice"/>`
       : "";
   return Buffer.from(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${posterSvg}<defs><linearGradient id="shade" x1="0" y1="0" x2="0" y2="1"><stop offset="55%" stop-color="#000" stop-opacity="0"/><stop offset="100%" stop-color="#000" stop-opacity=".45"/></linearGradient></defs><rect width="${width}" height="${height}" fill="url(#shade)"/>${plexBadgeSvg(template, item, values)}${rendered.join("")}</svg>`,
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${posterSvg}<defs><linearGradient id="shade" x1="0" y1="0" x2="0" y2="1"><stop offset="55%" stop-color="#000" stop-opacity="0"/><stop offset="100%" stop-color="#000" stop-opacity=".45"/></linearGradient><filter id="shadow-soft"><feDropShadow dx="0" dy="3" stdDeviation="4" flood-opacity=".45"/></filter><filter id="shadow-strong"><feDropShadow dx="0" dy="6" stdDeviation="7" flood-opacity=".8"/></filter><filter id="shadow-glow"><feDropShadow dx="0" dy="0" stdDeviation="6" flood-color="#fff" flood-opacity=".8"/></filter></defs><rect width="${width}" height="${height}" fill="url(#shade)"/>${plexBadgeSvg(template, item, values)}${rendered.join("")}</svg>`,
   );
 }
 export function overlayRevision(template, item, context = {}) {

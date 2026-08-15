@@ -3,7 +3,7 @@ import type { OverlayLayer, OverlayTemplate } from "./poster-overlays-types";
 export type AlignmentAction = "left" | "center-x" | "right" | "top" | "center-y" | "bottom" | "distribute-x" | "distribute-y" | "safe";
 
 export function transformLayers(layers: OverlayLayer[], ids: string[], action: AlignmentAction) {
-  const chosen = layers.filter(layer => ids.includes(layer.id));
+  const chosen = layers.filter(layer => ids.includes(layer.id) && !layer.locked);
   if (!chosen.length) return layers;
   const minX = Math.min(...chosen.map(layer => layer.x));
   const maxRight = Math.max(...chosen.map(layer => layer.x + layer.width));
@@ -12,7 +12,7 @@ export function transformLayers(layers: OverlayLayer[], ids: string[], action: A
   const ordered = action === "distribute-x" ? [...chosen].sort((a,b)=>a.x-b.x) : [...chosen].sort((a,b)=>a.y-b.y);
   const indexById = new Map(ordered.map((layer,index)=>[layer.id,index]));
   return layers.map<OverlayLayer>(layer => {
-    if (!ids.includes(layer.id)) return layer;
+    if (!ids.includes(layer.id) || layer.locked) return layer;
     if (action === "left") return {...layer,position:"custom",x:minX};
     if (action === "right") return {...layer,position:"custom",x:Math.max(0,maxRight-layer.width)};
     if (action === "center-x") return {...layer,position:"custom",x:Math.max(0,Math.min(100-layer.width,(minX+maxRight-layer.width)/2))};
@@ -25,6 +25,11 @@ export function transformLayers(layers: OverlayLayer[], ids: string[], action: A
     if (action === "distribute-y" && ordered.length>2) return {...layer,position:"custom",y:minY+index*((maxBottom-minY-(layer.height||4))/(ordered.length-1))};
     return layer;
   });
+}
+
+export function nudgeLayers(layers:OverlayLayer[],ids:string[],dx:number,dy:number){
+  const selected=new Set(ids),groups=new Set(layers.filter(layer=>selected.has(layer.id)&&layer.groupId).map(layer=>layer.groupId));
+  return layers.map(layer=>!layer.locked&&(selected.has(layer.id)||(layer.groupId&&groups.has(layer.groupId)))?{...layer,position:"custom" as const,x:Math.max(0,Math.min(100-layer.width,layer.x+dx)),y:Math.max(0,Math.min(100-Math.max(0,layer.height),layer.y+dy))}:layer);
 }
 
 const luminance=(hex:string)=>{const rgb=(hex.match(/[a-f\d]{2}/gi)||["00","00","00"]).map(value=>{const channel=parseInt(value,16)/255;return channel<=.03928?channel/12.92:((channel+.055)/1.055)**2.4;});return .2126*rgb[0]+.7152*rgb[1]+.0722*rgb[2]};
@@ -43,22 +48,4 @@ export function accessibilityIssues(template:OverlayTemplate) {
     if(x.enabled&&y.enabled&&(!x.groupId||x.groupId!==y.groupId)&&x.x<y.x+y.width&&x.x+x.width>y.x&&x.y<y.y+(y.height||4)&&x.y+(x.height||4)>y.y)issues.push(`Layers ${a+1} and ${b+1} overlap; verify the preview is intentional.`);
   }
   return issues.slice(0,8);
-}
-
-export function validateImportedTemplate(value:unknown): OverlayTemplate {
-  if(!value||typeof value!=="object")throw new Error("The selected file is not a poster template.");
-  const source=(value as {template?:unknown}).template??value;
-  if(!source||typeof source!=="object")throw new Error("The template payload is missing.");
-  const candidate=source as OverlayTemplate;
-  if(!String(candidate.name||"").trim())throw new Error("The template needs a name.");
-  if(!["movie","tv"].includes(candidate.domain))throw new Error("The template must target Movies or Television.");
-  if(!["vynode","plex"].includes(candidate.target))throw new Error("The template destination is invalid.");
-  if(!Array.isArray(candidate.layers)||!candidate.layers.length||candidate.layers.length>12)throw new Error("A template must contain 1 to 12 layers.");
-  const groupIds=new Map<string,string>();
-  return {...candidate,id:"",name:`${candidate.name} (imported)`,layers:candidate.layers.map(layer=>{let groupId: string|undefined;if(layer.groupId){if(!groupIds.has(layer.groupId))groupIds.set(layer.groupId,`group_${crypto.randomUUID()}`);groupId=groupIds.get(layer.groupId);}return {...layer,id:`layer_${crypto.randomUUID()}`,groupId};})};
-}
-
-export function downloadTemplate(template:OverlayTemplate){
-  const blob=new Blob([JSON.stringify({format:"vynodearr-poster-template",version:1,template},null,2)],{type:"application/json"});
-  const url=URL.createObjectURL(blob),anchor=document.createElement("a");anchor.href=url;anchor.download=`${template.name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")||"poster-template"}.json`;anchor.click();URL.revokeObjectURL(url);
 }

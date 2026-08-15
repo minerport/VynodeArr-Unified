@@ -7,6 +7,44 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.47] - 2026-08-15
+
+### Added
+
+- Completed the Overlay Studio with managed image assets, reusable linked
+  components, scoped instance overrides, row and column group layouts,
+  portable poster packs, import conflict review, template validation, and a
+  four-title real-media preview matrix.
+- Added precision canvas controls with zoom, grid and safe-area guides,
+  configurable snapping, keyboard nudging, multi-layer alignment, grouping,
+  responsive editing, and accessible keyboard selection.
+- Added exact before-and-after assignment review, affected-title diagnostics,
+  safe retry feedback, and explicit rollback confirmation.
+- Added independent built-in or external source selection for Movies and
+  Television, including mixed-source status and per-domain restart handling.
+
+### Changed
+
+- External engine settings now migrate from the previous global mode to
+  per-domain modes without requiring users to recreate saved connections.
+- Bundled engine startup, credential repair, authentication defaults, root
+  folders, webhooks, download-path mappings, and multi-instance routing now
+  operate only for the applicable movie or television domain.
+- Expanded overlay effects, metadata expressions, missing-value behavior,
+  variants, accessibility checks, application review, and mobile layouts while
+  retaining existing templates and assignments.
+
+### Fixed
+
+- Prevented configuring an external Movies engine from stopping the bundled
+  Television engine, and vice versa.
+- Made large Radarr library validation use a bounded larger response and ignore
+  isolated malformed movie records instead of rejecting an otherwise valid
+  connection.
+- Preserved component synchronization and managed-image references across
+  poster-pack export and import, including rollback of partially uploaded
+  assets when an import fails.
+
 ## [2.0.47-rc.1] - 2026-08-15
 
 ### Changed

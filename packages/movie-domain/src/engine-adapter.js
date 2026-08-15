@@ -34,11 +34,13 @@ export class MovieEngineAdapter {
     return { queueById, cutoffIds };
   }
   async listMovies({ limit = 5000 } = {}) {
-    const value = await this.client.get('movie');
+    const value = await this.client.get('movie', { excludeLocalCovers: true }, { maxResponseBytes: 128 * 1024 * 1024 });
     if (!Array.isArray(value)) throw engineError.invalid();
     const context = await this.#context();
-    try { return value.slice(0, limit).map((record) => movieSummary(record, context)); }
-    catch { throw engineError.invalid(); }
+    const mapped=[];
+    for(const record of value.slice(0,limit)){try{mapped.push(movieSummary(record,context));}catch{}}
+    if(value.length&&!mapped.length)throw engineError.invalid();
+    return mapped;
   }
   async getMovie(id) {
     const engineId = numericId(id);

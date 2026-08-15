@@ -12,13 +12,12 @@
 .overlay-editor .overlay-layer-body label>input:not([type=checkbox]),.overlay-editor .overlay-layer-body label>select{width:100%;min-width:0}
 .overlay-editor .overlay-layer-body input[type=range]{margin-top:2px}
 .overlay-editor .overlay-layer-body input[type=color]{min-height:44px;padding:4px;border-radius:10px;cursor:pointer}
-.overlay-editor .overlay-range,.overlay-editor .overlay-poster-aware,.overlay-editor .overlay-remove-layer{grid-column:1/-1}
+.overlay-editor .overlay-range,.overlay-editor .overlay-poster-aware{grid-column:1/-1}
 .overlay-editor .overlay-range{padding:7px 9px;border:1px solid color-mix(in srgb,var(--border) 70%,transparent);border-radius:9px;background:color-mix(in srgb,var(--panel) 55%,transparent)}
 .overlay-editor .overlay-layer-toggle:first-child{grid-column:1/-1;grid-template-columns:auto minmax(0,1fr);align-items:center;padding:10px 12px;border:1px solid var(--border);border-radius:10px}
 .overlay-editor .overlay-layer-toggle:first-child input{grid-row:1;width:auto}
 .overlay-editor .overlay-poster-aware{grid-template-columns:minmax(0,1fr) auto;align-items:center;padding:12px;border:1px solid var(--border);border-radius:12px}
 .overlay-editor .overlay-poster-aware input{grid-column:2;grid-row:1/span 2;width:auto}
-.overlay-editor .overlay-remove-layer{margin-top:10px}
 @media(max-width:1250px){.overlay-editor .overlay-layer-body,.overlay-editor .overlay-control-grid{grid-template-columns:1fr}}
 @media(max-width:980px){.overlay-editor .overlay-layer-body,.overlay-editor .overlay-control-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){.overlay-editor .overlay-layer-body,.overlay-editor .overlay-control-grid{grid-template-columns:1fr}}

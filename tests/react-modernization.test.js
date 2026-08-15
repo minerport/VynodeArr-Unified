@@ -1332,7 +1332,57 @@ test('poster overlay layer settings cards minimize independently inside the seco
   assert.doesNotMatch(source,/layerSettingsMinimized|Minimize layer settings/);
   assert.match(layout,/\.overlay-layer-editor\.selected\{border-color:var\(--accent\)!important\}/);
   assert.match(layout,/\.overlay-layer-editor\[open\]>summary/);
+  assert.match(source,/className="layer-collapse"/);
+  assert.match(source,/className="danger overlay-remove-layer"/);
+  assert.match(layout,/\.layer-actions/);
   assert.doesNotMatch(layout,/layer-settings-minimized|overlay-editor-fields\.minimized/);
+});
+
+test('poster overlay layers support naming, locking, drag ordering, and professional effects',async()=>{
+  const [source,rail,types,identity]=await Promise.all([read('apps/web/client/src/poster-overlays.tsx'),read('apps/web/client/src/poster-overlay-editor-rail.tsx'),read('apps/web/client/src/poster-overlays-types.ts'),read('apps/web/client/src/poster-overlay-layer-identity.tsx')]);
+  assert.match(identity,/Lock position and size/);assert.match(source,/layer\.locked \|\| !drag/);assert.match(identity,/Rotation/);assert.match(identity,/Text outline/);assert.match(identity,/Shadow<select/);
+  assert.match(rail,/draggable onDragStart/);assert.match(rail,/onChange\(\{layers\}\)/);assert.match(rail,/layer\.name/);
+  assert.match(types,/locked\?: boolean/);assert.match(types,/textStrokeWidth\?: number/);
+});
+
+test('poster overlay studio uploads reusable managed image and logo layers',async()=>{
+  const [rail,identity,icons,types,presets]=await Promise.all([read('apps/web/client/src/poster-overlay-editor-rail.tsx'),read('apps/web/client/src/poster-overlay-layer-identity.tsx'),read('apps/web/client/src/poster-overlay-icons.tsx'),read('apps/web/client/src/poster-overlays-types.ts'),read('apps/web/client/src/poster-overlay-item-presets.ts')]);
+  assert.match(rail,/\/api\/poster-overlays\/assets/);assert.match(rail,/image\/jpeg,image\/png,image\/webp/);assert.match(rail,/Images &amp; logos/);assert.match(presets,/kind:"image"/);assert.match(identity,/Image fit/);assert.match(icons,/kind==="image"/);assert.match(types,/assetId\?: string/);
+});
+
+test('poster overlay groups can reflow as aligned rows or vertical stacks',async()=>{
+  const [rail,types,service]=await Promise.all([read('apps/web/client/src/poster-overlay-editor-rail.tsx'),read('apps/web/client/src/poster-overlays-types.ts'),read('packages/platform/src/poster-overlay-service.js')]);
+  assert.match(rail,/Selected group layout/);assert.match(rail,/Horizontal row/);assert.match(rail,/Vertical stack/);assert.match(rail,/Reflow group/);assert.match(rail,/resolvedGap/);assert.match(types,/groupLayout\?: "free" \| "row" \| "column"/);assert.match(service,/groupGap: Math\.max\(0, Math\.min\(10/);
+});
+test('poster overlay groups can be saved and inserted as reusable components',async()=>{
+  const rail=await read('apps/web/client/src/poster-overlay-editor-rail.tsx'),types=await read('apps/web/client/src/poster-overlays-types.ts'),service=await read('packages/platform/src/poster-overlay-service.js'),api=await read('apps/api/src/app.js');
+  for(const value of ['Reusable components','Save selection as component','componentInstanceId','insertComponent'])assert.match(rail,new RegExp(value));
+  assert.match(types,/components\?: Array/);assert.match(service,/const components=Array\.isArray\(input\.components\)/);
+  assert.match(api,/template\.components/);
+});
+test('reusable overlay components synchronize linked copies with scoped overrides',async()=>{
+  const rail=await read('apps/web/client/src/poster-overlay-editor-rail.tsx'),identity=await read('apps/web/client/src/poster-overlay-layer-identity.tsx'),types=await read('apps/web/client/src/poster-overlays-types.ts'),service=await read('packages/platform/src/poster-overlay-service.js');
+  for(const value of ['Update component and linked copies','Detach selected copy','syncComponent','protectedKeys','componentLayerId'])assert.match(rail,new RegExp(value));
+  for(const value of ['Component overrides','Content','Appearance','Position & size','Visibility & conditions'])assert.match(identity,new RegExp(value.replace('&','&')));
+  assert.match(types,/componentOverrides/);assert.match(service,/componentOverrides:/);
+});
+test('poster overlay template packs include assets and remap imported identities',async()=>{
+  const tools=await read('apps/web/client/src/poster-overlay-template-pack.ts'),studio=await read('apps/web/client/src/poster-overlays.tsx');
+  for(const value of ['version:2','templateLayers','dataUrl','importTemplatePack','assetIds','componentIds','definitionIds','instanceIds','Promise.allSettled','missing a referenced image','referenced.has'])assert.match(tools,new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
+  assert.match(studio,/Export pack/);assert.match(studio,/await importTemplatePack/);
+});
+test('poster overlay precision canvas supports guides, snapping, zoom, and keyboard movement',async()=>{
+  const [studio,controls,tools]=await Promise.all([read('apps/web/client/src/poster-overlays.tsx'),read('apps/web/client/src/poster-overlay-canvas-tools.tsx'),read('apps/web/client/src/poster-overlay-editor-tools.tsx')]);
+  for(const value of ['Canvas zoom','Grid','Safe area','Snap','ArrowLeft','event.shiftKey?5:1','event.altKey?.1','keydown'])assert.match(controls,new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
+  assert.match(studio,/canvasView\?\.snap/);assert.match(studio,/overlay-canvas-grid/);assert.match(studio,/overlay-canvas-safe/);assert.match(studio,/nudgeLayers/);
+  assert.match(tools,/export function nudgeLayers/);assert.match(tools,/layer\.locked/);assert.match(tools,/groups\.has\(layer\.groupId\)/);
+});
+test('poster overlay completion workflow reviews imports and validates real-title results',async()=>{
+  const [studio,pack,review,quality,application]=await Promise.all([read('apps/web/client/src/poster-overlays.tsx'),read('apps/web/client/src/poster-overlay-template-pack.ts'),read('apps/web/client/src/poster-overlay-import-review.tsx'),read('apps/web/client/src/poster-overlay-quality.tsx'),read('apps/web/client/src/poster-overlay-application-review.tsx')]);
+  assert.match(pack,/inspectTemplatePack/);assert.match(studio,/setImportReview/);assert.match(review,/Review import/);assert.match(review,/Import as a separate copy/);assert.match(review,/Replace existing style and keep assignments/);assert.match(review,/Images are not uploaded yet/);
+  for(const value of ['Real-title preview matrix','broken component link','outside the poster bounds','unknown metadata','contradictory conditions'])assert.match(quality,new RegExp(value));
+  assert.match(studio,/qualityIssues\.some\(issue=>issue\.severity==="error"\)/);assert.match(studio,/role=\{onLayerSelect\?"button"/);assert.match(studio,/tabIndex=\{onLayerSelect\?0/);
+  assert.match(application,/Exact before and after/);assert.match(application,/Retry application/);assert.match(application,/No assignment was saved/);assert.match(studio,/Titles will immediately return to the remaining assigned styles or their original artwork/);
 });
 
 test('poster overlay editor remains inside its viewport without deferred toggle event access',async()=>{
@@ -1344,9 +1394,9 @@ test('poster overlay editor remains inside its viewport without deferred toggle 
 });
 
 test('poster overlay previews retain layers with representative missing metadata values',async()=>{
-  const source=await read('apps/web/client/src/poster-overlays.tsx');
+  const source=await read('apps/web/client/src/poster-overlays.tsx'),content=await read('apps/web/client/src/poster-overlay-icons.tsx');
   assert.match(source,/resolved != null && String\(resolved\)\.trim\(\)/);
-  assert.match(source,/!String\(previewValues\[rule\.variable\] \?\? ""\)\.trim\(\)/);
+  assert.match(source,/hydratePreviewValues/);assert.match(content,/!String\(values\[key\]\?\?""\)\.trim\(\)/);
   assert.match(source,/variable==="plex_days_since_added"/);
   assert.match(source,/media\?\.addedAt/);
   assert.match(source,/return "1"/);
@@ -1391,6 +1441,13 @@ test('poster overlay editor provides bounded layer fields and a shape library',a
   for(const shape of ['rounded','square','pill','circle','ticket','ribbon','tag','hexagon','chevron'])assert.ok(rail.includes(shape),shape);
   assert.match(layout,/overlay-layer-body input/);assert.match(layout,/min-width:0/);
   assert.match(layout,/overlay-preview-column>label select\{box-sizing:border-box;width:100%;min-width:0\}/);
+});
+
+test('poster overlay layers support metadata expressions and missing-value fallbacks',async()=>{
+  const identity=await read('apps/web/client/src/poster-overlay-layer-identity.tsx'),types=await read('apps/web/client/src/poster-overlays-types.ts'),service=await read('packages/platform/src/poster-overlay-service.js'),preview=await read('apps/web/client/src/poster-overlays.tsx');
+  for(const value of ['Content template','When all values are missing','Fallback text'])assert.match(identity,new RegExp(value));
+  for(const value of ['contentTemplate','fallbackText','missingBehavior'])assert.match(types,new RegExp(value));
+  assert.match(service,/resolveOverlayLayerContent/);assert.match(preview,/resolveLayerContent/);
 });
 
 test('poster overlay editor offers editable polished quick items',async()=>{
@@ -1719,9 +1776,9 @@ test('poster overlay studio supports reusable layouts, portable templates, recov
   const [studio,rail,tools,layer,review,styles,platform]=await Promise.all([
     read('apps/web/client/src/poster-overlays.tsx'),read('apps/web/client/src/poster-overlay-editor-rail.tsx'),read('apps/web/client/src/poster-overlay-editor-tools.tsx'),read('apps/web/client/src/poster-overlay-layer.tsx'),read('apps/web/client/src/poster-overlay-application-review.tsx'),read('apps/web/client/src/poster-overlay-editor-layout.css'),read('packages/platform/src/poster-overlay-service.js')
   ]);
-  for(const value of ['selectedLayerIds','groupSelectedLayers','transformLayers','Save current as variant','vynodearr.poster-overlay-draft','validateImportedTemplate','downloadTemplate','editorAccessibilityIssues','Why conditions did or did not match'])assert.ok(studio.includes(value),value);
+  for(const value of ['selectedLayerIds','groupSelectedLayers','transformLayers','Save current as variant','vynodearr.poster-overlay-draft','poster-overlay-template-pack','editorAccessibilityIssues','Why conditions did or did not match'])assert.ok(studio.includes(value),value);
   assert.match(rail,/event\.ctrlKey \|\| event\.metaKey \|\| event\.shiftKey/);
-  for(const value of ['export function transformLayers','accessibilityIssues','validateImportedTemplate','downloadTemplate'])assert.ok(tools.includes(value),value);
+  for(const value of ['export function transformLayers','accessibilityIssues'])assert.ok(tools.includes(value),value);
   assert.match(layer,/diagnostics/);assert.match(review,/overlay-application-summary/);assert.match(review,/currently skipped by layer conditions/);
   assert.match(styles,/overlay-layout-tools/);assert.match(styles,/overlay-accessibility/);assert.match(styles,/overlay-condition-diagnostics/);assert.match(styles,/overlay-draft-recovery/);
   assert.match(platform,/const variants = Array\.isArray\(input\.variants\)/);assert.match(platform,/variants,/);

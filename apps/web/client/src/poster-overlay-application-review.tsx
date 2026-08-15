@@ -82,6 +82,7 @@ export default function ApplicationReview({
   label,
   items,
   busy,
+  error,
   onCancel,
   onConfirm,
 }: {
@@ -89,6 +90,7 @@ export default function ApplicationReview({
   label: string;
   items: OverlayMedia[];
   busy: boolean;
+  error?: string;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
@@ -126,6 +128,8 @@ export default function ApplicationReview({
                 <div><strong>{template.layers.filter(layer=>layer.enabled).length}</strong><small>enabled layers per matching title</small></div>
               </div>
               {withoutVisibleLayers?<div className="notice warning"><strong>Some titles do not currently match a visible layer</strong><p>They remain in the assignment and will be reevaluated automatically when their metadata changes.</p></div>:null}
+              {busy?<div className="notice" role="status" aria-live="polite"><strong>Applying reviewed assignment…</strong><p>The assignment is being saved. Keep this window open until it completes.</p></div>:null}
+              {error?<div className="notice warning" role="alert"><strong>Application failed</strong><p>{error}</p><small>No assignment was saved. Correct the problem or retry safely.</small></div>:null}
               <div className="overlay-media-picker">
                 {items.slice(0, 8).map((item) => (
                   <label key={item.id}>
@@ -165,7 +169,8 @@ export default function ApplicationReview({
               </p>
               {sample ? (
                 <>
-                  <strong>Final VynodeArr preview</strong>
+                  <strong>Exact before and after</strong>
+                  <div className="overlay-before-after"><figure><div className="overlay-application-preview" style={{backgroundImage:`url(${sample.artwork?.originalUrl || sample.artwork?.url})`}}/><figcaption>Original</figcaption></figure><figure>
                   <div
                     className="overlay-application-preview"
                     style={{
@@ -185,7 +190,7 @@ export default function ApplicationReview({
                       ) : null;
                     })}
                     <LibraryChrome media={sample} />
-                  </div>
+                  </div><figcaption>With overlay</figcaption></figure></div>
                 </>
               ) : null}
             </div>
@@ -195,7 +200,7 @@ export default function ApplicationReview({
               Cancel
             </button>
             <button className="primary" disabled={busy} onClick={onConfirm}>
-              {busy ? "Applying…" : "Apply to VynodeArr"}
+              {busy ? "Applying…" : error ? "Retry application" : "Apply to VynodeArr"}
             </button>
           </footer>
         </section>
