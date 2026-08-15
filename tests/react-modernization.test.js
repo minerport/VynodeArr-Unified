@@ -1382,10 +1382,13 @@ test('poster overlay canvas remains full width inside the editor preview column'
   assert.match(layout,/\.overlay-editor \.overlay-preview-column\{[^}]*grid-template-columns:minmax\(0,1fr\)/);
   assert.match(layout,/\.overlay-editor \.overlay-preview-column>\*\{grid-column:1\/-1\}/);
 });
-test('poster overlay columns grow with their content and share the editor scroll',async()=>{
+test('poster overlay desktop columns scroll independently without clipping content',async()=>{
   const layout=await read('apps/web/client/src/poster-overlay-editor-layout.css');
-  assert.match(layout,/\.overlay-editor \.overlay-editor-grid\{[^}]*align-items:start[^}]*overflow-y:auto/);
-  assert.match(layout,/\.overlay-editor \.overlay-editor-rail,[^{]+\{[^}]*height:max-content[^}]*max-height:none[^}]*overflow:visible/);
+  assert.match(layout,/\.overlay-editor \.overlay-editor-grid\{[^}]*align-items:stretch[^}]*overflow:hidden/);
+  assert.match(layout,/\.overlay-editor \.overlay-editor-rail,[^{]+\{[^}]*height:100%[^}]*overflow:auto/);
+  assert.match(layout,/\.overlay-editor \.overlay-preview-column\{[^}]*height:100%[^}]*overflow:auto/);
+  assert.match(layout,/\.overlay-editor \.overlay-layout-actions\{grid-template-columns:repeat\(4,1fr\)/);
+  assert.match(layout,/\.overlay-editor \.overlay-quality>header\{[^}]*height:auto!important[^}]*overflow:visible/);
   assert.doesNotMatch(layout,/max-height:540px/);
 });
 test('poster overlay completion workflow reviews imports and validates real-title results',async()=>{
