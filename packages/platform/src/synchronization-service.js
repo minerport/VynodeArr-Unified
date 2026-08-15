@@ -1,7 +1,7 @@
 import {PriorityWorkQueue} from './priority-work-queue.js';
 
 export class SynchronizationService {
-  constructor({movie,tv,maxItems=5000,pollIntervalMs=300000,projectionStore=null}) {
+  constructor({movie,tv,maxItems=Infinity,pollIntervalMs=300000,projectionStore=null}) {
     this.engines={movie,tv};this.maxItems=maxItems;this.pollIntervalMs=pollIntervalMs;this.projectionStore=projectionStore;
     this.domainRuns=new Map();this.itemRuns=new Map();this.workQueues={movie:new PriorityWorkQueue(),tv:new PriorityWorkQueue()};this.startupRun=null;this.operationsRun=null;this.fullSyncListeners=new Set();
     this.metrics={catalogReads:0,engineReads:0,fullReconciliations:0,targetedReconciliations:0};
@@ -31,7 +31,7 @@ export class SynchronizationService {
     try{
       this.metrics.engineReads++;this.metrics.fullReconciliations++;
       const items=domain==='movie'?await this.engines.movie.listMovies({limit:this.maxItems}):await this.engines.tv.listSeries({limit:this.maxItems});
-      const bounded=items.slice(0,this.maxItems);const projection=this.projectionStore?await this.projectionStore.replaceDomain(domain,bounded):{updated:bounded.length,total:bounded.length};
+      const bounded=Number.isFinite(this.maxItems)?items.slice(0,this.maxItems):items;const projection=this.projectionStore?await this.projectionStore.replaceDomain(domain,bounded):{updated:bounded.length,total:bounded.length};
       if(typeof this.projectionStore?.queryDomain!=='function')this.cache.set(domain,{items:bounded,cachedAt:new Date().toISOString()});
       const completedAt=new Date().toISOString();Object.assign(this.state[domain],{status:'ready',lastSuccess:completedAt,lastFullSync:completedAt,lastFailure:null,safeError:null,durationMs:Date.now()-started,itemCount:bounded.length,itemsUpdated:projection.updated,itemsRemoved:projection.removed||0,source:'full-reconciliation'});
       for(const listener of this.fullSyncListeners)try{listener({domain,itemsUpdated:projection.updated,itemsRemoved:projection.removed||0,itemCount:bounded.length,updatedAt:completedAt});}catch{}

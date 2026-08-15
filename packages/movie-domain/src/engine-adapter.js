@@ -33,7 +33,7 @@ export class MovieEngineAdapter {
     const cutoffIds = cutoff.value instanceof Set ? cutoff.value : new Set();
     return { queueById, cutoffIds };
   }
-  async listMovies({ limit = 5000 } = {}) {
+  async listMovies({ limit = Infinity } = {}) {
     const value = await this.client.get('movie', { excludeLocalCovers: true }, { maxResponseBytes: 128 * 1024 * 1024 });
     if (!Array.isArray(value)) throw engineError.invalid();
     const context = await this.#context();

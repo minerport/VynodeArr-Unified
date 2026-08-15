@@ -18,7 +18,7 @@ const calendar=series.filter((item)=>item.nextEpisode).map((item,i)=>({id:`tv_ca
 
 export class TvFixtureAdapter {
   constructor(config={enabled:true,displayName:'TV'}){this.config=config;}
-  async listSeries({limit=5000}={}){return series.slice(0,Math.min(limit,5000)).map(({backdrop,seasons,...summary})=>summary);}
+  async listSeries({limit=Infinity}={}){return series.slice(0,limit).map(({backdrop,seasons,...summary})=>summary);}
   async getSeries(id){const item=series.find((candidate)=>candidate.id===id);return item?{...item,recentHistory:history.filter((event)=>event.mediaId===id),calendar:calendar.filter((event)=>event.mediaId===id)}:null;}
   async getSeriesSummary(id){return series.find((item)=>item.id===id)||null;}
   async getSeriesFileMetadata(id){const item=series.find(candidate=>candidate.id===id);if(!item)return[];return[{quality:'WEBDL-1080p',resolution:'1080p',videoCodec:'HEVC',audioCodec:'EAC3',audioChannels:'5.1',dynamicRange:'HDR10',source:'WEB-DL',languages:['English'],subtitleLanguages:['English'],bitrate:8500000,edition:null,releaseGroup:'ReviewGroup',customFormats:['HDR','Surround'],customFormatScore:120,size:4294967296,dateAdded:'2026-07-30T12:00:00Z'}];}

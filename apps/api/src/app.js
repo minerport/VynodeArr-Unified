@@ -2704,7 +2704,6 @@ export function createApplication(options = {}) {
     new SynchronizationService({
       movie: movie,
       tv: tv,
-      maxItems: baseConfig.cacheMaxItems,
       pollIntervalMs: integrityIntervalMs,
       projectionStore: projectionStore,
     });
@@ -5584,9 +5583,7 @@ export function createApplication(options = {}) {
           label: domain === "movie" ? "Movie library" : "Series library",
           endpoint: domain === "movie" ? "/api/v3/movie" : "/api/v3/series",
           run: () =>
-            domain === "movie"
-              ? adapter.listMovies({ limit: 1e4 })
-              : adapter.listSeries({ limit: 1e4 }),
+            domain === "movie" ? adapter.listMovies() : adapter.listSeries(),
         },
         {
           key: "queue",

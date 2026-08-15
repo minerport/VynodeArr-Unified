@@ -667,6 +667,13 @@ installation continues to work without additional configuration.
 9. Use **All engines** on library and activity pages for a combined view, or
    select one named instance to inspect and manage it independently.
 
+Connection validation and synchronization retain every movie or television
+title returned by the configured engines; library page sizes only control how
+many stored titles are displayed per request. Large Radarr responses use an
+expanded bounded transport allowance and exclude local-cover payloads, while an
+isolated malformed movie record is skipped without rejecting the valid
+connection or the rest of its library.
+
 When adding or requesting a title, VynodeArr carries the chosen destination and
 engine through approval, search, grab, queue, import, history, and notification
 links. Two instances may have the same native numeric title ID without being

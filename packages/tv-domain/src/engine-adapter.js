@@ -31,7 +31,7 @@ export class TvEngineAdapter {
       monitoredMissingBySeriesId
     };
   }
-  async listSeries({ limit = 5000 } = {}) {
+  async listSeries({ limit = Infinity } = {}) {
     const value = await this.client.get('series');
     if (!Array.isArray(value)) throw engineError.invalid();
     const context = await this.#context({includeMissing:false});

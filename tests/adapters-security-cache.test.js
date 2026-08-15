@@ -169,6 +169,13 @@ test('bounded cache reuses data, invalidates, and recovers stale values',async()
   let calls=0;const movie=new MovieFixtureAdapter();const original=movie.listMovies.bind(movie);movie.listMovies=async(...args)=>{calls++;return original(...args);};const sync=new SynchronizationService({movie,tv:new TvFixtureAdapter(),maxItems:2,pollIntervalMs:999999});
   assert.equal((await sync.list('movie')).length,2);await sync.list('movie');assert.equal(calls,1);sync.invalidate('movie');await sync.list('movie');assert.equal(calls,2);movie.listMovies=async()=>{throw new Error('private failure');};assert.equal((await sync.synchronize('movie')).length,2);assert.equal(sync.snapshot().movie.status,'stale');
 });
+test('production synchronization imports every title without a catalog ceiling',async()=>{
+  const movies=Array.from({length:10001},(_,index)=>({id:`movie_${index+1}`,title:`Movie ${index+1}`}));
+  const movie={listMovies:async options=>{assert.equal(options.limit,Infinity);return movies;}};
+  const sync=new SynchronizationService({movie,tv:new TvFixtureAdapter(),pollIntervalMs:999999});
+  assert.equal((await sync.synchronize('movie')).length,10001);
+  assert.equal(sync.snapshot().movie.itemCount,10001);
+});
 test('optional engine reads distinguish a missing title from an unavailable engine',async()=>{
   const server=createServer((req,res)=>{res.writeHead(req.url.includes('/404')?404:503,{'content-type':'application/json'});res.end('{}');});await new Promise((resolve)=>server.listen(0,'127.0.0.1',resolve));
   const client=new ReadOnlyEngineClient({enabled:true,host:'127.0.0.1',port:server.address().port,https:false,urlBase:'',apiCredential:'secret',timeoutMs:100,retries:0,tlsVerify:true},'Movie');

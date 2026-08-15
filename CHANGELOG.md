@@ -41,6 +41,9 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Made large Radarr library validation use a bounded larger response and ignore
   isolated malformed movie records instead of rejecting an otherwise valid
   connection.
+- Removed the 10,000-title external-engine validation ceiling and the 5,000-title
+  synchronization ceiling so complete movie and television catalogs are retained
+  across single or multiple engine instances.
 - Preserved component synchronization and managed-image references across
   poster-pack export and import, including rollback of partially uploaded
   assets when an import fails.
