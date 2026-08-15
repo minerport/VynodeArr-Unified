@@ -908,8 +908,12 @@ test('dashboard loading, caching, and refresh ownership live in typed React',asy
     read('apps/web/client/src/app-shell.ts')
   ]);
   assert.match(dashboard,/export function DashboardRoute/);
-  assert.match(dashboard,/options\.request<DashboardData>\(`\/api\/dashboard\?engineInstanceId=\$\{encodeURIComponent\(engineInstanceId\)\}`\)/);
-  assert.match(dashboard,/sessionStorage\.setItem\(dashboardSnapshotKey/);
+  assert.match(dashboard,/movieEngineInstanceId=\$\{encodeURIComponent\(movieEngineId\)\}&tvEngineInstanceId=\$\{encodeURIComponent\(tvEngineId\)\}/);
+  assert.match(dashboard,/sessionStorage\.setItem\(snapshotKey/);
+  assert.match(dashboard,/DashboardEngineFilter domain="movie"/);
+  assert.match(dashboard,/DashboardEngineFilter domain="tv"/);
+  assert.match(dashboard,/All \{label\.toLowerCase\(\)\}/);
+  assert.match(dashboard,/localStorage\.setItem\(selectionKey\(domain\),value\)/);
   assert.match(dashboard,/useVisibleRefresh\(load,15_000\)/);
   assert.match(types,/interface DashboardMountOptions/);
   assert.match(islands,/DashboardRoute options=\{options\}/);

@@ -61,6 +61,8 @@ export interface RecentlyAddedItem {
   year?:number;
   type?:string;
   timestamp?:string;
+  engineInstanceId?:string|null;
+  engineInstanceName?:string|null;
 }
 
 export interface RecentActivityItem {
@@ -71,6 +73,8 @@ export interface RecentActivityItem {
   dateUtc?:string;
   timestamp?:string;
   eta?:string;
+  engineInstanceId?:string|null;
+  engineInstanceName?:string|null;
 }
 
 export interface UpcomingItem {
@@ -88,6 +92,10 @@ export interface DashboardData {
   analytics?:DashboardAnalytics;
   recentlyAdded?:RecentlyAddedItem[];
   recentActivity?:RecentActivityItem[];
+  scope?:{
+    movie:{id:string;name:string;instanceCount:number};
+    tv:{id:string;name:string;instanceCount:number};
+  };
   engines?:{
     configured?:boolean;
     mode?:string;

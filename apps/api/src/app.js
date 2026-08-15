@@ -15892,12 +15892,14 @@ export function createApplication(options = {}) {
         }
         if (url.pathname === "/api/dashboard") {
           if (!permitted(res, session, "dashboard")) return;
-          const requestedDashboardInstance=String(url.searchParams.get("engineInstanceId")||"all");
-          if (requestedDashboardInstance==="all"&&dashboardSnapshot && dashboardSnapshotExpires > Date.now())
+          const movieDashboardId=String(url.searchParams.get("movieEngineInstanceId")||"all"),tvDashboardId=String(url.searchParams.get("tvEngineInstanceId")||"all"),dashboardInstances=engineSettings.public().instances.filter(item=>item.enabled!==false),movieDashboardInstances=dashboardInstances.filter(item=>item.domain==="movie"),tvDashboardInstances=dashboardInstances.filter(item=>item.domain==="tv"),selectedMovieDashboard=movieDashboardId==="all"?null:movieDashboardInstances.find(item=>item.id===movieDashboardId),selectedTvDashboard=tvDashboardId==="all"?null:tvDashboardInstances.find(item=>item.id===tvDashboardId),combinedDashboard=movieDashboardId==="all"&&tvDashboardId==="all";
+          if(movieDashboardId!=="all"&&!selectedMovieDashboard)return json(res,404,{error:"Choose an available movie engine instance"});
+          if(tvDashboardId!=="all"&&!selectedTvDashboard)return json(res,404,{error:"Choose an available TV engine instance"});
+          if (combinedDashboard&&dashboardSnapshot && dashboardSnapshotExpires > Date.now())
             return json(res, 200, dashboardSnapshot, {
               "x-vynodearr-cache": "hit",
             });
-          if (!dashboardSnapshotRun||requestedDashboardInstance!=="all") {
+          if (!dashboardSnapshotRun||!combinedDashboard) {
             const currentDashboardRun = (async () => {
               const [
                   rawMovies,
@@ -15914,10 +15916,10 @@ export function createApplication(options = {}) {
                   dashboardHistory(30),
                   sync.operations("calendar"),
                   sync.operations("health"),
-                  management.execute("tv", "profiles", "GET").catch(() => []),
+                  management.execute("tv", "profiles", "GET", {engineInstanceId:selectedTvDashboard?.id||null}).catch(() => []),
                 ]),
-                owns=item=>requestedDashboardInstance==="all"||item.engineInstanceId===requestedDashboardInstance,
-                movies=rawMovies.filter(owns),tvItems=rawTvItems.filter(owns),queue=rawQueue.filter(owns),history=rawHistory.filter(owns),calendar=rawCalendar.filter(owns),health=rawHealth.filter(owns),
+                owns=(item,domain)=>String(domain==="movie"?movieDashboardId:tvDashboardId)==="all"||String(item.engineInstanceId||"")===String(domain==="movie"?movieDashboardId:tvDashboardId),
+                movies=rawMovies.filter(item=>owns(item,"movie")),tvItems=rawTvItems.filter(item=>owns(item,"tv")),queue=rawQueue.filter(item=>owns(item,item.domain)),history=rawHistory.filter(item=>owns(item,item.domain)),calendar=rawCalendar.filter(item=>owns(item,item.domain)),health=rawHealth.filter(item=>owns(item,item.domain)),
                 profileNames = {
                   tv: new Map(
                     (Array.isArray(tvProfiles) ? tvProfiles : []).map(
@@ -15943,7 +15945,7 @@ export function createApplication(options = {}) {
                 seen = new Set(),
                 recentlyAdded = [];
               for (const item of recentImports) {
-                const key = `${item.domain}:${item.mediaId || item.title}`;
+                const key = `${item.domain}:${item.engineInstanceId||"default"}:${item.mediaId || item.title}`;
                 if (seen.has(key)) continue;
                 seen.add(key);
                 recentlyAdded.push({
@@ -15951,6 +15953,8 @@ export function createApplication(options = {}) {
                   title: item.title,
                   type: item.domain === "movie" ? "Movie" : "TV",
                   timestamp: item.timestamp,
+                  engineInstanceId:item.engineInstanceId||null,
+                  engineInstanceName:item.engineInstanceName||dashboardInstances.find(instance=>instance.id===item.engineInstanceId)?.name||null,
                 });
                 if (recentlyAdded.length === 6) break;
               }
@@ -15974,6 +15978,7 @@ export function createApplication(options = {}) {
                     mediaId: item.mediaId || null,
                   }));
               return {
+                scope:{movie:{id:movieDashboardId,name:selectedMovieDashboard?.name||"All movie engines",instanceCount:movieDashboardInstances.length},tv:{id:tvDashboardId,name:selectedTvDashboard?.name||"All TV engines",instanceCount:tvDashboardInstances.length}},
                 metrics: {
                   movies: movies.length,
                   tv: tvItems.length,
@@ -16001,7 +16006,7 @@ export function createApplication(options = {}) {
                 upcoming: upcoming,
                 analytics: analytics,
                 recentlyAdded: recentlyAdded,
-                recentActivity: history.slice(0, 8),
+                recentActivity: history.slice(0, 8).map(item=>({...item,engineInstanceName:item.engineInstanceName||dashboardInstances.find(instance=>instance.id===item.engineInstanceId)?.name||null})),
                 engines: {
                   configured: engineSettings.configured(),
                   mode: mode,
@@ -16009,7 +16014,7 @@ export function createApplication(options = {}) {
                 },
               };
             })();
-            if(requestedDashboardInstance!=="all")return json(res,200,await currentDashboardRun,{"x-vynodearr-cache":"isolated"});
+            if(!combinedDashboard)return json(res,200,await currentDashboardRun,{"x-vynodearr-cache":"isolated"});
             dashboardSnapshotRun=currentDashboardRun;
           }
           try {

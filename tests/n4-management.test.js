@@ -238,7 +238,8 @@ test('multi-engine browser behavior remains owned by typed React routes',async()
   for(const source of [control,management,library,guideTemplates])assert.match(source,/engineInstance|EngineInstance/);
   assert.match(control,/useEngineInstance/);
   assert.match(guideTemplates,/EngineInstanceSelect/);
-  for(const source of [wanted,queue,history,calendar,health,dashboard,operations])assert.match(source,/EngineInstanceFilter/);
+  for(const source of [wanted,queue,history,calendar,health,operations])assert.match(source,/EngineInstanceFilter/);
+  assert.match(dashboard,/DashboardEngineFilter/);
   for(const source of [requests,notifications])assert.match(source,/engineInstance/);
 });
 
