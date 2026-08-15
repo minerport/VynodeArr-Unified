@@ -1313,7 +1313,7 @@ test('poster overlay layer selection scrolls settings into view and new layers s
   const source=await read('apps/web/client/src/poster-overlays.tsx');
   assert.match(source,/scrollLayerSettings\(selectedLayerId\)/);
   assert.match(source,/scrollIntoView\(\{behavior:"smooth",block:"start"\}\)/);
-  assert.match(source,/onLayerSelect\?\.\(layer\.id\)/);
+  assert.match(source,/onLayerSelect\?\.\([\s\S]*?layer\.id,[\s\S]*?event\.ctrlKey \|\| event\.metaKey \|\| event\.shiftKey,[\s\S]*?\)/);
   assert.match(source,/requestAnimationFrame\(\(\)=>scrollLayerSettings\(id\)\)/);
   assert.match(source,/onSelect=\{selectLayer\}/);
   assert.match(source,/onLayerSelect=\{selectLayer\}/);

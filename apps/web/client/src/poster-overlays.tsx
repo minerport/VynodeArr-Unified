@@ -197,14 +197,16 @@ function Preview({
   onLayerChange,
   onLayerSelect,
   selectedLayerId,
+  selectedLayerIds = [],
 }: {
   template: OverlayTemplate;
   poster?: string;
   media?: OverlayMedia;
   target?: "vynode" | "plex";
   onLayerChange?: (id: string, changes: Partial<OverlayLayer>) => void;
-  onLayerSelect?: (id: string) => void;
+  onLayerSelect?: (id: string, additive?: boolean) => void;
   selectedLayerId?: string;
+  selectedLayerIds?: string[];
 }) {
   const [drag, setDrag] = useState<{
     id: string;
@@ -265,8 +267,8 @@ function Preview({
             : 0;
         return (
           <OverlayLayerView
-            className={`overlay-preview-layer${selectedLayerId === layer.id ? " selected" : ""}`}
-            title="Drag to move · pull the blue corner to resize"
+            className={`overlay-preview-layer${selectedLayerIds.includes(layer.id) || selectedLayerId === layer.id ? " selected" : ""}`}
+            title="Click to select · Ctrl/Cmd-click or Shift-click to select several · drag to move · pull the blue corner to resize"
             key={layer.id}
             layer={resolvedLayer}
             style={{
@@ -274,7 +276,10 @@ function Preview({
               touchAction: "none",
             }}
             onPointerDown={(event) => {
-              onLayerSelect?.(layer.id);
+              onLayerSelect?.(
+                layer.id,
+                event.ctrlKey || event.metaKey || event.shiftKey,
+              );
               if (!onLayerChange) return;
               const rect = event.currentTarget.getBoundingClientRect();
               event.currentTarget.setPointerCapture(event.pointerId);
@@ -1250,7 +1255,7 @@ export function PosterOverlaysView({
                 </Suspense>
                 <div className="overlay-editor-fields">
                   <section className="overlay-layout-tools" aria-label="Layer layout tools">
-                    <div><strong>Arrange layers</strong><small className="muted">Ctrl/Cmd-click or Shift-click layer names to select several. Grouped layers move together on the poster.</small></div>
+                    <div><strong>Arrange layers</strong><small className="muted">Select layer names in the left column or select items directly on the preview. Ctrl/Cmd-click or Shift-click to select several. Grouped layers move together on the poster.</small></div>
                     <div className="overlay-layout-actions">
                       <button className="secondary" disabled={selectedLayerIds.length<2} onClick={groupSelectedLayers}>Group</button>
                       <button className="secondary" disabled={!selectedLayerIds.length} onClick={ungroupSelectedLayers}>Ungroup</button>
@@ -1686,6 +1691,7 @@ export function PosterOverlaysView({
                     }
                     onLayerSelect={selectLayer}
                     selectedLayerId={selectedLayerId}
+                    selectedLayerIds={selectedLayerIds}
                     onLayerChange={(id, changes) =>
                       setEditing(current=>{
                         if(!current)return current;

@@ -7,6 +7,19 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.47-rc.1] - 2026-08-15
+
+### Changed
+
+- Extended overlay layer multi-selection to the poster preview: Ctrl/Cmd-click
+  or Shift-click preview items to select several layers, with every selected
+  item receiving the same visible selection treatment as the layer list.
+- Clarified that layers can be selected from either the left layer list or the
+  poster preview and prevented accidental browser text selection on layer
+  controls.
+- Condensed layer inspector spacing across content, placement, appearance, and
+  typography controls while retaining readable labels and usable control sizes.
+
 ## [2.0.46] - 2026-08-15
 
 ### Added

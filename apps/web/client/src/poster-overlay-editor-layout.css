@@ -10,11 +10,11 @@
 .overlay-editor .overlay-layer-editor.selected{border-color:var(--accent)!important}
 .overlay-editor .overlay-layer-editor>summary{display:flex!important;padding:10px 12px!important;border:0!important}
 .overlay-editor .overlay-layer-editor[open]>summary{border-bottom:1px solid var(--border)!important}
-.overlay-editor .overlay-layer-body{box-sizing:border-box;display:grid!important;width:100%!important;max-width:none!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:12px}
+.overlay-editor .overlay-layer-body{box-sizing:border-box;display:grid!important;width:100%!important;max-width:none!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:8px}
 .overlay-editor .overlay-layer-body>*{min-width:0;max-width:none}
 .overlay-editor .overlay-layer-body>.overlay-control-group,.overlay-editor .overlay-layer-body>.overlay-control-group-heading,.overlay-editor .overlay-layer-body>.overlay-layer-toggle,.overlay-editor .overlay-layer-body>.overlay-remove-layer{grid-column:1/-1;width:100%}
-.overlay-editor .overlay-control-group{display:grid;gap:12px;min-width:0}
-.overlay-editor .overlay-control-group-heading{display:grid;gap:4px;min-width:0;padding:0 0 10px;border-bottom:1px solid var(--border)}
+.overlay-editor .overlay-control-group{display:grid;gap:8px;min-width:0}
+.overlay-editor .overlay-control-group-heading{display:grid;gap:2px;min-width:0;padding:2px 0 6px;border-bottom:1px solid var(--border)}
 .overlay-editor .overlay-control-group-heading strong,.overlay-editor .overlay-control-group-heading small{min-width:0;line-height:1.4}
 .overlay-editor .overlay-control-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;width:100%;min-width:0}
 .overlay-editor .overlay-control-grid>*{min-width:0}
@@ -33,7 +33,7 @@
 .overlay-editor .overlay-save-guidance{min-width:0;margin:0 auto 0 0;color:var(--muted);font-size:.82rem;overflow-wrap:anywhere}
 .overlay-editor .overlay-setup-heading{display:grid;gap:3px;padding:0 0 12px;border-bottom:1px solid var(--border)}
 .overlay-editor .overlay-layer-list-empty,.overlay-editor .overlay-layer-empty p{margin:0;line-height:1.45}
-.overlay-editor-history-actions{display:flex!important;flex:0 0 auto!important;gap:8px}.overlay-editor-history-actions button{min-width:72px}.overlay-layer-list-row{display:grid;gap:6px;padding:6px;border:1px solid transparent;border-radius:10px}.overlay-layer-list-row.active{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,transparent)}.overlay-layer-select{display:grid!important;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:center;width:100%;text-align:left}.overlay-layer-row-actions{display:grid;grid-template-columns:44px 44px minmax(0,1fr);gap:6px}.overlay-layer-row-actions button{min-width:0;padding-inline:8px}
+.overlay-editor-history-actions{display:flex!important;flex:0 0 auto!important;gap:8px}.overlay-editor-history-actions button{min-width:72px}.overlay-layer-list-row{display:grid;gap:6px;padding:6px;border:1px solid transparent;border-radius:10px}.overlay-layer-list-row.active{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,transparent)}.overlay-layer-select{display:grid!important;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:center;width:100%;text-align:left;user-select:none}.overlay-layer-row-actions{display:grid;grid-template-columns:44px 44px minmax(0,1fr);gap:6px}.overlay-layer-row-actions button{min-width:0;padding-inline:8px}
 .overlay-editor .overlay-layer-empty{padding:28px 18px;text-align:center}
 .overlay-editor .overlay-layer-body>.notice{grid-column:1/-1;display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 10px;align-items:baseline;padding:10px 12px}
 .overlay-editor .overlay-layer-body>.notice strong,.overlay-editor .overlay-layer-body>.notice small{display:block;min-width:0;line-height:1.4}
