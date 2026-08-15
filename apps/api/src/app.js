@@ -3728,7 +3728,7 @@ export function createApplication(options = {}) {
       hasTmdbId = Number.isInteger(tmdbId) && tmdbId > 0,
       hasImdbId = /^tt\d+$/.test(imdbId);
     const execute = (resource, method, options = {}) =>
-      execute(resource, method, {
+      management.execute(domain, resource, method, {
         ...options,
         engineInstanceId: engineInstanceId,
       });
