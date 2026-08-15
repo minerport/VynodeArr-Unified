@@ -1377,6 +1377,11 @@ test('poster overlay precision canvas supports guides, snapping, zoom, and keybo
   assert.match(studio,/canvasView\?\.snap/);assert.match(studio,/overlay-canvas-grid/);assert.match(studio,/overlay-canvas-safe/);assert.match(studio,/nudgeLayers/);
   assert.match(tools,/export function nudgeLayers/);assert.match(tools,/layer\.locked/);assert.match(tools,/groups\.has\(layer\.groupId\)/);
 });
+test('poster overlay canvas remains full width inside the editor preview column',async()=>{
+  const layout=await read('apps/web/client/src/poster-overlay-editor-layout.css');
+  assert.match(layout,/\.overlay-editor \.overlay-preview-column\{[^}]*grid-template-columns:minmax\(0,1fr\)/);
+  assert.match(layout,/\.overlay-editor \.overlay-preview-column>\*\{grid-column:1\/-1\}/);
+});
 test('poster overlay completion workflow reviews imports and validates real-title results',async()=>{
   const [studio,pack,review,quality,application]=await Promise.all([read('apps/web/client/src/poster-overlays.tsx'),read('apps/web/client/src/poster-overlay-template-pack.ts'),read('apps/web/client/src/poster-overlay-import-review.tsx'),read('apps/web/client/src/poster-overlay-quality.tsx'),read('apps/web/client/src/poster-overlay-application-review.tsx')]);
   assert.match(pack,/inspectTemplatePack/);assert.match(studio,/setImportReview/);assert.match(review,/Review import/);assert.match(review,/Import as a separate copy/);assert.match(review,/Replace existing style and keep assignments/);assert.match(review,/Images are not uploaded yet/);

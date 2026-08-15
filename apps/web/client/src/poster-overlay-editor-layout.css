@@ -25,7 +25,8 @@
 .overlay-editor .overlay-control-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;width:100%;min-width:0}
 .overlay-editor .overlay-control-grid>*{min-width:0}
 .overlay-editor .overlay-layer-body input,.overlay-editor .overlay-layer-body select{box-sizing:border-box;width:100%;min-width:0;max-width:none}
-.overlay-editor .overlay-preview-column{grid-area:preview;box-sizing:border-box;display:grid;align-content:start;justify-items:center;gap:12px;min-width:0;width:100%;padding:14px;position:sticky;top:0;border:1px solid color-mix(in srgb,var(--border) 78%,transparent);border-radius:14px;background:color-mix(in srgb,var(--panel) 82%,#000 18%)}
+.overlay-editor .overlay-preview-column{grid-area:preview;box-sizing:border-box;display:grid;grid-template-columns:minmax(0,1fr);align-content:start;justify-items:center;gap:12px;min-width:0;width:100%;padding:14px;position:sticky;top:0;border:1px solid color-mix(in srgb,var(--border) 78%,transparent);border-radius:14px;background:color-mix(in srgb,var(--panel) 82%,#000 18%)}
+.overlay-editor .overlay-preview-column>*{grid-column:1/-1}
 .overlay-editor .overlay-preview-column>label{box-sizing:border-box;width:100%}
 .overlay-editor .overlay-preview-column>label select{box-sizing:border-box;width:100%;min-width:0}
 .overlay-editor .overlay-preview-column .overlay-preview{width:min(100%,300px)}
