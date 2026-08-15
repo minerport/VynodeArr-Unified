@@ -110,7 +110,7 @@ async function appSession(options,run){
   try{
     const setup=await fetch(`${base}/api/auth/setup`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(adminInput)}),result=await setup.json(),cookie=setup.headers.get('set-cookie').split(';')[0];
     await run({base,cookie,csrf:result.csrf,app});
-  }finally{server.closeAllConnections?.();await new Promise((resolve)=>server.close(resolve));app.sync.stopPolling();await rm(directory,{recursive:true,force:true});}
+  }finally{server.closeAllConnections?.();await new Promise((resolve)=>server.close(resolve));app.sync.stopPolling();await rm(directory,{recursive:true,force:true,maxRetries:5,retryDelay:50});}
 }
 test('Reeltrack lists keep API keys server-side and match library titles only by durable external IDs',()=>{
   let providerItemsState=[
