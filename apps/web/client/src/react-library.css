@@ -1,5 +1,10 @@
 .poster-overlay-layer{position:absolute;z-index:3;overflow:hidden;line-height:1.1;white-space:nowrap;pointer-events:none}
 .react-library-toolbar{flex-wrap:wrap}
+.react-library-engine-filter{display:grid;grid-template-columns:minmax(13rem,1fr) minmax(13rem,18rem);align-items:center;gap:.75rem;width:100%;padding:.65rem .75rem;border-bottom:1px solid var(--line);color:var(--muted)}
+.react-library-engine-filter>span{display:grid;gap:.12rem;min-width:0}
+.react-library-engine-filter strong{color:var(--text);font-size:.82rem}
+.react-library-engine-filter small{font-size:.68rem;font-weight:500}
+.react-library-engine-filter select{width:100%;min-width:0}
 .react-library-view-controls,.react-library-sort-controls{display:flex;align-items:center;gap:.4rem}
 .react-library-sort-controls .sort{min-width:10.5rem}
 .react-library-sort-controls .sort-direction{font-size:1rem;font-weight:800}
@@ -68,7 +73,8 @@
 @media(max-width:760px){.react-library-search{order:3;width:100%}.react-library-search input{flex:1;width:auto}.view-cards{grid-template-columns:1fr}.view-cards .react-library-card{grid-template-columns:6rem 1fr}.react-library .view-list .react-library-card .card-body{display:block}.view-list .react-library-list-details{margin-top:.9rem}.view-list .react-library-card-actions{margin-top:.9rem}.react-library-heading{display:block}.react-library-heading .library-status-badges{justify-content:flex-start;margin-top:.4rem}.library-alphabet-rail{display:none}.library-results-grid,.react-library>.empty,.react-library>.library-load-more{margin-right:0}}
 @media(max-width:760px){
   .react-library-toolbar{display:grid;grid-template-columns:1fr;gap:.55rem;padding:.65rem;align-items:stretch}
-  .react-library-engine-filter{display:grid;grid-template-columns:3.25rem minmax(0,1fr);align-items:center;gap:.45rem;color:var(--muted);font-size:.68rem;font-weight:800}
+  .react-library-engine-filter{display:grid;grid-template-columns:1fr;gap:.45rem;padding:.35rem 0 .65rem;border-bottom:1px solid var(--line);color:var(--muted)}
+  .react-library-engine-filter>span{gap:.08rem}
   .react-library-engine-filter select{width:100%;min-width:0}
   .react-library-toolbar .filters{display:flex;gap:.35rem;max-width:100%;overflow-x:auto;padding:.05rem 0 .2rem;scrollbar-width:none;overscroll-behavior-inline:contain}
   .react-library-toolbar .filters::-webkit-scrollbar{display:none}

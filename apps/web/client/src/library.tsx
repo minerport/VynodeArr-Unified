@@ -1018,7 +1018,7 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
         </div>
       </div>
       <div className="toolbar react-library-toolbar">
-        <label className="react-library-engine-filter"><span>Engine</span><select aria-label={`Filter ${movie?'movies':'television'} by engine instance`} value={engineInstanceId} onChange={event=>{setEngineInstanceId(event.target.value);setSelected(new Set());}}><option value="all">All instances</option>{engineOptions.map(engine=><option value={engine.id} key={engine.id}>{engine.name}{engine.isDefault?' (Default)':''}</option>)}</select></label>
+        <label className="react-library-engine-filter"><span><strong>{movie?'Movie':'Television'} library</strong><small>Choose which engine instance supplies the titles below.</small></span><select aria-label={`Filter ${movie?'movies':'television'} by engine instance`} value={engineInstanceId} onChange={event=>{setEngineInstanceId(event.target.value);setSelected(new Set());}}><option value="all">All {movie?'movie':'TV'} engines</option>{engineOptions.map(engine=><option value={engine.id} key={engine.id}>{engine.name}{engine.isDefault?' — default':''}</option>)}</select></label>
         <div className="filters">
           {["all", "monitored", "unmonitored", "missing", "cutoff"].map(
             (value) => (

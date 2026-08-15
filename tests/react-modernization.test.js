@@ -15,6 +15,11 @@ test('Reeltrack Lists remains fluid while the viewport is resized',async()=>{
   assert.match(view,/This is the only place in VynodeArr where your Reeltrack key\s+is entered/);
   assert.match(view,/Replace API key/);
   assert.match(view,/<nav className="reeltrack-list-nav" aria-label="Imported lists">/);
+  assert.match(view,/listPage === "titles"/);
+  assert.match(view,/List titles/);
+  assert.match(view,/Plex sync & overlays/);
+  assert.match(view,/listPage === "automation"/);
+  assert.match(styles,/\.reeltrack-list-sections\s*\{[^}]*grid-template-columns:\s*repeat\(2/);
   assert.doesNotMatch(view,/<aside className="reeltrack-list-nav">/);
   assert.match(view,/Choose host folder/);
   assert.match(view,/Get your API key at reeltrack\.vynodehub\.com/);
@@ -917,7 +922,8 @@ test('dashboard loading, caching, and refresh ownership live in typed React',asy
   assert.match(dashboard,/sessionStorage\.setItem\(snapshotKey/);
   assert.match(dashboard,/DashboardEngineFilter domain="movie"/);
   assert.match(dashboard,/DashboardEngineFilter domain="tv"/);
-  assert.match(dashboard,/All \{label\.toLowerCase\(\)\}/);
+  assert.match(dashboard,/dashboard-hero-controls/);
+  assert.match(dashboard,/All \{movie\?'movie':'TV'\} engines/);
   assert.match(dashboard,/localStorage\.setItem\(selectionKey\(domain\),value\)/);
   assert.match(dashboard,/useVisibleRefresh\(load,15_000\)/);
   assert.match(types,/interface DashboardMountOptions/);
@@ -1483,6 +1489,7 @@ test('My Requests owns request tracking, correction, cancellation, and permissio
 test('movie and television library controls form a compact shared mobile workspace',async()=>{
   const [library,styles]=await Promise.all([read('apps/web/client/src/library.tsx'),read('apps/web/client/src/react-library.css')]);
   assert.match(library,/react-library-engine-filter/);
+  assert.match(library,/Choose which engine instance supplies the titles below/);
   assert.match(library,/react-library-view-controls/);
   assert.match(library,/bulk-library-toolbar/);
   assert.match(styles,/@media\(max-width:760px\)\{[\s\S]*\.react-library-toolbar\{display:grid;grid-template-columns:1fr/);

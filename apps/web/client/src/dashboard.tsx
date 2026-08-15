@@ -1,4 +1,5 @@
 import {useCallback,useEffect,useState} from 'react';
+import type {ReactNode} from 'react';
 import {DashboardAnalyticsView} from './dashboard-analytics';
 import type {DashboardData,DashboardMountOptions,RecentActivityItem,RecentlyAddedItem} from './dashboard-types';
 import {useVisibleRefresh} from './use-visible-refresh';
@@ -11,8 +12,8 @@ const remember=(domain:EngineInstanceDomain,value:string)=>{try{localStorage.set
 function readSnapshot(movieId:string,tvId:string):DashboardData|null{try{const value=JSON.parse(sessionStorage.getItem(snapshotKey(movieId,tvId))||'null') as DashboardData|null;return value?.metrics?value:null;}catch{return null;}}
 
 function DashboardEngineFilter({domain,instances,value,onChange}:{domain:EngineInstanceDomain;instances:EngineInstance[];value:string;onChange:(value:string)=>void}){
-  const label=domain==='movie'?'Movie engines':'TV engines';
-  return <label>{label}<select value={value} onChange={event=>onChange(event.target.value)}><option value="all">All {label.toLowerCase()}</option>{instances.map(item=><option key={item.id} value={item.id}>{item.name}{item.isDefault?' — default':''}</option>)}</select><small>Filter {domain==='movie'?'movie':'television'} totals and activity independently.</small></label>;
+  const movie=domain==='movie',label=movie?'Movies':'Television';
+  return <label className={`dashboard-engine-filter ${domain}`}><span><b>{label}</b><small>{movie?'Movie':'TV'} engine scope</small></span><select aria-label={`${label} engine scope`} value={value} onChange={event=>onChange(event.target.value)}><option value="all">All {movie?'movie':'TV'} engines</option>{instances.map(item=><option key={item.id} value={item.id}>{item.name}{item.isDefault?' — default':''}</option>)}</select></label>;
 }
 
 export function DashboardRoute({options}:{options:DashboardMountOptions}){
@@ -25,7 +26,8 @@ export function DashboardRoute({options}:{options:DashboardMountOptions}){
   const choose=(domain:EngineInstanceDomain,value:string)=>{remember(domain,value);const movie=domain==='movie'?value:movieEngineId,tv=domain==='tv'?value:tvEngineId;if(domain==='movie')setMovieEngineId(value);else setTvEngineId(value);setData(readSnapshot(movie,tv));};
   if(!data&&!error)return <div className="panel skeleton react-route-loading">Loading dashboard…</div>;
   if(!data)return <div className="empty error-state"><h2>Dashboard unavailable</h2><p>{error}</p></div>;
-  return <><div className="settings-context-bar dashboard-engine-filters"><DashboardEngineFilter domain="movie" instances={movieEngines} value={movieEngineId} onChange={value=>choose('movie',value)}/><DashboardEngineFilter domain="tv" instances={tvEngines} value={tvEngineId} onChange={value=>choose('tv',value)}/></div><DashboardView data={data}/>{error?<div className="notice warning"><strong>Dashboard refresh delayed.</strong><p>{error}</p></div>:null}</>;
+  const engineFilters=<div className="dashboard-engine-filters" aria-label="Dashboard engine scope"><DashboardEngineFilter domain="movie" instances={movieEngines} value={movieEngineId} onChange={value=>choose('movie',value)}/><DashboardEngineFilter domain="tv" instances={tvEngines} value={tvEngineId} onChange={value=>choose('tv',value)}/></div>;
+  return <><DashboardView data={data} engineFilters={engineFilters}/>{error?<div className="notice warning"><strong>Dashboard refresh delayed.</strong><p>{error}</p></div>:null}</>;
 }
 
 function formatDate(value?:string){if(!value)return'';const date=new Date(value);return Number.isNaN(date.getTime())?value:new Intl.DateTimeFormat(undefined,{dateStyle:'medium',timeStyle:'short'}).format(date);}
@@ -33,12 +35,12 @@ function formatBytes(value:string|number){const bytes=Number(value||0);if(!bytes
 function RecentTitle({item}:{item:RecentlyAddedItem}){return <article className="react-feed-row"><div><strong>{item.title||'Untitled'}</strong><span>{[item.type,item.year,item.engineInstanceName].filter(Boolean).join(' · ')}</span></div>{item.timestamp?<time>{formatDate(item.timestamp)}</time>:null}</article>;}
 function ActivityRow({item}:{item:RecentActivityItem}){const date=item.dateUtc||item.timestamp||item.eta,event=String(item.eventType||item.status||'Updated').replace(/([a-z])([A-Z])/g,'$1 $2');return <article className="react-feed-row"><div><strong>{item.title||'Activity'}</strong><span>{event}{item.engineInstanceName?` · ${item.engineInstanceName}`:''}</span></div>{date?<time>{formatDate(date)}</time>:null}</article>;}
 
-export function DashboardView({data}:{data:DashboardData}){
+export function DashboardView({data,engineFilters=null}:{data:DashboardData;engineFilters?:ReactNode}){
   const scope=data.scope||{movie:{id:'all',name:'All movie engines',instanceCount:1},tv:{id:'all',name:'All TV engines',instanceCount:1}},metrics=[['Movies',data.metrics.movies,'#movies'],['TV series',data.metrics.tv,'#tv'],['Active queue',data.metrics.queue,'#queue'],['Library storage',formatBytes(data.metrics.storage),'#movies']] as const;
   const attention=[{label:'Missing media',value:data.metrics.missing,detail:'Monitored titles or episodes still needed',href:'#wanted',tone:data.metrics.missing?'warm':'good'},{label:'Health notices',value:data.metrics.health,detail:data.metrics.health?'Selected engines need attention':'Selected engines report healthy',href:'#health',tone:data.metrics.health?'danger':'good'},{label:'Upcoming',value:data.metrics.upcomingMovies+data.metrics.upcomingEpisodes,detail:`${data.metrics.upcomingMovies} movies · ${data.metrics.upcomingEpisodes} episodes`,href:'#calendar',tone:'neutral',preview:data.upcoming},{label:'Downloading now',value:data.metrics.downloading,detail:data.metrics.downloading?'Transfers currently active':'No active transfers',href:'#queue',tone:'neutral'}];
   const engineStatus=data.engines?.status;
   return <div className="react-dashboard">
-    <section className="hero react-dashboard-hero"><div><p className="eyebrow">MEDIA OPERATIONS</p><h1>Dashboard</h1><p>Combined operations for {scope.movie.name} and {scope.tv.name}.</p></div><div className="dashboard-engine-state"><span className={`status-dot ${engineStatus?.movie?.status==='ready'?'ready':'stale'}`}/><span>{scope.movie.name} · {engineStatus?.movie?.status||'unknown'}</span><span className={`status-dot ${engineStatus?.tv?.status==='ready'?'ready':'stale'}`}/><span>{scope.tv.name} · {engineStatus?.tv?.status||'unknown'}</span></div></section>
+    <section className="hero react-dashboard-hero"><div className="dashboard-hero-copy"><p className="eyebrow">MEDIA OPERATIONS</p><h1>Dashboard</h1><p>Combined operations for {scope.movie.name} and {scope.tv.name}.</p></div><div className="dashboard-hero-controls">{engineFilters}<div className="dashboard-engine-state"><span className={`status-dot ${engineStatus?.movie?.status==='ready'?'ready':'stale'}`}/><span>{scope.movie.name} · {engineStatus?.movie?.status||'unknown'}</span><span className={`status-dot ${engineStatus?.tv?.status==='ready'?'ready':'stale'}`}/><span>{scope.tv.name} · {engineStatus?.tv?.status||'unknown'}</span></div></div></section>
     <section className="dashboard-grid react-metric-grid" aria-label="Library summary">{metrics.map(([label,value,href])=><a className="metric-card dashboard-metric-link" href={href} key={label}><strong>{value??0}</strong><span>{label}</span></a>)}</section>
     <section className="dashboard-attention-grid" aria-label="Items needing attention">{attention.map(item=><a href={item.href} className={`dashboard-attention-card ${item.tone}${item.preview?' has-preview':''}`} key={item.label}><div><span>{item.label}</span><strong>{item.value}</strong></div><p>{item.detail}</p><i aria-hidden="true">→</i>{item.preview?<span className="dashboard-upcoming-preview" role="tooltip"><b>Coming up</b>{item.preview.length?item.preview.map((event,index)=><span className="dashboard-upcoming-row" key={event.id??`${event.domain}-${event.title}-${index}`}><em className={event.domain}>{event.domain==='movie'?'Movie':'TV'}</em><span><strong>{event.title||'Untitled'}</strong>{event.context?<small>{event.context}</small>:null}</span><time>{formatDate(event.dateUtc)}</time></span>):<small>No scheduled items were returned.</small>}<u>Open the full calendar →</u></span>:null}</a>)}</section>
     {data.analytics?<DashboardAnalyticsView analytics={data.analytics}/>:null}

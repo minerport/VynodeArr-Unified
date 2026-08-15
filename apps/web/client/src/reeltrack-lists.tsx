@@ -54,6 +54,7 @@ export function ReeltrackListsView({
     [available, setAvailable] = useState<ReeltrackList[]>([]),
     [selectedId, setSelectedId] = useState("");
   const [showImport, setShowImport] = useState(false),
+    [listPage, setListPage] = useState<"titles" | "automation">("titles"),
     [selectedRemote, setSelectedRemote] = useState<Set<string>>(new Set()),
     [filter, setFilter] = useState<"all" | "library" | "missing">("all"),
     [query, setQuery] = useState(""),
@@ -744,7 +745,11 @@ export function ReeltrackListsView({
                 Remove import
               </button>
             </div>
-            {options.administrator ? (
+            <nav className="reeltrack-list-sections" aria-label={`${selected?.name || "List"} sections`}>
+              <button type="button" className={listPage === "titles" ? "active" : ""} aria-current={listPage === "titles" ? "page" : undefined} onClick={() => setListPage("titles")}><strong>List titles</strong><small>Browse movies and television from this list.</small></button>
+              {options.administrator ? <button type="button" className={listPage === "automation" ? "active" : ""} aria-current={listPage === "automation" ? "page" : undefined} onClick={() => setListPage("automation")}><strong>Plex sync & overlays</strong><small>Configure destinations, trailers, collections, and artwork.</small></button> : null}
+            </nav>
+            {options.administrator && listPage === "automation" ? (
               <section className="reeltrack-list-automation">
                 <div className="reeltrack-list-automation-heading">
                   <div>
@@ -839,7 +844,7 @@ export function ReeltrackListsView({
                 </button>
               </section>
             ) : null}
-            <div className="reeltrack-filters">
+            {listPage === "titles" ? <><div className="reeltrack-filters">
               <label>
                 Find titles
                 <input
@@ -955,7 +960,7 @@ export function ReeltrackListsView({
                 <h3>No titles match this view</h3>
                 <p>Try another availability filter or search.</p>
               </div>
-            ) : null}
+            ) : null}</> : null}
           </main>
         </div>
       ) : configured ? (
