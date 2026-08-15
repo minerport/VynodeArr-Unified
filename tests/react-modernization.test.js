@@ -64,15 +64,16 @@ test('Reeltrack Lists remains fluid while the viewport is resized',async()=>{
   assert.match(view,/async function persistAutomation/);assert.match(view,/await persistAutomation\(\);\s*const value = await request/);
   assert.match(api,/retainedPlaceholderOverlayKeys\s*=\s*refreshedPlaceholders/);assert.match(api,/Boolean\(jobs\[identity\]\?\.path\)\s*&&\s*!realFileIds\.has\(identity\)/);assert.match(api,/exceptRatingKeys:\s*splitCollections\s*\?\s*retainedPlaceholderOverlayKeys\s*:\s*\[\.\.\.new Set\(\[\.\.\.collectionMemberKeys,\s*\.\.\.retainedPlaceholderOverlayKeys\]\)\]/);assert.match(api,/libraryKey:\s*realLibrary\.key,\s*domain,\s*kind:\s*"title",\s*exceptRatingKeys:\s*realRatingKeys/);assert.match(api,/ratingKeys:\s*splitCollections\s*\?\s*placeholderKeys\s*:\s*collectionMemberKeys/);
   assert.match(view,/Use a separate placeholder library/);assert.match(api,/splitLibraryMode/);assert.match(api,/realLibraryLocation/);
-  assert.match(api,/realTitleTemplate\s*=\s*reeltrackPosterTemplate\(automation\.realTitleOverlayTemplate,\s*domain\)\s*\|\|\s*titleTemplate/);
-  assert.match(api,/ratingKeys:\s*placeholderKeys/);assert.match(api,/ratingKeys:\s*realRatingKeys/);
+  assert.match(api,/existingTitleTemplate\s*=\s*reeltrackPosterTemplate\(automation\.existingTitleOverlayTemplate,\s*domain\)/);
+  assert.match(api,/promotedRealTitleKeys/);assert.match(api,/existingRealTitleKeys/);assert.match(api,/placeholderTitleKeys/);
+  assert.match(api,/ratingKeys:\s*placeholderKeys/);assert.match(api,/ratingKeys:\s*existingRealRatingKeys/);assert.match(api,/ratingKeys:\s*promotedRealRatingKeys/);
   assert.match(api,/repair-trailers/);assert.match(view,/Find missing trailers/);assert.match(view,/Plex and overlays refreshed/);
   assert.match(api,/selectedById\s*=\s*new Map\(selectedImports/);assert.match(api,/selectedById\.get\(String\(item\.id\)\)\s*\|\|\s*item/);
   assert.match(api,/previousById\.has\(String\(list\.id\)\)[\s\S]*enabled:\s*false[\s\S]*nextRunAt:\s*null/);assert.match(view,/sync anything to Plex/);assert.match(view,/Lists imported as drafts/);
   assert.match(designer,/for\s*\(const item of snapshots\)\s*onChange\(item\.id,\s*\{\s*position:\s*"custom"/);
   assert.match(designer,/layers:\s*\[\.\.\.current\.layers,\s*accent,\s*graphic,\s*badge\]/);
   assert.match(view,/overlays applied/);assert.match(view,/overlay failures/);
-  assert.match(view,/artwork\/\$\{kind\}\/restore/);assert.match(view,/Restore original/);assert.match(view,/used only for \$\{selected\.name\}/);
+  assert.match(view,/artwork\/\$\{kind\}\/restore/);assert.match(view,/Restore all title artwork/);assert.match(view,/Existing real-title overlay/);assert.match(view,/Newly available title overlay/);
 });
 
 test('loaded Action Center records cannot widen the mobile viewport',async()=>{

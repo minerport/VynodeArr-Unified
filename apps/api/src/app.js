@@ -1934,6 +1934,10 @@ export function createApplication(options = {}) {
         jobs = { ...(automation.jobs || {}) },
         totals = { managedTitles: 0, placeholders: 0, downloaded: 0, removed: 0, realMatches: 0, collectionPosters: 0, titlePosters: 0 },
         collectionRatingKeys = { ...(automation.collectionRatingKeys || {}) },
+        lifecycleInitialized = Number(automation.artworkLifecycleVersion) >= 1,
+        placeholderTitleKeys = new Set(automation.placeholderTitleKeys || []),
+        existingRealTitleKeys = new Set(automation.existingRealTitleKeys || []),
+        promotedRealTitleKeys = new Set(automation.promotedRealTitleKeys || []),
         plexLibraryLocations = {};
       for (const { domain, library, libraryLocation, localRoot, plexItems, realLibrary, realLibraryLocation, realLocalRoot, realPlexItems } of targets) {
         plexLibraryLocations[domain] = libraryLocation;
@@ -1989,6 +1993,19 @@ export function createApplication(options = {}) {
         const identity = reeltrackItemIdentity(item);
         if (identity.domain === domain && identity.tmdbId)
           wanted.set(`${domain}:tmdb:${identity.tmdbId}`, { ...item, ...identity });
+      }
+      // Record lifecycle before this run creates trailer jobs. The first run after this
+      // feature ships treats currently real media as existing. Later, a title previously
+      // seen as a placeholder is classified as newly available and stays that way.
+      for (const key of wanted.keys()) {
+        if (realIds.has(key)) {
+          if (lifecycleInitialized && placeholderTitleKeys.has(key)) {
+            promotedRealTitleKeys.add(key);
+            existingRealTitleKeys.delete(key);
+          } else if (!promotedRealTitleKeys.has(key)) existingRealTitleKeys.add(key);
+        } else if (!existingRealTitleKeys.has(key) && !promotedRealTitleKeys.has(key)) {
+          placeholderTitleKeys.add(key);
+        }
       }
       let removed = 0,
         downloaded = 0;
@@ -2119,9 +2136,14 @@ export function createApplication(options = {}) {
         refreshedRealItems = automation.splitLibraryMode
           ? await plexService.libraryItems(plexSettings.endpoint, plexToken, realLibrary)
           : refreshedItems.filter((item) => !refreshedPlaceholders.includes(item)),
-        realRatingKeys = refreshedRealItems.filter((item) =>
+        realEntries = refreshedRealItems.filter((item) =>
           plexExternalIds(item).some((identity) => wanted.has(`${domain}:${identity}`)),
+        ),
+        realRatingKeys = realEntries.map((item) => item.ratingKey),
+        promotedRealRatingKeys = realEntries.filter((item) =>
+          plexExternalIds(item).some((identity) => promotedRealTitleKeys.has(`${domain}:${identity}`)),
         ).map((item) => item.ratingKey),
+        existingRealRatingKeys = realEntries.filter((item) => !promotedRealRatingKeys.includes(item.ratingKey)).map((item) => item.ratingKey),
         collectionMemberKeys = [...new Set([...realRatingKeys, ...placeholderKeys])],
         splitCollections = automation.splitLibraryMode && String(library.key) !== String(realLibrary.key);
       await restoreReeltrackArtwork({ automation, endpoint: plexSettings.endpoint, token: plexToken, machineIdentifier: plexSettings.server?.machineIdentifier || "", libraryKey: library.key, domain, kind: "title", exceptRatingKeys: splitCollections ? retainedPlaceholderOverlayKeys : [...new Set([...collectionMemberKeys, ...retainedPlaceholderOverlayKeys])] });
@@ -2148,7 +2170,10 @@ export function createApplication(options = {}) {
         collectionRatingKeys[domain] = splitCollections ? { placeholder: collection.ratingKey, real: realCollection.ratingKey } : collection.ratingKey;
         const collectionTemplate = reeltrackPosterTemplate(automation.collectionPosterTemplate, domain),
           titleTemplate = reeltrackPosterTemplate(automation.titleOverlayTemplate, domain),
-          realTitleTemplate = reeltrackPosterTemplate(automation.realTitleOverlayTemplate, domain) || titleTemplate;
+          existingTitleTemplate = reeltrackPosterTemplate(automation.existingTitleOverlayTemplate, domain)
+            || reeltrackPosterTemplate(automation.realTitleOverlayTemplate, domain) || titleTemplate,
+          realTitleTemplate = reeltrackPosterTemplate(automation.realTitleOverlayTemplate, domain)
+            || existingTitleTemplate || titleTemplate;
         if (collection.ratingKey && collectionTemplate?.enabled && collectionTemplate.layers?.length) {
           try {
             // Render the configured collection design after membership is reconciled. Existing
@@ -2200,18 +2225,24 @@ export function createApplication(options = {}) {
           domain,
           syncedAt: runStartedAt,
         });
-        const realArtwork = await applyReeltrackTitleArtwork({
+        const existingArtwork = await applyReeltrackTitleArtwork({
+          template: existingTitleTemplate, endpoint: plexSettings.endpoint, token: plexToken,
+          machineIdentifier: plexSettings.server?.machineIdentifier || "", automation,
+          libraryKey: realLibrary.key,
+          items: refreshedRealItems, ratingKeys: existingRealRatingKeys, list, domain, syncedAt: runStartedAt,
+        });
+        const promotedArtwork = await applyReeltrackTitleArtwork({
           template: realTitleTemplate, endpoint: plexSettings.endpoint, token: plexToken,
           machineIdentifier: plexSettings.server?.machineIdentifier || "", automation,
           libraryKey: realLibrary.key,
-          items: refreshedRealItems, ratingKeys: realRatingKeys, list, domain, syncedAt: runStartedAt,
+          items: refreshedRealItems, ratingKeys: promotedRealRatingKeys, list, domain, syncedAt: runStartedAt,
         });
-        totals.titlePosters += placeholderArtwork.applied + realArtwork.applied;
-        totals.titlePosterFailures = (totals.titlePosterFailures || 0) + placeholderArtwork.failed + realArtwork.failed;
-        totals.titlePosterErrors = [...(totals.titlePosterErrors || []), ...placeholderArtwork.errors, ...realArtwork.errors].slice(0, 10);
-        if (placeholderArtwork.applied || realArtwork.applied)
+        totals.titlePosters += placeholderArtwork.applied + existingArtwork.applied + promotedArtwork.applied;
+        totals.titlePosterFailures = (totals.titlePosterFailures || 0) + placeholderArtwork.failed + existingArtwork.failed + promotedArtwork.failed;
+        totals.titlePosterErrors = [...(totals.titlePosterErrors || []), ...placeholderArtwork.errors, ...existingArtwork.errors, ...promotedArtwork.errors].slice(0, 10);
+        if (placeholderArtwork.applied || existingArtwork.applied || promotedArtwork.applied)
           await plexService.refreshLibrary(plexSettings.endpoint, plexToken, library.key);
-        if (splitCollections && realArtwork.applied)
+        if (splitCollections && (existingArtwork.applied || promotedArtwork.applied))
           await plexService.refreshLibrary(plexSettings.endpoint, plexToken, realLibrary.key);
         totals.managedTitles += wanted.size;
         totals.placeholders += placeholderKeys.length;
@@ -2231,6 +2262,10 @@ export function createApplication(options = {}) {
         plexTvPlaceholderLibraryKey: String(placeholderKeys.tv || ""),
         plexLibraryLocations,
         jobs,
+        artworkLifecycleVersion: 1,
+        placeholderTitleKeys: [...placeholderTitleKeys],
+        existingRealTitleKeys: [...existingRealTitleKeys],
+        promotedRealTitleKeys: [...promotedRealTitleKeys],
         intervalMinutes,
         collectionRatingKeys,
         lastRunAt: now.toISOString(),
@@ -9790,7 +9825,11 @@ export function createApplication(options = {}) {
           for (const domain of ["movie", "tv"])
             restored.push(...await restoreReeltrackArtwork({ automation, endpoint: settings.endpoint, token, machineIdentifier: settings.server?.machineIdentifier || "", domain, kind }));
           if (artwork === "collection") automation.collectionPosterTemplate = null;
-          else automation.titleOverlayTemplate = null;
+          else {
+            automation.titleOverlayTemplate = null;
+            automation.existingTitleOverlayTemplate = null;
+            automation.realTitleOverlayTemplate = null;
+          }
           current.importedLists[index].automation = automation;
           current.updatedAt = new Date().toISOString();
           await saveReeltrackSnapshot(session.user.id, current);
@@ -9883,6 +9922,9 @@ export function createApplication(options = {}) {
             titleOverlayTemplate: Object.hasOwn(input, "titleOverlayTemplate")
               ? reeltrackPosterTemplate(input.titleOverlayTemplate)
               : current.importedLists[index].automation?.titleOverlayTemplate || null,
+            existingTitleOverlayTemplate: Object.hasOwn(input, "existingTitleOverlayTemplate")
+              ? reeltrackPosterTemplate(input.existingTitleOverlayTemplate)
+              : current.importedLists[index].automation?.existingTitleOverlayTemplate || null,
             realTitleOverlayTemplate: Object.hasOwn(input, "realTitleOverlayTemplate")
               ? reeltrackPosterTemplate(input.realTitleOverlayTemplate)
               : current.importedLists[index].automation?.realTitleOverlayTemplate || null,

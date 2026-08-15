@@ -40,7 +40,12 @@ export interface ReeltrackList {
     collectionName?:string;
     collectionPosterTemplate?:import("./poster-overlays-types").OverlayTemplate|null;
     titleOverlayTemplate?:import("./poster-overlays-types").OverlayTemplate|null;
+    existingTitleOverlayTemplate?:import("./poster-overlays-types").OverlayTemplate|null;
     realTitleOverlayTemplate?:import("./poster-overlays-types").OverlayTemplate|null;
+    artworkLifecycleVersion?:number;
+    placeholderTitleKeys?:string[];
+    existingRealTitleKeys?:string[];
+    promotedRealTitleKeys?:string[];
     intervalMinutes?:number;
     status?:'scheduled'|'ready'|'error'|'disabled';
     error?:string|null;

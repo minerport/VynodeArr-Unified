@@ -7,6 +7,23 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.45-rc.8] - 2026-08-15
+
+### Added
+
+- Added separate list artwork designs for collection posters, trailer
+  placeholders, real titles already in the library, and titles downloaded
+  after first appearing as placeholders.
+- Persisted each managed title's artwork lifecycle so later list syncs apply
+  the correct overlay as media becomes available.
+
+### Changed
+
+- Kept existing list overlay settings backward compatible while allowing each
+  real-title lifecycle state to use its own design.
+- Restoring list title artwork now clears every managed title-overlay role and
+  restores the original Plex posters.
+
 ## [2.0.45-rc.7] - 2026-08-15
 
 ### Changed

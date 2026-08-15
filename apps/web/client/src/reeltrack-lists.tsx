@@ -93,8 +93,9 @@ export function ReeltrackListsView({
     [automationCollectionName, setAutomationCollectionName] = useState(""),
     [collectionPosterTemplate, setCollectionPosterTemplate] = useState<OverlayTemplate | null>(null),
     [titleOverlayTemplate, setTitleOverlayTemplate] = useState<OverlayTemplate | null>(null),
+    [existingTitleOverlayTemplate, setExistingTitleOverlayTemplate] = useState<OverlayTemplate | null>(null),
     [realTitleOverlayTemplate, setRealTitleOverlayTemplate] = useState<OverlayTemplate | null>(null),
-    [posterDesigner, setPosterDesigner] = useState<"collection" | "title" | "realTitle" | null>(null);
+    [posterDesigner, setPosterDesigner] = useState<"collection" | "title" | "existingTitle" | "realTitle" | null>(null);
   const selected =
     lists.find((value) => String(value.id) === selectedId) || lists[0];
   async function load() {
@@ -161,6 +162,7 @@ export function ReeltrackListsView({
     setAutomationCollectionName(selected.automation?.collectionName || selected.name);
     setCollectionPosterTemplate(selected.automation?.collectionPosterTemplate || null);
     setTitleOverlayTemplate(selected.automation?.titleOverlayTemplate || null);
+    setExistingTitleOverlayTemplate(selected.automation?.existingTitleOverlayTemplate || null);
     setRealTitleOverlayTemplate(selected.automation?.realTitleOverlayTemplate || null);
   }, [selectedId]);
   const chooseMediaDestination = (domain:"movie"|"tv", id:string) => {
@@ -322,6 +324,7 @@ export function ReeltrackListsView({
             collectionName: automationCollectionName || selected.name,
             collectionPosterTemplate,
             titleOverlayTemplate,
+            existingTitleOverlayTemplate,
             realTitleOverlayTemplate,
             intervalMinutes: automationInterval,
           }),
@@ -410,7 +413,12 @@ export function ReeltrackListsView({
     try {
       const value = await request<{ item: ReeltrackList; restored: number }>(`/api/reeltrack/imported-lists/${encodeURIComponent(selected.id)}/artwork/${kind}/restore`, { method: "POST", body: "{}" });
       setLists((current) => current.map((item) => String(item.id) === String(value.item.id) ? value.item : item));
-      if (kind === "collection") setCollectionPosterTemplate(null); else setTitleOverlayTemplate(null);
+      if (kind === "collection") setCollectionPosterTemplate(null);
+      else {
+        setTitleOverlayTemplate(null);
+        setExistingTitleOverlayTemplate(null);
+        setRealTitleOverlayTemplate(null);
+      }
       notify(`${value.restored} original ${kind === "collection" ? "collection poster" : "title poster"}${value.restored === 1 ? "" : "s"} restored.`);
     } catch (error) {
       notify(message(error), "error");
@@ -756,8 +764,9 @@ export function ReeltrackListsView({
                 ) : null}
                 {automationEnabled ? <div className="reeltrack-automation-step"><div className="reeltrack-step-heading"><span>4</span><div><strong>Customize artwork <em>Optional</em></strong><small>Design one poster for the collection, or add an overlay to each title poster. Original Plex artwork is backed up before changes are applied.</small></div></div><div className="reeltrack-artwork-options">
                   <div className="reeltrack-artwork-option"><div><strong>Collection poster</strong><small>{collectionPosterTemplate ? `${collectionPosterTemplate.layers.length} layers · used only for ${selected.name}` : "A single poster displayed for this collection in Plex."}</small></div><div><button className="secondary" type="button" onClick={() => setPosterDesigner("collection")}>{collectionPosterTemplate ? "Edit design" : "Design poster"}</button>{selected?.automation?.collectionPosterTemplate ? <button className="text-button danger" disabled={busy} type="button" onClick={() => void restoreArtwork("collection")}>Restore original</button> : collectionPosterTemplate ? <button className="text-button danger" type="button" onClick={() => setCollectionPosterTemplate(null)}>Remove design</button> : null}</div></div>
-                  <div className="reeltrack-artwork-option"><div><strong>Title poster overlays</strong><small>{titleOverlayTemplate ? `${titleOverlayTemplate.layers.length} layers · used only for ${selected.name}` : "A consistent label or design added to every managed title poster."}</small></div><div><button className="secondary" type="button" onClick={() => setPosterDesigner("title")}>{titleOverlayTemplate ? "Edit design" : "Design overlay"}</button>{selected?.automation?.titleOverlayTemplate ? <button className="text-button danger" disabled={busy} type="button" onClick={() => void restoreArtwork("titles")}>Restore originals</button> : titleOverlayTemplate ? <button className="text-button danger" type="button" onClick={() => setTitleOverlayTemplate(null)}>Remove design</button> : null}</div></div>
-                  <div className="reeltrack-artwork-option"><div><strong>Real title overlay</strong><small>{realTitleOverlayTemplate ? `${realTitleOverlayTemplate.layers.length} layers · applied after Plex replaces a trailer with the real title` : "Optional. Use a different overlay once the actual movie or show appears in Plex."}</small></div><div><button className="secondary" type="button" onClick={() => setPosterDesigner("realTitle")}>{realTitleOverlayTemplate ? "Edit design" : "Design real-title overlay"}</button>{realTitleOverlayTemplate ? <button className="text-button danger" type="button" onClick={() => setRealTitleOverlayTemplate(null)}>Use standard overlay</button> : null}</div></div>
+                  <div className="reeltrack-artwork-option"><div><strong>Placeholder title overlay</strong><small>{titleOverlayTemplate ? `${titleOverlayTemplate.layers.length} layers · trailer placeholders only` : "Shown on trailer-only placeholders while the real movie or show is unavailable."}</small></div><div><button className="secondary" type="button" onClick={() => setPosterDesigner("title")}>{titleOverlayTemplate ? "Edit design" : "Design placeholder overlay"}</button>{selected?.automation?.titleOverlayTemplate ? <button className="text-button danger" disabled={busy} type="button" onClick={() => void restoreArtwork("titles")}>Restore all title artwork</button> : titleOverlayTemplate ? <button className="text-button danger" type="button" onClick={() => setTitleOverlayTemplate(null)}>Remove design</button> : null}</div></div>
+                  <div className="reeltrack-artwork-option"><div><strong>Existing real-title overlay</strong><small>{existingTitleOverlayTemplate ? `${existingTitleOverlayTemplate.layers.length} layers · already in the real library` : "Optional. For real movies or shows already available when this list is first managed."}</small></div><div><button className="secondary" type="button" onClick={() => setPosterDesigner("existingTitle")}>{existingTitleOverlayTemplate ? "Edit design" : "Design existing-title overlay"}</button>{selected?.automation?.existingTitleOverlayTemplate ? <button className="text-button danger" disabled={busy} type="button" onClick={() => void restoreArtwork("titles")}>Restore all title artwork</button> : existingTitleOverlayTemplate ? <button className="text-button danger" type="button" onClick={() => setExistingTitleOverlayTemplate(null)}>Use fallback overlay</button> : null}</div></div>
+                  <div className="reeltrack-artwork-option"><div><strong>Newly available title overlay</strong><small>{realTitleOverlayTemplate ? `${realTitleOverlayTemplate.layers.length} layers · downloaded after being a placeholder` : "Optional. For a managed placeholder that later becomes a real movie or show."}</small></div><div><button className="secondary" type="button" onClick={() => setPosterDesigner("realTitle")}>{realTitleOverlayTemplate ? "Edit design" : "Design newly-available overlay"}</button>{selected?.automation?.realTitleOverlayTemplate ? <button className="text-button danger" disabled={busy} type="button" onClick={() => void restoreArtwork("titles")}>Restore all title artwork</button> : realTitleOverlayTemplate ? <button className="text-button danger" type="button" onClick={() => setRealTitleOverlayTemplate(null)}>Use fallback overlay</button> : null}</div></div>
                 </div></div> : null}
                 {selected?.automation?.error ? <p className="danger-text">{selected.automation.error}</p> : null}
                 {selected?.automation?.summary ? (
@@ -926,14 +935,14 @@ export function ReeltrackListsView({
       ) : null}
       {posterDesigner && selected ? <Suspense fallback={null}><ReeltrackPosterDesigner
         mode={posterDesigner === "collection" ? "collection" : "title"}
-        template={posterDesigner === "collection" ? collectionPosterTemplate : posterDesigner === "realTitle" ? realTitleOverlayTemplate : titleOverlayTemplate}
+        template={posterDesigner === "collection" ? collectionPosterTemplate : posterDesigner === "existingTitle" ? existingTitleOverlayTemplate : posterDesigner === "realTitle" ? realTitleOverlayTemplate : titleOverlayTemplate}
         collectionName={automationCollectionName || selected.name}
         titleCount={selected.items?.length || 0}
         sample={selected.items?.find((item) => item.tmdbId) as { domain: "movie" | "tv"; tmdbId?: number | null; title: string; year?: number | null } | undefined}
         samples={(selected.items || []) as Array<{ domain: "movie" | "tv"; tmdbId?: number | null; title: string; year?: number | null }>}
         request={request}
         onClose={() => setPosterDesigner(null)}
-        onSave={(template) => { posterDesigner === "collection" ? setCollectionPosterTemplate(template) : posterDesigner === "realTitle" ? setRealTitleOverlayTemplate(template) : setTitleOverlayTemplate(template); setPosterDesigner(null); notify("Artwork design ready. Save automation to apply it."); }}
+        onSave={(template) => { posterDesigner === "collection" ? setCollectionPosterTemplate(template) : posterDesigner === "existingTitle" ? setExistingTitleOverlayTemplate(template) : posterDesigner === "realTitle" ? setRealTitleOverlayTemplate(template) : setTitleOverlayTemplate(template); setPosterDesigner(null); notify("Artwork design ready. Save automation to apply it."); }}
       /></Suspense> : null}
       {requesting ? (
         <DiscoverRequest
