@@ -7,6 +7,34 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.50] - 2026-08-16
+
+### Added
+
+- Added exact production-library previews for poster-overlay creation, editing,
+  assignment review, and all supported library layouts.
+- Added a durable Plex artwork ledger and unified artwork history for safe
+  composition, reapplication, removal, and restoration.
+
+### Changed
+
+- Reworked the overlay workspace, template library, and assignment review around
+  real title artwork, metadata, active assignments, and unsaved draft changes.
+- Expanded overlay history to include standalone Plex and list-managed artwork.
+
+### Fixed
+
+- Preserved the true original Plex poster across repeated and stacked overlays.
+- Replaced an applied style with its edited draft in previews instead of showing
+  both the old and new layer sets.
+- Corrected preview sizing, Poster grid parity, and full-width Templates and
+  Assignments layouts.
+
+### Validation
+
+- Passed 300 automated tests, TypeScript checks, production builds, bundle and
+  branding gates, deployment validation, and Docker smoke tests.
+
 ## [2.0.50-rc.6] - 2026-08-16
 
 ### Fixed
@@ -3134,7 +3162,8 @@ Open `http://localhost:8686`. Existing host media folders can be mapped to
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.50-rc.6...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.50...HEAD
+[2.0.50]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.49...v2.0.50
 [2.0.50-rc.6]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.50-rc.5...v2.0.50-rc.6
 [2.0.50-rc.5]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.50-rc.4...v2.0.50-rc.5
 [2.0.50-rc.4]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.50-rc.3...v2.0.50-rc.4
