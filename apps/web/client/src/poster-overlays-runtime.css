@@ -99,7 +99,7 @@
 .overlay-workflow-guide{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;padding:0!important;overflow:hidden}
 .overlay-workflow-guide>div{display:grid;grid-template-columns:auto minmax(0,1fr);gap:3px 9px;padding:16px;border-right:1px solid var(--border)}
 .overlay-workflow-guide>div:last-child{border:0}.overlay-workflow-guide span{grid-row:1/3;display:grid;width:28px;height:28px;border-radius:50%;background:color-mix(in srgb,var(--accent) 22%,var(--panel));color:var(--text);font-weight:900;place-items:center}.overlay-workflow-guide small{color:var(--muted);line-height:1.35}
-.overlay-workspace-templates,.overlay-workspace-assignments{grid-template-columns:minmax(0,1fr)}
+.overlay-studio-grid.overlay-workspace-templates,.overlay-studio-grid.overlay-workspace-assignments{grid-template-columns:minmax(0,1fr)}
 @media(min-width:801px){.overlay-preview-column{grid-template-columns:1fr 1fr}.overlay-preview-column>.overlay-preview-hint,.overlay-preview-column>.overlay-preview,.overlay-preview-column>p:last-child{grid-column:1/-1}.overlay-preview-column>.overlay-preview{width:240px}}
 @media(max-width:980px){.overlay-icon-library{grid-template-columns:repeat(6,minmax(0,1fr))}}
 @media(max-width:760px){.overlay-workspace-nav{display:flex;overflow-x:auto;scrollbar-width:none}.overlay-workspace-nav::-webkit-scrollbar{display:none}.overlay-workspace-nav button{flex:0 0 auto;padding:.65rem .85rem}.overlay-destination-guide,.overlay-overview-stats,.overlay-workflow-guide{grid-template-columns:1fr}.overlay-workflow-guide>div{border-right:0;border-bottom:1px solid var(--border)}}

@@ -7,6 +7,19 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.50-rc.5] - 2026-08-16
+
+### Fixed
+
+- Restored the Templates and Assignments workspaces to the full available page
+  width instead of allowing the generic studio layout to constrain them to one
+  half-width column.
+
+### Validation
+
+- Passed the focused React modernization suite, web TypeScript checks, and the
+  production web build before publication.
+
 ## [2.0.50-rc.4] - 2026-08-16
 
 ### Fixed
@@ -3107,7 +3120,8 @@ Open `http://localhost:8686`. Existing host media folders can be mapped to
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.50-rc.4...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.50-rc.5...HEAD
+[2.0.50-rc.5]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.50-rc.4...v2.0.50-rc.5
 [2.0.50-rc.4]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.50-rc.3...v2.0.50-rc.4
 [2.0.50-rc.3]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.50-rc.2...v2.0.50-rc.3
 [2.0.50-rc.2]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.50-rc.1...v2.0.50-rc.2
