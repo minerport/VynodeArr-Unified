@@ -33,6 +33,10 @@ over disc/track positions, duration, and filename matching. Inspection retains
 codec, bitrate, sample rate, bit depth, channels, duration, and lossless status
 for review and quality decisions. Quality profiles can allow lossy or lossless
 audio, enforce minimum bitrate/sample rate/bit depth, and rank preferred codecs.
+An assigned artist profile is enforced during import analysis, with each rejected
+file retaining the exact technical reason. Multi-file imports are transactional:
+if a copy fails, files created by that attempt are removed before library state
+is updated.
 
 Music providers are deliberately split:
 

@@ -503,6 +503,7 @@ function MusicImport({
 }) {
   type Review = {
     album: { title: string; artist: string };
+    qualityProfile: { id: string; name: string } | null;
     sourcePath: string;
     ready: boolean;
     matches: Array<{
@@ -512,6 +513,9 @@ function MusicImport({
       sourcePath: string | null;
       confidence: number;
       reason: string;
+      quality: { label: string } | null;
+      qualityAccepted: boolean;
+      qualityReasons: string[];
     }>;
     unmatchedFiles: string[];
   };
@@ -663,6 +667,11 @@ function MusicImport({
           <h4>
             {review.album.artist} · {review.album.title}
           </h4>
+          {review.qualityProfile && (
+            <p className="muted">
+              Quality profile: {review.qualityProfile.name}
+            </p>
+          )}
           {review.matches.map((match) => (
             <div className="data-row" key={match.trackId}>
               <span>
@@ -671,11 +680,15 @@ function MusicImport({
                 </strong>
                 <small>
                   {match.reason}
+                  {match.quality?.label ? ` · ${match.quality.label}` : ""}
+                  {match.qualityReasons.length
+                    ? ` · ${match.qualityReasons.join("; ")}`
+                    : ""}
                   {match.sourcePath ? ` · ${match.sourcePath}` : ""}
                 </small>
               </span>
               <span
-                className={`badge ${match.confidence >= 70 ? "green" : "warm"}`}
+                className={`badge ${match.confidence >= 70 && match.qualityAccepted ? "green" : "warm"}`}
               >
                 {match.confidence}%
               </span>

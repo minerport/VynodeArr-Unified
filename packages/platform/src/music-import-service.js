@@ -4,6 +4,7 @@ import {
   mkdir,
   readdir,
   realpath,
+  rm,
   stat,
 } from "node:fs/promises";
 import { constants as fsConstants } from "node:fs";
@@ -40,6 +41,25 @@ const normalize = (value) =>
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
+const qualityCompliance = (metadata, profile) => {
+  if (!profile) return { accepted: true, reasons: [] };
+  if (!metadata)
+    return { accepted: false, reasons: ["Audio properties could not be inspected"] };
+  const quality = audioQuality(metadata),
+    reasons = [];
+  if (quality.lossless && profile.allowLossless === false)
+    reasons.push("Lossless audio is not allowed by the assigned quality profile");
+  if (!quality.lossless && profile.allowLossy === false)
+    reasons.push("Lossy audio is not allowed by the assigned quality profile");
+  const bitrateKbps = Math.round(Number(metadata.bitrate || 0) / 1000);
+  if (profile.minBitrateKbps && bitrateKbps < profile.minBitrateKbps)
+    reasons.push(`Bitrate ${bitrateKbps} kbps is below ${profile.minBitrateKbps} kbps`);
+  if (profile.minSampleRate && Number(metadata.sampleRate || 0) < profile.minSampleRate)
+    reasons.push(`Sample rate ${Number(metadata.sampleRate || 0)} Hz is below ${profile.minSampleRate} Hz`);
+  if (profile.minBitDepth && Number(metadata.bitDepth || 0) < profile.minBitDepth)
+    reasons.push(`Bit depth ${Number(metadata.bitDepth || 0)} is below ${profile.minBitDepth}`);
+  return { accepted: reasons.length === 0, reasons };
+};
 async function files(path) {
   const output = [];
   for (const entry of await readdir(path, { withFileTypes: true })) {
@@ -55,9 +75,11 @@ async function files(path) {
 }
 
 export class MusicImportService {
-  constructor({ store, inspector = inspectAudioFile }) {
+  constructor({ store, inspector = inspectAudioFile, copier = copyFile, remover = rm }) {
     this.store = store;
     this.inspector = inspector;
+    this.copier = copier;
+    this.remover = remover;
   }
   async settings(input = null) {
     if (input) {
@@ -104,7 +126,10 @@ export class MusicImportService {
       ),
       tracks = (state.tracks || []).filter(
         (value) => value.albumId === albumId,
-      );
+      ),
+      qualityProfile = (state.qualityProfiles || []).find(
+        (value) => value.id === artist?.qualityProfile || value.name === artist?.qualityProfile,
+      ) || null;
     if (!album || !artist || !tracks.length)
       throw new Error("Load album edition metadata before importing files");
     const available = await files(source),
@@ -154,6 +179,7 @@ export class MusicImportService {
         path = exactIdentity || taggedPosition || byNumber || byTitle || null;
       if (path) unmatched.delete(path);
       const metadata = path ? inspected.get(path) : null,
+        compliance = qualityCompliance(metadata, qualityProfile),
         durationClose =
           metadata?.durationMs && track.durationMs
             ? Math.abs(metadata.durationMs - track.durationMs) <= 3000
@@ -179,6 +205,8 @@ export class MusicImportService {
         sourcePath: path,
         metadata,
         quality: metadata ? audioQuality(metadata) : null,
+        qualityAccepted: compliance.accepted,
+        qualityReasons: compliance.reasons,
         confidence,
         reason: exactIdentity
           ? "Embedded MusicBrainz or ISRC identity match"
@@ -197,11 +225,15 @@ export class MusicImportService {
     }
     return {
       album: { id: album.id, title: album.title, artist: artist.name },
+      qualityProfile: qualityProfile
+        ? { id: qualityProfile.id, name: qualityProfile.name }
+        : null,
       sourcePath: source,
       matches,
       unmatchedFiles: [...unmatched],
       ready: matches.every(
-        (value) => value.sourcePath && value.confidence >= 70,
+        (value) =>
+          value.sourcePath && value.confidence >= 70 && value.qualityAccepted,
       ),
     };
   }
@@ -238,9 +270,16 @@ export class MusicImportService {
       }
     }
     const imported = [];
-    for (const file of plan) {
-      await copyFile(file.sourcePath, file.filePath, fsConstants.COPYFILE_EXCL);
-      imported.push(file);
+    try {
+      for (const file of plan) {
+        await this.copier(file.sourcePath, file.filePath, fsConstants.COPYFILE_EXCL);
+        imported.push(file);
+      }
+    } catch (error) {
+      await Promise.allSettled(
+        imported.map((file) => this.remover(file.filePath, { force: true })),
+      );
+      throw error;
     }
     await this.store.update((value) => {
       for (const file of imported) {
