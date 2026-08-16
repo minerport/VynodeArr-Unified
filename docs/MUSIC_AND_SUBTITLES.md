@@ -27,6 +27,13 @@ root, every track needs a confident number or title match, destinations remain
 below the music library root, existing files are never overwritten, and source
 downloads are retained. Provider rows expose connection testing and removal.
 
+The importer inspects audio with `ffprobe` (or the binary selected by
+`VYNODEARR_FFPROBE_BINARY`). Embedded MusicBrainz IDs and ISRCs are preferred
+over disc/track positions, duration, and filename matching. Inspection retains
+codec, bitrate, sample rate, bit depth, channels, duration, and lossless status
+for review and quality decisions. Quality profiles can allow lossy or lossless
+audio, enforce minimum bitrate/sample rate/bit depth, and rank preferred codecs.
+
 Music providers are deliberately split:
 
 - **Indexers** discover Usenet or torrent releases. Supported connector shapes
@@ -39,6 +46,11 @@ Newznab, Torznab/Prowlarr, SABnzbd, NZBGet, and qBittorrent. Music downloads use
 a dedicated category (normally `music`) so unrelated client jobs never enter
 VynodeArr activity. Results retain protocol, size, age, seeders, score, and the
 human-readable reasons behind that score.
+
+VynodeArr can poll SABnzbd, NZBGet, and qBittorrent for completed jobs in the
+dedicated music category. A job associated with an album and an output path is
+handed to the guarded importer automatically; the same root-boundary, matching,
+retention, and no-overwrite rules still apply.
 
 Each configured provider has an endpoint, credentials, priority, enabled state,
 capabilities, and connection test. Credentials are encrypted in the dedicated
@@ -79,6 +91,8 @@ language, path, and timestamp history.
 - Music provider configuration lives under `/api/music/indexers` and
   `/api/music/download-clients`.
 - Music operations use `/api/music/search` and `/api/music/grab`.
+- Music quality and completion automation use
+  `/api/music/quality-profiles` and `/api/music/downloads/poll`.
 - Subtitle configuration uses `/api/subtitles/providers`, `/profiles`, and
   `/assignments`.
 - Per-file inventory and automation use `/api/subtitles/reconcile`, `/search`,

@@ -161,6 +161,40 @@ test("music release search is explainable and grabs use the highest-priority ena
   }
 });
 
+test("music quality profiles retain codec and technical thresholds", async () => {
+  const value = await fixture(
+    "music-quality",
+    {
+      version: 1,
+      artists: [],
+      albums: [],
+      tracks: [],
+      jobs: [],
+      indexers: [],
+      downloadClients: [],
+    },
+    (store) => new MusicService({ store }),
+  );
+  try {
+    const profile = await value.service.saveQualityProfile({
+      name: "Lossless",
+      allowLossless: true,
+      allowLossy: false,
+      minSampleRate: 44100,
+      minBitDepth: 16,
+      preferredCodecs: ["FLAC", "ALAC"],
+    });
+    assert.equal(profile.allowLossy, false);
+    assert.deepEqual(profile.preferredCodecs, ["flac", "alac"]);
+    assert.equal(
+      (await value.service.snapshot()).qualityProfiles[0].minBitDepth,
+      16,
+    );
+  } finally {
+    await rm(value.directory, { recursive: true, force: true });
+  }
+});
+
 test("subtitle policies inherit from series and can be overridden per episode", async () => {
   const value = await fixture(
     "subtitles",

@@ -8,6 +8,7 @@ import {
 } from "node:fs/promises";
 import { constants as fsConstants } from "node:fs";
 import { basename, extname, join, relative, resolve } from "node:path";
+import { audioQuality, inspectAudioFile } from "./audio-inspector.js";
 
 const audioExtensions = new Set([
   ".flac",
@@ -54,8 +55,9 @@ async function files(path) {
 }
 
 export class MusicImportService {
-  constructor({ store }) {
+  constructor({ store, inspector = inspectAudioFile }) {
     this.store = store;
+    this.inspector = inspector;
   }
   async settings(input = null) {
     if (input) {
@@ -106,13 +108,39 @@ export class MusicImportService {
     if (!album || !artist || !tracks.length)
       throw new Error("Load album edition metadata before importing files");
     const available = await files(source),
+      inspected = new Map(
+        await Promise.all(
+          available.map(async (path) => {
+            try {
+              return [path, await this.inspector(path)];
+            } catch {
+              return [path, null];
+            }
+          }),
+        ),
+      ),
       unmatched = new Set(available),
       matches = [];
     for (const track of tracks.sort(
       (a, b) =>
         a.mediumNumber - b.mediumNumber || a.trackNumber - b.trackNumber,
     )) {
-      const padded = String(track.trackNumber).padStart(2, "0"),
+      const exactIdentity = [...unmatched].find((path) => {
+          const metadata = inspected.get(path);
+          return (
+            metadata?.musicBrainzTrackId === track.foreignTrackId ||
+            metadata?.musicBrainzRecordingId === track.foreignRecordingId ||
+            (metadata?.isrc && track.isrcs?.includes(metadata.isrc))
+          );
+        }),
+        taggedPosition = [...unmatched].find((path) => {
+          const metadata = inspected.get(path);
+          return (
+            metadata?.trackNumber === track.trackNumber &&
+            (metadata.discNumber || 1) === (track.mediumNumber || 1)
+          );
+        }),
+        padded = String(track.trackNumber).padStart(2, "0"),
         byNumber = [...unmatched].find((path) =>
           new RegExp(`(?:^|[^0-9])${padded}(?:[^0-9]|$)`).test(
             basename(path, extname(path)),
@@ -123,25 +151,48 @@ export class MusicImportService {
             normalize(track.title),
           ),
         ),
-        path = byNumber || byTitle || null;
+        path = exactIdentity || taggedPosition || byNumber || byTitle || null;
       if (path) unmatched.delete(path);
-      const confidence =
-        byNumber && byTitle ? 100 : byNumber ? 85 : byTitle ? 70 : 0;
+      const metadata = path ? inspected.get(path) : null,
+        durationClose =
+          metadata?.durationMs && track.durationMs
+            ? Math.abs(metadata.durationMs - track.durationMs) <= 3000
+            : false,
+        confidence = exactIdentity
+          ? 100
+          : taggedPosition && durationClose
+            ? 98
+            : taggedPosition
+              ? 92
+              : byNumber && byTitle
+                ? 90
+                : byNumber
+                  ? 80
+                  : byTitle
+                    ? 70
+                    : 0;
       matches.push({
         trackId: track.id,
         title: track.title,
         mediumNumber: track.mediumNumber,
         trackNumber: track.trackNumber,
         sourcePath: path,
+        metadata,
+        quality: metadata ? audioQuality(metadata) : null,
         confidence,
-        reason:
-          byNumber && byTitle
-            ? "Track number and title match"
-            : byNumber
-              ? "Track number match"
-              : byTitle
-                ? "Title match"
-                : "No matching audio file",
+        reason: exactIdentity
+          ? "Embedded MusicBrainz or ISRC identity match"
+          : taggedPosition && durationClose
+            ? "Embedded disc, track, and duration match"
+            : taggedPosition
+              ? "Embedded disc and track match"
+              : byNumber && byTitle
+                ? "Filename track number and title match"
+                : byNumber
+                  ? "Filename track number match"
+                  : byTitle
+                    ? "Filename title match"
+                    : "No matching audio file",
       });
     }
     return {

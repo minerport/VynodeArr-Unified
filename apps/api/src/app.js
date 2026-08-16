@@ -50,7 +50,7 @@ import { createLogger } from "../../../packages/platform/src/logger.js";
 import { MusicService } from "../../../packages/platform/src/music-service.js";
 import { MusicImportService } from "../../../packages/platform/src/music-import-service.js";
 import { SubtitleService } from "../../../packages/platform/src/subtitle-service.js";
-import { downloadSubtitle, grabMusicRelease, searchNewznab, searchSubtitles, testMusicProvider, testSubtitleProvider } from "../../../packages/platform/src/media-connectors.js";
+import { downloadSubtitle, grabMusicRelease, pollMusicDownloads, searchNewznab, searchSubtitles, testMusicProvider, testSubtitleProvider } from "../../../packages/platform/src/media-connectors.js";
 import { enrichMusicArtist, loadMusicBrainzArtist, loadMusicBrainzReleaseGroup, searchMusicArtists, testMusicMetadataProvider } from "../../../packages/platform/src/music-metadata-connectors.js";
 import { MovieEngineAdapter } from "../../../packages/movie-domain/src/engine-adapter.js";
 import { TvEngineAdapter } from "../../../packages/tv-domain/src/engine-adapter.js";
@@ -704,8 +704,10 @@ export function createApplication(options = {}) {
     albumLoader: options.musicAlbumLoader || loadMusicBrainzReleaseGroup,
     searcher: options.musicSearcher || searchNewznab,
     grabber: options.musicGrabber || grabMusicRelease,
+    downloadPoller: options.musicDownloadPoller || pollMusicDownloads,
   });
   const musicImports = options.musicImports || new MusicImportService({store:musicStore});
+  if(!music.importer)music.importer=musicImports;
   const subtitles = options.subtitles || new SubtitleService({
     store: subtitleStore,
     vault: mediaProviderVault,
@@ -8665,6 +8667,10 @@ export function createApplication(options = {}) {
           if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
           return json(res, 201, { album: await music.saveAlbum(await body(req)) });
         }
+        if (url.pathname === "/api/music/quality-profiles" && req.method === "POST") {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          return json(res, 201, {profile:await music.saveQualityProfile(await body(req))});
+        }
         const musicAlbumRefreshMatch=url.pathname.match(/^\/api\/music\/albums\/([^/]+)\/refresh$/);
         if (musicAlbumRefreshMatch && req.method === "POST") {
           if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
@@ -8739,6 +8745,10 @@ export function createApplication(options = {}) {
         if (url.pathname === "/api/subtitles/media-arrived" && req.method === "POST") {
           if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
           return json(res, 202, await subtitles.processMediaArrival(await body(req)));
+        }
+        if (url.pathname === "/api/music/downloads/poll" && req.method === "POST") {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          return json(res, 202, await music.pollDownloads());
         }
         if (url.pathname === "/api/music/import/settings") {
           if (!administrator(res, session)) return;

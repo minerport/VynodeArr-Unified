@@ -44,7 +44,7 @@ test("music imports are constrained, reviewed, copied, and recorded without dele
       sourcePath: release,
     });
     assert.equal(review.ready, true);
-    assert.equal(review.matches[0].confidence, 100);
+    assert.equal(review.matches[0].confidence, 90);
     const result = await service.execute({
       albumId: "album_1",
       sourcePath: release,

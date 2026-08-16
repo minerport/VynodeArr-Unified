@@ -43,6 +43,16 @@ type MusicSnapshot = {
   indexers: ProviderSummary[];
   downloadClients: ProviderSummary[];
   metadataProviders: ProviderSummary[];
+  qualityProfiles: Array<{
+    id: string;
+    name: string;
+    allowLossy: boolean;
+    allowLossless: boolean;
+    minBitrateKbps: number;
+    minSampleRate: number;
+    minBitDepth: number;
+    preferredCodecs: string[];
+  }>;
 };
 type SubtitleSnapshot = {
   providers: ProviderSummary[];
@@ -689,6 +699,120 @@ function MusicImport({
   );
 }
 
+function MusicQualityProfiles({
+  data,
+  options,
+  onSave,
+}: {
+  data: MusicSnapshot;
+  options: MediaExpansionOptions;
+  onSave: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget,
+      input = values(form);
+    setBusy(true);
+    try {
+      await options.request("/api/music/quality-profiles", {
+        method: "POST",
+        body: JSON.stringify({
+          name: input.name,
+          allowLossy: Boolean(input.allowLossy),
+          allowLossless: Boolean(input.allowLossless),
+          minBitrateKbps: Number(input.minBitrateKbps) || 0,
+          minSampleRate: Number(input.minSampleRate) || 0,
+          minBitDepth: Number(input.minBitDepth) || 0,
+          preferredCodecs: String(input.preferredCodecs || "")
+            .split(",")
+            .map((value) => value.trim())
+            .filter(Boolean),
+        }),
+      });
+      form.reset();
+      options.notify("Music quality profile saved.");
+      onSave();
+    } catch (error) {
+      options.notify(errorMessage(error), "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <section className="panel">
+      <div className="panel-heading">
+        <h3>Music quality profiles</h3>
+        <span className="badge">{data.qualityProfiles.length}</span>
+      </div>
+      {data.qualityProfiles.map((profile) => (
+        <div className="data-row" key={profile.id}>
+          <span>
+            <strong>{profile.name}</strong>
+            <small>
+              {[
+                profile.allowLossless && "Lossless",
+                profile.allowLossy && "Lossy",
+                profile.minBitrateKbps && `${profile.minBitrateKbps}+ kbps`,
+                profile.minSampleRate && `${profile.minSampleRate} Hz+`,
+                profile.minBitDepth && `${profile.minBitDepth}-bit+`,
+                profile.preferredCodecs.join(", "),
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </small>
+          </span>
+        </div>
+      ))}
+      <form className="expansion-provider-form" onSubmit={submit}>
+        <label>
+          Name
+          <input name="name" required placeholder="Lossless preferred" />
+        </label>
+        <div className="form-grid">
+          <label className="check">
+            <input type="checkbox" name="allowLossless" defaultChecked />
+            Allow lossless
+          </label>
+          <label className="check">
+            <input type="checkbox" name="allowLossy" defaultChecked />
+            Allow lossy
+          </label>
+          <label>
+            Minimum lossy bitrate
+            <input
+              name="minBitrateKbps"
+              type="number"
+              min="0"
+              placeholder="256"
+            />
+          </label>
+          <label>
+            Minimum sample rate
+            <input
+              name="minSampleRate"
+              type="number"
+              min="0"
+              placeholder="44100"
+            />
+          </label>
+          <label>
+            Minimum bit depth
+            <input name="minBitDepth" type="number" min="0" placeholder="16" />
+          </label>
+          <label>
+            Preferred codecs
+            <input name="preferredCodecs" placeholder="flac, alac, opus" />
+          </label>
+        </div>
+        <button className="primary" disabled={busy}>
+          Save quality profile
+        </button>
+      </form>
+    </section>
+  );
+}
+
 function MusicActions({
   options,
   onSave,
@@ -912,6 +1036,20 @@ function Music({ options }: { options: MediaExpansionOptions }) {
       options.notify(errorMessage(error), "error");
     }
   }
+  async function pollDownloads() {
+    try {
+      const value = await options.request<{
+        updates: unknown[];
+        imports: unknown[];
+      }>("/api/music/downloads/poll", { method: "POST" });
+      options.notify(
+        `Checked music downloads: ${value.updates.length} updated, ${value.imports.length} imported.`,
+      );
+      await load();
+    } catch (error) {
+      options.notify(errorMessage(error), "error");
+    }
+  }
   if (error) return <div className="panel error-state">{error}</div>;
   if (!data)
     return <div className="panel skeleton">Loading music workspace…</div>;
@@ -935,6 +1073,13 @@ function Music({ options }: { options: MediaExpansionOptions }) {
           <span>Download clients</span>
         </div>
       </div>
+      {options.administrator && (
+        <div className="expansion-toolbar">
+          <button type="button" onClick={() => void pollDownloads()}>
+            Check download clients
+          </button>
+        </div>
+      )}
       <section className="expansion-columns">
         <div>
           <h2>Music library</h2>
@@ -1005,6 +1150,13 @@ function Music({ options }: { options: MediaExpansionOptions }) {
           )}
         </div>
         <div>
+          {options.administrator && (
+            <MusicQualityProfiles
+              data={data}
+              options={options}
+              onSave={() => void load()}
+            />
+          )}
           <ProviderList
             title="Music metadata"
             items={data.metadataProviders}

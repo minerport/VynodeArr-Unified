@@ -31,6 +31,8 @@ export class MusicService {
     albumLoader = null,
     searcher = null,
     grabber = null,
+    downloadPoller = null,
+    importer = null,
   }) {
     this.store = store;
     this.vault = vault;
@@ -43,6 +45,8 @@ export class MusicService {
     this.albumLoader = albumLoader;
     this.searcher = searcher;
     this.grabber = grabber;
+    this.downloadPoller = downloadPoller;
+    this.importer = importer;
   }
   async #credentials(provider) {
     if (!provider) return provider;
@@ -102,6 +106,7 @@ export class MusicService {
       editions: state.editions || [],
       tracks: state.tracks || [],
       jobs: state.jobs || [],
+      qualityProfiles: state.qualityProfiles || [],
       indexers: (state.indexers || []).map(publicProvider),
       downloadClients: (state.downloadClients || []).map(publicProvider),
       metadataProviders: (state.metadataProviders || []).map(publicProvider),
@@ -429,6 +434,37 @@ export class MusicService {
     });
     return artist;
   }
+  async saveQualityProfile(input) {
+    const profile = {
+      id: text(input.id) || `music_quality_${randomUUID()}`,
+      name: text(input.name, 100),
+      allowLossy: input.allowLossy !== false,
+      allowLossless: input.allowLossless !== false,
+      minBitrateKbps: Math.max(0, Number(input.minBitrateKbps) || 0),
+      minSampleRate: Math.max(0, Number(input.minSampleRate) || 0),
+      minBitDepth: Math.max(0, Number(input.minBitDepth) || 0),
+      preferredCodecs: Array.isArray(input.preferredCodecs)
+        ? input.preferredCodecs
+            .map((value) => text(value, 30).toLowerCase())
+            .filter(Boolean)
+        : [],
+      upgradeUntil: text(input.upgradeUntil, 40) || null,
+      updatedAt: now(),
+    };
+    if (!profile.name || (!profile.allowLossy && !profile.allowLossless))
+      throw new TypeError(
+        "Quality profile name and at least one allowed class are required",
+      );
+    await this.store.update((state) => {
+      state.qualityProfiles ||= [];
+      const index = state.qualityProfiles.findIndex(
+        (value) => value.id === profile.id,
+      );
+      if (index >= 0) state.qualityProfiles[index] = profile;
+      else state.qualityProfiles.push(profile);
+    });
+    return profile;
+  }
   async saveAlbum(input) {
     const album = {
       id: text(input.id) || `album_${randomUUID()}`,
@@ -533,5 +569,72 @@ export class MusicService {
       });
     }
     return job;
+  }
+  async pollDownloads() {
+    if (!this.downloadPoller)
+      throw new Error("No music download polling connector is installed");
+    const state = await this.store.read(),
+      clients = await Promise.all(
+        (state.downloadClients || [])
+          .filter((value) => value.enabled !== false)
+          .map((value) => this.#credentials(value)),
+      ),
+      updates = [],
+      imports = [];
+    for (const client of clients) {
+      const remote = await this.downloadPoller(client);
+      for (const job of (state.jobs || []).filter(
+        (value) =>
+          value.kind === "grab" &&
+          value.downloadClientId === client.id &&
+          !["imported", "failed"].includes(value.status),
+      )) {
+        const item = remote.find(
+          (value) =>
+            String(value.id) === String(job.externalId) ||
+            (value.name &&
+              job.title &&
+              value.name.toLowerCase().includes(job.title.toLowerCase())),
+        );
+        if (!item) continue;
+        updates.push({
+          jobId: job.id,
+          status: item.status,
+          error: item.error || null,
+          outputPath: item.outputPath || null,
+        });
+        if (
+          item.status === "completed" &&
+          item.outputPath &&
+          job.albumId &&
+          this.importer
+        ) {
+          try {
+            const result = await this.importer.execute({
+              albumId: job.albumId,
+              sourcePath: item.outputPath,
+            });
+            imports.push({ jobId: job.id, ...result });
+            updates[updates.length - 1].status = "imported";
+          } catch (error) {
+            updates[updates.length - 1].status = "import-review";
+            updates[updates.length - 1].error = text(
+              error?.message || error,
+              500,
+            );
+          }
+        }
+      }
+    }
+    if (updates.length)
+      await this.store.update((value) => {
+        for (const update of updates) {
+          const job = (value.jobs || []).find(
+            (entry) => entry.id === update.jobId,
+          );
+          if (job) Object.assign(job, update, { updatedAt: now() });
+        }
+      });
+    return { checked: clients.length, updates, imports };
   }
 }
