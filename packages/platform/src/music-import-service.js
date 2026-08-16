@@ -10,6 +10,7 @@ import {
 import { constants as fsConstants } from "node:fs";
 import { basename, extname, join, relative, resolve } from "node:path";
 import { audioQuality, inspectAudioFile } from "./audio-inspector.js";
+import { writeAudioTags } from "./audio-tagger.js";
 
 const audioExtensions = new Set([
   ".flac",
@@ -75,9 +76,11 @@ async function files(path) {
 }
 
 export class MusicImportService {
-  constructor({ store, inspector = inspectAudioFile, copier = copyFile, remover = rm }) {
+  constructor({ store, inspector = inspectAudioFile, fingerprintMatcher = null, tagger = writeAudioTags, copier = copyFile, remover = rm }) {
     this.store = store;
     this.inspector = inspector;
+    this.fingerprintMatcher = fingerprintMatcher;
+    this.tagger = tagger;
     this.copier = copier;
     this.remover = remover;
   }
@@ -137,7 +140,17 @@ export class MusicImportService {
         await Promise.all(
           available.map(async (path) => {
             try {
-              return [path, await this.inspector(path)];
+              const metadata = await this.inspector(path);
+              if (
+                this.fingerprintMatcher &&
+                !metadata.musicBrainzTrackId &&
+                !metadata.musicBrainzRecordingId &&
+                !metadata.isrc
+              ) {
+                const matches = await this.fingerprintMatcher(path).catch(() => []);
+                metadata.fingerprintMatches = matches;
+              }
+              return [path, metadata];
             } catch {
               return [path, null];
             }
@@ -153,8 +166,11 @@ export class MusicImportService {
       const exactIdentity = [...unmatched].find((path) => {
           const metadata = inspected.get(path);
           return (
-            metadata?.musicBrainzTrackId === track.foreignTrackId ||
-            metadata?.musicBrainzRecordingId === track.foreignRecordingId ||
+            (track.foreignTrackId && metadata?.musicBrainzTrackId === track.foreignTrackId) ||
+            (track.foreignRecordingId && metadata?.musicBrainzRecordingId === track.foreignRecordingId) ||
+            (track.foreignRecordingId && metadata?.fingerprintMatches?.some(
+              (value) => value.recordingId === track.foreignRecordingId,
+            )) ||
             (metadata?.isrc && track.isrcs?.includes(metadata.isrc))
           );
         }),
@@ -180,12 +196,20 @@ export class MusicImportService {
       if (path) unmatched.delete(path);
       const metadata = path ? inspected.get(path) : null,
         compliance = qualityCompliance(metadata, qualityProfile),
+        fingerprintIdentity = Boolean(
+          exactIdentity &&
+          track.foreignRecordingId &&
+          metadata?.fingerprintMatches?.some(
+            (value) => value.recordingId === track.foreignRecordingId,
+          ) &&
+          metadata?.musicBrainzRecordingId !== track.foreignRecordingId,
+        ),
         durationClose =
           metadata?.durationMs && track.durationMs
             ? Math.abs(metadata.durationMs - track.durationMs) <= 3000
             : false,
         confidence = exactIdentity
-          ? 100
+          ? fingerprintIdentity ? 99 : 100
           : taggedPosition && durationClose
             ? 98
             : taggedPosition
@@ -202,6 +226,10 @@ export class MusicImportService {
         title: track.title,
         mediumNumber: track.mediumNumber,
         trackNumber: track.trackNumber,
+        musicBrainzTrackId: track.foreignTrackId || null,
+        musicBrainzRecordingId: track.foreignRecordingId || null,
+        musicBrainzReleaseId: album.foreignReleaseId || album.selectedEditionId?.replace(/^edition_/, "") || null,
+        isrc: track.isrcs?.[0] || null,
         sourcePath: path,
         metadata,
         quality: metadata ? audioQuality(metadata) : null,
@@ -209,7 +237,9 @@ export class MusicImportService {
         qualityReasons: compliance.reasons,
         confidence,
         reason: exactIdentity
-          ? "Embedded MusicBrainz or ISRC identity match"
+          ? fingerprintIdentity
+            ? "AcoustID Chromaprint recording match"
+            : "Embedded MusicBrainz or ISRC identity match"
           : taggedPosition && durationClose
             ? "Embedded disc, track, and duration match"
             : taggedPosition
@@ -274,6 +304,24 @@ export class MusicImportService {
       for (const file of plan) {
         await this.copier(file.sourcePath, file.filePath, fsConstants.COPYFILE_EXCL);
         imported.push(file);
+        if (
+          file.metadata?.codec &&
+          file.metadata?.sampleRate &&
+          file.metadata?.durationMs &&
+          this.tagger
+        )
+          await this.tagger(file.filePath, {
+            title: file.title,
+            artist: review.album.artist,
+            albumArtist: review.album.artist,
+            album: review.album.title,
+            trackNumber: file.trackNumber,
+            discNumber: file.mediumNumber,
+            musicBrainzTrackId: file.musicBrainzTrackId,
+            musicBrainzRecordingId: file.musicBrainzRecordingId,
+            musicBrainzReleaseId: file.musicBrainzReleaseId,
+            isrc: file.isrc,
+          });
       }
     } catch (error) {
       await Promise.allSettled(
@@ -311,5 +359,66 @@ export class MusicImportService {
       });
     });
     return { destination, imported };
+  }
+  async scanLibrary() {
+    const state = await this.store.read(),
+      settings = state.settings || {};
+    if (!settings.libraryRoot)
+      throw new Error("Configure the music library folder before scanning");
+    const root = await realpath(settings.libraryRoot),
+      discovered = await files(root),
+      inspected = [];
+    for (const path of discovered) {
+      try {
+        inspected.push({ path, metadata: await this.inspector(path) });
+      } catch (error) {
+        inspected.push({ path, metadata: null, error: clean(error?.message || error) });
+      }
+    }
+    let matched = 0;
+    await this.store.update((value) => {
+      for (const track of value.tracks || []) {
+        const found = inspected.find((file) =>
+          file.path === track.filePath ||
+          (track.foreignTrackId && file.metadata?.musicBrainzTrackId === track.foreignTrackId) ||
+          (track.foreignRecordingId && file.metadata?.musicBrainzRecordingId === track.foreignRecordingId) ||
+          (file.metadata?.isrc && track.isrcs?.includes(file.metadata.isrc)),
+        );
+        track.hasFile = Boolean(found);
+        track.filePath = found?.path || null;
+        if (found) {
+          track.quality = audioQuality(found.metadata);
+          track.scannedAt = new Date().toISOString();
+          matched += 1;
+        }
+      }
+      for (const album of value.albums || [])
+        album.availableTrackCount = (value.tracks || []).filter(
+          (track) => track.albumId === album.id && track.hasFile,
+        ).length;
+      value.jobs ||= [];
+      value.jobs.unshift({
+        id: `music_scan_${Date.now()}`,
+        kind: "library-scan",
+        title: "Music library scan",
+        status: "completed",
+        fileCount: discovered.length,
+        matchedCount: matched,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+    });
+    return {
+      scanned: discovered.length,
+      matched,
+      unmatched: inspected.filter((file) =>
+        !(state.tracks || []).some((track) =>
+          file.path === track.filePath ||
+          (track.foreignTrackId && file.metadata?.musicBrainzTrackId === track.foreignTrackId) ||
+          (track.foreignRecordingId && file.metadata?.musicBrainzRecordingId === track.foreignRecordingId) ||
+          (file.metadata?.isrc && track.isrcs?.includes(file.metadata.isrc)),
+        ),
+      ).map((file) => ({ path: file.path, error: file.error || null })),
+    };
   }
 }

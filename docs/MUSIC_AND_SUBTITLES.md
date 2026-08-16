@@ -38,6 +38,18 @@ file retaining the exact technical reason. Multi-file imports are transactional:
 if a copy fails, files created by that attempt are removed before library state
 is updated.
 
+Successful copies are tagged through `ffmpeg` stream-copy rewriting with title,
+artist, album, disc/track positions, MusicBrainz identities, and ISRC. Replacement
+is atomic and preserves the original if rewriting fails. The binary can be set
+with `VYNODEARR_FFMPEG_BINARY`. Library scans inspect existing audio, reconcile
+durable embedded identities, update detected quality, and mark disappeared files
+missing so monitoring can recover them.
+
+Users may add an AcoustID metadata provider with their own API key. When imported
+audio has no MusicBrainz or ISRC tags, VynodeArr can run `fpcalc` (configurable
+with `VYNODEARR_FPCALC_BINARY`) and accept only high-confidence AcoustID results
+that resolve to the expected MusicBrainz recording.
+
 Music providers are deliberately split:
 
 - **Indexers** discover Usenet or torrent releases. Supported connector shapes
@@ -59,11 +71,28 @@ retention, and no-overwrite rules still apply.
 Background media automation polls download clients, searches a bounded batch of
 monitored albums with missing tracks, and retries due subtitle jobs. Album search
 uses a configurable score floor and cooldown to prevent duplicate grabs.
+Albums with complete file counts also become candidates when scanned track
+quality violates their assigned profile or preferred codec target.
 Unsuccessful subtitle searches use persisted exponential backoff. Set
 `VYNODEARR_MEDIA_AUTOMATION_ENABLED=false` to disable the worker; its interval,
 batch sizes, music score floor, and cooldown are configurable with the
 `VYNODEARR_MEDIA_AUTOMATION_*`, `VYNODEARR_MUSIC_AUTOMATION_*`, and
 `VYNODEARR_SUBTITLE_AUTOMATION_*` environment variables.
+
+Remote music and subtitle operations are protected by provider circuit breakers.
+Three consecutive failures pause the affected connector for five minutes, and
+secret-free health snapshots expose failure count, last error, last success, and
+the current cooldown state.
+
+Administrators can persist automation enablement, music batch and score limits,
+duplicate cooldown, and subtitle retry batch size from the Music workspace. The
+same workspace retains a bounded operational ledger for searches, grabs, scans,
+imports, skips, and failures.
+
+Encrypted application backups include music state, subtitle state, automation
+history, and the separate encrypted media-provider credential vault. Restore
+validation allowlists these files and reports their presence in the backup
+summary.
 
 Each configured provider has an endpoint, credentials, priority, enabled state,
 capabilities, and connection test. Credentials are encrypted in the dedicated
@@ -98,6 +127,12 @@ arrival calculates missing languages and creates one awaiting-search job for
 each gap. Successful downloads update coverage and append immutable provider,
 language, path, and timestamp history.
 
+Managed subtitle history also retains score, release, forced, and
+hearing-impaired attributes. Profiles can continue searching until their score
+target and preference rules are met, and only strictly better candidates replace
+a managed subtitle. ZIP responses are inspected in memory with traversal-safe
+entry selection and support stored or deflated subtitle files.
+
 ## API surfaces
 
 - `GET /api/music` and `GET /api/subtitles` return secret-free workspaces.
@@ -107,6 +142,7 @@ language, path, and timestamp history.
 - Music quality and completion automation use
   `/api/music/quality-profiles` and `/api/music/downloads/poll`.
 - A manual monitored-missing pass uses `/api/music/missing/search`.
+- Existing-file reconciliation uses `/api/music/library/scan`.
 - Subtitle configuration uses `/api/subtitles/providers`, `/profiles`, and
   `/assignments`.
 - Per-file inventory and automation use `/api/subtitles/reconcile`, `/search`,

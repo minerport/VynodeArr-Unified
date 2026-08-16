@@ -39,7 +39,14 @@ type MusicSnapshot = {
     trackNumber: number;
     hasFile: boolean;
   }>;
-  jobs: Array<{ id: string; title: string; status: string }>;
+  jobs: Array<{
+    id: string;
+    title: string;
+    status: string;
+    kind?: string;
+    createdAt?: string;
+    error?: string;
+  }>;
   indexers: ProviderSummary[];
   downloadClients: ProviderSummary[];
   metadataProviders: ProviderSummary[];
@@ -53,6 +60,13 @@ type MusicSnapshot = {
     minBitDepth: number;
     preferredCodecs: string[];
   }>;
+  automation: {
+    enabled: boolean;
+    musicBatch: number;
+    musicMinScore: number;
+    musicCooldownHours: number;
+    subtitleBatch: number;
+  };
 };
 type SubtitleSnapshot = {
   providers: ProviderSummary[];
@@ -170,6 +184,7 @@ function ProviderForm({
                   MusicBrainz (no key required)
                 </option>
                 <option value="lastfm">Last.fm enrichment (API key)</option>
+                <option value="acoustid">AcoustID fingerprinting (API key)</option>
               </>
             )}
           </select>
@@ -1081,6 +1096,38 @@ function Music({ options }: { options: MediaExpansionOptions }) {
       options.notify(errorMessage(error), "error");
     }
   }
+  async function scanLibrary() {
+    try {
+      const value = await options.request<{ scanned: number; matched: number; unmatched: unknown[] }>(
+        "/api/music/library/scan",
+        { method: "POST" },
+      );
+      options.notify(
+        `Scanned ${value.scanned} music files; ${value.matched} matched, ${value.unmatched.length} unmatched.`,
+      );
+      await load();
+    } catch (error) {
+      options.notify(errorMessage(error), "error");
+    }
+  }
+  async function saveAutomation(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget,
+      input = values(form);
+    try {
+      await options.request("/api/media-expansion/automation", {
+        method: "PUT",
+        body: JSON.stringify({
+          ...input,
+          enabled: new FormData(form).has("enabled"),
+        }),
+      });
+      options.notify("Media automation settings saved.");
+      await load();
+    } catch (error) {
+      options.notify(errorMessage(error), "error");
+    }
+  }
   if (error) return <div className="panel error-state">{error}</div>;
   if (!data)
     return <div className="panel skeleton">Loading music workspace…</div>;
@@ -1111,6 +1158,9 @@ function Music({ options }: { options: MediaExpansionOptions }) {
           </button>
           <button type="button" onClick={() => void searchMissing()}>
             Search monitored missing
+          </button>
+          <button type="button" onClick={() => void scanLibrary()}>
+            Scan music library
           </button>
         </div>
       )}
@@ -1173,6 +1223,32 @@ function Music({ options }: { options: MediaExpansionOptions }) {
           )}
           {options.administrator && (
             <>
+              <form className="panel expansion-provider-form" onSubmit={saveAutomation}>
+                <h3>Background media automation</h3>
+                <div className="form-grid">
+                  <label>
+                    Enabled
+                    <input name="enabled" type="checkbox" defaultChecked={data.automation.enabled} />
+                  </label>
+                  <label>
+                    Albums per pass
+                    <input name="musicBatch" type="number" min="1" max="25" defaultValue={data.automation.musicBatch} />
+                  </label>
+                  <label>
+                    Minimum release score
+                    <input name="musicMinScore" type="number" min="0" defaultValue={data.automation.musicMinScore} />
+                  </label>
+                  <label>
+                    Duplicate cooldown hours
+                    <input name="musicCooldownHours" type="number" min="1" max="720" defaultValue={data.automation.musicCooldownHours} />
+                  </label>
+                  <label>
+                    Subtitle retries per pass
+                    <input name="subtitleBatch" type="number" min="1" max="200" defaultValue={data.automation.subtitleBatch} />
+                  </label>
+                </div>
+                <button className="primary">Save automation</button>
+              </form>
               <ArtistDiscovery options={options} onSave={() => void load()} />
               <MusicImport
                 data={data}
@@ -1233,6 +1309,20 @@ function Music({ options }: { options: MediaExpansionOptions }) {
               onSave={() => void load()}
             />
           )}
+          <section className="panel">
+            <h3>Music operations</h3>
+            {data.jobs.slice(0, 12).map((job) => (
+              <div className="data-row" key={job.id}>
+                <span>
+                  <strong>{job.title}</strong>
+                  <small>{[job.kind, job.createdAt, job.error].filter(Boolean).join(" · ")}</small>
+                </span>
+                <span className={`badge ${job.status === "completed" || job.status === "imported" ? "green" : "warm"}`}>
+                  {job.status}
+                </span>
+              </div>
+            ))}
+          </section>
         </div>
       </section>
     </>

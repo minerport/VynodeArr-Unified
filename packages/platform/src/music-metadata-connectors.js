@@ -40,6 +40,15 @@ export async function testMusicMetadataProvider(
   provider,
   { fetcher = globalThis.fetch } = {},
 ) {
+  if (provider.implementation === "acoustid") {
+    if (!provider.apiKey) throw new Error("An AcoustID API key is required");
+    return {
+      reachable: true,
+      compatible: true,
+      capabilities: ["chromaprint", "recording-match"],
+      message: "AcoustID key is configured; file matching also requires fpcalc.",
+    };
+  }
   if (provider.implementation === "lastfm") {
     if (!provider.apiKey) throw new Error("A Last.fm API key is required");
     const url = new URL(

@@ -156,3 +156,37 @@ test("music import removes partial copies when a later copy fails", async () => 
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test("music library scans reconcile exact embedded identities and missing tracks", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "vynode-music-scan-")),
+    downloads = join(directory, "downloads"),
+    library = join(directory, "library"),
+    file = join(library, "existing.flac");
+  await mkdir(downloads, { recursive: true });
+  await mkdir(library, { recursive: true });
+  await writeFile(file, "audio");
+  const store = new JsonStore(join(directory, "music.json"), {
+      artists: [{ id: "artist", name: "Artist" }],
+      albums: [{ id: "album", artistId: "artist", title: "Album", trackCount: 2, availableTrackCount: 2 }],
+      tracks: [
+        { id: "one", albumId: "album", foreignRecordingId: "recording-1", hasFile: false },
+        { id: "two", albumId: "album", foreignRecordingId: "recording-2", hasFile: true, filePath: join(library, "gone.flac") },
+      ],
+    }),
+    service = new MusicImportService({
+      store,
+      inspector: async (path) => ({ path, codec: "flac", musicBrainzRecordingId: "recording-1" }),
+    });
+  try {
+    await service.settings({ downloadPath: downloads, libraryRoot: library });
+    const result = await service.scanLibrary();
+    assert.equal(result.scanned, 1);
+    assert.equal(result.matched, 1);
+    const state = await store.read();
+    assert.equal(state.tracks[0].filePath, file);
+    assert.equal(state.tracks[1].hasFile, false);
+    assert.equal(state.albums[0].availableTrackCount, 1);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});

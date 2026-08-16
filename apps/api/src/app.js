@@ -706,7 +706,7 @@ export function createApplication(options = {}) {
     grabber: options.musicGrabber || grabMusicRelease,
     downloadPoller: options.musicDownloadPoller || pollMusicDownloads,
   });
-  const musicImports = options.musicImports || new MusicImportService({store:musicStore});
+  const musicImports = options.musicImports || new MusicImportService({store:musicStore,fingerprintMatcher:(path)=>music.matchFingerprint(path)});
   if(!music.importer)music.importer=musicImports;
   const subtitles = options.subtitles || new SubtitleService({
     store: subtitleStore,
@@ -801,6 +801,9 @@ export function createApplication(options = {}) {
     "engine-storage-mappings.json",
     "performance-settings.json",
     "projections.json",
+    "music.json",
+    "subtitles.json",
+    "media-provider-credentials.enc",
   ];
   const applicationHistoryFiles = [
     "search-activity.json",
@@ -944,6 +947,9 @@ export function createApplication(options = {}) {
       notifications: names.includes("notification-events.json"),
       requests: names.includes("user-requests.json"),
       collections: names.includes("collections.json"),
+      music: names.includes("music.json"),
+      subtitles: names.includes("subtitles.json"),
+      mediaProviderCredentials: names.includes("media-provider-credentials.enc"),
       history: names.includes("search-activity.json"),
       audit: names.includes("management-audit.json"),
     };
@@ -978,7 +984,12 @@ export function createApplication(options = {}) {
       const target = join(dataDir, name),
         temporary = `${target}.restore-${randomUUID()}`;
       await writeFile(temporary, Buffer.from(String(value), "base64"), {
-        mode: name === "master-key" || name === "credentials.enc" ? 384 : 416,
+        mode:
+          name === "master-key" ||
+          name === "credentials.enc" ||
+          name === "media-provider-credentials.enc"
+            ? 384
+            : 416,
       });
       await rename(temporary, target);
       restored.push(name);
@@ -5760,18 +5771,24 @@ export function createApplication(options = {}) {
       );
       const run = () => {
         if (mediaAutomationRun) return mediaAutomationRun;
-        mediaAutomationRun = Promise.allSettled([
-          typeof music.pollDownloads === "function" ? music.pollDownloads() : Promise.resolve(null),
-          typeof music.searchMonitoredMissing === "function" ? music.searchMonitoredMissing({
-            limit: Math.max(1, Math.min(25, Number(env.VYNODEARR_MUSIC_AUTOMATION_BATCH || 3))),
-            minScore: Number(env.VYNODEARR_MUSIC_AUTOMATION_MIN_SCORE || 0),
-            cooldownHours: Number(env.VYNODEARR_MUSIC_AUTOMATION_COOLDOWN_HOURS || 24),
-          }) : Promise.resolve(null),
-          typeof subtitles.retryPending === "function" ? subtitles.retryPending({
-            limit: Math.max(1, Math.min(200, Number(env.VYNODEARR_SUBTITLE_AUTOMATION_BATCH || 25))),
-            respectSchedule: true,
-          }) : Promise.resolve(null),
-        ]).finally(() => { mediaAutomationRun = null; });
+        mediaAutomationRun = (async () => {
+          const saved = typeof music.automationSettings === "function"
+            ? await music.automationSettings()
+            : {};
+          if (saved.enabled === false) return [];
+          return Promise.allSettled([
+            typeof music.pollDownloads === "function" ? music.pollDownloads() : Promise.resolve(null),
+            typeof music.searchMonitoredMissing === "function" ? music.searchMonitoredMissing({
+              limit: saved.musicBatch || Math.max(1, Math.min(25, Number(env.VYNODEARR_MUSIC_AUTOMATION_BATCH || 3))),
+              minScore: saved.musicMinScore ?? Number(env.VYNODEARR_MUSIC_AUTOMATION_MIN_SCORE || 0),
+              cooldownHours: saved.musicCooldownHours || Number(env.VYNODEARR_MUSIC_AUTOMATION_COOLDOWN_HOURS || 24),
+            }) : Promise.resolve(null),
+            typeof subtitles.retryPending === "function" ? subtitles.retryPending({
+              limit: saved.subtitleBatch || Math.max(1, Math.min(200, Number(env.VYNODEARR_SUBTITLE_AUTOMATION_BATCH || 25))),
+              respectSchedule: true,
+            }) : Promise.resolve(null),
+          ]);
+        })().finally(() => { mediaAutomationRun = null; });
         return mediaAutomationRun;
       };
       mediaAutomationTimer = setInterval(() => void run(), interval);
@@ -8784,6 +8801,14 @@ export function createApplication(options = {}) {
           if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
           return json(res, 202, await music.searchMonitoredMissing(await body(req)));
         }
+        if (url.pathname === "/api/media-expansion/automation") {
+          if (!administrator(res, session)) return;
+          if (req.method === "GET") return json(res, 200, await music.automationSettings());
+          if (req.method === "PUT") {
+            if (!requireCsrf(req, res, session)) return;
+            return json(res, 200, await music.automationSettings(await body(req)));
+          }
+        }
         if (url.pathname === "/api/music/import/settings") {
           if (!administrator(res, session)) return;
           if (req.method === "GET") return json(res, 200, await musicImports.settings());
@@ -8796,6 +8821,10 @@ export function createApplication(options = {}) {
         if (url.pathname === "/api/music/import/execute" && req.method === "POST") {
           if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
           return json(res, 201, await musicImports.execute(await body(req)));
+        }
+        if (url.pathname === "/api/music/library/scan" && req.method === "POST") {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          return json(res, 202, await musicImports.scanLibrary());
         }
         if (url.pathname === "/api/subtitles/retry-pending" && req.method === "POST") {
           if (!administrator(res, session) || !requireCsrf(req, res, session)) return;

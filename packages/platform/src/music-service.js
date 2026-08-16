@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { lookupAcoustId } from "./audio-fingerprint.js";
+import { ProviderResilience } from "./provider-resilience.js";
 
 const text = (value, max = 240) =>
   String(value ?? "")
@@ -33,6 +35,7 @@ export class MusicService {
     grabber = null,
     downloadPoller = null,
     importer = null,
+    resilience = new ProviderResilience(),
   }) {
     this.store = store;
     this.vault = vault;
@@ -47,6 +50,7 @@ export class MusicService {
     this.grabber = grabber;
     this.downloadPoller = downloadPoller;
     this.importer = importer;
+    this.resilience = resilience;
   }
   async #credentials(provider) {
     if (!provider) return provider;
@@ -54,6 +58,14 @@ export class MusicService {
       ...provider,
       ...(this.vault ? await this.vault.get(`music:${provider.id}`) : null),
     };
+  }
+  async matchFingerprint(path) {
+    const state = await this.store.read(),
+      provider = (state.metadataProviders || []).find(
+        (value) => value.enabled !== false && value.implementation === "acoustid",
+      );
+    if (!provider) return [];
+    return lookupAcoustId(path, await this.#credentials(provider));
   }
   async #migrate() {
     if (!this.vault) return;
@@ -110,6 +122,14 @@ export class MusicService {
       indexers: (state.indexers || []).map(publicProvider),
       downloadClients: (state.downloadClients || []).map(publicProvider),
       metadataProviders: (state.metadataProviders || []).map(publicProvider),
+      providerHealth: this.resilience.snapshot(),
+      automation: state.automation || {
+        enabled: true,
+        musicBatch: 3,
+        musicMinScore: 0,
+        musicCooldownHours: 24,
+        subtitleBatch: 25,
+      },
     };
   }
   async saveProvider(type, input) {
@@ -465,6 +485,26 @@ export class MusicService {
     });
     return profile;
   }
+  async automationSettings(input = null) {
+    if (input) {
+      const settings = {
+        enabled: input.enabled !== false,
+        musicBatch: Math.max(1, Math.min(25, Number(input.musicBatch) || 3)),
+        musicMinScore: Math.max(0, Number(input.musicMinScore) || 0),
+        musicCooldownHours: Math.max(1, Math.min(720, Number(input.musicCooldownHours) || 24)),
+        subtitleBatch: Math.max(1, Math.min(200, Number(input.subtitleBatch) || 25)),
+        updatedAt: now(),
+      };
+      await this.store.update((state) => { state.automation = settings; });
+    }
+    return (await this.store.read()).automation || {
+      enabled: true,
+      musicBatch: 3,
+      musicMinScore: 0,
+      musicCooldownHours: 24,
+      subtitleBatch: 25,
+    };
+  }
   async saveAlbum(input) {
     const album = {
       id: text(input.id) || `album_${randomUUID()}`,
@@ -510,7 +550,9 @@ export class MusicService {
           "No search connector is installed for the configured indexers.",
         ],
       };
-    const raw = await this.searcher({ query, indexers });
+    const raw = await this.resilience.run("music:indexers", () =>
+      this.searcher({ query, indexers }),
+    );
     const items = (raw || [])
       .map((item) => ({
         ...item,
@@ -551,7 +593,9 @@ export class MusicService {
       value.jobs.unshift(job);
     });
     try {
-      const result = await this.grabber({ release: input, client });
+      const result = await this.resilience.run(`music:client:${client.id}`, () =>
+        this.grabber({ release: input, client }),
+      );
       job.status = "sent";
       job.externalId = text(result?.id, 160) || null;
       job.updatedAt = now();
@@ -573,18 +617,42 @@ export class MusicService {
   async searchMonitoredMissing({ limit = 3, minScore = 0, cooldownHours = 24 } = {}) {
     const state = await this.store.read(),
       artists = new Map((state.artists || []).map((value) => [value.id, value])),
+      profiles = new Map(
+        (state.qualityProfiles || []).flatMap((value) => [
+          [value.id, value],
+          [value.name, value],
+        ]),
+      ),
       cutoff = Date.now() - Math.max(1, Number(cooldownHours) || 24) * 36e5,
       candidates = (state.albums || [])
         .filter((album) => {
           const artist = artists.get(album.artistId),
             missing = Number(album.trackCount || 0) > Number(album.availableTrackCount || 0),
+            profile = profiles.get(artist?.qualityProfile),
+            upgrade = Boolean(
+              profile &&
+              (state.tracks || [])
+                .filter((track) => track.albumId === album.id && track.hasFile)
+                .some((track) => {
+                  const quality = track.quality || {},
+                    codec = text(quality.codec, 30).toLowerCase();
+                  return (
+                    (quality.lossless && profile.allowLossless === false) ||
+                    (!quality.lossless && profile.allowLossy === false) ||
+                    (profile.minBitrateKbps && Number(quality.bitrate || 0) / 1000 < profile.minBitrateKbps) ||
+                    (profile.minSampleRate && Number(quality.sampleRate || 0) < profile.minSampleRate) ||
+                    (profile.minBitDepth && Number(quality.bitDepth || 0) < profile.minBitDepth) ||
+                    (profile.preferredCodecs?.length && !profile.preferredCodecs.includes(codec))
+                  );
+                }),
+            ),
             recent = (state.jobs || []).some(
               (job) =>
                 job.albumId === album.id &&
                 ["queued", "sent", "downloading", "completed", "import-review", "imported"].includes(job.status) &&
                 Date.parse(job.createdAt || 0) >= cutoff,
             );
-          return album.monitored !== false && artist?.monitored !== false && missing && !recent;
+          return album.monitored !== false && artist?.monitored !== false && (missing || upgrade) && !recent;
         })
         .slice(0, Math.max(1, Math.min(25, Number(limit) || 3))),
       searched = [],
@@ -613,6 +681,22 @@ export class MusicService {
         skipped.push({ albumId: album.id, reason: text(error?.message || error, 500) });
       }
     }
+    await this.store.update((value) => {
+      value.jobs ||= [];
+      value.jobs.unshift({
+        id: `music_automation_${randomUUID()}`,
+        kind: "missing-search",
+        title: "Monitored missing album search",
+        status: skipped.length && !grabbed.length ? "attention" : "completed",
+        candidateCount: candidates.length,
+        grabbedCount: grabbed.length,
+        skippedCount: skipped.length,
+        details: skipped.slice(0, 25),
+        createdAt: now(),
+        updatedAt: now(),
+      });
+      value.jobs = value.jobs.slice(0, 1000);
+    });
     return { candidates: candidates.length, searched, grabbed, skipped };
   }
   async pollDownloads() {
@@ -627,7 +711,9 @@ export class MusicService {
       updates = [],
       imports = [];
     for (const client of clients) {
-      const remote = await this.downloadPoller(client);
+      const remote = await this.resilience.run(`music:client:${client.id}`, () =>
+        this.downloadPoller(client),
+      );
       for (const job of (state.jobs || []).filter(
         (value) =>
           value.kind === "grab" &&

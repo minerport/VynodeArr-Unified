@@ -1,8 +1,33 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { basename, dirname, extname, join } from "node:path";
+import { inflateRaw } from "node:zlib";
+import { promisify } from "node:util";
 
 const timeout = (ms) => AbortSignal.timeout(ms);
 const openSubtitlesTokens = new Map();
+const unzip = promisify(inflateRaw);
+const subtitleFile = /\.(srt|ass|ssa|vtt|sub)$/i;
+export async function extractSubtitlePayload(bytes) {
+  if (bytes.length < 4 || bytes.readUInt32LE?.(0) !== 0x04034b50) return bytes;
+  let offset = 0;
+  while (offset + 30 <= bytes.length && bytes.readUInt32LE(offset) === 0x04034b50) {
+    const method = bytes.readUInt16LE(offset + 8),
+      compressedSize = bytes.readUInt32LE(offset + 18),
+      nameLength = bytes.readUInt16LE(offset + 26),
+      extraLength = bytes.readUInt16LE(offset + 28),
+      nameStart = offset + 30,
+      dataStart = nameStart + nameLength + extraLength,
+      name = bytes.subarray(nameStart, nameStart + nameLength).toString("utf8"),
+      data = bytes.subarray(dataStart, dataStart + compressedSize);
+    if (subtitleFile.test(name) && !name.includes("..") && !name.startsWith("/") && !name.startsWith("\\")) {
+      if (method === 0) return Buffer.from(data);
+      if (method === 8) return unzip(data);
+      throw new Error(`Unsupported subtitle archive compression method ${method}`);
+    }
+    offset = dataStart + compressedSize;
+  }
+  throw new Error("The subtitle archive did not contain a supported subtitle file");
+}
 const endpoint = (value) => {
   const url = new URL(String(value || ""));
   if (
@@ -462,6 +487,7 @@ export async function downloadSubtitle({ item, provider, result }) {
       20_000_000,
     );
   }
+  bytes = await extractSubtitlePayload(bytes);
   await writeFile(target, bytes, { mode: 0o644 });
   return { path: target };
 }

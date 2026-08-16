@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { readdir } from "node:fs/promises";
 import { basename, dirname, extname } from "node:path";
+import { ProviderResilience } from "./provider-resilience.js";
 
 const text = (value, max = 500) =>
   String(value ?? "")
@@ -52,12 +53,14 @@ export class SubtitleService {
     providerTester = null,
     searcher = null,
     downloader = null,
+    resilience = new ProviderResilience(),
   }) {
     this.store = store;
     this.vault = vault;
     this.providerTester = providerTester;
     this.searcher = searcher;
     this.downloader = downloader;
+    this.resilience = resilience;
   }
   async #credentials(provider) {
     if (!provider) return provider;
@@ -99,6 +102,7 @@ export class SubtitleService {
       items: state.items || [],
       jobs: state.jobs || [],
       history: state.history || [],
+      providerHealth: this.resilience.snapshot(),
     };
   }
   async saveProvider(input) {
@@ -270,13 +274,29 @@ export class SubtitleService {
         ...normalizeLanguages(item.external),
       ]),
       required = profile?.languages || [],
-      missing = required.filter((language) => !present.has(language));
+      missing = required.filter((language) => !present.has(language)),
+      history = (state.history || []).filter((entry) => entry.itemId === item.id),
+      upgradeLanguages = required.filter((language) => {
+        if (missing.includes(language)) return false;
+        const managed = history
+          .filter((entry) => entry.language === language)
+          .sort((a, b) => Date.parse(b.createdAt || 0) - Date.parse(a.createdAt || 0))[0];
+        if (!managed) return false;
+        if (profile?.upgradeUntilScore && Number(managed.score || 0) < profile.upgradeUntilScore)
+          return true;
+        if (profile?.hearingImpaired === "prefer" && managed.hearingImpaired !== true)
+          return true;
+        if (profile?.hearingImpaired === "exclude" && managed.hearingImpaired === true)
+          return true;
+        return profile?.forced?.includes(language) && managed.forced !== true;
+      });
     return {
       ...item,
       profile: profile || null,
       requiredLanguages: required,
       presentLanguages: [...present],
       missingLanguages: missing,
+      upgradeLanguages,
       complete: Boolean(profile) && missing.length === 0,
     };
   }
@@ -331,15 +351,37 @@ export class SubtitleService {
           "No search connector is installed for the configured subtitle providers.",
         ],
       };
-    const results = await this.searcher({
+    const results = await this.resilience.run("subtitles:search", () => this.searcher({
       item: status,
       languages: input.languages?.length
         ? normalizeLanguages(input.languages)
-        : status.missingLanguages,
+        : [...status.missingLanguages, ...status.upgradeLanguages],
       providers,
-    });
+    }));
+    const history = (state.history || []).filter((entry) => entry.itemId === item.id),
+      ranked = (results || [])
+        .filter((result) => {
+          const language = text(result.language, 20).toLowerCase(),
+            currentScore = Math.max(
+              -1,
+              ...history
+                .filter((entry) => entry.language === language)
+                .map((entry) => Number(entry.score || 0)),
+            );
+          if (status.profile.hearingImpaired === "exclude" && result.hearingImpaired === true)
+            return false;
+          if (status.profile.forced?.includes(language) && result.forced !== true)
+            return false;
+          return !status.upgradeLanguages.includes(language) || Number(result.score || 0) > currentScore;
+        })
+        .map((result) => ({
+          ...result,
+          score:
+            Number(result.score || 0) +
+            (status.profile.hearingImpaired === "prefer" && result.hearingImpaired === true ? 15 : 0),
+        }));
     return {
-      items: (results || []).sort(
+      items: ranked.sort(
         (a, b) => Number(b.score || 0) - Number(a.score || 0),
       ),
       warnings: [],
@@ -373,7 +415,9 @@ export class SubtitleService {
       value.jobs.unshift(job);
     });
     try {
-      const result = await this.downloader({ item, provider, result: input });
+      const result = await this.resilience.run(`subtitle:${provider.id}`, () =>
+        this.downloader({ item, provider, result: input }),
+      );
       job.status = "completed";
       job.path = text(result?.path, 1000) || null;
       await this.store.update((value) => {
@@ -388,6 +432,10 @@ export class SubtitleService {
           provider: provider.name,
           language: job.language,
           path: job.path,
+          score: Number(input.score || 0),
+          forced: input.forced === true,
+          hearingImpaired: input.hearingImpaired === true,
+          release: text(input.release || input.fileName, 500) || null,
           createdAt: now(),
         });
       });
@@ -407,11 +455,14 @@ export class SubtitleService {
   async processMediaArrival(input) {
     const item = await this.reconcile(input),
       status = await this.status(item);
-    if (!status.missingLanguages.length)
+    const wantedLanguages = [
+      ...new Set([...status.missingLanguages, ...status.upgradeLanguages]),
+    ];
+    if (!wantedLanguages.length)
       return { item: status, queued: [], downloaded: [] };
     const queued = [],
       downloaded = [];
-    for (const language of status.missingLanguages) {
+    for (const language of wantedLanguages) {
       try {
         const results = await this.search({
             itemId: item.id,

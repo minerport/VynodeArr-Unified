@@ -6,12 +6,26 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   downloadSubtitle,
+  extractSubtitlePayload,
   grabMusicRelease,
   pollMusicDownloads,
   searchNewznab,
   searchSubtitles,
   testMusicProvider,
 } from "../.server-build/packages/platform/src/media-connectors.js";
+
+test("subtitle ZIP payloads safely select supported sidecars", async () => {
+  const name = Buffer.from("release/movie.en.srt"),
+    body = Buffer.from("1\n00:00:00,000 --> 00:00:01,000\nHello\n"),
+    header = Buffer.alloc(30);
+  header.writeUInt32LE(0x04034b50, 0);
+  header.writeUInt16LE(20, 4);
+  header.writeUInt16LE(0, 8);
+  header.writeUInt32LE(body.length, 18);
+  header.writeUInt32LE(body.length, 22);
+  header.writeUInt16LE(name.length, 26);
+  assert.deepEqual(await extractSubtitlePayload(Buffer.concat([header, name, body])), body);
+});
 
 async function server(handler, run) {
   const instance = createServer(handler);

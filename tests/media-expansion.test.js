@@ -225,6 +225,33 @@ test("monitored missing music automation searches and grabs only eligible albums
   }
 });
 
+test("music automation searches complete albums whose files miss the assigned quality target", async () => {
+  const value = await fixture(
+    "music-upgrade",
+    {
+      artists: [{ id: "artist", name: "Artist", monitored: true, qualityProfile: "Lossless" }],
+      albums: [{ id: "album", artistId: "artist", title: "Album", monitored: true, trackCount: 1, availableTrackCount: 1 }],
+      tracks: [{ id: "track", albumId: "album", hasFile: true, quality: { codec: "mp3", lossless: false, bitrate: 320000, sampleRate: 44100 } }],
+      qualityProfiles: [{ id: "quality", name: "Lossless", allowLossy: false, allowLossless: true, preferredCodecs: ["flac"] }],
+      jobs: [],
+      indexers: [{ id: "indexer", endpoint: "https://search.test", enabled: true, priority: 1 }],
+      downloadClients: [{ id: "client", endpoint: "https://client.test", enabled: true, priority: 1 }],
+    },
+    (store) => new MusicService({
+      store,
+      searcher: async () => [{ title: "FLAC upgrade", score: 100 }],
+      grabber: async () => ({ id: "upgrade-download" }),
+    }),
+  );
+  try {
+    const result = await value.service.searchMonitoredMissing();
+    assert.equal(result.candidates, 1);
+    assert.equal(result.grabbed[0].albumId, "album");
+  } finally {
+    await rm(value.directory, { recursive: true, force: true });
+  }
+});
+
 test("subtitle policies inherit from series and can be overridden per episode", async () => {
   const value = await fixture(
     "subtitles",
@@ -483,6 +510,36 @@ test("automatic subtitle retries back off after an unsuccessful search", async (
     assert.equal(job.attempts, 1);
     assert.ok(Date.parse(job.nextAttemptAt) > Date.now());
     assert.equal((await value.service.retryPending({ respectSchedule: true })).attempted, 0);
+  } finally {
+    await rm(value.directory, { recursive: true, force: true });
+  }
+});
+
+test("subtitle profiles upgrade managed files by score and hearing-impaired preference", async () => {
+  const value = await fixture(
+    "subtitle-upgrade",
+    {
+      providers: [{ id: "provider", name: "Provider", endpoint: "https://subtitle.test", enabled: true, priority: 1 }],
+      profiles: [{ id: "profile", name: "Preferred", languages: ["en"], forced: [], hearingImpaired: "prefer", upgradeUntilScore: 100 }],
+      assignments: [{ id: "assignment", domain: "movie", mediaId: "movie", profileId: "profile", enabled: true }],
+      items: [{ id: "movie_movie", domain: "movie", mediaId: "movie", title: "Movie", embedded: [], external: ["en"] }],
+      jobs: [],
+      history: [{ id: "old", itemId: "movie_movie", language: "en", score: 60, hearingImpaired: false, createdAt: "2026-01-01T00:00:00Z" }],
+    },
+    (store) => new SubtitleService({
+      store,
+      searcher: async () => [
+        { id: "worse", providerId: "provider", language: "en", score: 50, hearingImpaired: true },
+        { id: "better", providerId: "provider", language: "en", score: 80, hearingImpaired: true },
+      ],
+    }),
+  );
+  try {
+    const status = await value.service.status((await value.service.snapshot()).items[0]);
+    assert.deepEqual(status.upgradeLanguages, ["en"]);
+    const results = await value.service.search({ itemId: "movie_movie" });
+    assert.deepEqual(results.items.map((item) => item.id), ["better"]);
+    assert.equal(results.items[0].score, 95);
   } finally {
     await rm(value.directory, { recursive: true, force: true });
   }
