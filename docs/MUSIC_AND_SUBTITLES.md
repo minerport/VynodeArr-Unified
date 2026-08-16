@@ -10,6 +10,15 @@ Music uses artist → album → track identities. Monitoring belongs to VynodeAr
 and supports all, future, missing, or none. Release searches return a numeric
 score and human-readable reasons so an automatic choice can always be audited.
 
+Artist discovery uses MusicBrainz as the authoritative identity source. It is
+enabled automatically, requires no API key, sends the required VynodeArr user
+agent, and is globally limited to one request per second. Imported artists keep
+their MusicBrainz artist ID; conceptual albums keep release-group IDs and full
+artist credits. Cover Art Archive release-group artwork is retained separately.
+Administrators may add Last.fm as an optional enrichment provider using their
+own API key for biographies, tags, and popularity data. That key uses the same
+encrypted credential vault as indexer and download-client secrets.
+
 Music providers are deliberately split:
 
 - **Indexers** discover Usenet or torrent releases. Supported connector shapes

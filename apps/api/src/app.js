@@ -50,6 +50,7 @@ import { createLogger } from "../../../packages/platform/src/logger.js";
 import { MusicService } from "../../../packages/platform/src/music-service.js";
 import { SubtitleService } from "../../../packages/platform/src/subtitle-service.js";
 import { downloadSubtitle, grabMusicRelease, searchNewznab, searchSubtitles, testMusicProvider, testSubtitleProvider } from "../../../packages/platform/src/media-connectors.js";
+import { enrichMusicArtist, loadMusicBrainzArtist, searchMusicArtists, testMusicMetadataProvider } from "../../../packages/platform/src/music-metadata-connectors.js";
 import { MovieEngineAdapter } from "../../../packages/movie-domain/src/engine-adapter.js";
 import { TvEngineAdapter } from "../../../packages/tv-domain/src/engine-adapter.js";
 import { MultiInstanceReadAdapter } from "../../../packages/platform/src/multi-instance-read-adapter.js";
@@ -684,7 +685,7 @@ export function createApplication(options = {}) {
       updatedAt: null,
     });
   const musicStore = options.musicStore || new JsonStore(join(dataDir, "music.json"), {
-    version: 1, artists: [], albums: [], tracks: [], jobs: [], indexers: [], downloadClients: [], updatedAt: null,
+    version: 1, artists: [], albums: [], tracks: [], jobs: [], indexers: [], downloadClients: [], metadataProviders: [{id:"metadata_musicbrainz",name:"MusicBrainz",type:"metadata",implementation:"musicbrainz",endpoint:"https://musicbrainz.org/ws/2",enabled:true,priority:1,capabilities:["artist-search","discography"]}], updatedAt: null,
   });
   const subtitleStore = options.subtitleStore || new JsonStore(join(dataDir, "subtitles.json"), {
     version: 1, providers: [], profiles: [], assignments: [], items: [], jobs: [], history: [], updatedAt: null,
@@ -695,6 +696,10 @@ export function createApplication(options = {}) {
     vault: mediaProviderVault,
     indexerTester: options.musicIndexerTester || testMusicProvider,
     downloadClientTester: options.musicDownloadClientTester || testMusicProvider,
+    metadataProviderTester: options.musicMetadataProviderTester || testMusicMetadataProvider,
+    artistSearcher: options.musicArtistSearcher || searchMusicArtists,
+    artistLoader: options.musicArtistLoader || loadMusicBrainzArtist,
+    artistEnricher: options.musicArtistEnricher || enrichMusicArtist,
     searcher: options.musicSearcher || searchNewznab,
     grabber: options.musicGrabber || grabMusicRelease,
   });
@@ -8645,6 +8650,14 @@ export function createApplication(options = {}) {
           if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
           return json(res, 201, { artist: await music.saveArtist(await body(req)) });
         }
+        if (url.pathname === "/api/music/artists/search" && req.method === "POST") {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          const input=await body(req);return json(res, 200, await music.searchArtists(input.query));
+        }
+        if (url.pathname === "/api/music/artists/import" && req.method === "POST") {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          return json(res, 201, await music.addArtistFromMetadata(await body(req)));
+        }
         if (url.pathname === "/api/music/albums" && req.method === "POST") {
           if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
           return json(res, 201, { album: await music.saveAlbum(await body(req)) });
@@ -8657,10 +8670,10 @@ export function createApplication(options = {}) {
           if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
           return json(res, 202, { job: await music.grab(await body(req)) });
         }
-        const musicProviderMatch=url.pathname.match(/^\/api\/music\/(indexers|download-clients)(?:\/([^/]+))?(?:\/(test))?$/);
+        const musicProviderMatch=url.pathname.match(/^\/api\/music\/(indexers|download-clients|metadata-providers)(?:\/([^/]+))?(?:\/(test))?$/);
         if (musicProviderMatch) {
           if (!administrator(res, session)) return;
-          const type=musicProviderMatch[1]==="indexers"?"indexer":"downloadClient",id=musicProviderMatch[2]?decodeURIComponent(musicProviderMatch[2]):null;
+          const type=musicProviderMatch[1]==="indexers"?"indexer":musicProviderMatch[1]==="download-clients"?"downloadClient":"metadata",id=musicProviderMatch[2]?decodeURIComponent(musicProviderMatch[2]):null;
           if (req.method === "POST" && musicProviderMatch[3] === "test") {
             if (!requireCsrf(req, res, session)) return;
             return json(res, 200, await music.testProvider(type, { ...(await body(req)), id }));

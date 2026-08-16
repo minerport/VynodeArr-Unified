@@ -24,6 +24,10 @@ export class MusicService {
     vault = null,
     indexerTester = null,
     downloadClientTester = null,
+    metadataProviderTester = null,
+    artistSearcher = null,
+    artistLoader = null,
+    artistEnricher = null,
     searcher = null,
     grabber = null,
   }) {
@@ -31,6 +35,10 @@ export class MusicService {
     this.vault = vault;
     this.indexerTester = indexerTester;
     this.downloadClientTester = downloadClientTester;
+    this.metadataProviderTester = metadataProviderTester;
+    this.artistSearcher = artistSearcher;
+    this.artistLoader = artistLoader;
+    this.artistEnricher = artistEnricher;
     this.searcher = searcher;
     this.grabber = grabber;
   }
@@ -47,6 +55,7 @@ export class MusicService {
       providers = [
         ...(state.indexers || []),
         ...(state.downloadClients || []),
+        ...(state.metadataProviders || []),
       ].filter((provider) => secretFields.some((field) => provider[field]));
     if (!providers.length) return;
     for (const provider of providers) {
@@ -61,14 +70,30 @@ export class MusicService {
       });
     }
     await this.store.update((value) => {
-      for (const key of ["indexers", "downloadClients"])
+      for (const key of ["indexers", "downloadClients", "metadataProviders"])
         for (const provider of value[key] || [])
           for (const field of secretFields) delete provider[field];
     });
   }
   async snapshot() {
     await this.#migrate();
-    const state = await this.store.read();
+    let state = await this.store.read();
+    if (!Array.isArray(state.metadataProviders))
+      state = await this.store.update((value) => {
+        value.metadataProviders = [
+          {
+            id: "metadata_musicbrainz",
+            name: "MusicBrainz",
+            type: "metadata",
+            implementation: "musicbrainz",
+            endpoint: "https://musicbrainz.org/ws/2",
+            enabled: true,
+            priority: 1,
+            capabilities: ["artist-search", "discography"],
+          },
+        ];
+        return value;
+      });
     return {
       artists: state.artists || [],
       albums: state.albums || [],
@@ -76,17 +101,25 @@ export class MusicService {
       jobs: state.jobs || [],
       indexers: (state.indexers || []).map(publicProvider),
       downloadClients: (state.downloadClients || []).map(publicProvider),
+      metadataProviders: (state.metadataProviders || []).map(publicProvider),
     };
   }
   async saveProvider(type, input) {
-    if (!["indexer", "downloadClient"].includes(type))
+    if (!["indexer", "downloadClient", "metadata"].includes(type))
       throw new TypeError("Unsupported music provider type");
-    const key = type === "indexer" ? "indexers" : "downloadClients",
+    const key =
+        type === "indexer"
+          ? "indexers"
+          : type === "downloadClient"
+            ? "downloadClients"
+            : "metadataProviders",
       record = {
         id: text(input.id) || `${type}_${randomUUID()}`,
         name: text(input.name, 80),
         type,
-        implementation: text(input.implementation, 40) || "torznab",
+        implementation:
+          text(input.implementation, 40) ||
+          (type === "metadata" ? "musicbrainz" : "torznab"),
         endpoint: text(input.endpoint, 500),
         enabled: input.enabled !== false,
         priority: Math.max(1, Math.min(100, Number(input.priority) || 25)),
@@ -128,7 +161,9 @@ export class MusicService {
         ? "indexers"
         : type === "downloadClient"
           ? "downloadClients"
-          : null;
+          : type === "metadata"
+            ? "metadataProviders"
+            : null;
     if (!key) throw new TypeError("Unsupported music provider type");
     const removed = await this.store.update((state) => {
       const before = (state[key] || []).length;
@@ -140,7 +175,11 @@ export class MusicService {
   }
   async testProvider(type, input) {
     const tester =
-      type === "indexer" ? this.indexerTester : this.downloadClientTester;
+      type === "indexer"
+        ? this.indexerTester
+        : type === "downloadClient"
+          ? this.downloadClientTester
+          : this.metadataProviderTester;
     if (!tester)
       return {
         reachable: false,
@@ -150,7 +189,12 @@ export class MusicService {
     let config = input;
     if (input?.id) {
       const state = await this.store.read(),
-        items = type === "indexer" ? state.indexers : state.downloadClients;
+        items =
+          type === "indexer"
+            ? state.indexers
+            : type === "downloadClient"
+              ? state.downloadClients
+              : state.metadataProviders;
       config = (items || []).find((item) => item.id === input.id);
       if (!config) throw new Error("Music provider was not found");
       config = await this.#credentials(config);
@@ -164,6 +208,112 @@ export class MusicService {
       latencyMs: Date.now() - started,
       message: result?.message || "Connection successful.",
     };
+  }
+  async searchArtists(query) {
+    if (!this.artistSearcher)
+      throw new Error("No music metadata search connector is installed");
+    const state = await this.store.read(),
+      providers = await Promise.all(
+        (state.metadataProviders || [])
+          .filter((value) => value.enabled !== false)
+          .sort((a, b) => a.priority - b.priority)
+          .map((value) => this.#credentials(value)),
+      );
+    if (!providers.some((value) => value.implementation === "musicbrainz"))
+      return {
+        items: [],
+        warnings: [
+          "Configure and enable MusicBrainz before searching for artists.",
+        ],
+      };
+    return {
+      items: await this.artistSearcher({ query: text(query, 160), providers }),
+      warnings: [],
+    };
+  }
+  async addArtistFromMetadata(input) {
+    if (!this.artistLoader)
+      throw new Error("No music metadata loader is installed");
+    const state = await this.store.read(),
+      providers = await Promise.all(
+        (state.metadataProviders || [])
+          .filter((value) => value.enabled !== false)
+          .sort((a, b) => a.priority - b.priority)
+          .map((value) => this.#credentials(value)),
+      ),
+      authoritative = providers.find(
+        (value) => value.implementation === "musicbrainz",
+      );
+    if (!authoritative)
+      throw new Error("Enable MusicBrainz before adding an artist");
+    const loaded = await this.artistLoader({
+      artistId: text(input.artistId, 120),
+      provider: authoritative,
+    });
+    let artist = {
+      ...loaded.artist,
+      id: `artist_${loaded.artist.id}`,
+      foreignArtistId: loaded.artist.id,
+      path: text(input.path, 500) || null,
+      monitored: input.monitored !== false,
+      monitorMode: ["all", "future", "missing", "none"].includes(
+        input.monitorMode,
+      )
+        ? input.monitorMode
+        : "all",
+      qualityProfile: text(input.qualityProfile, 100) || "Any",
+      addedAt: now(),
+      updatedAt: now(),
+    };
+    const enrichment = providers.find(
+      (value) => value.implementation === "lastfm",
+    );
+    if (enrichment && this.artistEnricher)
+      artist = await this.artistEnricher({ artist, provider: enrichment });
+    const albums = loaded.releaseGroups.map((group) => ({
+      id: `album_${group.id}`,
+      artistId: artist.id,
+      foreignReleaseGroupId: group.id,
+      title: group.title,
+      artistCredit: group.artistCredit,
+      releaseDate: group.firstReleaseDate,
+      releaseType: group.primaryType.toLowerCase(),
+      secondaryTypes: group.secondaryTypes,
+      genres: group.genres,
+      monitored: input.monitorMode !== "none",
+      trackCount: 0,
+      availableTrackCount: 0,
+      quality: null,
+      artwork: `https://coverartarchive.org/release-group/${group.id}/front-500`,
+      updatedAt: now(),
+    }));
+    await this.store.update((value) => {
+      value.artists ||= [];
+      value.albums ||= [];
+      const existing = value.artists.findIndex(
+        (entry) => entry.foreignArtistId === artist.foreignArtistId,
+      );
+      if (existing >= 0)
+        value.artists[existing] = {
+          ...value.artists[existing],
+          ...artist,
+          id: value.artists[existing].id,
+        };
+      else value.artists.push(artist);
+      const artistId = existing >= 0 ? value.artists[existing].id : artist.id;
+      for (const album of albums) {
+        album.artistId = artistId;
+        const index = value.albums.findIndex(
+          (entry) =>
+            entry.foreignReleaseGroupId === album.foreignReleaseGroupId,
+        );
+        if (index >= 0)
+          value.albums[index] = { ...value.albums[index], ...album };
+        else value.albums.push(album);
+      }
+      value.updatedAt = now();
+    });
+    return { artist, albumCount: albums.length };
   }
   async saveArtist(input) {
     const artist = {

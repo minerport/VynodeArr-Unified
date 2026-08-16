@@ -22,6 +22,7 @@ type MusicSnapshot = {
   jobs: Array<{ id: string; title: string; status: string }>;
   indexers: ProviderSummary[];
   downloadClients: ProviderSummary[];
+  metadataProviders: ProviderSummary[];
 };
 type SubtitleSnapshot = {
   providers: ProviderSummary[];
@@ -61,7 +62,7 @@ function ProviderForm({
   options,
   onSave,
 }: {
-  kind: "music-indexer" | "music-client" | "subtitle";
+  kind: "music-indexer" | "music-client" | "music-metadata" | "subtitle";
   options: MediaExpansionOptions;
   onSave: () => void;
 }) {
@@ -71,7 +72,9 @@ function ProviderForm({
       ? "/api/subtitles/providers"
       : kind === "music-indexer"
         ? "/api/music/indexers"
-        : "/api/music/download-clients";
+        : kind === "music-client"
+          ? "/api/music/download-clients"
+          : "/api/music/metadata-providers";
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
@@ -103,7 +106,9 @@ function ProviderForm({
           ? "Add subtitle provider"
           : kind === "music-indexer"
             ? "Add music indexer"
-            : "Add music download client"}
+            : kind === "music-client"
+              ? "Add music download client"
+              : "Add metadata provider"}
       </h3>
       <div className="form-grid">
         <label>
@@ -123,11 +128,18 @@ function ProviderForm({
                 <option value="torznab">Torznab / Prowlarr</option>
                 <option value="newznab">Newznab</option>
               </>
-            ) : (
+            ) : kind === "music-client" ? (
               <>
                 <option value="qbittorrent">qBittorrent</option>
                 <option value="sabnzbd">SABnzbd</option>
                 <option value="nzbget">NZBGet</option>
+              </>
+            ) : (
+              <>
+                <option value="musicbrainz">
+                  MusicBrainz (no key required)
+                </option>
+                <option value="lastfm">Last.fm enrichment (API key)</option>
               </>
             )}
           </select>
@@ -141,7 +153,9 @@ function ProviderForm({
             placeholder={
               kind === "subtitle"
                 ? "https://api.opensubtitles.com"
-                : "http://service:port"
+                : kind === "music-metadata"
+                  ? "https://musicbrainz.org/ws/2"
+                  : "http://service:port"
             }
           />
         </label>
@@ -157,7 +171,7 @@ function ProviderForm({
           Password
           <input name="password" type="password" autoComplete="new-password" />
         </label>
-        {kind !== "subtitle" && (
+        {(kind === "music-indexer" || kind === "music-client") && (
           <label>
             {kind === "music-indexer" ? "Category IDs" : "Download category"}
             <input
@@ -283,6 +297,106 @@ function SubtitleProfileForm({
       <button className="primary" disabled={busy}>
         {busy ? "Saving…" : "Save profile"}
       </button>
+    </form>
+  );
+}
+
+function ArtistDiscovery({
+  options,
+  onSave,
+}: {
+  options: MediaExpansionOptions;
+  onSave: () => void;
+}) {
+  type Result = {
+    id: string;
+    name: string;
+    sortName: string;
+    disambiguation: string;
+    country: string | null;
+    type: string | null;
+    score: number;
+    genres: string[];
+  };
+  const [results, setResults] = useState<Result[]>([]),
+    [busy, setBusy] = useState(false);
+  async function search(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const input = values(event.currentTarget);
+    setBusy(true);
+    try {
+      const response = await options.request<{
+        items: Result[];
+        warnings: string[];
+      }>("/api/music/artists/search", {
+        method: "POST",
+        body: JSON.stringify({ query: input.query }),
+      });
+      setResults(response.items);
+      if (response.warnings[0]) options.notify(response.warnings[0], "error");
+    } catch (error) {
+      options.notify(errorMessage(error), "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function add(result: Result) {
+    setBusy(true);
+    try {
+      const response = await options.request<{ albumCount: number }>(
+        "/api/music/artists/import",
+        {
+          method: "POST",
+          body: JSON.stringify({ artistId: result.id, monitorMode: "all" }),
+        },
+      );
+      options.notify(
+        `${result.name} added with ${response.albumCount} releases.`,
+      );
+      setResults([]);
+      onSave();
+    } catch (error) {
+      options.notify(errorMessage(error), "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <form className="panel expansion-provider-form" onSubmit={search}>
+      <h3>Discover artists</h3>
+      <p className="muted">
+        Search MusicBrainz, select the exact identity, then import its release
+        groups.
+      </p>
+      <div className="form-grid">
+        <label>
+          Artist name
+          <input name="query" required />
+        </label>
+      </div>
+      <button className="primary" disabled={busy}>
+        {busy ? "Loading metadata…" : "Search metadata"}
+      </button>
+      {results.map((result) => (
+        <div className="data-row" key={result.id}>
+          <span>
+            <strong>{result.name}</strong>
+            <small>
+              {[
+                result.disambiguation,
+                result.country,
+                result.type,
+                `match ${result.score}%`,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </small>
+          </span>
+          <button type="button" onClick={() => void add(result)}>
+            Add
+          </button>
+        </div>
+      ))}
     </form>
   );
 }
@@ -543,10 +657,21 @@ function Music({ options }: { options: MediaExpansionOptions }) {
             </div>
           )}
           {options.administrator && (
-            <MusicActions options={options} onSave={() => void load()} />
+            <>
+              <ArtistDiscovery options={options} onSave={() => void load()} />
+              <MusicActions options={options} onSave={() => void load()} />
+            </>
           )}
         </div>
         <div>
+          <ProviderList title="Music metadata" items={data.metadataProviders} />
+          {options.administrator && (
+            <ProviderForm
+              kind="music-metadata"
+              options={options}
+              onSave={() => void load()}
+            />
+          )}
           <ProviderList title="Music indexers" items={data.indexers} />
           {options.administrator && (
             <ProviderForm
