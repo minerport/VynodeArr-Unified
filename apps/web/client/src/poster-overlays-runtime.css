@@ -64,7 +64,7 @@
 .overlay-editor-library-view-switch{grid-template-columns:repeat(4,minmax(0,1fr))}
 .overlay-editor-preview-switch button,.overlay-editor-library-view-switch button{min-width:0;min-height:34px;padding:6px 8px;font-size:.72rem;line-height:1.2}
 .overlay-editor-preview-switch button[aria-pressed=true],.overlay-editor-library-view-switch button[aria-pressed=true]{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 20%,var(--panel));color:var(--text);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 45%,transparent)}
-.overlay-editor-library-preview{box-sizing:border-box;display:block;width:100%;min-width:0;overflow:auto;padding:10px;border:1px solid var(--border);border-radius:12px;background:color-mix(in srgb,var(--panel) 80%,#000 20%);scrollbar-gutter:stable}
+.overlay-editor-library-preview{box-sizing:border-box;display:block;width:100%;min-width:0;min-height:max-content;height:max-content;overflow:auto;padding:10px;border:1px solid var(--border);border-radius:12px;background:color-mix(in srgb,var(--panel) 80%,#000 20%);scrollbar-gutter:stable;align-self:start}
 .overlay-editor-library-preview .overlay-library-exact-preview{margin-inline:auto}
 .overlay-editor-library-preview.preview-poster .overlay-library-exact-preview{width:240px}
 .overlay-editor-library-preview.preview-cards .overlay-library-exact-preview{width:720px}

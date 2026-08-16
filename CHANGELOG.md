@@ -7,6 +7,19 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.50-rc.3] - 2026-08-16
+
+### Fixed
+
+- Prevented the exact library card preview in the poster style editor from
+  collapsing into a clipped strip when the preview column contains more content
+  than fits in the editor viewport.
+
+### Validation
+
+- Passed the focused React modernization suite, web TypeScript checks, and the
+  production web build before publication.
+
 ## [2.0.50-rc.2] - 2026-08-16
 
 ### Changed
@@ -3082,7 +3095,8 @@ Open `http://localhost:8686`. Existing host media folders can be mapped to
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.50-rc.2...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.50-rc.3...HEAD
+[2.0.50-rc.3]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.50-rc.2...v2.0.50-rc.3
 [2.0.50-rc.2]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.50-rc.1...v2.0.50-rc.2
 [2.0.50-rc.1]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.49...v2.0.50-rc.1
 [2.0.49]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.48...v2.0.49
