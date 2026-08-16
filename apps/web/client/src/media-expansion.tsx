@@ -220,10 +220,52 @@ function ProviderForm({
 function ProviderList({
   title,
   items,
+  options,
+  endpoint,
+  onChange,
 }: {
   title: string;
   items: ProviderSummary[];
+  options?: MediaExpansionOptions;
+  endpoint?: string;
+  onChange?: () => void;
 }) {
+  const [busy, setBusy] = useState("");
+  async function test(item: ProviderSummary) {
+    if (!options || !endpoint) return;
+    setBusy(item.id);
+    try {
+      const value = await options.request<{
+        message?: string;
+        latencyMs?: number;
+      }>(`${endpoint}/${encodeURIComponent(item.id)}/test`, {
+        method: "POST",
+        body: "{}",
+      });
+      options.notify(
+        `${item.name}: ${value.message || "Connection successful"}${value.latencyMs != null ? ` (${value.latencyMs} ms)` : ""}`,
+      );
+    } catch (error) {
+      options.notify(errorMessage(error), "error");
+    } finally {
+      setBusy("");
+    }
+  }
+  async function remove(item: ProviderSummary) {
+    if (!options || !endpoint || !confirm(`Remove ${item.name}?`)) return;
+    setBusy(item.id);
+    try {
+      await options.request(`${endpoint}/${encodeURIComponent(item.id)}`, {
+        method: "DELETE",
+      });
+      options.notify(`${item.name} removed.`);
+      onChange?.();
+    } catch (error) {
+      options.notify(errorMessage(error), "error");
+    } finally {
+      setBusy("");
+    }
+  }
   return (
     <section className="panel">
       <div className="panel-heading">
@@ -242,6 +284,25 @@ function ProviderList({
             <span className={`badge ${item.enabled ? "green" : ""}`}>
               {item.enabled ? "Enabled" : "Disabled"}
             </span>
+            {options?.administrator && endpoint && (
+              <span className="provider-actions">
+                <button
+                  type="button"
+                  disabled={busy === item.id}
+                  onClick={() => void test(item)}
+                >
+                  Test
+                </button>
+                <button
+                  type="button"
+                  className="danger"
+                  disabled={busy === item.id}
+                  onClick={() => void remove(item)}
+                >
+                  Remove
+                </button>
+              </span>
+            )}
           </div>
         ))
       ) : (
@@ -418,6 +479,213 @@ function ArtistDiscovery({
         </div>
       ))}
     </form>
+  );
+}
+
+function MusicImport({
+  data,
+  options,
+  onSave,
+}: {
+  data: MusicSnapshot;
+  options: MediaExpansionOptions;
+  onSave: () => void;
+}) {
+  type Review = {
+    album: { title: string; artist: string };
+    sourcePath: string;
+    ready: boolean;
+    matches: Array<{
+      trackId: string;
+      title: string;
+      trackNumber: number;
+      sourcePath: string | null;
+      confidence: number;
+      reason: string;
+    }>;
+    unmatchedFiles: string[];
+  };
+  const [settings, setSettings] = useState<{
+      downloadPath: string;
+      libraryRoot: string;
+      naming: string;
+    } | null>(null),
+    [review, setReview] = useState<Review | null>(null),
+    [busy, setBusy] = useState(false);
+  useEffect(() => {
+    void options
+      .request<{ downloadPath: string; libraryRoot: string; naming: string }>(
+        "/api/music/import/settings",
+      )
+      .then(setSettings)
+      .catch(() =>
+        setSettings({
+          downloadPath: "",
+          libraryRoot: "",
+          naming: "{track:02} - {title}",
+        }),
+      );
+  }, [options]);
+  async function saveSettings(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBusy(true);
+    try {
+      const input = values(event.currentTarget),
+        value = await options.request<{
+          downloadPath: string;
+          libraryRoot: string;
+          naming: string;
+        }>("/api/music/import/settings", {
+          method: "PUT",
+          body: JSON.stringify(input),
+        });
+      setSettings(value);
+      options.notify("Music import folders saved.");
+    } catch (error) {
+      options.notify(errorMessage(error), "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function analyze(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBusy(true);
+    try {
+      const input = values(event.currentTarget),
+        value = await options.request<Review>("/api/music/import/analyze", {
+          method: "POST",
+          body: JSON.stringify(input),
+        });
+      setReview(value);
+    } catch (error) {
+      options.notify(errorMessage(error), "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function execute() {
+    if (!review) return;
+    setBusy(true);
+    try {
+      const artist = data.artists.find(
+          (value) => value.name === review.album.artist,
+        ),
+        album = data.albums.find(
+          (value) =>
+            value.artistId === artist?.id && value.title === review.album.title,
+        );
+      await options.request("/api/music/import/execute", {
+        method: "POST",
+        body: JSON.stringify({
+          albumId: album?.id,
+          sourcePath: review.sourcePath,
+        }),
+      });
+      options.notify(`${review.matches.length} music files imported.`);
+      setReview(null);
+      onSave();
+    } catch (error) {
+      options.notify(errorMessage(error), "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+  if (!settings)
+    return <div className="panel skeleton">Loading import settings…</div>;
+  return (
+    <section className="panel expansion-provider-form">
+      <h3>Completed music import</h3>
+      <form onSubmit={saveSettings}>
+        <div className="form-grid">
+          <label>
+            Completed downloads
+            <input
+              name="downloadPath"
+              required
+              defaultValue={settings.downloadPath}
+              placeholder="/downloads/music"
+            />
+          </label>
+          <label>
+            Music library root
+            <input
+              name="libraryRoot"
+              required
+              defaultValue={settings.libraryRoot}
+              placeholder="/music"
+            />
+          </label>
+        </div>
+        <button disabled={busy}>Save folders</button>
+      </form>
+      <form onSubmit={analyze}>
+        <div className="form-grid">
+          <label>
+            Album
+            <select name="albumId" required defaultValue="">
+              <option value="" disabled>
+                Select loaded album…
+              </option>
+              {data.albums
+                .filter((album) => album.trackCount > 0)
+                .map((album) => (
+                  <option value={album.id} key={album.id}>
+                    {album.title}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <label>
+            Completed release folder
+            <input
+              name="sourcePath"
+              required
+              placeholder={`${settings.downloadPath || "/downloads/music"}/Artist - Album`}
+            />
+          </label>
+        </div>
+        <button className="primary" disabled={busy}>
+          Analyze import
+        </button>
+      </form>
+      {review && (
+        <div className="import-review">
+          <h4>
+            {review.album.artist} · {review.album.title}
+          </h4>
+          {review.matches.map((match) => (
+            <div className="data-row" key={match.trackId}>
+              <span>
+                <strong>
+                  {String(match.trackNumber).padStart(2, "0")} · {match.title}
+                </strong>
+                <small>
+                  {match.reason}
+                  {match.sourcePath ? ` · ${match.sourcePath}` : ""}
+                </small>
+              </span>
+              <span
+                className={`badge ${match.confidence >= 70 ? "green" : "warm"}`}
+              >
+                {match.confidence}%
+              </span>
+            </div>
+          ))}
+          {review.unmatchedFiles.length > 0 && (
+            <p className="muted">
+              {review.unmatchedFiles.length} unmatched files remain.
+            </p>
+          )}
+          <button
+            className="primary"
+            disabled={busy || !review.ready}
+            onClick={() => void execute()}
+          >
+            Import matched files
+          </button>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -727,12 +995,23 @@ function Music({ options }: { options: MediaExpansionOptions }) {
           {options.administrator && (
             <>
               <ArtistDiscovery options={options} onSave={() => void load()} />
+              <MusicImport
+                data={data}
+                options={options}
+                onSave={() => void load()}
+              />
               <MusicActions options={options} onSave={() => void load()} />
             </>
           )}
         </div>
         <div>
-          <ProviderList title="Music metadata" items={data.metadataProviders} />
+          <ProviderList
+            title="Music metadata"
+            items={data.metadataProviders}
+            options={options}
+            endpoint="/api/music/metadata-providers"
+            onChange={() => void load()}
+          />
           {options.administrator && (
             <ProviderForm
               kind="music-metadata"
@@ -740,7 +1019,13 @@ function Music({ options }: { options: MediaExpansionOptions }) {
               onSave={() => void load()}
             />
           )}
-          <ProviderList title="Music indexers" items={data.indexers} />
+          <ProviderList
+            title="Music indexers"
+            items={data.indexers}
+            options={options}
+            endpoint="/api/music/indexers"
+            onChange={() => void load()}
+          />
           {options.administrator && (
             <ProviderForm
               kind="music-indexer"
@@ -751,6 +1036,9 @@ function Music({ options }: { options: MediaExpansionOptions }) {
           <ProviderList
             title="Music download clients"
             items={data.downloadClients}
+            options={options}
+            endpoint="/api/music/download-clients"
+            onChange={() => void load()}
           />
           {options.administrator && (
             <ProviderForm
@@ -876,7 +1164,13 @@ function Subtitles({ options }: { options: MediaExpansionOptions }) {
           )}
         </div>
         <div>
-          <ProviderList title="Subtitle providers" items={data.providers} />
+          <ProviderList
+            title="Subtitle providers"
+            items={data.providers}
+            options={options}
+            endpoint="/api/subtitles/providers"
+            onChange={() => void load()}
+          />
           {options.administrator && (
             <ProviderForm
               kind="subtitle"

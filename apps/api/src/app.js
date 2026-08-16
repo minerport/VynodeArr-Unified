@@ -48,6 +48,7 @@ import { BoundedCache } from "../../../packages/platform/src/bounded-cache.js";
 import { AsyncLimiter } from "../../../packages/platform/src/async-limiter.js";
 import { createLogger } from "../../../packages/platform/src/logger.js";
 import { MusicService } from "../../../packages/platform/src/music-service.js";
+import { MusicImportService } from "../../../packages/platform/src/music-import-service.js";
 import { SubtitleService } from "../../../packages/platform/src/subtitle-service.js";
 import { downloadSubtitle, grabMusicRelease, searchNewznab, searchSubtitles, testMusicProvider, testSubtitleProvider } from "../../../packages/platform/src/media-connectors.js";
 import { enrichMusicArtist, loadMusicBrainzArtist, loadMusicBrainzReleaseGroup, searchMusicArtists, testMusicMetadataProvider } from "../../../packages/platform/src/music-metadata-connectors.js";
@@ -704,6 +705,7 @@ export function createApplication(options = {}) {
     searcher: options.musicSearcher || searchNewznab,
     grabber: options.musicGrabber || grabMusicRelease,
   });
+  const musicImports = options.musicImports || new MusicImportService({store:musicStore});
   const subtitles = options.subtitles || new SubtitleService({
     store: subtitleStore,
     vault: mediaProviderVault,
@@ -8737,6 +8739,19 @@ export function createApplication(options = {}) {
         if (url.pathname === "/api/subtitles/media-arrived" && req.method === "POST") {
           if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
           return json(res, 202, await subtitles.processMediaArrival(await body(req)));
+        }
+        if (url.pathname === "/api/music/import/settings") {
+          if (!administrator(res, session)) return;
+          if (req.method === "GET") return json(res, 200, await musicImports.settings());
+          if (req.method === "PUT") { if (!requireCsrf(req, res, session)) return; return json(res, 200, await musicImports.settings(await body(req))); }
+        }
+        if (url.pathname === "/api/music/import/analyze" && req.method === "POST") {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          return json(res, 200, await musicImports.analyze(await body(req)));
+        }
+        if (url.pathname === "/api/music/import/execute" && req.method === "POST") {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          return json(res, 201, await musicImports.execute(await body(req)));
         }
         if (url.pathname === "/api/subtitles/retry-pending" && req.method === "POST") {
           if (!administrator(res, session) || !requireCsrf(req, res, session)) return;

@@ -19,6 +19,14 @@ Administrators may add Last.fm as an optional enrichment provider using their
 own API key for biographies, tags, and popularity data. That key uses the same
 encrypted credential vault as indexer and download-client secrets.
 
+Release groups can load and rank their official editions. The selected edition
+retains country, date, format, barcode, labels, media/discs, track positions,
+recording IDs, durations, artist credits, and ISRCs. Completed downloads use a
+review-first importer: the source must resolve below the configured download
+root, every track needs a confident number or title match, destinations remain
+below the music library root, existing files are never overwritten, and source
+downloads are retained. Provider rows expose connection testing and removal.
+
 Music providers are deliberately split:
 
 - **Indexers** discover Usenet or torrent releases. Supported connector shapes
@@ -48,6 +56,9 @@ The initial production providers are OpenSubtitles.com and a Whisper ASR HTTP
 service. OpenSubtitles uses its JSON login, search, and download flow. Whisper
 receives the local media file and writes generated SRT output beside the movie
 or individual episode. Both paths share the same coverage and history model.
+Existing SRT, ASS, SSA, VTT, and SUB sidecars are detected beside each movie or
+episode during reconciliation. Deferred searches remain visible and can be
+retried in one administrator action.
 
 Language profiles specify normal languages, forced languages, hearing-impaired
 preference, and an optional upgrade score. Assignments inherit in this order:
