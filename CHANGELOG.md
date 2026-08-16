@@ -7,6 +7,30 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.50-rc.2] - 2026-08-16
+
+### Changed
+
+- Reworked overlay assignment review to use the same production library cards
+  shown on the Movies and TV pages instead of an approximate poster mockup.
+- Added Poster grid, Cards, Compact, and List preview toggles so users can inspect
+  the proposed overlay in each supported VynodeArr library view.
+- Kept drag, resize, grid, snapping, and safe-area tools available in a separate
+  Edit placement view without changing overlay behavior or saved designs.
+
+### Fixed
+
+- Combined the selected title's current artwork, metadata, existing overlays,
+  and unsaved draft changes so assignment review accurately shows the result
+  users will receive before applying it.
+- Corrected assignment review sizing and layout so previews match normal library
+  poster proportions instead of rendering as a cramped comparison panel.
+
+### Validation
+
+- Passed web TypeScript checks, 300 automated tests, and the
+  production web build before publication.
+
 ## [2.0.50-rc.1] - 2026-08-16
 
 ### Added
@@ -3058,7 +3082,9 @@ Open `http://localhost:8686`. Existing host media folders can be mapped to
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.49...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.50-rc.2...HEAD
+[2.0.50-rc.2]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.50-rc.1...v2.0.50-rc.2
+[2.0.50-rc.1]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.49...v2.0.50-rc.1
 [2.0.49]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.48...v2.0.49
 [2.0.48]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.47...v2.0.48
 [2.0.47]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.46...v2.0.47

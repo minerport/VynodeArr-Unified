@@ -33,10 +33,9 @@ import { hydratePreviewValues, PosterLayerContent, resolveLayerContent } from ".
 import { overlayLayerFromPreset } from "./poster-overlay-item-presets";
 import { accessibilityIssues, nudgeLayers, transformLayers, type AlignmentAction } from "./poster-overlay-editor-tools";
 import { errorMessage } from "./shell-utils";
+import type { LibraryView } from "./library-types";
 import "./poster-overlay-inspector.css";
 import "./poster-overlays-runtime.css";
-const styles = `.poster-overlay-route{display:grid;gap:20px}.overlay-studio-grid{display:grid;grid-template-columns:minmax(320px,.8fr) minmax(420px,1.2fr);gap:20px}.overlay-template-list{display:grid;gap:14px}.overlay-template-card{display:grid;grid-template-columns:92px 1fr;gap:14px;align-items:center;padding:12px;border:1px solid var(--border);border-radius:14px}.overlay-template-card small,.overlay-media-picker small{display:block;color:var(--muted)}.overlay-preview{position:relative;width:min(100%,300px);aspect-ratio:2/3;overflow:hidden;border:1px solid var(--border);border-radius:14px;background:linear-gradient(145deg,#24324b,#07101d 62%,#02060d) center/cover;box-shadow:inset 0 -100px 80px -70px #000}.overlay-preview-layer{font-weight:800}.overlay-scope-row,.overlay-layer-editor{display:grid;grid-template-columns:1fr 1fr;gap:10px}.overlay-media-picker{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;max-height:360px;overflow:auto}.overlay-media-picker label{display:grid;grid-template-columns:auto 38px 1fr;gap:8px;align-items:center;padding:8px;border:1px solid var(--border);border-radius:10px}.overlay-media-picker img{width:38px;aspect-ratio:2/3;object-fit:cover}.overlay-editor-backdrop{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:20px;background:#000c}.overlay-editor{display:grid;grid-template-rows:auto minmax(0,1fr) auto;width:min(1100px,100%);max-height:calc(100dvh - 40px);overflow:hidden;border:1px solid var(--border);border-radius:18px;background:var(--panel,#08111f)}.overlay-editor-grid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:20px;overflow:auto;padding:20px}.overlay-editor-fields{display:grid;gap:12px}.overlay-layer-editor{padding:12px;border:1px solid var(--border);border-radius:12px}.overlay-preview-column{display:grid;align-content:start;justify-items:center;gap:10px;position:sticky;top:0}.overlay-editor-footer{display:flex;justify-content:flex-end;gap:10px;padding:16px 20px;border-top:1px solid var(--border)}@media(max-width:800px){.overlay-studio-grid,.overlay-scope-row,.overlay-media-picker,.overlay-editor-grid,.overlay-layer-editor{grid-template-columns:1fr}.overlay-editor-backdrop{padding:0}.overlay-editor{width:100%;height:100dvh;max-height:none;border:0;border-radius:0}.overlay-editor-grid{padding:14px}.overlay-preview-column{position:static;order:-1}.overlay-preview-column .overlay-preview{width:180px}.poster-overlay-route .hero>.primary{width:100%}}`;
-const responsiveLayoutStyles = `.poster-overlay-route{min-width:0}.poster-overlay-route .hero h1{font-size:clamp(2rem,5vw,4rem);overflow-wrap:anywhere}.poster-overlay-route>.settings-tabs{display:flex;flex-wrap:nowrap;gap:8px;overflow-x:auto;padding:8px}.poster-overlay-route>.settings-tabs a{flex:0 0 auto;min-width:max-content;padding:10px 14px}.overlay-new-action{display:flex;align-items:center;gap:8px}.overlay-template-card{grid-template-columns:132px minmax(0,1fr);align-items:start;gap:12px;min-width:0;padding:10px}.overlay-template-card>.overlay-preview{width:132px}.overlay-template-content{display:grid;align-content:start;gap:5px;min-width:0;padding-block:2px}.overlay-template-content .form-actions{display:flex;flex-wrap:wrap;justify-content:flex-start;gap:6px;position:static;margin:5px 0 0;padding:0;border:0;background:none;backdrop-filter:none}.overlay-template-content .form-actions button{width:auto;min-width:0;min-height:34px;padding:6px 11px;font-size:.82rem;line-height:1.15}@media(max-width:1100px){.overlay-template-group-list{grid-template-columns:1fr}}@media(max-width:800px){.poster-overlay-route{gap:14px}.poster-overlay-route>.panel{padding:14px}.overlay-studio-grid{grid-template-columns:1fr}.overlay-template-list{gap:10px}.overlay-template-card{grid-template-columns:108px minmax(0,1fr)}.overlay-template-card>.overlay-preview{width:108px}}@media(max-width:600px){.poster-overlay-route>.settings-tabs a{padding:9px 12px}.overlay-template-panel>.panel-heading{align-items:stretch}.overlay-template-panel .panel-heading .badge{align-self:flex-start}.overlay-new-action{display:grid;grid-template-columns:auto 1fr;width:100%}.overlay-new-action button{min-height:44px}.overlay-template-card{grid-template-columns:92px minmax(0,1fr);align-items:start;gap:10px;padding:9px}.overlay-template-card>.overlay-preview{width:92px}.overlay-template-content{gap:4px}.overlay-template-content .form-actions{display:grid;grid-template-columns:repeat(2,minmax(0,auto));justify-content:start;gap:5px;margin-top:3px}.overlay-template-content .form-actions button{min-height:40px;padding:6px 9px;font-size:.76rem}}`;
 const LibraryChrome = lazy(() =>
   import("./poster-overlay-library-preview").then((module) => ({
     default: module.LibraryChrome,
@@ -64,8 +63,15 @@ const OverlayConditions = lazy(() => import("./poster-overlay-conditions"));
 const OverlayCanvasTools = lazy(() => import("./poster-overlay-canvas-tools"));
 const OverlayImportReview = lazy(() => import("./poster-overlay-import-review"));
 const OverlayQuality = lazy(() => import("./poster-overlay-quality"));
+const ExactLibraryCardPreview = lazy(() =>
+  import("./poster-overlay-library-preview").then((module) => ({
+    default: module.ExactLibraryCardPreview,
+  })),
+);
 type CanvasView = import("./poster-overlay-canvas-tools").OverlayCanvasView;
 type TemplateIssue = import("./poster-overlay-quality").TemplateIssue;
+
+type EditorPreviewMode = "library" | "placement";
 
 const positions: OverlayPosition[] = [
   "top-left",
@@ -405,6 +411,8 @@ export function PosterOverlaysView({
     [iconQuery, setIconQuery] = useState(""),
     [previewId, setPreviewId] = useState(""),
     [canvasView,setCanvasView]=useState<CanvasView>({zoom:100,grid:false,safe:true,snap:1}),
+    [editorPreviewMode, setEditorPreviewMode] = useState<EditorPreviewMode>("library"),
+    [libraryPreviewView, setLibraryPreviewView] = useState<LibraryView>("poster"),
     [previewLimit, setPreviewLimit] = useState(100),
     [applicationReview, setApplicationReview] = useState<{
       template: OverlayTemplate;
@@ -736,7 +744,6 @@ export function PosterOverlaysView({
   };
   return (
     <div className="poster-overlay-route">
-      <style>{styles + responsiveLayoutStyles}</style>
       <div className="hero">
         <div>
           <span className="eyebrow">ARTWORK WORKSPACE</span>
@@ -1699,31 +1706,43 @@ export function PosterOverlaysView({
                         ))}
                     </select>
                   </label>
-                  <Suspense><OverlayCanvasTools view={canvasView} onChange={setCanvasView} selectionCount={selectedLayerIds.length} onUndo={()=>dispatchEditor({type:"undo"})} onRedo={()=>dispatchEditor({type:"redo"})} onNudge={(dx,dy)=>setEditing(current=>current?{...current,layers:nudgeLayers(current.layers,selectedLayerIds.length?selectedLayerIds:[selectedLayerId],dx,dy)}:current)}/></Suspense>
-                  <div className="overlay-canvas-stage"><Preview
-                    template={editing}
-                    target={editing.target || undefined}
-                    media={previewMedia}
-                    poster={
-                      previewMedia?.artwork?.originalUrl ||
-                      previewMedia?.artwork?.url
-                    }
-                    onLayerSelect={selectLayer}
-                    selectedLayerId={selectedLayerId}
-                    selectedLayerIds={selectedLayerIds}
-                    canvasView={canvasView}
-                    onLayerChange={(id, changes) =>
-                      setEditing(current=>{
-                        if(!current)return current;
-                        const source=current.layers.find(layer=>layer.id===id),dx=changes.x===undefined||!source?0:changes.x-source.x,dy=changes.y===undefined||!source?0:changes.y-source.y;
-                        return {...current,layers:current.layers.map(layer=>layer.id===id?{...layer,...changes}:source?.groupId&&layer.groupId===source.groupId&&(dx||dy)?{...layer,position:"custom",x:Math.max(0,Math.min(100-layer.width,layer.x+dx)),y:Math.max(0,Math.min(96,layer.y+dy))}:layer)};
-                      })
-                    }
-                  /></div>
-                  <p className="muted">
-                    Preview values demonstrate placement. Saved posters use each
-                    title’s real metadata.
-                  </p>
+                  <div className="overlay-editor-preview-switch" role="group" aria-label="Preview mode">
+                    <button type="button" aria-pressed={editorPreviewMode === "library"} onClick={() => setEditorPreviewMode("library")} disabled={!previewMedia}>Exact library view</button>
+                    <button type="button" aria-pressed={editorPreviewMode === "placement"} onClick={() => setEditorPreviewMode("placement")}>Edit placement</button>
+                  </div>
+                  {editorPreviewMode === "placement" ? <>
+                    <Suspense><OverlayCanvasTools view={canvasView} onChange={setCanvasView} selectionCount={selectedLayerIds.length} onUndo={()=>dispatchEditor({type:"undo"})} onRedo={()=>dispatchEditor({type:"redo"})} onNudge={(dx,dy)=>setEditing(current=>current?{...current,layers:nudgeLayers(current.layers,selectedLayerIds.length?selectedLayerIds:[selectedLayerId],dx,dy)}:current)}/></Suspense>
+                    <div className="overlay-canvas-stage"><Preview
+                      template={editing}
+                      target={editing.target || undefined}
+                      media={previewMedia}
+                      poster={previewMedia?.artwork?.originalUrl || previewMedia?.artwork?.url}
+                      onLayerSelect={selectLayer}
+                      selectedLayerId={selectedLayerId}
+                      selectedLayerIds={selectedLayerIds}
+                      canvasView={canvasView}
+                      onLayerChange={(id, changes) =>
+                        setEditing(current=>{
+                          if(!current)return current;
+                          const source=current.layers.find(layer=>layer.id===id),dx=changes.x===undefined||!source?0:changes.x-source.x,dy=changes.y===undefined||!source?0:changes.y-source.y;
+                          return {...current,layers:current.layers.map(layer=>layer.id===id?{...layer,...changes}:source?.groupId&&layer.groupId===source.groupId&&(dx||dy)?{...layer,position:"custom",x:Math.max(0,Math.min(100-layer.width,layer.x+dx)),y:Math.max(0,Math.min(96,layer.y+dy))}:layer)};
+                        })
+                      }
+                    /></div>
+                    <p className="muted">Placement mode keeps drag, resize, grid, snapping, safe-area, and keyboard controls available.</p>
+                  </> : <>
+                    <div className="overlay-editor-library-view-switch" role="group" aria-label="Library layout">
+                      {([['poster','Poster grid'],['cards','Cards'],['compact','Compact'],['list','List']] as Array<[LibraryView,string]>).map(([view,label]) =>
+                        <button type="button" key={view} aria-pressed={libraryPreviewView === view} onClick={() => setLibraryPreviewView(view)}>{label}</button>
+                      )}
+                    </div>
+                    {editing && previewMedia ? <div className={`overlay-editor-library-preview preview-${libraryPreviewView}`}>
+                      <Suspense fallback={<div className="notice">Loading exact library preview…</div>}>
+                        <ExactLibraryCardPreview item={previewMedia} template={editing} kind={editing.domain === "tv" ? "tv" : "movies"} view={libraryPreviewView}/>
+                      </Suspense>
+                    </div> : <div className="notice">Choose Movies or Television and a preview title to see the exact library card.</div>}
+                    <p className="muted">This uses the same card component as the Movies and TV libraries, including the selected title’s current poster, metadata, existing assigned overlays, and these unsaved changes.</p>
+                  </>}
                   <section className={`overlay-accessibility-check ${editorAccessibilityIssues.length?"warning":"ready"}`} aria-live="polite">
                     <strong>{editorAccessibilityIssues.length?`${editorAccessibilityIssues.length} design check${editorAccessibilityIssues.length===1?"":"s"}`:"Design checks passed"}</strong>
                     {editorAccessibilityIssues.length?<ul>{editorAccessibilityIssues.map(issue=><li key={issue}>{issue}</li>)}</ul>:<small>Contrast, readable type, bounds, and layer collisions look good.</small>}

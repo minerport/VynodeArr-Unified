@@ -193,7 +193,7 @@ export default function ApplicationReview({
             </button>
           </header>
           <div className="overlay-application-review-grid">
-            <div className="overlay-editor-fields">
+            <aside className="overlay-application-details" aria-label="Assignment details">
               <div className="notice">
                 <strong>{template.name}</strong>
                 <p>
@@ -232,7 +232,7 @@ export default function ApplicationReview({
                   restores it immediately.
                 </p>
               </div>
-            </div>
+            </aside>
             <div className="panel overlay-review-preview">
               <header className="overlay-review-preview-heading">
                 <div>

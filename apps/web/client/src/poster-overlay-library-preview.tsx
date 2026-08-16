@@ -1,4 +1,38 @@
 import type { OverlayMedia, OverlayTemplate } from "./poster-overlays-types";
+import { LibraryCardPreview } from "./library";
+import type { LibraryItem, LibraryKind, LibraryView } from "./library-types";
+
+export function ExactLibraryCardPreview({
+  item,
+  template,
+  kind,
+  view,
+}: {
+  item: OverlayMedia;
+  template: OverlayTemplate;
+  kind: LibraryKind;
+  view: LibraryView;
+}) {
+  const draftLayerIds = new Set(template.layers.map((layer) => layer.id));
+  const currentLayers = item.artwork?.overlayTemplate?.layers || [];
+  const previewItem = {
+    ...item,
+    qualityProfile:
+      item.qualityProfile == null ? undefined : String(item.qualityProfile),
+    artwork: {
+      ...item.artwork,
+      overlayTemplate: {
+        layers: [
+          ...currentLayers.filter((layer) => !draftLayerIds.has(layer.id)),
+          ...template.layers,
+        ],
+      },
+    },
+  } as LibraryItem;
+
+  return <LibraryCardPreview item={previewItem} kind={kind} view={view} />;
+}
+
 export function LibraryChrome({
   media,
   plex,

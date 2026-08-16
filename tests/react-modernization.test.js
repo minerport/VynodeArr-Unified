@@ -1270,19 +1270,20 @@ test('alternate library views size overlays against their poster thumbnails',asy
 });
 
 test('poster overlay style cards stay compact on phones',async()=>{
-  const source=await read('apps/web/client/src/poster-overlays.tsx');
-  assert.match(source,/overlay-template-panel \.panel-heading \.badge\{align-self:flex-start\}/);
-  assert.match(source,/\.overlay-template-card\{grid-template-columns:92px minmax\(0,1fr\);align-items:start/);
-  assert.match(source,/\.overlay-template-content \.form-actions\{display:grid;grid-template-columns:repeat\(2,minmax\(0,auto\)\);justify-content:start/);
-  assert.match(source,/\.overlay-template-content \.form-actions button\{width:auto;min-width:0;min-height:34px/);
-  assert.match(source,/backdrop-filter:none/);
+  const css=await read('apps/web/client/src/poster-overlays-runtime.css');
+  assert.match(css,/overlay-template-panel \.panel-heading \.badge\{align-self:flex-start\}/);
+  assert.match(css,/\.overlay-template-card\{grid-template-columns:92px minmax\(0,1fr\);align-items:start/);
+  assert.match(css,/\.overlay-template-content \.form-actions\{display:grid;grid-template-columns:repeat\(2,minmax\(0,auto\)\);justify-content:start/);
+  assert.match(css,/\.overlay-template-content \.form-actions button\{width:auto;min-width:0;min-height:34px/);
+  assert.match(css,/backdrop-filter:none/);
 });
 
 test('poster overlay creation stays available beside the style list',async()=>{
   const source=await read('apps/web/client/src/poster-overlays.tsx');
+  const css=await read('apps/web/client/src/poster-overlays-runtime.css');
   assert.match(source,/className="overlay-new-action"/);
   assert.match(source,/Create new style/);
-  assert.match(source,/\.overlay-new-action\{display:grid;grid-template-columns:auto 1fr;width:100%\}/);
+  assert.match(css,/\.overlay-new-action\{display:grid;grid-template-columns:auto 1fr;width:100%\}/);
 });
 
 test('overlay operations share one guided workspace without losing Plex or assignment tools',async()=>{
@@ -1441,6 +1442,29 @@ test('poster overlay styling loads once instead of being injected by every previ
   assert.match(css,/\.overlay-library-chrome/);assert.match(css,/\.overlay-layer-list/);assert.match(css,/\.overlay-application-preview/);
   for(const guidance of ['saved preview poster','VynodeArr templates','Plex templates','data-destination={target}','template.target === target','Styles stack instead of replacing one another','Update an applied style in place','Update style','Update applied style','there is no need to remove and reapply it'])assert.ok(editor.includes(guidance),guidance);
   for(const removed of ['Rotate library posters','preview-poster-mode','overlay-preview-mode'])assert.ok(!editor.includes(removed),removed);
+});
+
+test('poster overlay assignment review preserves real library card dimensions',async()=>{
+  const [review,css]=await Promise.all([read('apps/web/client/src/poster-overlay-application-review.tsx'),read('apps/web/client/src/poster-overlays-runtime.css')]);
+  assert.match(review,/className="overlay-application-details"/);
+  assert.doesNotMatch(review,/className="overlay-editor-fields"/);
+  assert.match(review,/LibraryCardPreview item=\{group\.currentPreview\}/);
+  assert.match(review,/LibraryCardPreview item=\{group\.afterPreview\}/);
+  assert.match(css,/\.overlay-review-view-poster \.overlay-review-comparison\{grid-template-columns:repeat\(2,240px\)/);
+  assert.match(css,/\.overlay-library-exact-preview\.view-poster\{width:240px\}/);
+});
+
+test('poster overlay editor can switch between exact production library cards and placement tools',async()=>{
+  const [editor,preview,library,css]=await Promise.all([read('apps/web/client/src/poster-overlays.tsx'),read('apps/web/client/src/poster-overlay-library-preview.tsx'),read('apps/web/client/src/library.tsx'),read('apps/web/client/src/poster-overlays-runtime.css')]);
+  assert.match(editor,/Exact library view/);
+  assert.match(editor,/Edit placement/);
+  assert.match(editor,/\['poster','Poster grid'\]/);
+  assert.match(editor,/ExactLibraryCardPreview item=\{previewMedia\}/);
+  assert.match(preview,/LibraryCardPreview item=\{previewItem\}/);
+  assert.match(editor,/OverlayCanvasTools view=\{canvasView\}/);
+  assert.match(library,/export function LibraryCardPreview/);
+  assert.match(css,/\.overlay-editor-library-preview/);
+  assert.match(css,/\.overlay-editor-preview-switch button\[aria-pressed=true\]/);
 });
 
 test('Plex poster batches support variable filters and direct scoped restoration',async()=>{
