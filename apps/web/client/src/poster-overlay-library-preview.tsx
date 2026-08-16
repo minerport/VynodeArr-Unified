@@ -15,6 +15,15 @@ export function ExactLibraryCardPreview({
 }) {
   const draftLayerIds = new Set(template.layers.map((layer) => layer.id));
   const currentLayers = item.artwork?.overlayTemplate?.layers || [];
+  const currentTemplateId = item.artwork?.overlayTemplateId || "";
+  const retainedLayers =
+    template.id && currentTemplateId === template.id
+      ? []
+      : currentLayers.filter(
+          (layer) =>
+            !draftLayerIds.has(layer.id) &&
+            !(template.id && layer.id.startsWith(`${template.id}:`)),
+        );
   const previewItem = {
     ...item,
     qualityProfile:
@@ -23,7 +32,7 @@ export function ExactLibraryCardPreview({
       ...item.artwork,
       overlayTemplate: {
         layers: [
-          ...currentLayers.filter((layer) => !draftLayerIds.has(layer.id)),
+          ...retainedLayers,
           ...template.layers,
         ],
       },

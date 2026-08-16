@@ -7,6 +7,20 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.50-rc.6] - 2026-08-16
+
+### Fixed
+
+- Replaced an already-applied style with its edited draft in the exact library
+  preview instead of stacking the new layers over the style's previous version.
+- Preserved layers from other active assignments when editing one style within a
+  composite VynodeArr overlay.
+
+### Validation
+
+- Passed the focused React modernization suite, web TypeScript checks, and the
+  production web build before publication.
+
 ## [2.0.50-rc.5] - 2026-08-16
 
 ### Fixed
@@ -3120,7 +3134,8 @@ Open `http://localhost:8686`. Existing host media folders can be mapped to
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.50-rc.5...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.50-rc.6...HEAD
+[2.0.50-rc.6]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.50-rc.5...v2.0.50-rc.6
 [2.0.50-rc.5]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.50-rc.4...v2.0.50-rc.5
 [2.0.50-rc.4]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.50-rc.3...v2.0.50-rc.4
 [2.0.50-rc.3]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.50-rc.2...v2.0.50-rc.3

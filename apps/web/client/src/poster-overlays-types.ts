@@ -162,6 +162,7 @@ export interface OverlayMedia {
     url?: string;
     originalUrl?: string;
     overlayValues?: Record<string, string>;
+    overlayTemplateId?: string;
     overlayTemplate?: { layers: OverlayLayer[] };
   };
   cutoffUnmetEpisodes?: number;

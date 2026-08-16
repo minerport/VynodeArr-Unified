@@ -6,6 +6,7 @@ export interface LibraryArtwork {
   url?: string;
   originalUrl?: string;
   overlayValues?: Record<string, string>;
+  overlayTemplateId?: string;
   overlayTemplate?: {
     layers: OverlayLayer[];
   };
