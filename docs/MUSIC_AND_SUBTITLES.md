@@ -1,0 +1,57 @@
+# Music and subtitle architecture
+
+VynodeArr implements music and subtitle management as native capabilities. No
+Lidarr or Bazarr source code, DTOs, branding, routes, or database structures are
+embedded.
+
+## Music
+
+Music uses artist → album → track identities. Monitoring belongs to VynodeArr
+and supports all, future, missing, or none. Release searches return a numeric
+score and human-readable reasons so an automatic choice can always be audited.
+
+Music providers are deliberately split:
+
+- **Indexers** discover Usenet or torrent releases. Supported connector shapes
+  are Newznab, Torznab, and a VynodeArr custom HTTP adapter.
+- **Download clients** receive a selected release. Connector shapes include
+  SABnzbd, NZBGet, qBittorrent, and a custom HTTP adapter.
+
+Each configured provider has an endpoint, credentials, priority, enabled state,
+capabilities, and connection test. Credentials remain in the server-side JSON
+store and are removed from every public API response. Production connectors
+should migrate those fields to the credential vault before general release.
+
+## Subtitles
+
+Subtitle providers search and download subtitle files directly; they are not
+indexers and do not use music/movie download clients. A provider advertises its
+languages and capabilities and may represent a hosted source, a custom HTTP
+adapter, or local speech recognition.
+
+Language profiles specify normal languages, forced languages, hearing-impaired
+preference, and an optional upgrade score. Assignments inherit in this order:
+
+1. episode
+2. season
+3. series
+4. movie
+
+Every imported movie or episode is reconciled as an individual item. A media
+arrival calculates missing languages and creates one awaiting-search job for
+each gap. Successful downloads update coverage and append immutable provider,
+language, path, and timestamp history.
+
+## API surfaces
+
+- `GET /api/music` and `GET /api/subtitles` return secret-free workspaces.
+- Music provider configuration lives under `/api/music/indexers` and
+  `/api/music/download-clients`.
+- Music operations use `/api/music/search` and `/api/music/grab`.
+- Subtitle configuration uses `/api/subtitles/providers`, `/profiles`, and
+  `/assignments`.
+- Per-file inventory and automation use `/api/subtitles/reconcile`, `/search`,
+  `/download`, and `/media-arrived`.
+
+All mutations require an administrator session and a valid CSRF token. Existing
+movie and television engine contracts are unchanged.

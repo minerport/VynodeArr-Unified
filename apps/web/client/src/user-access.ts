@@ -12,7 +12,7 @@ export interface AccessUser{
 const routePermissions:Partial<Record<RouteKey,UserPermissionName>>={
   dashboard:'dashboard',discover:'discover',requests:'discover',movies:'movies',movie:'movies',
   lists:'discover',
-  tv:'tv',series:'tv',calendar:'calendar'
+  tv:'tv',series:'tv',calendar:'calendar',music:'dashboard',subtitles:'tv'
 };
 
 export function hasPageAccess(user:AccessUser|null|undefined,page:UserPermissionName){

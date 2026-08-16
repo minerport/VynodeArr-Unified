@@ -30,6 +30,7 @@ const unmountMethods=[
   'unmountLibraryHealth',
   'unmountLibraryReview',
   'unmountPosterOverlays',
+  'unmountMediaExpansion',
   'unmountRootFolders',
   'unmountProviderSettings',
   'unmountGuideTemplates'

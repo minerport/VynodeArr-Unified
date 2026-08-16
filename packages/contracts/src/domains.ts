@@ -8,10 +8,21 @@ export const tvOperations = Object.freeze([
   'getHealth', 'getSystemStatus', 'testConnection', 'getArtwork'
 ]);
 
+export const musicOperations = Object.freeze([
+  'listArtists', 'getArtist', 'listAlbums', 'getAlbum', 'listTracks',
+  'searchReleases', 'grabRelease', 'getQueue', 'getHistory', 'testConnection'
+]);
+
+export const subtitleOperations = Object.freeze([
+  'listProviders', 'listProfiles', 'getCoverage', 'searchSubtitles',
+  'downloadSubtitle', 'processMediaArrival', 'getHistory', 'testConnection'
+]);
+
 export const platformContracts = Object.freeze([
   'MediaEngineRegistry', 'ProviderAdapter', 'IndexerAdapter',
   'DownloadClientAdapter', 'MetadataAdapter', 'QueueService',
   'SchedulerService', 'HealthService', 'HistoryService', 'CalendarService'
+  ,'MusicService', 'SubtitleService'
 ]);
 
 export function assertContract(contract, operations) {

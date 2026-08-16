@@ -46,6 +46,8 @@ import {
 import { BoundedCache } from "../../../packages/platform/src/bounded-cache.js";
 import { AsyncLimiter } from "../../../packages/platform/src/async-limiter.js";
 import { createLogger } from "../../../packages/platform/src/logger.js";
+import { MusicService } from "../../../packages/platform/src/music-service.js";
+import { SubtitleService } from "../../../packages/platform/src/subtitle-service.js";
 import { MovieEngineAdapter } from "../../../packages/movie-domain/src/engine-adapter.js";
 import { TvEngineAdapter } from "../../../packages/tv-domain/src/engine-adapter.js";
 import { MultiInstanceReadAdapter } from "../../../packages/platform/src/multi-instance-read-adapter.js";
@@ -679,6 +681,25 @@ export function createApplication(options = {}) {
       mappings: [],
       updatedAt: null,
     });
+  const musicStore = options.musicStore || new JsonStore(join(dataDir, "music.json"), {
+    version: 1, artists: [], albums: [], tracks: [], jobs: [], indexers: [], downloadClients: [], updatedAt: null,
+  });
+  const subtitleStore = options.subtitleStore || new JsonStore(join(dataDir, "subtitles.json"), {
+    version: 1, providers: [], profiles: [], assignments: [], items: [], jobs: [], history: [], updatedAt: null,
+  });
+  const music = options.music || new MusicService({
+    store: musicStore,
+    indexerTester: options.musicIndexerTester,
+    downloadClientTester: options.musicDownloadClientTester,
+    searcher: options.musicSearcher,
+    grabber: options.musicGrabber,
+  });
+  const subtitles = options.subtitles || new SubtitleService({
+    store: subtitleStore,
+    providerTester: options.subtitleProviderTester,
+    searcher: options.subtitleSearcher,
+    downloader: options.subtitleDownloader,
+  });
   const mediaDestinations =
     options.mediaDestinations || new MediaDestinationService(mediaDestinationStore);
   const engineStorageStatus = async (instance, root, mapping = null) => {
@@ -8607,6 +8628,87 @@ export function createApplication(options = {}) {
         const session = requireSession(req, res, auth);
         if (!session) return;
         const sessionId = cookies(req.headers.cookie).vynodearr_session;
+        if (url.pathname === "/api/music" && req.method === "GET") {
+          return json(res, 200, await music.snapshot());
+        }
+        if (url.pathname === "/api/music/artists" && req.method === "POST") {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          return json(res, 201, { artist: await music.saveArtist(await body(req)) });
+        }
+        if (url.pathname === "/api/music/albums" && req.method === "POST") {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          return json(res, 201, { album: await music.saveAlbum(await body(req)) });
+        }
+        if (url.pathname === "/api/music/search" && req.method === "POST") {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          return json(res, 200, await music.search(await body(req)));
+        }
+        if (url.pathname === "/api/music/grab" && req.method === "POST") {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          return json(res, 202, { job: await music.grab(await body(req)) });
+        }
+        const musicProviderMatch=url.pathname.match(/^\/api\/music\/(indexers|download-clients)(?:\/([^/]+))?(?:\/(test))?$/);
+        if (musicProviderMatch) {
+          if (!administrator(res, session)) return;
+          const type=musicProviderMatch[1]==="indexers"?"indexer":"downloadClient",id=musicProviderMatch[2]?decodeURIComponent(musicProviderMatch[2]):null;
+          if (req.method === "POST" && musicProviderMatch[3] === "test") {
+            if (!requireCsrf(req, res, session)) return;
+            return json(res, 200, await music.testProvider(type, await body(req)));
+          }
+          if (req.method === "POST" && !id) {
+            if (!requireCsrf(req, res, session)) return;
+            return json(res, 201, { provider: await music.saveProvider(type, await body(req)) });
+          }
+          if (req.method === "PUT" && id) {
+            if (!requireCsrf(req, res, session)) return;
+            return json(res, 200, { provider: await music.saveProvider(type, { ...(await body(req)), id }) });
+          }
+          if (req.method === "DELETE" && id) {
+            if (!requireCsrf(req, res, session)) return;
+            return json(res, 200, { removed: await music.removeProvider(type, id) });
+          }
+        }
+        if (url.pathname === "/api/subtitles" && req.method === "GET") {
+          const snapshot=await subtitles.snapshot();
+          snapshot.items=await Promise.all(snapshot.items.map(item=>subtitles.status(item)));
+          return json(res, 200, snapshot);
+        }
+        if (url.pathname === "/api/subtitles/providers" && req.method === "POST") {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          return json(res, 201, { provider: await subtitles.saveProvider(await body(req)) });
+        }
+        const subtitleProviderMatch=url.pathname.match(/^\/api\/subtitles\/providers\/([^/]+)(?:\/(test))?$/);
+        if (subtitleProviderMatch) {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          const id=decodeURIComponent(subtitleProviderMatch[1]);
+          if (req.method === "POST" && subtitleProviderMatch[2] === "test") return json(res, 200, await subtitles.testProvider(await body(req)));
+          if (req.method === "PUT") return json(res, 200, { provider: await subtitles.saveProvider({ ...(await body(req)), id }) });
+          if (req.method === "DELETE") return json(res, 200, { removed: await subtitles.removeProvider(id) });
+        }
+        if (url.pathname === "/api/subtitles/profiles" && req.method === "POST") {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          return json(res, 201, { profile: await subtitles.saveProfile(await body(req)) });
+        }
+        if (url.pathname === "/api/subtitles/assignments" && req.method === "POST") {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          return json(res, 201, { assignment: await subtitles.assign(await body(req)) });
+        }
+        if (url.pathname === "/api/subtitles/reconcile" && req.method === "POST") {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          return json(res, 200, { item: await subtitles.reconcile(await body(req)) });
+        }
+        if (url.pathname === "/api/subtitles/search" && req.method === "POST") {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          return json(res, 200, await subtitles.search(await body(req)));
+        }
+        if (url.pathname === "/api/subtitles/download" && req.method === "POST") {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          return json(res, 202, { job: await subtitles.download(await body(req)) });
+        }
+        if (url.pathname === "/api/subtitles/media-arrived" && req.method === "POST") {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          return json(res, 202, await subtitles.processMediaArrival(await body(req)));
+        }
         if (url.pathname === "/api/library-events" && req.method === "GET") {
           if (
             !permitted(

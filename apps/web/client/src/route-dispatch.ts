@@ -10,6 +10,7 @@ export type RouteAction=
   |{name:'requestManagement'}
   |{name:'operations'}
   |{name:'library';kind:LibraryKind}
+  |{name:'mediaExpansion';section:'music'|'subtitles'}
   |{name:'collections'}
   |{name:'lists';section:'titles'|'automation'}
   |{name:'addMedia'}
@@ -52,6 +53,7 @@ export function resolveRouteAction(route:AppRoute,state:RouteActionState):RouteA
       ?{name:'skip'}
       :{name:'library',kind:key};
   }
+  if(key==='music'||key==='subtitles')return{name:'mediaExpansion',section:key};
   if(key==='collections')return{name:'collections'};
   if(key==='lists')return{name:'lists',section:parts[1]==='automation'?'automation':'titles'};
   if(key==='add')return{name:'addMedia'};
