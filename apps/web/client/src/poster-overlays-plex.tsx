@@ -141,7 +141,7 @@ export function PlexConnectionPanel({
     ),
     selectedEntry = selectedEntries[0],
     previewUrl = (
-      mode: "original" | "preview",
+      mode: "original" | "current" | "preview",
       item: PlexMatchReview["entries"][number],
     ) => {
       const params = new URLSearchParams({
@@ -208,20 +208,15 @@ export function PlexConnectionPanel({
   const restore = async (application: PlexPosterApplication) => {
     setBusy(true);
     try {
-      const value = await options.request<{
-        application: PlexPosterApplication;
-      }>(`/api/poster-overlays/plex/applications/${application.id}/restore`, {
-        method: "POST",
-        body: "{}",
-      });
-      setApplications((current) =>
-        current.map((item) =>
-          item.id === application.id ? value.application : item,
-        ),
-      );
-      options.notify(
-        `${application.title} was restored to its captured Plex poster.`,
-      );
+      if(application.source==="list"&&application.listId&&application.restoreKind){
+        await options.request(`/api/reeltrack/imported-lists/${encodeURIComponent(application.listId)}/artwork/${application.restoreKind}/restore`,{method:"POST",body:"{}"});
+        await load();
+        options.notify(`${application.title} ${application.restoreKind==="collection"?"collection poster":"title artwork"} was restored.`);
+      }else{
+        const value=await options.request<{application:PlexPosterApplication}>(`/api/poster-overlays/plex/applications/${application.id}/restore`,{method:"POST",body:"{}"});
+        setApplications(current=>current.map(item=>item.id===application.id?value.application:item));
+        options.notify(`${application.title} was restored to its captured Plex poster.`);
+      }
     } catch (reason) {
       options.notify(errorText(reason), "error");
     } finally {
@@ -232,13 +227,19 @@ export function PlexConnectionPanel({
     if(!items.length)return;
     setBusy(true);let restored=0;
     try{
-      for(const application of items){
-        try{const value=await options.request<{application:PlexPosterApplication}>(`/api/poster-overlays/plex/applications/${application.id}/restore`,{method:"POST",body:"{}"});setApplications(current=>current.map(item=>item.id===application.id?value.application:item));restored++;}catch(reason){options.notify(`${application.title}: ${errorText(reason)}`,"error");}
+      const unique=[...new Map(items.map(item=>[item.source==="list"?`list:${item.listId}:${item.restoreKind}`:item.id,item])).values()];
+      for(const application of unique){
+        try{
+          if(application.source==="list"&&application.listId&&application.restoreKind)await options.request(`/api/reeltrack/imported-lists/${encodeURIComponent(application.listId)}/artwork/${application.restoreKind}/restore`,{method:"POST",body:"{}"});
+          else await options.request(`/api/poster-overlays/plex/applications/${application.id}/restore`,{method:"POST",body:"{}"});
+          restored++;
+        }catch(reason){options.notify(`${application.title}: ${errorText(reason)}`,"error");}
       }
-      options.notify(`${restored} Plex poster${restored===1?"":"s"} restored.`);
+      await load();
+      options.notify(`${restored} artwork restoration${restored===1?"":"s"} completed.`);
     }finally{setBusy(false);}
   };
-  const restorableApplications=applications.filter(item=>item.status==="applied"),filteredRestores=restorableApplications.filter(item=>matchesFilters(item.variableValues,variableFilters));
+  const restorableApplications=applications.filter(item=>item.status==="applied"&&item.restorable!==false),filteredRestores=restorableApplications.filter(item=>matchesFilters(item.variableValues,variableFilters));
   return (
     <section
       className="panel plex-connection-panel"
@@ -248,7 +249,7 @@ export function PlexConnectionPanel({
       <style>{`.plex-connection-panel{min-width:0}.plex-connection-panel .panel-heading{align-items:flex-start}.plex-connection-panel .panel-heading>div{min-width:0}.plex-server-title{overflow-wrap:anywhere}.plex-connection-panel>.overlay-scope-row>label{display:grid;gap:6px;min-width:0}.plex-connection-panel>.overlay-scope-row input{width:100%;min-width:0}.plex-library-picker{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin:12px 0}.plex-library-option{display:grid!important;grid-template-columns:auto minmax(0,1fr);gap:10px!important;align-items:center;padding:11px 12px;border:1px solid var(--border);border-radius:12px;background:color-mix(in srgb,var(--panel,#08111f) 90%,transparent);cursor:pointer}.plex-library-option:has(input:checked){border-color:var(--accent,#58a6ff);background:color-mix(in srgb,var(--panel,#08111f) 82%,var(--accent,#58a6ff) 10%)}.plex-library-option input{width:20px;height:20px;margin:0}.plex-library-option span{display:grid;min-width:0}.plex-library-option small{color:var(--muted)}.plex-history-header{display:flex;align-items:center;justify-content:space-between;gap:12px}.plex-history-header h3{margin-bottom:2px}.plex-history-list{display:grid;gap:8px;margin-top:12px}.plex-history-card{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px 16px;align-items:center;padding:12px 14px;border:1px solid var(--border);border-radius:12px;background:color-mix(in srgb,var(--panel,#08111f) 90%,transparent)}.plex-history-content{display:grid;gap:4px;min-width:0}.plex-history-content small{color:var(--muted);overflow-wrap:anywhere}.plex-history-content .badge{justify-self:start}.plex-history-card .form-actions{margin:0}@media(max-width:760px){.plex-connection-panel{padding:14px!important}.plex-connection-panel .panel-heading{display:grid!important;gap:10px}.plex-connection-panel .panel-heading .badge{justify-self:start}.plex-connection-panel .overlay-scope-row{grid-template-columns:1fr}.plex-connection-panel .form-actions{display:grid;grid-template-columns:1fr}.plex-library-picker{grid-template-columns:1fr}.plex-history-header{align-items:flex-start}.plex-history-card{grid-template-columns:1fr}.plex-history-card .form-actions{display:grid}}`}</style>
       <style>{`.plex-match-review{display:grid;gap:10px;padding:14px}.plex-match-review>.form-actions,.plex-match-review .overlay-condition-builder>.form-actions{margin-top:0;flex-wrap:wrap}.plex-match-review>.form-actions{justify-content:flex-start}.plex-match-review>label{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.plex-match-review>label select{width:min(320px,100%)}.plex-match-review>label small{flex:1 1 260px}.plex-match-review>.overlay-condition-builder{gap:8px;padding:10px 12px}.plex-match-review>.overlay-condition-builder>p{margin:0}@media(max-width:760px){.plex-match-review>label{display:grid}.plex-match-review>label select{width:100%}}`}</style>
       <style>{`.plex-library-review{display:grid;gap:10px}.plex-library-review>p{margin:0}.plex-library-review>.plex-library-picker{margin:0}.plex-review-libraries{width:auto;justify-self:start}.plex-match-review .plex-match-toolbar{grid-template-columns:minmax(260px,1fr) auto}.plex-match-review .plex-match-toolbar label{display:grid;grid-template-columns:auto minmax(220px,1fr);align-items:center;gap:8px}.plex-match-review .plex-match-toolbar input{margin:0}.plex-match-review>.form-actions{gap:8px}.plex-match-review>.overlay-condition-builder .overlay-condition-rule{grid-template-columns:minmax(180px,1fr) minmax(150px,.7fr) minmax(120px,1fr) auto}.plex-match-list{display:grid;grid-template-columns:1fr;align-content:start;gap:14px}.plex-match-group{display:grid;gap:7px}.plex-match-group>h3{display:flex;align-items:center;justify-content:space-between;margin:0;padding:0 2px;font-size:.95rem}.plex-match-group-items{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.plex-match-row{grid-template-columns:28px minmax(0,1fr) auto;gap:8px;min-height:44px;padding:7px 9px}.plex-match-check{grid-row:auto}.plex-match-title{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.plex-match-title strong{font-size:.88rem}.plex-match-status{grid-column:auto;grid-row:auto}.plex-match-empty{grid-column:1/-1}.plex-history-panel{padding:14px}.plex-history-panel .plex-history-header .form-actions{margin:0;flex-wrap:wrap}.plex-history-list{grid-template-columns:repeat(3,minmax(0,1fr))}.plex-history-card{grid-template-columns:minmax(0,1fr);align-content:start;min-height:112px}.plex-history-card .form-actions{justify-content:flex-start}.plex-history-card .form-actions button{width:100%}@media(max-width:1100px){.plex-match-group-items,.plex-history-list{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:760px){.plex-match-review .plex-match-toolbar,.plex-match-review .plex-match-toolbar label,.plex-match-group-items,.plex-history-list{grid-template-columns:1fr}.plex-match-review .plex-match-toolbar strong{font-size:.85rem}.plex-match-review>.overlay-condition-builder .overlay-condition-rule{grid-template-columns:1fr}.plex-history-panel .plex-history-header{display:grid}.plex-review-libraries{width:100%}}`}</style>
-      <style>{`.plex-history-panel{padding:0!important;overflow:hidden}.plex-history-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;cursor:pointer;list-style:none}.plex-history-summary::-webkit-details-marker{display:none}.plex-history-summary h3,.plex-history-summary p{margin:0}.plex-history-summary .secondary{padding:.45rem .65rem}.plex-history-panel[open] .plex-history-summary{border-bottom:1px solid var(--border)}.plex-history-body{display:grid;gap:10px;padding:12px 14px}.plex-history-body>p{margin:0}.plex-history-header{justify-content:flex-end}.plex-history-list{display:grid;grid-template-columns:1fr!important;gap:0;margin:0}.plex-history-card{display:grid;grid-template-columns:minmax(0,1fr) auto!important;min-height:0!important;padding:8px 2px;border:0;border-bottom:1px solid var(--border);border-radius:0;background:transparent}.plex-history-content{grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:3px 10px}.plex-history-content small{grid-column:1}.plex-history-content .badge{grid-column:2;grid-row:1/3}.plex-history-card .form-actions button{width:auto!important}@media(max-width:760px){.plex-history-summary{align-items:flex-start}.plex-history-card{grid-template-columns:1fr!important}.plex-history-content{grid-template-columns:minmax(0,1fr) auto}.plex-history-card .form-actions button{width:100%!important}}`}</style>
+      <style>{`.plex-history-panel{padding:0!important;overflow:hidden}.plex-history-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;cursor:pointer;list-style:none}.plex-history-summary::-webkit-details-marker{display:none}.plex-history-summary h3,.plex-history-summary p{margin:0}.plex-history-summary .secondary{padding:.45rem .65rem}.plex-history-panel[open] .plex-history-summary{border-bottom:1px solid var(--border)}.plex-history-body{display:grid;gap:8px;padding:10px 14px}.plex-history-body>p{margin:0}.plex-history-header{justify-content:flex-end}.plex-history-list{display:grid;grid-template-columns:1fr!important;gap:0;margin:0}.plex-history-card{display:grid;grid-template-columns:minmax(0,1fr) auto!important;min-height:0!important;padding:6px 2px;border:0;border-bottom:1px solid var(--border);border-radius:0;background:transparent}.plex-history-content{display:flex;align-items:center;gap:7px;min-width:0;white-space:nowrap}.plex-history-content strong,.plex-history-content small{overflow:hidden;text-overflow:ellipsis}.plex-history-content small{color:var(--muted)}.plex-history-content .badge{flex:0 0 auto}.plex-history-card .form-actions button{width:auto!important;padding:.35rem .55rem}@media(max-width:760px){.plex-history-summary{align-items:flex-start}.plex-history-card{grid-template-columns:1fr!important}.plex-history-content{display:grid;grid-template-columns:minmax(0,1fr) auto;white-space:normal}.plex-history-content small{grid-column:1}.plex-history-content .badge{grid-column:2;grid-row:1/3}.plex-history-card .form-actions button{width:100%!important}}`}</style>
       <div className="panel-heading">
         <div>
           <span className="eyebrow">PLEX ARTWORK</span>
@@ -527,10 +528,10 @@ export function PlexConnectionPanel({
                   objectFit: "cover",
                   borderRadius: 12,
                 }}
-                src={previewUrl("original", selectedEntry)}
+                src={previewUrl("current", selectedEntry)}
                 alt={`Current Plex poster for ${selectedEntry.title}`}
               />
-              <figcaption>Current Plex poster</figcaption>
+              <figcaption>Current Plex poster · all managed overlays</figcaption>
             </figure>
             <figure style={{ margin: 0 }}>
               <img
@@ -545,7 +546,7 @@ export function PlexConnectionPanel({
                 src={previewUrl("preview", selectedEntry)}
                 alt={`Rendered overlay for ${selectedEntry.title}`}
               />
-              <figcaption>Overlay preview</figcaption>
+              <figcaption>Exact result after this overlay</figcaption>
             </figure>
           </div>
           <button
@@ -582,10 +583,7 @@ export function PlexConnectionPanel({
                 <article className="plex-history-card" key={application.id}>
                   <div className="plex-history-content">
                     <strong>{application.title}</strong>
-                    <small>
-                      {application.plexLibraryTitle} ·{" "}
-                      {application.templateName}
-                    </small>
+                    <small>{application.source==="list"?`List · ${({collection:"collection poster",placeholder:"placeholder overlay",existing:"existing-title overlay",newly_available:"newly-downloaded overlay",title_overlays:"title overlays"} as Record<string,string>)[application.role||""]||"artwork"}`:"Plex overlay"} · {application.templateName} · {application.plexLibraryTitle}{application.affectedCount&&application.affectedCount>1?` · ${application.affectedCount} posters`:""} · {new Date(application.appliedAt).toLocaleString()}</small>
                     <span
                       className={`badge${application.status === "applied" ? " green" : ""}`}
                     >

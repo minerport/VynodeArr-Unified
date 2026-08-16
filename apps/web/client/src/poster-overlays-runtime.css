@@ -45,6 +45,21 @@
 .overlay-application-preview{position:relative;width:min(240px,100%);aspect-ratio:2/3;overflow:hidden;border:1px solid var(--border);border-radius:14px;background:center/cover}
 .overlay-application-preview>span{position:absolute;z-index:3;overflow:hidden;padding:4px 6px;line-height:1.1;white-space:nowrap}
 .overlay-review-preview{display:grid;justify-items:center;gap:8px}
+.overlay-application-review-grid{display:grid;grid-template-columns:minmax(260px,340px) minmax(0,1fr);gap:16px;min-height:0;height:100%;padding:16px;overflow:hidden}
+.overlay-application-review-grid>.overlay-editor-fields,.overlay-application-review-grid>.overlay-review-preview{min-height:0;height:100%;overflow:auto;scrollbar-gutter:stable}
+.overlay-application-review-grid>.overlay-editor-fields{padding:14px 12px 48px;border:1px solid var(--border);border-radius:14px;background:color-mix(in srgb,var(--panel) 82%,#000 18%)}
+.overlay-application-review-grid>.overlay-review-preview{display:block;padding:16px 16px 48px}
+.overlay-review-preview-heading,.overlay-review-library-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.overlay-review-preview-heading h3{margin:.2rem 0}.overlay-review-library-heading small{display:block;margin-top:3px;color:var(--muted)}
+.overlay-review-library{display:grid;gap:12px;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
+.overlay-review-views{display:grid;gap:18px;align-items:start}
+.overlay-review-view{display:grid;gap:7px;min-width:0;margin:0}.overlay-review-view figcaption{color:var(--muted);font-size:.72rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
+.overlay-review-comparison{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}.overlay-review-comparison>div{display:grid;gap:6px;min-width:0}.overlay-review-comparison>div>small{color:var(--muted);font-size:.68rem;font-weight:750}
+.overlay-library-exact-preview{min-width:0;pointer-events:none}.overlay-library-exact-preview .library-results-grid{display:grid;margin:0!important}.overlay-library-exact-preview.view-poster .library-results-grid{grid-template-columns:minmax(0,240px)}
+.overlay-library-exact-preview.view-cards .library-results-grid,.overlay-library-exact-preview.view-compact .library-results-grid,.overlay-library-exact-preview.view-list .library-results-grid{grid-template-columns:minmax(0,1fr)}
+.overlay-library-exact-preview .react-library-card{content-visibility:visible;contain:none}.overlay-library-exact-preview .poster img{display:block;width:100%;height:100%;object-fit:cover}
+@media(max-width:900px){.overlay-application-review-grid{grid-template-columns:1fr;overflow:auto}.overlay-application-review-grid>.overlay-editor-fields,.overlay-application-review-grid>.overlay-review-preview{height:auto;overflow:visible}.overlay-review-comparison{grid-template-columns:1fr}}
+@media(max-width:600px){.overlay-application-review-grid{padding:12px}.overlay-review-preview-heading,.overlay-review-library-heading{display:grid}.overlay-library-exact-preview.view-poster .library-results-grid{grid-template-columns:minmax(0,220px)}}
 .overlay-assignment-panel>.panel-heading{padding-bottom:12px;border-bottom:1px solid var(--border)}
 .overlay-assignment-panel>.panel-heading .eyebrow{color:var(--cyan);font-size:.64rem}
 .overlay-template-group{display:grid;gap:10px;min-width:0}
@@ -52,7 +67,7 @@
 .overlay-template-group-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding-inline:2px}
 .overlay-template-group-heading h3{margin:0;font-size:1rem}
 .overlay-template-group-heading p{margin:3px 0 0;color:var(--muted);font-size:.78rem;line-height:1.35}
-.overlay-template-group-list{display:grid;gap:10px}
+.overlay-template-group-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .overlay-template-empty{padding:14px!important}
 .overlay-template-empty h4{margin:0 0 4px}
 .overlay-workspace-nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;padding:6px;border:1px solid var(--border);border-radius:14px;background:color-mix(in srgb,var(--panel) 88%,transparent)}

@@ -162,6 +162,7 @@ export interface OverlayMedia {
     url?: string;
     originalUrl?: string;
     overlayValues?: Record<string, string>;
+    overlayTemplate?: { layers: OverlayLayer[] };
   };
   cutoffUnmetEpisodes?: number;
   runtimeMinutes?: number;
@@ -205,7 +206,7 @@ export interface PlexMatchReview {
   entries: Array<{ domain: "movie"|"tv"; id: string; title: string; year?: number|null; engineInstanceId?:string|null; engineInstanceName?:string|null; externalIds: string[]; status: "matched"|"unmatched"|"ambiguous"; candidateCount?:number; variableValues?:Record<string,unknown>; plex: Array<{ratingKey:string;title:string;year?:number|null;type:string;thumb?:string;addedAt?:number|string|null}>; plexLibrary:{key:string;title:string;type:string} }>;
   artworkWritesEnabled: boolean;
 }
-export interface PlexPosterApplication { id:string;title:string;domain:"movie"|"tv";engineInstanceId?:string|null;engineInstanceName?:string|null;templateName:string;plexLibraryTitle:string;appliedAt:string;restoredAt:string|null;status:"applied"|"restored";variableValues:Record<string,unknown> }
+export interface PlexPosterApplication { id:string;title:string;domain:"movie"|"tv";engineInstanceId?:string|null;engineInstanceName?:string|null;templateName:string;plexLibraryTitle:string;appliedAt:string;restoredAt:string|null;status:"applied"|"restored";variableValues:Record<string,unknown>;source?:"plex"|"list";listId?:string;listName?:string;role?:"collection"|"placeholder"|"existing"|"newly_available"|"title_overlays";affectedCount?:number;restoreKind?:"collection"|"titles";restorable?:boolean }
 export interface PosterOverlayMountOptions {
   request: <T = unknown>(path: string, options?: RequestInit) => Promise<T>;
   notify: (message: string, tone?: string) => void;

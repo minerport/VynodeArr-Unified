@@ -1272,8 +1272,9 @@ test('alternate library views size overlays against their poster thumbnails',asy
 test('poster overlay style cards stay compact on phones',async()=>{
   const source=await read('apps/web/client/src/poster-overlays.tsx');
   assert.match(source,/overlay-template-panel \.panel-heading \.badge\{align-self:flex-start\}/);
-  assert.match(source,/\.overlay-template-card\{grid-template-columns:64px minmax\(0,1fr\);align-items:center/);
-  assert.match(source,/\.overlay-template-content \.form-actions\{grid-template-columns:repeat\(3,minmax\(0,1fr\)\);position:static/);
+  assert.match(source,/\.overlay-template-card\{grid-template-columns:92px minmax\(0,1fr\);align-items:start/);
+  assert.match(source,/\.overlay-template-content \.form-actions\{display:grid;grid-template-columns:repeat\(2,minmax\(0,auto\)\);justify-content:start/);
+  assert.match(source,/\.overlay-template-content \.form-actions button\{width:auto;min-width:0;min-height:34px/);
   assert.match(source,/backdrop-filter:none/);
 });
 

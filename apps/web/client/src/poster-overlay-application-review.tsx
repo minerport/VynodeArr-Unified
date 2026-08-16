@@ -1,8 +1,8 @@
 import { ModalPortal } from "./modal-portal";
-import type { OverlayMedia, OverlayTemplate } from "./poster-overlays-types";
-import { LibraryChrome } from "./poster-overlay-library-preview";
-import { OverlayLayerView, overlayLayerVisible, resolveConditionalLayer } from "./poster-overlay-layer";
-import { PosterLayerContent } from "./poster-overlay-icons";
+import { LibraryCardPreview } from "./library";
+import type { LibraryItem, LibraryKind, LibraryView } from "./library-types";
+import type { OverlayLayer, OverlayMedia, OverlayTemplate } from "./poster-overlays-types";
+import { overlayLayerVisible, resolveConditionalLayer } from "./poster-overlay-layer";
 const valueFor = (
   layer: OverlayTemplate["layers"][number],
   item: OverlayMedia,
@@ -94,7 +94,86 @@ export default function ApplicationReview({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
-  const sample = items[0], assessed=items.map(item=>({item,visible:template.layers.filter(layer=>{const resolved=resolveConditionalLayer(layer,item.artwork?.overlayValues||{});return overlayLayerVisible(resolved,valueFor(resolved,item),item.artwork?.overlayValues||{});}).length})),willRender=assessed.filter(result=>result.visible>0).length,withoutVisibleLayers=assessed.length-willRender;
+  const assessed=items.map(item=>({item,visible:template.layers.filter(layer=>{const resolved=resolveConditionalLayer(layer,item.artwork?.overlayValues||{});return overlayLayerVisible(resolved,valueFor(resolved,item),item.artwork?.overlayValues||{});}).length})),willRender=assessed.filter(result=>result.visible>0).length,withoutVisibleLayers=assessed.length-willRender;
+  const previewLayers = (layers: OverlayLayer[], source: "current" | "new") =>
+    layers.map((layer, index) => ({
+      ...layer,
+      // Layer ids are only used as renderer keys in this review. Namespacing
+      // prevents two independently-created templates from hiding one another
+      // when they happen to use the same generated id.
+      id: `review-${source}-${index}-${layer.id}`,
+    }));
+  const groups = (["movies", "tv"] as LibraryKind[])
+    .map((kind) => ({
+      kind,
+      label: kind === "movies" ? "Movie library" : "TV library",
+      item: items.find((item) =>
+        kind === "tv"
+          ? Boolean(item.episodeProgress || item.seasonProgress || item.network || item.firstAired)
+          : !Boolean(item.episodeProgress || item.seasonProgress || item.network || item.firstAired),
+      ),
+    }))
+    .filter((group) => group.item)
+    .map((group) => {
+      const item = group.item!;
+      const existingLayers = item.artwork?.overlayTemplate?.layers || [];
+      const combinedLayers = [
+        ...previewLayers(existingLayers, "current"),
+        ...previewLayers(template.layers, "new"),
+      ];
+      return {
+        ...group,
+        currentPreview: {
+          ...item,
+          artwork: {
+            ...item.artwork,
+            overlayTemplate: { layers: previewLayers(existingLayers, "current") },
+          },
+        } as LibraryItem,
+        afterPreview: {
+          ...item,
+          artwork: {
+            ...item.artwork,
+            overlayTemplate: { layers: combinedLayers },
+          },
+        } as LibraryItem,
+      };
+    });
+  if (!groups.length && items[0]) {
+    const item = items[0];
+    groups.push({
+      kind: template.domain === "tv" ? "tv" : "movies",
+      label: template.domain === "tv" ? "TV library" : "Movie library",
+      item,
+      currentPreview: {
+        ...item,
+        artwork: {
+          ...item.artwork,
+          overlayTemplate: {
+            layers: previewLayers(item.artwork?.overlayTemplate?.layers || [], "current"),
+          },
+        },
+      } as LibraryItem,
+      afterPreview: {
+        ...item,
+        artwork: {
+          ...item.artwork,
+          overlayTemplate: {
+            layers: [
+              ...previewLayers(item.artwork?.overlayTemplate?.layers || [], "current"),
+              ...previewLayers(template.layers, "new"),
+            ],
+          },
+        },
+      } as LibraryItem,
+    });
+  }
+  const views: Array<{ view: LibraryView; label: string }> = [
+    { view: "poster", label: "Poster grid" },
+    { view: "cards", label: "Information cards" },
+    { view: "compact", label: "Compact grid" },
+    { view: "list", label: "Detailed list" },
+  ];
   return (
     <ModalPortal>
       <div className="overlay-editor-backdrop">
@@ -113,7 +192,7 @@ export default function ApplicationReview({
               Close
             </button>
           </header>
-          <div className="overlay-editor-grid">
+          <div className="overlay-application-review-grid">
             <div className="overlay-editor-fields">
               <div className="notice">
                 <strong>{template.name}</strong>
@@ -155,44 +234,41 @@ export default function ApplicationReview({
               </div>
             </div>
             <div className="panel overlay-review-preview">
-              <span className="eyebrow">SCOPE</span>
-              <h3>{label}</h3>
-              <small className="muted">
-                {items.length
-                  ? `${items.length} current title${items.length === 1 ? "" : "s"} included`
-                  : "Titles will be matched dynamically"}
-              </small>
-              <p>
-                {template.layers.length} custom layer
-                {template.layers.length === 1 ? "" : "s"} will render above
-                VynodeArr’s live card information.
-              </p>
-              {sample ? (
-                <>
-                  <strong>Exact before and after</strong>
-                  <div className="overlay-before-after"><figure><div className="overlay-application-preview" style={{backgroundImage:`url(${sample.artwork?.originalUrl || sample.artwork?.url})`}}/><figcaption>Original</figcaption></figure><figure>
-                  <div
-                    className="overlay-application-preview"
-                    style={{
-                      containerType: "inline-size",
-                      backgroundImage: `url(${sample.artwork?.originalUrl || sample.artwork?.url})`,
-                    }}
-                  >
-                    {template.layers.map((layer) => {
-                      const resolvedLayer=resolveConditionalLayer(layer,sample.artwork?.overlayValues||{}),value=valueFor(resolvedLayer,sample);
-                      return overlayLayerVisible(resolvedLayer,value,sample.artwork?.overlayValues||{}) ? (
-                        <OverlayLayerView
-                          key={layer.id}
-                          layer={resolvedLayer}
-                        >
-                          <PosterLayerContent layer={resolvedLayer} text={`${resolvedLayer.prefix}${value}${resolvedLayer.suffix}`} />
-                        </OverlayLayerView>
-                      ) : null;
-                    })}
-                    <LibraryChrome media={sample} />
-                  </div><figcaption>With overlay</figcaption></figure></div>
-                </>
-              ) : null}
+              <header className="overlay-review-preview-heading">
+                <div>
+                  <span className="eyebrow">EXACT LIBRARY PREVIEW</span>
+                  <h3>{label}</h3>
+                  <small className="muted">
+                    Exact before and after using the same cards and layouts as the live Movies and TV pages.
+                  </small>
+                </div>
+                <span className="badge">{template.layers.length} new layer{template.layers.length === 1 ? "" : "s"}</span>
+              </header>
+              {groups.length ? groups.map((group) => (
+                <section className="overlay-review-library" key={group.kind}>
+                  <div className="overlay-review-library-heading">
+                    <div><strong>{group.label}</strong><small>{group.afterPreview.title} · {group.afterPreview.year || "Year unknown"}</small></div>
+                    <span className="badge green">Current + new overlays</span>
+                  </div>
+                  <div className="overlay-review-views">
+                    {views.map(({ view, label: viewLabel }) => (
+                      <figure className={`overlay-review-view overlay-review-view-${view}`} key={view}>
+                        <figcaption>{viewLabel}</figcaption>
+                        <div className="overlay-review-comparison">
+                          <div>
+                            <small>Current library</small>
+                            <LibraryCardPreview item={group.currentPreview} kind={group.kind} view={view} />
+                          </div>
+                          <div>
+                            <small>After assignment</small>
+                            <LibraryCardPreview item={group.afterPreview} kind={group.kind} view={view} />
+                          </div>
+                        </div>
+                      </figure>
+                    ))}
+                  </div>
+                </section>
+              )) : <div className="empty"><strong>Live preview unavailable</strong><p>Matching titles will be evaluated as they enter this dynamic scope.</p></div>}
             </div>
           </div>
           <footer className="overlay-editor-footer">

@@ -7,6 +7,36 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.50-rc.1] - 2026-08-16
+
+### Added
+
+- Added a canonical Plex artwork ledger that preserves the true original poster
+  while tracking every VynodeArr and list overlay applied afterward.
+- Added exact current and proposed poster previews during assignment review,
+  including existing overlays from other assignments and list automation.
+- Added concise Plex artwork history entries that identify overlay sources and
+  support safe removal, restoration, and recomposition.
+
+### Changed
+
+- Condensed the overlay template library into compact cards with larger,
+  library-sized preview posters and smaller action controls.
+- Updated assignment review to evaluate current metadata and show each affected
+  library view before an overlay is applied.
+
+### Fixed
+
+- Preserved the original Plex poster when multiple regular or list overlays are
+  applied, removed, reordered, or reapplied.
+- Prevented removing one overlay from discarding other active overlays or
+  restoring an intermediate composited poster as the original.
+
+### Validation
+
+- Passed all 298 automated tests, web TypeScript checks, and production web
+  builds before publication.
+
 ## [2.0.49] - 2026-08-16
 
 ### Changed

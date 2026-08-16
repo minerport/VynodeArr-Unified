@@ -309,6 +309,42 @@ function LibraryCard({
   );
 }
 
+/**
+ * Uses the production library card renderer for non-interactive previews.
+ * Keeping this here prevents overlay reviews from drifting away from the
+ * layouts people actually see in Movies and TV.
+ */
+export function LibraryCardPreview({
+  item,
+  kind,
+  view,
+}: {
+  item: LibraryItem;
+  kind: LibraryMountOptions["kind"];
+  view: LibraryView;
+}) {
+  return (
+    <div
+      className={`react-library overlay-library-exact-preview view-${view}`}
+      onClickCapture={(event) => event.preventDefault()}
+    >
+      <div className="library-results-grid">
+        <LibraryCard
+          item={item}
+          kind={kind}
+          view={view}
+          priority
+          administrator={false}
+          onMonitor={async () => undefined}
+          onOpen={() => undefined}
+          selected={false}
+          onSelect={() => undefined}
+        />
+      </div>
+    </div>
+  );
+}
+
 export function LibraryView({ options }: { options: LibraryMountOptions }) {
   const { kind, request, notify } = options,
     movie = kind === "movies";
