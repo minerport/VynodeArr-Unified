@@ -28,10 +28,10 @@ test('Unraid template has required mappings, self-contained image, and upstream 
   for(const value of ['<Name>VynodeArr</Name>','ghcr.io/minerport/vynodearr-unified:latest','<Registry>https://github.com/minerport/VynodeArr-Unified/pkgs/container/vynodearr-unified</Registry>','<Network>bridge</Network>','<Shell>sh</Shell>','<Privileged>false</Privileged>','Target="8686"','Target="/config"','Target="/movies"','Target="/tv"','Target="/downloads"'])assert.match(text,new RegExp(value));
   const overview=text.match(/<Overview>(.*?)<\/Overview>/s)?.[1]||'';
   assert.match(overview,/\bRadarr\b/);assert.match(overview,/\bSonarr\b/);
-  assert.match(text,/GPLv3/);assert.match(text,/Apache 2\.0/);
+  assert.match(text,/GPLv3/);assert.match(text,/Apache(?: License)? 2\.0/);
   assert.match(text,new RegExp(`<Config Name="[^"]+" Target="/media" Default=""[^>]+Required="false"[^>]*><\\/Config>`));
   for(const target of ['/movies-2','/movies-3','/tv-2','/tv-3'])assert.doesNotMatch(text,new RegExp(`Target="${target}"`));
-  for(const field of ['MyIP','Description','ExtraSearchTerms','WebUI','ReadMe','Changes','Date','MinVer','License','Screenshot','ExtraParams','PostArgs','CPUset','DateInstalled','Requires'])assert.doesNotMatch(text,new RegExp(`<${field}(?:[ >/])`));
+  for(const field of ['MyIP','Description','ExtraSearchTerms','WebUI','ReadMe','Changes','Date','MinVer','License','ExtraParams','PostArgs','CPUset','DateInstalled','Requires'])assert.doesNotMatch(text,new RegExp(`<${field}(?:[ >/])`));
   assert.doesNotMatch(text,/Target="\/unraid-template"/);
   assert.doesNotMatch(text,/templates-user/);
 });
@@ -92,6 +92,7 @@ test('1.0 release includes self-contained Unraid and Windows distributions',asyn
 });
 test('README and Unraid metadata use the current product tour assets',async()=>{
   const assets=['dashboard.png','discover.png','my-requests.png','collections.png','tv-library.png','poster-overlay-studio.png','vynodearr-walkthrough.mp4'];
+  const templateScreenshots=['dashboard.png','movie-library.png','tv-library.png','discover.png','my-requests.png','collections.png','poster-overlay-studio.png'];
   await Promise.all(assets.map(asset=>access(new URL(`../docs/screenshots/${asset}`,import.meta.url))));
   const [readme,unraid,template]=await Promise.all([
     readFile(new URL('../README.md',import.meta.url),'utf8'),
@@ -100,7 +101,8 @@ test('README and Unraid metadata use the current product tour assets',async()=>{
   ]);
   for(const asset of assets)assert.match(readme,new RegExp(asset.replaceAll('.','\\.')));
   assert.match(unraid,/current product screenshots/i);assert.match(unraid,/automatic file-schema migrations/i);
-  assert.doesNotMatch(template,/<Screenshot>/);
+  const screenshots=[...template.matchAll(/<Screenshot>([^<]+)<\/Screenshot>/g)].map(match=>match[1]);
+  assert.deepEqual(screenshots,templateScreenshots.map(asset=>`https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/docs/screenshots/${asset}`));
 });
 
 test('README installs the published Docker image and documents persistent release paths',async()=>{

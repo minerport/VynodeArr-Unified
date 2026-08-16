@@ -20,7 +20,7 @@ for(const forbidden of ['Target="/unraid-template"','templates-user'])if(unraid.
 for(const marker of ['<CommunityApplications>','<Profile>','<Icon>','<WebPage>','<Forum>'])if(!profile.includes(marker))failures.push(`Community Applications profile marker missing: ${marker}`);
 for(const marker of ['<Registry>https://github.com/minerport/VynodeArr-Unified/pkgs/container/vynodearr-unified</Registry>','<Network>bridge</Network>','<Shell>sh</Shell>','<Privileged>false</Privileged>','<Project>https://github.com/minerport/VynodeArr-Unified</Project>','<Support>https://github.com/minerport/VynodeArr-Unified/issues</Support>','<Category>MediaApp:Video</Category>'])if(!unraid.includes(marker))failures.push(`Community Applications canonical field missing: ${marker}`);
 if(!unraid.includes('main/templates/vynodearr.xml'))failures.push('Canonical Community Applications template URL is missing');
-for(const field of ['MyIP','Description','ExtraSearchTerms','WebUI','ReadMe','Changes','Date','MinVer','License','Screenshot','ExtraParams','PostArgs','CPUset','DateInstalled','Requires'])if(new RegExp(`<${field}(?:[ >/])`).test(unraid))failures.push(`Unsupported Community Applications field remains: ${field}`);
+for(const field of ['MyIP','Description','ExtraSearchTerms','WebUI','ReadMe','Changes','Date','MinVer','License','ExtraParams','PostArgs','CPUset','DateInstalled','Requires'])if(new RegExp(`<${field}(?:[ >/])`).test(unraid))failures.push(`Unsupported Community Applications field remains: ${field}`);
 try{JSON.parse(JSON.stringify({compose:true,image:true,unraid:true}));}catch{failures.push('Deployment metadata invalid');}
 if(failures.length){console.error(failures.join('\n'));process.exit(1);}
 console.log('Deployment validation passed.');
