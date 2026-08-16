@@ -48,6 +48,7 @@ import { AsyncLimiter } from "../../../packages/platform/src/async-limiter.js";
 import { createLogger } from "../../../packages/platform/src/logger.js";
 import { MusicService } from "../../../packages/platform/src/music-service.js";
 import { SubtitleService } from "../../../packages/platform/src/subtitle-service.js";
+import { downloadSubtitle, grabMusicRelease, searchNewznab, searchSubtitles, testMusicProvider, testSubtitleProvider } from "../../../packages/platform/src/media-connectors.js";
 import { MovieEngineAdapter } from "../../../packages/movie-domain/src/engine-adapter.js";
 import { TvEngineAdapter } from "../../../packages/tv-domain/src/engine-adapter.js";
 import { MultiInstanceReadAdapter } from "../../../packages/platform/src/multi-instance-read-adapter.js";
@@ -689,16 +690,16 @@ export function createApplication(options = {}) {
   });
   const music = options.music || new MusicService({
     store: musicStore,
-    indexerTester: options.musicIndexerTester,
-    downloadClientTester: options.musicDownloadClientTester,
-    searcher: options.musicSearcher,
-    grabber: options.musicGrabber,
+    indexerTester: options.musicIndexerTester || testMusicProvider,
+    downloadClientTester: options.musicDownloadClientTester || testMusicProvider,
+    searcher: options.musicSearcher || searchNewznab,
+    grabber: options.musicGrabber || grabMusicRelease,
   });
   const subtitles = options.subtitles || new SubtitleService({
     store: subtitleStore,
-    providerTester: options.subtitleProviderTester,
-    searcher: options.subtitleSearcher,
-    downloader: options.subtitleDownloader,
+    providerTester: options.subtitleProviderTester || testSubtitleProvider,
+    searcher: options.subtitleSearcher || searchSubtitles,
+    downloader: options.subtitleDownloader || downloadSubtitle,
   });
   const mediaDestinations =
     options.mediaDestinations || new MediaDestinationService(mediaDestinationStore);
@@ -8533,6 +8534,11 @@ export function createApplication(options = {}) {
             payload: event,
           });
         }
+        if (/download|import|rename/i.test(eventType)) {
+          const file=domain==="movie"?event.movieFile:event.episodeFile,episodes=domain==="tv"?(Array.isArray(event.episodes)?event.episodes:event.episode?[event.episode]:[]):[];
+          if (domain==="movie"&&mediaId&&file?.path) await subtitles.processMediaArrival({domain:"movie",mediaId,title:event.movie?.title||"",filePath:file.path,embedded:(file.languages||[]).map(value=>value.name||value)}).catch(error=>logger.warn('subtitles.arrival_deferred','Subtitle processing was deferred for an imported movie',{domain,mediaId,error}));
+          for (const episode of episodes) if(episode?.id&&file?.path) await subtitles.processMediaArrival({domain:"episode",mediaId:`episode_${episode.id}`,seriesId:mediaId,seasonNumber:episode.seasonNumber,episodeNumber:episode.episodeNumber,title:episode.title||event.series?.title||"",filePath:file.path,embedded:(file.languages||[]).map(value=>value.name||value)}).catch(error=>logger.warn('subtitles.arrival_deferred','Subtitle processing was deferred for an imported episode',{domain,mediaId:`episode_${episode.id}`,error}));
+        }
         return json(res, 202, {
           accepted: true,
           domain: domain,
@@ -8653,7 +8659,7 @@ export function createApplication(options = {}) {
           const type=musicProviderMatch[1]==="indexers"?"indexer":"downloadClient",id=musicProviderMatch[2]?decodeURIComponent(musicProviderMatch[2]):null;
           if (req.method === "POST" && musicProviderMatch[3] === "test") {
             if (!requireCsrf(req, res, session)) return;
-            return json(res, 200, await music.testProvider(type, await body(req)));
+            return json(res, 200, await music.testProvider(type, { ...(await body(req)), id }));
           }
           if (req.method === "POST" && !id) {
             if (!requireCsrf(req, res, session)) return;
@@ -8681,7 +8687,7 @@ export function createApplication(options = {}) {
         if (subtitleProviderMatch) {
           if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
           const id=decodeURIComponent(subtitleProviderMatch[1]);
-          if (req.method === "POST" && subtitleProviderMatch[2] === "test") return json(res, 200, await subtitles.testProvider(await body(req)));
+          if (req.method === "POST" && subtitleProviderMatch[2] === "test") return json(res, 200, await subtitles.testProvider({ ...(await body(req)), id }));
           if (req.method === "PUT") return json(res, 200, { provider: await subtitles.saveProvider({ ...(await body(req)), id }) });
           if (req.method === "DELETE") return json(res, 200, { removed: await subtitles.removeProvider(id) });
         }
