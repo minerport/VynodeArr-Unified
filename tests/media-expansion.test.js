@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { JsonStore } from "../.server-build/packages/platform/src/json-store.js";
@@ -62,15 +62,43 @@ test("music providers stay domain-specific and secrets never appear in snapshots
 
 test("media provider credentials are encrypted at rest and hydrated only for connectors", async () => {
   const directory = await mkdtemp(join(tmpdir(), "vynode-media-vault-"));
-  const store = new JsonStore(join(directory, "music.json"), { version: 1, indexers: [], downloadClients: [], artists: [], albums: [], tracks: [], jobs: [] });
+  const store = new JsonStore(join(directory, "music.json"), {
+    version: 1,
+    indexers: [],
+    downloadClients: [],
+    artists: [],
+    albums: [],
+    tracks: [],
+    jobs: [],
+  });
   const vaultPath = join(directory, "media-provider-credentials.enc");
-  const vault = new EncryptedCredentialVault(vaultPath, "a-long-media-provider-master-key");
+  const vault = new EncryptedCredentialVault(
+    vaultPath,
+    "a-long-media-provider-master-key",
+  );
   let received;
-  const service = new MusicService({ store, vault, indexerTester: async (config) => { received = config.apiKey; return { reachable: true }; } });
+  const service = new MusicService({
+    store,
+    vault,
+    indexerTester: async (config) => {
+      received = config.apiKey;
+      return { reachable: true };
+    },
+  });
   try {
-    const provider = await service.saveProvider("indexer", { name: "Private Search", endpoint: "https://indexer.test", apiKey: "top-secret-key" });
-    assert.equal(JSON.stringify(await store.read()).includes("top-secret-key"), false);
-    assert.equal((await readFile(vaultPath, "utf8")).includes("top-secret-key"), false);
+    const provider = await service.saveProvider("indexer", {
+      name: "Private Search",
+      endpoint: "https://indexer.test",
+      apiKey: "top-secret-key",
+    });
+    assert.equal(
+      JSON.stringify(await store.read()).includes("top-secret-key"),
+      false,
+    );
+    assert.equal(
+      (await readFile(vaultPath, "utf8")).includes("top-secret-key"),
+      false,
+    );
     await service.testProvider("indexer", { id: provider.id });
     assert.equal(received, "top-secret-key");
   } finally {
@@ -274,6 +302,105 @@ test("subtitle downloads update episode coverage and retain provider history", a
     const snapshot = await value.service.snapshot();
     assert.deepEqual(snapshot.items[0].external, ["fr"]);
     assert.equal(snapshot.history[0].provider, "Provider");
+  } finally {
+    await rm(value.directory, { recursive: true, force: true });
+  }
+});
+
+test("subtitle reconciliation detects existing language sidecars", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "vynode-sidecars-")),
+    media = join(directory, "Show.S01E01.mkv");
+  const store = new JsonStore(join(directory, "subtitles.json"), {
+      version: 1,
+      providers: [],
+      profiles: [],
+      assignments: [],
+      items: [],
+      jobs: [],
+      history: [],
+    }),
+    service = new SubtitleService({ store });
+  try {
+    await writeFile(media, "video");
+    await writeFile(join(directory, "Show.S01E01.en.srt"), "captions");
+    const item = await service.reconcile({
+      domain: "episode",
+      mediaId: "episode_1",
+      filePath: media,
+    });
+    assert.deepEqual(item.external, ["en"]);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("pending subtitle jobs can be retried and superseded after download", async () => {
+  const value = await fixture(
+    "subtitle-retry",
+    {
+      version: 1,
+      providers: [],
+      profiles: [],
+      assignments: [],
+      items: [],
+      jobs: [],
+      history: [],
+    },
+    (store) =>
+      new SubtitleService({
+        store,
+        searcher: async ({ providers }) => [
+          {
+            id: "result-1",
+            providerId: providers[0].id,
+            language: "fr",
+            score: 100,
+          },
+        ],
+        downloader: async () => ({ path: "/tv/show.fr.srt" }),
+      }),
+  );
+  try {
+    const profile = await value.service.saveProfile({
+        name: "French",
+        languages: ["fr"],
+      }),
+      provider = await value.service.saveProvider({
+        name: "Source",
+        endpoint: "https://subtitle.test",
+      });
+    await value.service.assign({
+      domain: "episode",
+      mediaId: "episode_1",
+      profileId: profile.id,
+    });
+    const item = await value.service.reconcile({
+      domain: "episode",
+      mediaId: "episode_1",
+    });
+    await value.service.processMediaArrival({
+      ...item,
+      domain: "episode",
+      mediaId: "episode_1",
+    });
+    await value.service.store.update((state) => {
+      state.items[0].external = [];
+      state.jobs.unshift({
+        id: "pending-1",
+        itemId: item.id,
+        language: "fr",
+        status: "awaiting-search",
+      });
+    });
+    const result = await value.service.retryPending();
+    assert.equal(result.completed, 1);
+    assert.equal(
+      (await value.service.snapshot()).jobs.find(
+        (job) => job.id === "pending-1",
+      ).status,
+      "superseded",
+    );
+    assert.ok(provider.id);
   } finally {
     await rm(value.directory, { recursive: true, force: true });
   }

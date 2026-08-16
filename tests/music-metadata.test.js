@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   searchMusicArtists,
   loadMusicBrainzArtist,
+  loadMusicBrainzReleaseGroup,
   testMusicMetadataProvider,
   enrichMusicArtist,
 } from "../.server-build/packages/platform/src/music-metadata-connectors.js";
@@ -110,4 +111,46 @@ test("Last.fm uses a user API key for optional artist enrichment", async () => {
   });
   assert.deepEqual(artist.genres, ["pop"]);
   assert.equal(artist.listeners, 12);
+});
+
+test("release-group loading ranks complete official editions and preserves discs and recordings", async () => {
+  const value = await loadMusicBrainzReleaseGroup({
+    releaseGroupId: "group-1",
+    provider,
+    fetcher: async () =>
+      response({
+        "release-count": 1,
+        releases: [
+          {
+            id: "release-1",
+            title: "Album",
+            status: "Official",
+            country: "US",
+            date: "2024-01-01",
+            media: [
+              {
+                position: 1,
+                format: "Digital Media",
+                "track-count": 1,
+                tracks: [
+                  {
+                    id: "track-1",
+                    position: 1,
+                    number: "1",
+                    title: "Song",
+                    length: 180000,
+                    recording: { id: "recording-1", isrcs: ["USABC123"] },
+                    "artist-credit": [{ name: "Artist" }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      }),
+  });
+  assert.equal(value.selected.id, "release-1");
+  assert.equal(value.selected.media[0].tracks[0].recordingId, "recording-1");
+  assert.deepEqual(value.selected.media[0].tracks[0].isrcs, ["USABC123"]);
+  assert.ok(value.selected.score >= 80);
 });

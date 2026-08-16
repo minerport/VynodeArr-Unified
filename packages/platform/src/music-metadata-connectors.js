@@ -160,6 +160,90 @@ export async function loadMusicBrainzArtist({
   };
 }
 
+export async function loadMusicBrainzReleaseGroup({
+  releaseGroupId,
+  provider,
+  fetcher = globalThis.fetch,
+}) {
+  const releases = [];
+  let offset = 0;
+  do {
+    const page = await musicBrainzRequest(
+      provider,
+      `/release?release-group=${encodeURIComponent(releaseGroupId)}&status=official&limit=100&offset=${offset}&inc=artist-credits+labels+recordings+media+isrcs&fmt=json`,
+      fetcher,
+    );
+    const records = page.releases || [];
+    releases.push(...records);
+    offset += records.length;
+    if (!records.length || offset >= Number(page["release-count"] || 0)) break;
+  } while (true);
+  const editions = releases
+    .map((release) => {
+      const media = (release.media || []).map((medium) => ({
+        position: Number(medium.position) || 1,
+        format: medium.format || null,
+        title: medium.title || null,
+        trackCount:
+          Number(medium["track-count"]) || (medium.tracks || []).length,
+        tracks: (medium.tracks || []).map((track) => ({
+          id: track.id,
+          recordingId: track.recording?.id || null,
+          title: track.title || track.recording?.title || "Unknown track",
+          position: Number(track.position) || 0,
+          number: track.number || String(track.position || ""),
+          lengthMs: Number(track.length || track.recording?.length) || null,
+          artistCredit:
+            artistCredit(track) ||
+            artistCredit(track.recording) ||
+            artistCredit(release),
+          isrcs: track.recording?.isrcs || [],
+        })),
+      }));
+      const trackCount = media.reduce(
+        (total, medium) => total + medium.trackCount,
+        0,
+      );
+      const format =
+        [...new Set(media.map((value) => value.format).filter(Boolean))].join(
+          " + ",
+        ) || null;
+      let score = 0;
+      if (release.status === "Official") score += 40;
+      if (release.country === "US") score += 8;
+      if (/digital media/i.test(format || "")) score += 12;
+      if (
+        trackCount > 0 &&
+        media.every((value) => value.tracks.length === value.trackCount)
+      )
+        score += 25;
+      if (release.date) score += 5;
+      return {
+        id: release.id,
+        title: release.title,
+        status: release.status || null,
+        country: release.country || null,
+        date: release.date || null,
+        barcode: release.barcode || null,
+        format,
+        media,
+        trackCount,
+        artistCredit: artistCredit(release),
+        labels: (release["label-info"] || []).map((value) => ({
+          name: value.label?.name || null,
+          catalogNumber: value["catalog-number"] || null,
+        })),
+        score,
+      };
+    })
+    .sort(
+      (a, b) =>
+        b.score - a.score ||
+        String(a.date || "9999").localeCompare(String(b.date || "9999")),
+    );
+  return { editions, selected: editions[0] || null };
+}
+
 export async function enrichMusicArtist({
   artist,
   provider,

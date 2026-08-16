@@ -28,6 +28,7 @@ export class MusicService {
     artistSearcher = null,
     artistLoader = null,
     artistEnricher = null,
+    albumLoader = null,
     searcher = null,
     grabber = null,
   }) {
@@ -39,6 +40,7 @@ export class MusicService {
     this.artistSearcher = artistSearcher;
     this.artistLoader = artistLoader;
     this.artistEnricher = artistEnricher;
+    this.albumLoader = albumLoader;
     this.searcher = searcher;
     this.grabber = grabber;
   }
@@ -97,6 +99,7 @@ export class MusicService {
     return {
       artists: state.artists || [],
       albums: state.albums || [],
+      editions: state.editions || [],
       tracks: state.tracks || [],
       jobs: state.jobs || [],
       indexers: (state.indexers || []).map(publicProvider),
@@ -314,6 +317,84 @@ export class MusicService {
       value.updatedAt = now();
     });
     return { artist, albumCount: albums.length };
+  }
+  async refreshAlbumMetadata(albumId) {
+    if (!this.albumLoader)
+      throw new Error("No album metadata loader is installed");
+    const state = await this.store.read(),
+      album = (state.albums || []).find((value) => value.id === albumId);
+    if (!album?.foreignReleaseGroupId)
+      throw new Error("The album has no MusicBrainz release-group identity");
+    const providers = await Promise.all(
+        (state.metadataProviders || [])
+          .filter((value) => value.enabled !== false)
+          .sort((a, b) => a.priority - b.priority)
+          .map((value) => this.#credentials(value)),
+      ),
+      provider = providers.find(
+        (value) => value.implementation === "musicbrainz",
+      );
+    if (!provider)
+      throw new Error("Enable MusicBrainz before refreshing an album");
+    const loaded = await this.albumLoader({
+        releaseGroupId: album.foreignReleaseGroupId,
+        provider,
+      }),
+      selected = loaded.selected;
+    await this.store.update((value) => {
+      value.editions ||= [];
+      value.tracks ||= [];
+      value.editions = value.editions.filter(
+        (entry) => entry.albumId !== album.id,
+      );
+      value.editions.push(
+        ...loaded.editions.map((edition) => ({
+          ...edition,
+          id: `edition_${edition.id}`,
+          foreignReleaseId: edition.id,
+          albumId: album.id,
+          selected: edition.id === selected?.id,
+          updatedAt: now(),
+        })),
+      );
+      value.tracks = value.tracks.filter((entry) => entry.albumId !== album.id);
+      if (selected)
+        for (const medium of selected.media)
+          for (const track of medium.tracks)
+            value.tracks.push({
+              id: `track_${track.id || track.recordingId || randomUUID()}`,
+              albumId: album.id,
+              editionId: `edition_${selected.id}`,
+              foreignTrackId: track.id || null,
+              foreignRecordingId: track.recordingId,
+              title: track.title,
+              mediumNumber: medium.position,
+              trackNumber: track.position,
+              number: track.number,
+              durationMs: track.lengthMs,
+              artistCredit: track.artistCredit,
+              isrcs: track.isrcs,
+              monitored: album.monitored !== false,
+              hasFile: false,
+              updatedAt: now(),
+            });
+      const index = value.albums.findIndex((entry) => entry.id === album.id);
+      if (index >= 0)
+        value.albums[index] = {
+          ...value.albums[index],
+          selectedEditionId: selected ? `edition_${selected.id}` : null,
+          trackCount: selected?.trackCount || 0,
+          metadataRefreshedAt: now(),
+          updatedAt: now(),
+        };
+      value.updatedAt = now();
+    });
+    return {
+      albumId: album.id,
+      editionCount: loaded.editions.length,
+      selectedEditionId: selected ? `edition_${selected.id}` : null,
+      trackCount: selected?.trackCount || 0,
+    };
   }
   async saveArtist(input) {
     const artist = {

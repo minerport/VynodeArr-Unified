@@ -18,6 +18,26 @@ type MusicSnapshot = {
     title: string;
     trackCount: number;
     availableTrackCount: number;
+    releaseDate?: string | null;
+    releaseType?: string;
+    selectedEditionId?: string | null;
+  }>;
+  editions: Array<{
+    id: string;
+    albumId: string;
+    title: string;
+    country: string | null;
+    format: string | null;
+    trackCount: number;
+    selected: boolean;
+  }>;
+  tracks: Array<{
+    id: string;
+    albumId: string;
+    title: string;
+    mediumNumber: number;
+    trackNumber: number;
+    hasFile: boolean;
   }>;
   jobs: Array<{ id: string; title: string; status: string }>;
   indexers: ProviderSummary[];
@@ -608,6 +628,22 @@ function Music({ options }: { options: MediaExpansionOptions }) {
   useEffect(() => {
     void load();
   }, [load, options]);
+  async function refreshAlbum(id: string) {
+    try {
+      const value = await options.request<{
+        editionCount: number;
+        trackCount: number;
+      }>(`/api/music/albums/${encodeURIComponent(id)}/refresh`, {
+        method: "POST",
+      });
+      options.notify(
+        `Loaded ${value.editionCount} editions and ${value.trackCount} tracks.`,
+      );
+      await load();
+    } catch (error) {
+      options.notify(errorMessage(error), "error");
+    }
+  }
   if (error) return <div className="panel error-state">{error}</div>;
   if (!data)
     return <div className="panel skeleton">Loading music workspace…</div>;
@@ -646,6 +682,38 @@ function Music({ options }: { options: MediaExpansionOptions }) {
                   {artist.monitorMode} monitoring ·{" "}
                   {artist.genres.join(", ") || "No genres"}
                 </p>
+                <div className="music-album-list">
+                  {data.albums
+                    .filter((album) => album.artistId === artist.id)
+                    .map((album) => (
+                      <div className="data-row" key={album.id}>
+                        <span>
+                          <strong>{album.title}</strong>
+                          <small>
+                            {[
+                              album.releaseDate,
+                              album.releaseType,
+                              album.trackCount
+                                ? `${album.trackCount} tracks`
+                                : "edition not loaded",
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </small>
+                        </span>
+                        {options.administrator && (
+                          <button
+                            type="button"
+                            onClick={() => void refreshAlbum(album.id)}
+                          >
+                            {album.selectedEditionId
+                              ? "Refresh"
+                              : "Load editions"}
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                </div>
               </article>
             ))
           ) : (
@@ -711,6 +779,20 @@ function Subtitles({ options }: { options: MediaExpansionOptions }) {
   useEffect(() => {
     void load();
   }, [load, options]);
+  async function retryPending() {
+    try {
+      const value = await options.request<{
+        attempted: number;
+        completed: number;
+      }>("/api/subtitles/retry-pending", { method: "POST" });
+      options.notify(
+        `Retried ${value.attempted} subtitle jobs; ${value.completed} completed.`,
+      );
+      await load();
+    } catch (error) {
+      options.notify(errorMessage(error), "error");
+    }
+  }
   if (error) return <div className="panel error-state">{error}</div>;
   if (!data)
     return <div className="panel skeleton">Loading subtitle workspace…</div>;
@@ -737,7 +819,15 @@ function Subtitles({ options }: { options: MediaExpansionOptions }) {
       </div>
       <section className="expansion-columns">
         <div>
-          <h2>Episode-aware subtitle coverage</h2>
+          <div className="panel-heading">
+            <h2>Episode-aware subtitle coverage</h2>
+            {options.administrator &&
+              data.jobs.some((job) => job.status === "awaiting-search") && (
+                <button type="button" onClick={() => void retryPending()}>
+                  Retry pending
+                </button>
+              )}
+          </div>
           <p className="muted">
             Policies inherit from series to season to episode, with episode
             overrides taking priority.

@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { readdir } from "node:fs/promises";
+import { basename, dirname, extname } from "node:path";
 
 const text = (value, max = 500) =>
   String(value ?? "")
@@ -22,6 +24,26 @@ const publicProvider = (value) => ({
   configured: Boolean(value.endpoint),
 });
 const secretFields = ["apiKey", "username", "password"];
+const subtitleExtensions = new Set([".srt", ".ass", ".ssa", ".vtt", ".sub"]);
+async function sidecarLanguages(filePath) {
+  if (!filePath) return [];
+  try {
+    const stem = basename(filePath, extname(filePath)).toLowerCase(),
+      files = await readdir(dirname(filePath));
+    return normalizeLanguages(
+      files.flatMap((file) => {
+        const extension = extname(file).toLowerCase();
+        if (!subtitleExtensions.has(extension)) return [];
+        const candidate = basename(file, extension).toLowerCase();
+        if (!candidate.startsWith(`${stem}.`)) return [];
+        const suffix = candidate.slice(stem.length + 1).split(".")[0];
+        return suffix && suffix.length <= 20 ? [suffix] : [];
+      }),
+    );
+  } catch {
+    return [];
+  }
+}
 
 export class SubtitleService {
   constructor({
@@ -208,6 +230,7 @@ export class SubtitleService {
     return assignment;
   }
   async reconcile(input) {
+    const detectedExternal = await sidecarLanguages(text(input.filePath, 1000));
     const item = {
       id: `${input.domain}_${text(input.mediaId, 160)}`,
       domain: input.domain,
@@ -222,7 +245,10 @@ export class SubtitleService {
       title: text(input.title, 240),
       filePath: text(input.filePath, 1000) || null,
       embedded: normalizeLanguages(input.embedded),
-      external: normalizeLanguages(input.external),
+      external: normalizeLanguages([
+        ...(Array.isArray(input.external) ? input.external : []),
+        ...detectedExternal,
+      ]),
       updatedAt: now(),
     };
     await this.store.update((state) => {
@@ -437,5 +463,47 @@ export class SubtitleService {
       queued,
       downloaded,
     };
+  }
+  async retryPending() {
+    const state = await this.store.read(),
+      pending = (state.jobs || []).filter(
+        (job) => job.status === "awaiting-search",
+      ),
+      completed = [],
+      failed = [];
+    for (const job of pending) {
+      try {
+        const results = await this.search({
+            itemId: job.itemId,
+            languages: [job.language],
+          }),
+          best = results.items?.[0];
+        if (!best) {
+          failed.push({
+            id: job.id,
+            reason: results.warnings?.[0] || "No matching subtitle was found",
+          });
+          continue;
+        }
+        await this.download({
+          ...best,
+          itemId: job.itemId,
+          providerId: best.providerId,
+          language: job.language,
+        });
+        completed.push(job.id);
+      } catch (error) {
+        failed.push({ id: job.id, reason: text(error?.message || error) });
+      }
+    }
+    if (completed.length)
+      await this.store.update((value) => {
+        for (const job of value.jobs || [])
+          if (completed.includes(job.id)) {
+            job.status = "superseded";
+            job.updatedAt = now();
+          }
+      });
+    return { attempted: pending.length, completed: completed.length, failed };
   }
 }
