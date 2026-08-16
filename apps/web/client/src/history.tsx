@@ -5,6 +5,8 @@ import type {
   HistoryMountOptions,
 } from "./history-types";
 import { EngineInstanceFilter, useEngineInstances } from "./engine-instance-control";
+import { RouteError, RouteLoading } from "./react-route-state";
+import { errorMessage } from "./shell-utils";
 import "./react-history.css";
 
 type HistoryCategory =
@@ -121,7 +123,7 @@ function HistorySection({
     } catch (error) {
       setBusy((value) => ({ ...value, [item.id]: false }));
       options.notify(
-        error instanceof Error ? error.message : "The organize request failed.",
+        errorMessage(error, "The organize request failed."),
         "error",
       );
     }
@@ -223,7 +225,7 @@ export function HistoryView({ options }: { options: HistoryMountOptions }) {
       if (announce) options.notify("History refreshed.");
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "History could not be refreshed.";
+        errorMessage(error, "History could not be refreshed.");
       setLoadError(message);
       if (announce) options.notify(message, "error");
     } finally {
@@ -276,9 +278,9 @@ export function HistoryView({ options }: { options: HistoryMountOptions }) {
     ["other", "Other"],
   ];
   if (loading)
-    return <div className="panel skeleton react-route-loading">Loading history…</div>;
+    return <RouteLoading route>Loading history…</RouteLoading>;
   if (loadError && !items.length)
-    return <div className="empty error-state"><h2>History unavailable</h2><p>{loadError}</p></div>;
+    return <RouteError title="History unavailable" message={loadError}/>;
   return (
     <div className="react-history">
       {loadError ? <div className="notice warning"><strong>History refresh delayed.</strong><p>{loadError}</p></div> : null}

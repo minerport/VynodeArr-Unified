@@ -2,6 +2,7 @@ import {useEffect,useMemo,useRef,useState,type FormEvent} from 'react';
 import {createPortal} from 'react-dom';
 import type {DiscoverDomain,DiscoverItem,DiscoverMountOptions} from './discover-types';
 import {rememberRoute,rememberedRoute,RequestEngineField,RequestRoutingSummary,type RequestRouteEngine} from './request-routing';
+import {errorMessage} from './shell-utils';
 
 type EngineImage={coverType?:string;remoteUrl?:string;url?:string};
 type EngineMatch=Record<string,unknown>&{
@@ -56,7 +57,7 @@ export function DiscoverRequest({item,options,onClose,onRequested}:{item:Discove
         setQualityProfileId(Number(destination?.qualityProfileId||value.profiles[0]?.id||0));
         if(!value.match)setError(`The ${resolvedItem.domain==='movie'?'movie':'TV'} engine could not resolve the exact external ID for this title. Nothing was added.`);
       })
-      .catch(reason=>{if(active)setError(reason instanceof Error?reason.message:'Title options could not be loaded.');});
+      .catch(reason=>{if(active)setError(errorMessage(reason,'Title options could not be loaded.'));});
     return()=>{active=false;};
   },[resolvedItem,options,engineInstanceId]);
 
@@ -81,7 +82,7 @@ export function DiscoverRequest({item,options,onClose,onRequested}:{item:Discove
       close();
     }catch(reason){
       setSubmitting(false);
-      const message=reason instanceof Error?reason.message:'The title could not be requested.';
+      const message=errorMessage(reason,'The title could not be requested.');
       setError(message);
       options.notify(message,'error');
     }
@@ -93,7 +94,7 @@ export function DiscoverRequest({item,options,onClose,onRequested}:{item:Discove
       const value=await options.request<{results:DiscoverItem[]}>(`/api/discover/browse?domain=movie&query=${encodeURIComponent(matchQuery.trim())}&page=1`);
       setCandidates((value.results||[]).filter(candidate=>candidate.domain==='movie').slice(0,12));
     }catch(reason){
-      options.notify(reason instanceof Error?reason.message:'Movie matches could not be loaded.','error');
+      options.notify(errorMessage(reason,'Movie matches could not be loaded.'),'error');
     }finally{setSearching(false);}
   };
   const chooseCandidate=(candidate:DiscoverItem)=>{

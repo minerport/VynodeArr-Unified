@@ -1,9 +1,10 @@
 import { useCallback,useEffect,useMemo,useState } from 'react';
 import type { SearchJob,WantedDomain,WantedItem,WantedLibraryItem,WantedMountOptions,WantedView } from './wanted-types';
 import {EngineInstanceFilter,useEngineInstances} from './engine-instance-control';
+import {errorMessage} from './shell-utils';
 import './react-wanted.css';
 type DomainFilter='all'|WantedDomain;
-const message=(reason:unknown)=>reason instanceof Error?reason.message:'The request could not be completed.';
+const message=(reason:unknown)=>errorMessage(reason,'The request could not be completed.');
 const records=(result:{records?:WantedItem[]}|WantedItem[])=>Array.isArray(result)?result:result.records||[];
 const instanceRoute=(path:string,instanceId?:string)=>instanceId?`${path}${path.includes('?')?'&':'?'}engineInstanceId=${encodeURIComponent(instanceId)}`:path;
 const ownedKey=(domain:WantedDomain,id:number|string,instanceId?:string)=>`${domain}:${instanceId||'default'}:${Number(id)}`;

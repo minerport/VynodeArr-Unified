@@ -1,8 +1,9 @@
 import {useEffect,useState} from "react";
 import type {PerformanceReport,PerformanceSettings,SystemDomain,SystemMountOptions} from "./system-types";
+import {errorMessage} from "./shell-utils";
 
 const domains:SystemDomain[]=["movie","tv"];
-const errorText=(reason:unknown)=>reason instanceof Error?reason.message:"System recovery could not be completed.";
+const errorText=(reason:unknown)=>errorMessage(reason,"System recovery could not be completed.");
 
 export default function SystemPerformancePanel({report,options,reload}:{report:PerformanceReport;options:SystemMountOptions;reload:()=>void}){
   const [settings,setSettings]=useState<PerformanceSettings>(report.settings),[busy,setBusy]=useState(false),[recovery,setRecovery]=useState("");

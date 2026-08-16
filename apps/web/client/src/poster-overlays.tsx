@@ -32,6 +32,7 @@ import {
 import { hydratePreviewValues, PosterLayerContent, resolveLayerContent } from "./poster-overlay-icons";
 import { overlayLayerFromPreset } from "./poster-overlay-item-presets";
 import { accessibilityIssues, nudgeLayers, transformLayers, type AlignmentAction } from "./poster-overlay-editor-tools";
+import { errorMessage } from "./shell-utils";
 import "./poster-overlay-inspector.css";
 import "./poster-overlays-runtime.css";
 const styles = `.poster-overlay-route{display:grid;gap:20px}.overlay-studio-grid{display:grid;grid-template-columns:minmax(320px,.8fr) minmax(420px,1.2fr);gap:20px}.overlay-template-list{display:grid;gap:14px}.overlay-template-card{display:grid;grid-template-columns:92px 1fr;gap:14px;align-items:center;padding:12px;border:1px solid var(--border);border-radius:14px}.overlay-template-card small,.overlay-media-picker small{display:block;color:var(--muted)}.overlay-preview{position:relative;width:min(100%,300px);aspect-ratio:2/3;overflow:hidden;border:1px solid var(--border);border-radius:14px;background:linear-gradient(145deg,#24324b,#07101d 62%,#02060d) center/cover;box-shadow:inset 0 -100px 80px -70px #000}.overlay-preview-layer{font-weight:800}.overlay-scope-row,.overlay-layer-editor{display:grid;grid-template-columns:1fr 1fr;gap:10px}.overlay-media-picker{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;max-height:360px;overflow:auto}.overlay-media-picker label{display:grid;grid-template-columns:auto 38px 1fr;gap:8px;align-items:center;padding:8px;border:1px solid var(--border);border-radius:10px}.overlay-media-picker img{width:38px;aspect-ratio:2/3;object-fit:cover}.overlay-editor-backdrop{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:20px;background:#000c}.overlay-editor{display:grid;grid-template-rows:auto minmax(0,1fr) auto;width:min(1100px,100%);max-height:calc(100dvh - 40px);overflow:hidden;border:1px solid var(--border);border-radius:18px;background:var(--panel,#08111f)}.overlay-editor-grid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:20px;overflow:auto;padding:20px}.overlay-editor-fields{display:grid;gap:12px}.overlay-layer-editor{padding:12px;border:1px solid var(--border);border-radius:12px}.overlay-preview-column{display:grid;align-content:start;justify-items:center;gap:10px;position:sticky;top:0}.overlay-editor-footer{display:flex;justify-content:flex-end;gap:10px;padding:16px 20px;border-top:1px solid var(--border)}@media(max-width:800px){.overlay-studio-grid,.overlay-scope-row,.overlay-media-picker,.overlay-editor-grid,.overlay-layer-editor{grid-template-columns:1fr}.overlay-editor-backdrop{padding:0}.overlay-editor{width:100%;height:100dvh;max-height:none;border:0;border-radius:0}.overlay-editor-grid{padding:14px}.overlay-preview-column{position:static;order:-1}.overlay-preview-column .overlay-preview{width:180px}.poster-overlay-route .hero>.primary{width:100%}}`;
@@ -160,9 +161,7 @@ const editorHistoryReducer = (state: EditorHistory, action: EditorHistoryAction)
   return { present: next, past: [...state.past, state.present].slice(-40), future: [] };
 };
 const errorText = (reason: unknown) =>
-  reason instanceof Error
-    ? reason.message
-    : "The request could not be completed.";
+  errorMessage(reason, "The request could not be completed.");
 const scrollLayerSettings=(id:string)=>document.getElementById(`overlay-layer-settings-${id}`)?.scrollIntoView({behavior:"smooth",block:"start"});
 const previewValue = (variable: string, media?: OverlayMedia) => {
   const resolved = media?.artwork?.overlayValues?.[variable];

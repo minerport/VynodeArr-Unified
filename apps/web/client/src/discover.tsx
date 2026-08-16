@@ -4,6 +4,7 @@ import type {RequestAllowance} from './my-requests-types';
 import { cachedRequest } from './query-client';
 import {DiscoverDetail} from './discover-detail';
 import {DiscoverRequest} from './discover-request';
+import { errorMessage } from './shell-utils';
 
 const feeds=[
   ['trending','Trending now','Movies and series people are watching today'],
@@ -122,7 +123,7 @@ export function DiscoverView({options}:{options:DiscoverMountOptions}){
     window.addEventListener('vynodearr:discover-requested',requested);
     window.addEventListener('focus',focused);
     const timer=window.setInterval(()=>{if(document.visibilityState==='visible')void refreshLibrary().catch(()=>{});},30_000);
-    feeds.forEach(([kind])=>void loadFeed(kind).catch(reason=>setError(reason instanceof Error?reason.message:'Discover unavailable.')));
+    feeds.forEach(([kind])=>void loadFeed(kind).catch(reason=>setError(errorMessage(reason,'Discover unavailable.'))));
     void Promise.all([
       cachedRequest('discover:genres:movie',()=>options.request<{items:DiscoverCategory[]}>('/api/discover/genres?domain=movie'),6*60*60_000),
       cachedRequest('discover:genres:tv',()=>options.request<{items:DiscoverCategory[]}>('/api/discover/genres?domain=tv'),6*60*60_000),
@@ -166,7 +167,7 @@ export function DiscoverView({options}:{options:DiscoverMountOptions}){
     }catch(reason){
       if(requestId===browseRequest.current){
         setBrowseContext(current=>current?{...current,loading:false}:current);
-        options.notify(reason instanceof Error?reason.message:'Collection unavailable.','error');
+        options.notify(errorMessage(reason,'Collection unavailable.'),'error');
       }
     }
   },[options]);
@@ -182,7 +183,7 @@ export function DiscoverView({options}:{options:DiscoverMountOptions}){
       setBrowseContext(context);
       if(first.totalPages<=1){setSearchResults(first.results);setBrowseContext({...context,page:1});return;}
       void loadBrowsePages(context,1,5,true);
-    }).catch(reason=>options.notify(reason instanceof Error?reason.message:'Collection unavailable.','error'));
+    }).catch(reason=>options.notify(errorMessage(reason,'Collection unavailable.'),'error'));
   },[domain,loadBrowsePages,options]);
   const browseSelection=useCallback((context:BrowseContext,target:DiscoverDomain):{parameter:BrowseParameter;id:number}|null=>{
     if(context.taxonomy==='genre'){
@@ -206,7 +207,7 @@ export function DiscoverView({options}:{options:DiscoverMountOptions}){
       if(requestId!==browseRequest.current)return;
       const results=mergeUnique(groups.flatMap(group=>group.pages)),totalResults=groups.reduce((sum,group)=>sum+group.pages[0].totalResults,0),single=groups.length===1?groups[0]:null;
       setSearchResults(results);setBrowseContext(current=>current?{...current,domain:value,parameter:single?.selection.parameter||current.parameter,id:single?.selection.id||current.id,page:single?Math.min(single.pages[0].totalPages,5):1,totalPages:single?.pages[0].totalPages||1,totalResults,loading:false}:current);
-    }).catch(reason=>{if(requestId===browseRequest.current){setBrowseContext(current=>current?{...current,loading:false}:current);options.notify(reason instanceof Error?reason.message:'Collection unavailable.','error');}});
+    }).catch(reason=>{if(requestId===browseRequest.current){setBrowseContext(current=>current?{...current,loading:false}:current);options.notify(errorMessage(reason,'Collection unavailable.'),'error');}});
   },[browseContext,browseSelection,options]);
   const closeBrowse=useCallback(()=>{
     browseRequest.current+=1;

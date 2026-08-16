@@ -1,14 +1,8 @@
 import type { DashboardAnalytics,DistributionItem,Domain,TrendPoint } from './dashboard-types';
+import {formatBytes} from './shell-utils';
 import './react-dashboard.css';
 
 const number=(value:number)=>Number(value||0).toLocaleString();
-
-function formatBytes(value:number){
-  if(!value)return '0 B';
-  const units=['B','KB','MB','GB','TB','PB'];
-  const index=Math.min(Math.floor(Math.log(value)/Math.log(1024)),units.length-1);
-  return `${(value/1024**index).toFixed(index>2?1:0)} ${units[index]}`;
-}
 
 function TrendChart({points,domain}:{points:TrendPoint[];domain:Domain}){
   const width=620,height=92,padding=12;

@@ -1,8 +1,9 @@
 import { Component,type ErrorInfo,type ReactNode } from 'react';
+import { errorMessage } from './shell-utils';
 
 export class RouteErrorBoundary extends Component<{children:ReactNode},{error:string}>{
   state={error:''};
-  static getDerivedStateFromError(error:unknown){return{error:error instanceof Error?error.message:'This page could not be displayed.'};}
+  static getDerivedStateFromError(error:unknown){return{error:errorMessage(error,'This page could not be displayed.')};}
   componentDidCatch(error:Error,info:ErrorInfo){console.error('React route failed',error,info);}
   render(){
     return this.state.error

@@ -2,9 +2,10 @@ import { useEffect,useMemo,useRef,useState } from 'react';
 import type { LibraryItem } from './library-types';
 import type { CollectionKind,CollectionRules,CollectionsMountOptions,MediaCollection,UserMediaCollection,UserCollectionMember,UserCollectionSharing,UserCollectionTimelineEvent } from './collection-types';
 import { ModalPortal } from './modal-portal';
+import {errorMessage} from './shell-utils';
 
 const emptyRules:CollectionRules={titleContains:'',genres:[],year:'',decade:'',collection:'',monitoring:'',availability:''};
-const message=(error:unknown)=>error instanceof Error?error.message:'VynodeArr could not complete this request.';
+const message=errorMessage;
 
 function normalizedRules(collection?:MediaCollection):CollectionRules{
   return {...emptyRules,...collection?.rules,titleContains:collection?.rules?.titleContains||collection?.titleContains||'',genres:collection?.rules?.genres||[]};

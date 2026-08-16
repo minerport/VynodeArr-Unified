@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ServiceTabs } from "./service-tabs";
 import { ModalPortal } from "./modal-portal";
 import { RenamePreview, type RenamePreviewRecord } from "./rename-preview";
+import { errorMessage } from "./shell-utils";
 import type { MatchCandidate } from "./match-browser";
 import type {
   LibraryReviewMountOptions,
@@ -210,9 +211,7 @@ export function LibraryReviewView({
       setScanLimit(100);
       setError("");
     } catch (reason) {
-      setError(
-        reason instanceof Error ? reason.message : "Library review failed.",
-      );
+      setError(errorMessage(reason, "Library review failed."));
     } finally {
       setLoading(false);
     }
@@ -286,10 +285,7 @@ export function LibraryReviewView({
       setManualTmdbId("");
       await load(selectedLibraries);
     } catch (reason) {
-      options.notify(
-        reason instanceof Error ? reason.message : "The match was not updated.",
-        "error",
-      );
+      options.notify(errorMessage(reason, "The match was not updated."), "error");
     } finally {
       setSaving(false);
     }
@@ -312,7 +308,7 @@ export function LibraryReviewView({
         setManualTmdbMatch(value.item || null);
       }
     } catch (reason) {
-      options.notify(reason instanceof Error ? reason.message : "That TMDB ID was not found.", "error");
+      options.notify(errorMessage(reason, "That TMDB ID was not found."), "error");
     } finally {
       setTmdbSearching(false);
     }
@@ -345,7 +341,7 @@ export function LibraryReviewView({
       options.notify(`${movieTitle} added from the existing movie folder.`);
       await load(selectedLibraries);
     } catch (reason) {
-      options.notify(reason instanceof Error ? reason.message : "The scanned folder was not added.", "error");
+      options.notify(errorMessage(reason, "The scanned folder was not added."), "error");
     } finally {
       setSaving(false);
     }
@@ -361,7 +357,7 @@ export function LibraryReviewView({
       const match = (lookup.result || []).find((item) => isImdb ? String(item.imdbId || "").toLowerCase() === expected : Number(item.tmdbId) === Number(value));
       if (!match) throw new Error(`The movie engine could not find that ${isImdb ? "IMDb" : "TMDB"} ID.`);
       setFolderMatch(match);
-    } catch (reason) { options.notify(reason instanceof Error ? reason.message : "The movie match could not be found.", "error"); }
+    } catch (reason) { options.notify(errorMessage(reason, "The movie match could not be found."), "error"); }
     finally { setFolderSearching(false); }
   };
 
@@ -374,7 +370,7 @@ export function LibraryReviewView({
       );
       setRenamePreview(value.preview);
     } catch (reason) {
-      options.notify(reason instanceof Error ? reason.message : "The rename preview could not be created.", "error");
+      options.notify(errorMessage(reason, "The rename preview could not be created."), "error");
     } finally {
       setRenameBusy("");
     }
@@ -397,7 +393,7 @@ export function LibraryReviewView({
       setRenamePreview(null);
       await load(selectedLibraries);
     } catch (reason) {
-      options.notify(reason instanceof Error ? reason.message : "The movie was not organized.", "error");
+      options.notify(errorMessage(reason, "The movie was not organized."), "error");
     } finally {
       setRenameBusy("");
     }

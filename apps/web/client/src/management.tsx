@@ -1,9 +1,10 @@
 import {useCallback,useEffect,useMemo,useState} from 'react';
 import type {AuditEntry,ManagementDomain,ManagementField,ManagementMountOptions,ManagementRecord,ManagementResource} from './management-types';
+import {errorMessage} from './shell-utils';
 
 const schemaFor:Record<string,string>={indexers:'indexerSchemas',downloadClients:'downloadClientSchemas',notifications:'notificationSchemas',importLists:'importListSchemas',metadata:'metadataSchemas'};
 const title=(record:ManagementRecord,index=0)=>String(record.title||record.name||record.label||`Record ${record.id??index+1}`);
-const message=(reason:unknown)=>reason instanceof Error?reason.message:'The engine settings could not be updated.';
+const message=(reason:unknown)=>errorMessage(reason,'The engine settings could not be updated.');
 const inputValue=(field:ManagementField)=>Array.isArray(field.value)?field.value.join(', '):String(field.value??'');
 
 function Field({field,onChange}:{field:ManagementField;onChange:(value:unknown)=>void}){

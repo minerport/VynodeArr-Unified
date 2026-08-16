@@ -13,7 +13,13 @@ export function pct(value:unknown){
 }
 
 export function when(value:unknown){
-  return value?new Date(String(value)).toLocaleString(undefined,{dateStyle:'medium',timeStyle:'short'}):'Not scheduled';
+  return formatDateTime(value,'Not scheduled');
+}
+
+export function formatDateTime(value:unknown,fallback=''){
+  if(!value)return fallback;
+  const text=String(value),date=new Date(text);
+  return Number.isNaN(date.getTime())?text:new Intl.DateTimeFormat(undefined,{dateStyle:'medium',timeStyle:'short'}).format(date);
 }
 
 export function badge(text:unknown,tone=''){
@@ -36,9 +42,13 @@ export function mediaPath(root:unknown,current:unknown){
 export function formatBytes(value:unknown){
   const size=Number(value||0);
   if(!size)return '0 B';
-  const units=['B','KB','MB','GB','TB'];
+  const units=['B','KB','MB','GB','TB','PB'];
   const index=Math.min(units.length-1,Math.floor(Math.log(size)/Math.log(1024)));
   return `${(size/1024**index).toFixed(index>2?1:0)} ${units[index]}`;
+}
+
+export function errorMessage(error:unknown,fallback='VynodeArr could not complete this request.'){
+  return error instanceof Error?error.message:fallback;
 }
 
 export function releaseEligible(release:Record<string,unknown>|null|undefined){

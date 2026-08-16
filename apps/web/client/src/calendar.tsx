@@ -1,6 +1,7 @@
 import { useCallback,useEffect,useMemo,useState } from 'react';
 import type { CalendarEvent,CalendarMountOptions } from './calendar-types';
 import {EngineInstanceFilter,useEngineInstances} from './engine-instance-control';
+import {errorMessage} from './shell-utils';
 import './react-calendar.css';
 
 const pad=(value:number)=>String(value).padStart(2,'0');
@@ -27,7 +28,7 @@ export function CalendarView({options}:{options:CalendarMountOptions}){
       setEvents(value.items||[]);
       setError('');
     }catch(reason){
-      setError(reason instanceof Error?reason.message:'Calendar unavailable.');
+      setError(errorMessage(reason,'Calendar unavailable.'));
     }finally{
       setLoading(false);
     }

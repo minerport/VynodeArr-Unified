@@ -4,10 +4,11 @@ import type {Catalog,CustomFormat,GuideTemplatesMountOptions,ResourceType,Templa
 import {addCustomFormatsToken,customFormatsToken,namingHasCustomFormatsToken,type NamingSettings} from './custom-format-naming';
 import {ServiceTabs} from './service-tabs';
 import {EngineInstanceSelect,useEngineInstance} from './engine-instance-control';
+import {errorMessage} from './shell-utils';
 import './react-guide-templates.css';
 import './react-guide-template-families.css';
 
-const errorText=(value:unknown)=>value instanceof Error?value.message:'The guide catalog could not be loaded.';
+const errorText=(value:unknown)=>errorMessage(value,'The guide catalog could not be loaded.');
 const short=(value?:string)=>value?.slice(0,8)||'unknown';
 const types:Array<[ResourceType,string,string]>=[['customFormat','Custom formats','Selection Rules'],['customFormatGroup','Format groups','Selection Rules'],['qualityProfile','Quality profiles','Quality Profiles'],['qualitySize','Quality size','Quality Profiles'],['naming','Naming','Media Management']];
 const destination:Record<ResourceType,string>={customFormat:'#service/custom-formats',customFormatGroup:'#service/custom-formats',qualityProfile:'#service/profiles',qualitySize:'#service/profiles',naming:'#service/media-management'};

@@ -1,6 +1,7 @@
 import {useCallback,useEffect,useRef,useState} from 'react';
 import type {ImportJob,ImportMonitorOptions} from './import-monitor-types';
 import {useVisibleRefresh} from './use-visible-refresh';
+import {errorMessage} from './shell-utils';
 
 const storageKey='vynodearr.dismissedImportJobs';
 const finished=(status:ImportJob['status'])=>status==='completed'||status==='failed'||status==='canceled';
@@ -29,7 +30,7 @@ export function ImportMonitor({options}:{options:ImportMonitorOptions}){
   const dismiss=(id:string)=>setDismissed(current=>{const next=new Set(current);next.add(id);localStorage.setItem(storageKey,JSON.stringify([...next].slice(-200)));return next;});
   const cancel=async(id:string)=>{
     try{await options.request(`/api/import-jobs/${id}`,{method:'DELETE'});await load();}
-    catch(reason){options.notify(reason instanceof Error?reason.message:'The import could not be canceled.','error');}
+    catch(reason){options.notify(errorMessage(reason,'The import could not be canceled.'),'error');}
   };
   const visible=jobs.filter(job=>!dismissed.has(job.id));
   useEffect(()=>{const host=document.querySelector<HTMLElement>('#import-progress');if(host)host.hidden=!visible.length;},[visible.length]);

@@ -1,6 +1,7 @@
 import {useEffect,useRef,useState} from 'react';
 import {createPortal} from 'react-dom';
 import type {DiscoverItem,DiscoverMountOptions,LibraryItem} from './discover-types';
+import {errorMessage} from './shell-utils';
 
 interface DiscoverDetailProps{
   item:DiscoverItem;
@@ -28,7 +29,7 @@ export function DiscoverDetail({item,libraryItem,options,onClose,onRequest}:Disc
   },[item,options]);
 
   const close=()=>dialog.current?.close();
-  const changeCollection=async()=>{if(!libraryItem||savingCollection||collectionState.included&&!collectionState.canRemove)return;setSavingCollection(true);try{if(collectionState.canRemove){await options.request(`/api/user-collections/items/${item.domain}/${libraryItem.id}`,{method:'DELETE'});setCollectionState({included:false,canRemove:false});options.notify(`${detail.title} was removed from your collection.`);}else{await options.request('/api/user-collections/items',{method:'POST',body:JSON.stringify({domain:item.domain,mediaId:libraryItem.id,tmdbId:libraryItem.tmdbId||detail.tmdbId,tvdbId:libraryItem.tvdbId||detail.tvdbId,title:libraryItem.title||detail.title,year:libraryItem.year||detail.year})});setCollectionState({included:true,canRemove:true});options.notify(`${detail.title} was added to your collection.`);}}catch(error){options.notify(error instanceof Error?error.message:'Your collection could not be updated.','error');}finally{setSavingCollection(false);}};
+  const changeCollection=async()=>{if(!libraryItem||savingCollection||collectionState.included&&!collectionState.canRemove)return;setSavingCollection(true);try{if(collectionState.canRemove){await options.request(`/api/user-collections/items/${item.domain}/${libraryItem.id}`,{method:'DELETE'});setCollectionState({included:false,canRemove:false});options.notify(`${detail.title} was removed from your collection.`);}else{await options.request('/api/user-collections/items',{method:'POST',body:JSON.stringify({domain:item.domain,mediaId:libraryItem.id,tmdbId:libraryItem.tmdbId||detail.tmdbId,tvdbId:libraryItem.tvdbId||detail.tvdbId,title:libraryItem.title||detail.title,year:libraryItem.year||detail.year})});setCollectionState({included:true,canRemove:true});options.notify(`${detail.title} was added to your collection.`);}}catch(error){options.notify(errorMessage(error,'Your collection could not be updated.'),'error');}finally{setSavingCollection(false);}};
   const inLibrary=Boolean(libraryItem);
   const poster=detail.poster||libraryItem?.artwork?.url;
   const backdrop=detail.backdrop||libraryItem?.backdrop?.url;

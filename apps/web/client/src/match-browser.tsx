@@ -1,8 +1,9 @@
 import { useEffect, useState, type FormEvent } from "react";
+import {errorMessage} from "./shell-utils";
 
 export interface MatchCandidate { tmdbId: number; imdbId?: string; title: string; year?: number; overview?: string; poster?: string }
 interface Props { domain: "movie" | "tv"; title: string; busy: boolean; request: <T = unknown>(path: string, options?: RequestInit) => Promise<T>; onClose: () => void; onApply: (candidate: MatchCandidate) => Promise<void> }
-const message = (reason: unknown) => reason instanceof Error ? reason.message : "External ID search failed.";
+const message = (reason: unknown) => errorMessage(reason, "External ID search failed.");
 
 export function MatchBrowser({ domain, title, busy, request, onClose, onApply }: Props) {
   const [term, setTerm] = useState(title), [items, setItems] = useState<MatchCandidate[]>([]), [loading, setLoading] = useState(false), [error, setError] = useState("");

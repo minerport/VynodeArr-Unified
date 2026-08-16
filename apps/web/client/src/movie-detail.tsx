@@ -8,9 +8,10 @@ import { ModalPortal } from './modal-portal';
 import { MediaCollectionControl } from './media-collection-control';
 import { RemoveLibraryItemDialog } from './remove-library-item-dialog';
 import { DetailHeroTrailer } from './detail-hero-trailer';
+import { errorMessage as normalizeErrorMessage } from './shell-utils';
 import './react-movie-detail.css';
 
-const errorMessage=(reason:unknown)=>reason instanceof Error?reason.message:'The operation failed.';
+const errorMessage=(reason:unknown)=>normalizeErrorMessage(reason,'The operation failed.');
 const pause=(milliseconds:number)=>new Promise(resolve=>setTimeout(resolve,milliseconds));
 type LibraryMovie=Record<string,unknown>&{monitored?:boolean;qualityProfileId?:number;path?:string;rootFolderPath?:string;minimumAvailability?:string};
 type SelectOption={id:number;name?:string;path?:string};

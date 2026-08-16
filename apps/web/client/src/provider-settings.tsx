@@ -2,8 +2,9 @@ import {useCallback,useEffect,useMemo,useState} from 'react';
 import type {ProviderDomain,ProviderField,ProviderKind,ProviderRecord,ProviderSettingsMountOptions} from './provider-settings-types';
 import {ServiceTabs} from './service-tabs';
 import {EngineInstanceFilter,loadForEngineInstances,useEngineInstance} from './engine-instance-control';
+import {errorMessage} from './shell-utils';
 
-const errorText=(reason:unknown)=>reason instanceof Error?reason.message:'The provider could not be updated.';
+const errorText=(reason:unknown)=>errorMessage(reason,'The provider could not be updated.');
 const providerName=(item:ProviderRecord)=>String(item.name||item.implementationName||item.implementation||'Provider');
 const clone=<T,>(value:T):T=>structuredClone(value);
 function Field({field,onChange}:{field:ProviderField;onChange:(value:unknown)=>void}){

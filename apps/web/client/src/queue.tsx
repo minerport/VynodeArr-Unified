@@ -2,6 +2,7 @@ import { useCallback,useEffect,useMemo,useRef,useState } from 'react';
 import type { QueueItem,QueueMountOptions } from './queue-types';
 import {useVisibleRefresh} from './use-visible-refresh';
 import {EngineInstanceFilter,useEngineInstances} from './engine-instance-control';
+import {errorMessage} from './shell-utils';
 import './react-queue.css';
 type SortKey='title'|'media'|'source'|'quality'|'size'|'progress'|'status';
 const key=(item:QueueItem)=>`${item.domain}:${item.id}`;
@@ -20,7 +21,7 @@ export function QueueView({options}:{options:QueueMountOptions}){
   const engineInstances=useEngineInstances(options.request);
   const [sortKey,setSortKey]=useState<SortKey>('title'),[direction,setDirection]=useState(1),[selected,setSelected]=useState<Set<string>>(new Set()),[busy,setBusy]=useState<Set<string>>(new Set());
   const requestSequence=useRef(0),requestPending=useRef(false);
-  const load=useCallback(async(quiet=false)=>{if(requestPending.current)return;const sequence=++requestSequence.current;requestPending.current=true;if(!quiet)setLoading(true);try{const result=await options.request<{items:QueueItem[]}>('/api/activity/queue/live');if(sequence!==requestSequence.current)return;setItems(result.items||[]);setSelected(old=>new Set([...old].filter(value=>(result.items||[]).some(item=>key(item)===value))));setError('');}catch(reason){if(sequence===requestSequence.current)setError(reason instanceof Error?reason.message:'Queue could not be loaded.');}finally{requestPending.current=false;if(sequence===requestSequence.current)setLoading(false);}},[options]);
+  const load=useCallback(async(quiet=false)=>{if(requestPending.current)return;const sequence=++requestSequence.current;requestPending.current=true;if(!quiet)setLoading(true);try{const result=await options.request<{items:QueueItem[]}>('/api/activity/queue/live');if(sequence!==requestSequence.current)return;setItems(result.items||[]);setSelected(old=>new Set([...old].filter(value=>(result.items||[]).some(item=>key(item)===value))));setError('');}catch(reason){if(sequence===requestSequence.current)setError(errorMessage(reason,'Queue could not be loaded.'));}finally{requestPending.current=false;if(sequence===requestSequence.current)setLoading(false);}},[options]);
   useEffect(()=>{
     void load();
     const startupRetries=[window.setTimeout(()=>void load(true),1200),window.setTimeout(()=>void load(true),3500)];
@@ -36,8 +37,8 @@ export function QueueView({options}:{options:QueueMountOptions}){
   }),[engineItems]);
   const visible=useMemo(()=>engineItems.filter(item=>(!statusFilter||status(item)===statusFilter)&&(!mediaFilter||item.domain===mediaFilter)).sort((a,b)=>{const value=(item:QueueItem)=>sortKey==='title'?title(item):sortKey==='media'?item.domain:sortKey==='source'?source(item):sortKey==='quality'?quality(item):sortKey==='size'?Number(item.size||0):sortKey==='progress'?progress(item):status(item);const left=value(a),right=value(b);return direction*(typeof left==='number'&&typeof right==='number'?left-right:String(left).localeCompare(String(right),undefined,{numeric:true,sensitivity:'base'}));}),[engineItems,statusFilter,mediaFilter,sortKey,direction]);
   const sort=(next:SortKey)=>{if(next===sortKey)setDirection(value=>-value);else{setSortKey(next);setDirection(1);}};
-  const remove=async(item:QueueItem,ask=true)=>{const blocklist=Boolean(failedDownload(item));if(ask&&!window.confirm(blocklist?'Remove this failed queue item and blocklist this release so another result can be searched?':'Remove this queue item?'))return;const itemKey=key(item);setBusy(old=>new Set(old).add(itemKey));try{await options.request(`/api/manage/${item.domain}/queue/${item.id}?removeFromClient=true&blocklist=${blocklist}`,{method:'DELETE'});setItems(old=>old.filter(value=>key(value)!==itemKey));setSelected(old=>{const next=new Set(old);next.delete(itemKey);return next;});options.notify(blocklist?'Failed release removed and blocklisted. Search is ready to try another result.':'Queue item removed.');await load();}catch(reason){options.notify(reason instanceof Error?reason.message:'Queue item could not be removed.','error');}finally{setBusy(old=>{const next=new Set(old);next.delete(itemKey);return next;});}};
-  const retry=async(item:QueueItem)=>{const itemKey=key(item);setBusy(old=>new Set(old).add(itemKey));try{await options.request(`/api/manage/${item.domain}/queueGrab/${item.id}`,{method:'POST',body:'{}'});options.notify('Import retry requested.');void load(true);}catch(reason){options.notify(reason instanceof Error?reason.message:'Import retry failed.','error');}finally{setBusy(old=>{const next=new Set(old);next.delete(itemKey);return next;});}};
+  const remove=async(item:QueueItem,ask=true)=>{const blocklist=Boolean(failedDownload(item));if(ask&&!window.confirm(blocklist?'Remove this failed queue item and blocklist this release so another result can be searched?':'Remove this queue item?'))return;const itemKey=key(item);setBusy(old=>new Set(old).add(itemKey));try{await options.request(`/api/manage/${item.domain}/queue/${item.id}?removeFromClient=true&blocklist=${blocklist}`,{method:'DELETE'});setItems(old=>old.filter(value=>key(value)!==itemKey));setSelected(old=>{const next=new Set(old);next.delete(itemKey);return next;});options.notify(blocklist?'Failed release removed and blocklisted. Search is ready to try another result.':'Queue item removed.');await load();}catch(reason){options.notify(errorMessage(reason,'Queue item could not be removed.'),'error');}finally{setBusy(old=>{const next=new Set(old);next.delete(itemKey);return next;});}};
+  const retry=async(item:QueueItem)=>{const itemKey=key(item);setBusy(old=>new Set(old).add(itemKey));try{await options.request(`/api/manage/${item.domain}/queueGrab/${item.id}`,{method:'POST',body:'{}'});options.notify('Import retry requested.');void load(true);}catch(reason){options.notify(errorMessage(reason,'Import retry failed.'),'error');}finally{setBusy(old=>{const next=new Set(old);next.delete(itemKey);return next;});}};
   const select=(subset:QueueItem[])=>setSelected(old=>new Set([...old,...subset.map(key)]));
   const removeSelected=async()=>{
     const targets=items.filter(item=>selected.has(key(item)));
@@ -49,7 +50,7 @@ export function QueueView({options}:{options:QueueMountOptions}){
       if(result.failed?.length)options.notify(`${result.removed.length} removed; ${result.failed.length} could not be removed.`,result.removed.length?'info':'error');
       else options.notify(`${result.removed.length} queue item${result.removed.length===1?'':'s'} removed.`);
       await load(true);
-    }catch(reason){options.notify(reason instanceof Error?reason.message:'Selected queue items could not be removed.','error');}
+    }catch(reason){options.notify(errorMessage(reason,'Selected queue items could not be removed.'),'error');}
     finally{setBusy(old=>new Set([...old].filter(value=>!targetKeys.has(value))));}
   };
   return <div className="react-queue">

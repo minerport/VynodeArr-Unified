@@ -7,6 +7,20 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.49] - 2026-08-16
+
+### Changed
+
+- Consolidated repeated React route loading and error presentation into shared
+  typed components used throughout the application.
+- Standardized client error normalization while preserving every existing
+  operation, fallback message, and user-facing workflow.
+
+### Validation
+
+- Passed all 298 automated tests, web and server TypeScript checks, production
+  builds, bundle budgets, branding checks, and deployment validation.
+
 ## [2.0.48] - 2026-08-16
 
 ### Added
@@ -3014,7 +3028,8 @@ Open `http://localhost:8686`. Existing host media folders can be mapped to
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.48...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.49...HEAD
+[2.0.49]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.48...v2.0.49
 [2.0.48]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.47...v2.0.48
 [2.0.47]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.46...v2.0.47
 [2.0.46]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.45...v2.0.46

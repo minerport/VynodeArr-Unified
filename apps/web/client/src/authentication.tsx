@@ -1,7 +1,8 @@
 import {useMemo,useState,type FormEvent} from 'react';
 import type {AuthenticationMountOptions,AuthResult} from './authentication-types';
+import {errorMessage} from './shell-utils';
 
-const message=(reason:unknown)=>reason instanceof Error?reason.message:'VynodeArr could not complete authentication.';
+const message=(reason:unknown)=>errorMessage(reason,'VynodeArr could not complete authentication.');
 const scorePassword=(value:string)=>[value.length>=12,/[a-z]/.test(value)&&/[A-Z]/.test(value),/\d/.test(value),/[^A-Za-z0-9]/.test(value)].filter(Boolean).length;
 
 export function SetupView({options}:{options:AuthenticationMountOptions}){

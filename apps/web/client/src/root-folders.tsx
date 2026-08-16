@@ -7,6 +7,7 @@ import { ServiceTabs } from "./service-tabs";
 import { LibraryImportReview } from "./library-import-review";
 import { ModalPortal } from "./modal-portal";
 import { EngineInstanceFilter, useEngineInstance } from "./engine-instance-control";
+import { errorMessage } from "./shell-utils";
 
 const clean = (value: string) => (value === "/" ? "/" : value.replace(/\/+$/, "") || "/");
 const parent = (value: string) => clean(value).split("/").slice(0, -1).join("/") || "/";
@@ -14,7 +15,7 @@ const size = (bytes = 0) => {
   const gb = bytes / 1073741824;
   return gb >= 1024 ? `${(gb / 1024).toFixed(gb >= 10240 ? 0 : 1)} TB` : `${Math.round(gb)} GB`;
 };
-const message = (reason: unknown) => (reason instanceof Error ? reason.message : "Storage settings are unavailable.");
+const message = (reason: unknown) => errorMessage(reason, "Storage settings are unavailable.");
 function ExternalStorageRow({ mapping, busy, onSave }: { mapping: EngineStorageMapping; busy: boolean; onSave: (mapping: EngineStorageMapping, vynodePath: string, hostPath: string) => Promise<void> }) {
   const [vynodePath, setVynodePath] = useState(mapping.vynodePath), [hostPath, setHostPath] = useState(mapping.hostPath || "");
   useEffect(() => { setVynodePath(mapping.vynodePath); setHostPath(mapping.hostPath || ""); }, [mapping.vynodePath, mapping.hostPath]);

@@ -1,8 +1,9 @@
 import {useCallback,useEffect,useState} from 'react';
 import type {LibraryDiagnostics,MediaManagementDomain,MediaManagementMountOptions} from './media-management-types';
 import {ServiceTabs} from './service-tabs';
+import {errorMessage} from './shell-utils';
 
-const errorText=(reason:unknown)=>reason instanceof Error?reason.message:'Library diagnostics are unavailable.';
+const errorText=(reason:unknown)=>errorMessage(reason,'Library diagnostics are unavailable.');
 
 export function LibraryHealthView({options}:{options:MediaManagementMountOptions}){
   const [domain,setDomain]=useState<MediaManagementDomain>('movie');

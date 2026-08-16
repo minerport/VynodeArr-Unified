@@ -1,10 +1,10 @@
 import { useEffect,useState } from 'react';
 import type { AddMediaDestination,AddMediaDomain,AddMediaMountOptions,AddMediaProfile,AddMediaResult,AddMediaRoot } from './add-media-types';
 import {rememberRoute,rememberedRoute,RequestEngineField,RequestRoutingSummary} from './request-routing';
+import {errorMessage} from './shell-utils';
 
 interface SearchData {items:AddMediaResult[];profiles:AddMediaProfile[];roots:AddMediaRoot[];destinations:AddMediaDestination[]}
 interface EngineOption {id:string;name:string;domain:AddMediaDomain;enabled?:boolean;isDefault?:boolean}
-const errorMessage=(error:unknown)=>error instanceof Error?error.message:'VynodeArr could not complete this request.';
 
 function AddResult({item,index,domain,profiles,roots,destinations,engineInstanceId,engineName,options}:{item:AddMediaResult;index:number;domain:AddMediaDomain;profiles:AddMediaProfile[];roots:AddMediaRoot[];destinations:AddMediaDestination[];engineInstanceId:string;engineName:string;options:AddMediaMountOptions}){
   const remembered=rememberedRoute(domain,'destination'),initial=destinations.find(value=>value.id===remembered&&value.ready)||destinations.find(value=>value.isDefault&&value.ready)||destinations.find(value=>value.ready);

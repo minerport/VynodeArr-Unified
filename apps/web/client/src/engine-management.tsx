@@ -1,11 +1,13 @@
 import {useCallback,useEffect,useState,type FormEvent} from 'react';
 import {SetupNav} from './setup-nav';
+import {RouteError,RouteLoading} from './react-route-state';
+import {errorMessage,formatDateTime} from './shell-utils';
 import type {EngineAuthenticationSettings,EngineConfiguration,EngineDomain,EngineInstance,EngineManagementMountOptions,EngineSettings,EngineSummary,EngineSystem,EngineValidation} from './engine-management-types';
 
-const errorText=(reason:unknown)=>reason instanceof Error?reason.message:'Engine management is unavailable.';
+const errorText=(reason:unknown)=>errorMessage(reason,'Engine management is unavailable.');
 const display=(domain:EngineDomain)=>domain==='movie'?'Movies':'TV';
 const healthy=(engine:EngineSummary)=>engine.connection?.reachable&&engine.connection?.authenticated&&engine.connection?.compatible;
-const when=(value?:string|null)=>value?new Intl.DateTimeFormat(undefined,{dateStyle:'medium',timeStyle:'short'}).format(new Date(value)):'Pending';
+const when=(value?:string|null)=>formatDateTime(value,'Pending');
 
 function ValidationDetails({validation}:{validation:EngineValidation}){
   if(!validation.connection.reachable)return <div className="notice credential-dependency-warning"><strong>Base connection failed</strong><p>{validation.connection.safeError||'The engine status endpoint could not be validated.'}</p></div>;
@@ -90,8 +92,8 @@ export function EngineManagementView({options}:{options:EngineManagementMountOpt
   useEffect(()=>{void load();},[load]);
   const repair=async()=>{setRepairing(true);try{await options.request('/api/settings/engines/repair',{method:'POST',body:'{}'});options.notify('Automatic engine connections repaired.');await load();}catch(reason){options.notify(errorText(reason),'error');}finally{setRepairing(false);}};
   const selectMode=async(domain:EngineDomain,next:'bundled'|'external')=>{if(!confirm(`${next==='external'?'Switch to your external':'Return to the built-in'} ${display(domain)} engine after the next container restart? The ${display(domain==='movie'?'tv':'movie')} engine will not be changed.`))return;try{await options.request('/api/settings/engines/mode',{method:'PUT',body:JSON.stringify({domain,mode:next})});options.notify(`${display(domain)} engine source saved. Restart VynodeArr to apply it.`,'info');await load();}catch(reason){options.notify(errorText(reason),'error');}};
-  if(loading)return <div className="panel skeleton react-route-loading">Loading engine management…</div>;
-  if(error||!system||!settings||!authentication)return <div className="empty error-state"><h2>Engine management unavailable</h2><p>{error||'Engine settings could not be loaded.'}</p><button className="secondary" onClick={()=>void load()}>Try again</button></div>;
+  if(loading)return <RouteLoading route>Loading engine management…</RouteLoading>;
+  if(error||!system||!settings||!authentication)return <RouteError title="Engine management unavailable" message={error||'Engine settings could not be loaded.'} onRetry={()=>void load()}/>;
   return <div className="react-engine-management">
     <div className="hero"><div><span className="eyebrow">ENGINE MANAGEMENT</span><h1>Media engines</h1><p className="lede">{system.managed?'Installed engines are connected and maintained automatically.':'Review connections for separately managed engines.'}</p></div>{system.managed?<button className="secondary" disabled={repairing} onClick={()=>void repair()}>{repairing?'Repairing…':'Repair automatic connections'}</button>:null}</div>
     <SetupNav active="engines"/>

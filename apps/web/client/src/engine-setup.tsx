@@ -1,16 +1,18 @@
 import {useCallback,useEffect,useState} from 'react';
 import {ExternalEngineForm} from './engine-management';
+import {RouteError,RouteLoading} from './react-route-state';
 import type {EngineSettings} from './engine-management-types';
 import type {EngineSetupMountOptions} from './engine-setup-types';
+import {errorMessage} from './shell-utils';
 
-const message=(reason:unknown)=>reason instanceof Error?reason.message:'Engine setup is unavailable.';
+const message=(reason:unknown)=>errorMessage(reason,'Engine setup is unavailable.');
 
 export function EngineSetupView({options}:{options:EngineSetupMountOptions}){
  const [settings,setSettings]=useState<EngineSettings|null>(null),[error,setError]=useState('');
  const load=useCallback(async()=>{setError('');try{setSettings(await options.request<EngineSettings>('/api/settings/engines'));}catch(reason){setError(message(reason));}},[options]);
  useEffect(()=>{void load();},[load]);
- if(error)return <div className="empty error-state"><h2>Engine setup unavailable</h2><p>{error}</p><button className="secondary" onClick={()=>void load()}>Try again</button></div>;
- if(!settings)return <div className="panel skeleton react-route-loading">Loading engine setup…</div>;
+ if(error)return <RouteError title="Engine setup unavailable" message={error} onRetry={()=>void load()}/>;
+ if(!settings)return <RouteLoading route>Loading engine setup…</RouteLoading>;
  return <div className="react-engine-setup">
   <div className="hero"><div><span className="eyebrow">SETUP · STEP 2 OF 2</span><h1>Connect your engines</h1><p className="lede">VynodeArr validates access before saving encrypted credentials.</p></div></div>
   <div className="engine-wizard"><ExternalEngineForm domain="movie" initial={settings.movie} options={options}/><ExternalEngineForm domain="tv" initial={settings.tv} options={options}/></div>

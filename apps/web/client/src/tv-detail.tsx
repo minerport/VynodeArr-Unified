@@ -8,9 +8,10 @@ import { ModalPortal } from './modal-portal';
 import { MediaCollectionControl } from './media-collection-control';
 import { RemoveLibraryItemDialog } from './remove-library-item-dialog';
 import { DetailHeroTrailer } from './detail-hero-trailer';
+import { errorMessage } from './shell-utils';
 import './react-tv-detail.css';
 
-const message=(reason:unknown)=>reason instanceof Error?reason.message:'The operation failed.';
+const message=(reason:unknown)=>errorMessage(reason,'The operation failed.');
 const pause=(milliseconds:number)=>new Promise(resolve=>setTimeout(resolve,milliseconds));
 type RawSeries=Record<string,unknown>&{monitored?:boolean;qualityProfileId?:number;path?:string;rootFolderPath?:string;seriesType?:string;seasonFolder?:boolean;seasons?:Array<{seasonNumber:number;monitored:boolean}>};
 type Option={id:number;name?:string;path?:string};

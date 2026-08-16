@@ -1,3 +1,5 @@
+import {formatDateTime} from './shell-utils';
+
 export type ImportDomain='movie'|'tv';
 export type ImportRecord=Record<string,unknown>&{path?:string;title?:string;year?:number};
 export type ImportFolder=Record<string,unknown>&{path:string;name?:string};
@@ -32,7 +34,7 @@ export function scanTimestamp(value:Record<string,unknown>|null|undefined){
   return Number.isFinite(parsed)?parsed:0;
 }
 
-export const scanDate=(value:unknown)=>value?new Intl.DateTimeFormat(undefined,{dateStyle:'medium',timeStyle:'short'}).format(new Date(String(value))):'Date unavailable';
+export const scanDate=(value:unknown)=>formatDateTime(value,'Date unavailable');
 
 export function findImportedMatch(choice:ImportChoice|undefined,records:ImportRecord[],movie:boolean){
   if(!choice)return null;

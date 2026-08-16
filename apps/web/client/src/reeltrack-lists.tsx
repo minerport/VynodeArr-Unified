@@ -9,13 +9,11 @@ import type {
 import "./react-reeltrack-lists.css";
 import { ModalPortal } from "./modal-portal";
 import type { OverlayTemplate } from "./poster-overlays-types";
+import { errorMessage } from "./shell-utils";
 
 const ReeltrackPosterDesigner = lazy(() => import("./reeltrack-poster-designer").then((module) => ({ default: module.ReeltrackPosterDesigner })));
 
-const message = (error: unknown) =>
-  error instanceof Error
-    ? error.message
-    : "VynodeArr could not complete this request.";
+const message = errorMessage;
 const cleanFolder = (value: string) => value === "/" ? "/" : value.replaceAll("\\", "/").replace(/\/+$/, "") || "/";
 const parentFolder = (value: string) => cleanFolder(value).split("/").slice(0, -1).join("/") || "/";
 type MediaDestination = { id: string; domain: "movie" | "tv"; engineInstanceId?:string|null; engineInstanceName?:string|null; name: string; rootFolderPath: string; vynodePath?:string|null; isDefault?: boolean; ready?: boolean; plexLibraryKey?:string|null; plexLibrary?:{key:string;title:string}|null };

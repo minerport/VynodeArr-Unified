@@ -1,8 +1,9 @@
 import {useCallback,useEffect,useState,type FormEvent} from 'react';
 import {ServiceTabs} from './service-tabs';
 import type {DiscoverSettingsMountOptions,DiscoverSettingsStatus} from './discover-settings-types';
+import {errorMessage} from './shell-utils';
 
-const message=(reason:unknown)=>reason instanceof Error?reason.message:'Discover settings are unavailable.';
+const message=(reason:unknown)=>errorMessage(reason,'Discover settings are unavailable.');
 
 export function DiscoverSettingsView({options}:{options:DiscoverSettingsMountOptions}){
   const [status,setStatus]=useState<DiscoverSettingsStatus|null>(null),[token,setToken]=useState(''),[busy,setBusy]=useState(''),[error,setError]=useState('');

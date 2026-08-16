@@ -26,6 +26,7 @@ import type {
   ValidationCheck,
   ValidationReport,
 } from "./system-types";
+import { errorMessage } from "./shell-utils";
 import "./react-system.css";
 import "./system-performance.css";
 
@@ -33,9 +34,7 @@ const domains: SystemDomain[] = ["movie", "tv"],
   label = (domain: SystemDomain) =>
     domain === "movie" ? "Movies" : "Television",
   errorText = (reason: unknown) =>
-    reason instanceof Error
-      ? reason.message
-      : "System information could not be loaded.";
+    errorMessage(reason, "System information could not be loaded.");
 const SystemPerformancePanel = lazy(() => import("./system-performance-panel"));
 const date = (value?: string) =>
   value

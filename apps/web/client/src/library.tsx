@@ -27,6 +27,7 @@ import {
   resolveConditionalLayer,
 } from "./poster-overlay-layer";
 import { PosterLayerContent } from "./poster-overlay-icons";
+import { errorMessage } from "./shell-utils";
 
 const views: LibraryView[] = ["poster", "cards", "compact", "list"];
 const viewLabels: Record<LibraryView, string> = {
@@ -433,11 +434,7 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
         if (active) setLoadError("");
       } catch (error) {
         if (active)
-          setLoadError(
-            error instanceof Error
-              ? error.message
-              : "The library could not be loaded.",
-          );
+          setLoadError(errorMessage(error, "The library could not be loaded."));
       } finally {
         pending = false;
         if (active) {
@@ -822,12 +819,7 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
           : `${movie ? "Movie" : "Series"} unmonitored.`,
       );
     } catch (error) {
-      notify(
-        error instanceof Error
-          ? error.message
-          : "The monitoring change failed.",
-        "error",
-      );
+      notify(errorMessage(error, "The monitoring change failed."), "error");
     }
   }
   const selectedItems=items.filter(item=>selected.has(item.id));
@@ -847,7 +839,7 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
       if(movie)await request('/api/manage/movie/commands',{method:'POST',body:JSON.stringify({name:'RefreshMovie',movieIds:targets})});
       else for(const seriesId of targets)await request('/api/manage/tv/commands',{method:'POST',body:JSON.stringify({name:'RefreshSeries',seriesId})});
       setSelected(new Set());notify(`Refresh and folder scan queued for ${targets.length} ${movie?'movie':'series'} record${targets.length===1?'':'s'}.`);
-    }catch(error){notify(error instanceof Error?error.message:'Refresh and folder scan could not be queued.','error');}
+    }catch(error){notify(errorMessage(error, 'Refresh and folder scan could not be queued.'),'error');}
     finally{setBulkBusy('');}
   }
   async function searchAllMissing() {
@@ -870,12 +862,7 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
         `Search queued for ${ids.length} missing movie${ids.length === 1 ? "" : "s"}.`,
       );
     } catch (error) {
-      notify(
-        error instanceof Error
-          ? error.message
-          : "The missing movie search failed.",
-        "error",
-      );
+      notify(errorMessage(error, "The missing movie search failed."), "error");
     } finally {
       setSearching(false);
     }
@@ -913,10 +900,7 @@ export function LibraryView({ options }: { options: LibraryMountOptions }) {
         options.notify("Library synchronized with the media engine.");
       }
     } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Library synchronization failed.";
+      const message = errorMessage(error, "Library synchronization failed.");
       setLoadError(message);
       options.notify(message, "error");
     } finally {

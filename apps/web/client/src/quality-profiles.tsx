@@ -2,8 +2,9 @@ import {useCallback,useEffect,useState,type FormEvent} from 'react';
 import {ServiceTabs} from './service-tabs';
 import {EngineInstanceFilter,loadForEngineInstances,useEngineInstance} from './engine-instance-control';
 import type {CustomFormat,EngineDomain,QualityDefinition,QualityItem,QualityProfile,QualityProfilesMountOptions} from './quality-profiles-types';
+import {errorMessage} from './shell-utils';
 
-const errorText=(value:unknown)=>value instanceof Error?value.message:'Quality profiles are unavailable.';
+const errorText=(value:unknown)=>errorMessage(value,'Quality profiles are unavailable.');
 const key=(item:QualityItem)=>item.id??item.quality?.id??0;
 const clone=<T,>(value:T):T=>structuredClone(value);
 

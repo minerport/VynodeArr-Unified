@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { AvailableLibraryFolder, RootFoldersMountOptions, StorageDomain } from "./root-folders-types";
+import { errorMessage } from "./shell-utils";
 
 interface Props {
   busy: string;
@@ -14,7 +15,7 @@ function FolderLevel({ busy, parentPath, options, onRegister }: Props) {
     setLoading(true); setError("");
     void options.request<{ folders: AvailableLibraryFolder[] }>(`/api/storage/library-folder-children?path=${encodeURIComponent(parentPath)}`)
       .then((value) => setFolders(value.folders || []))
-      .catch((reason) => setError(reason instanceof Error ? reason.message : "Subfolders are unavailable."))
+      .catch((reason) => setError(errorMessage(reason, "Subfolders are unavailable.")))
       .finally(() => setLoading(false));
   }, [options, parentPath]);
   if (loading) return <div className="empty compact"><p>Loading the next folder level…</p></div>;

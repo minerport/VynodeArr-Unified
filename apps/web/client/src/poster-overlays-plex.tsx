@@ -6,9 +6,10 @@ import type {
   PlexPosterApplication,
   PosterOverlayMountOptions,
 } from "./poster-overlays-types";
+import { errorMessage } from "./shell-utils";
 
 const errorText = (reason: unknown) =>
-  reason instanceof Error ? reason.message : "Plex operation failed.";
+  errorMessage(reason, "Plex operation failed.");
 type VariableFilter={variable:string;operator:string;value:string};
 const filterMatches=(values:Record<string,unknown>|undefined,filter:VariableFilter)=>{
   if(!filter.variable)return true;

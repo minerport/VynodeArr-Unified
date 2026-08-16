@@ -3,12 +3,13 @@ import {analyzeDuplicateFolders,classifyImportChoice,scanDate} from './library-i
 import type {DuplicateDetail,ImportChoice,ImportFolder,ImportRecord} from './library-import-analysis';
 import {ModalPortal} from './modal-portal';
 import type {RootFolder,RootFoldersMountOptions,StorageDomain} from './root-folders-types';
+import {errorMessage} from './shell-utils';
 
 type Profile={id:number|string;name:string};
 type Match={folder:ImportFolder;options:ImportChoice[];selected:number;enabled:boolean;term:string;searching:boolean;expanded:boolean};
 type Filter='all'|'unmatched'|'mismatch'|'matched';
 const normalizePath=(value:unknown)=>String(value||'').replaceAll('\\','/').replace(/\/+$/,'').toLowerCase();
-const message=(reason:unknown)=>reason instanceof Error?reason.message:'Folder scan unavailable.';
+const message=(reason:unknown)=>errorMessage(reason,'Folder scan unavailable.');
 const importLookupTerm=(value:string)=>/^tt\d+$/i.test(value)?`imdb:${value.toLowerCase()}`:/^\d+$/.test(value)?`tmdb:${value}`:value;
 const choiceIdentity=(choice:ImportChoice)=>choice.imdbId?` · IMDb ${choice.imdbId}`:choice.tmdbId?` · TMDB ${choice.tmdbId}`:'';
 async function concurrentMap<T,R>(items:T[],limit:number,worker:(item:T,index:number)=>Promise<R>){

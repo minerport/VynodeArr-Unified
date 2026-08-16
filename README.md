@@ -44,12 +44,17 @@ consistent experience and account system.
 
 ## Current release
 
-Version **2.0.48** is the current stable release and is published as the
+Version **2.0.49** is the current stable release and is published as the
 `latest` image. Administrators can use the bundled media engines, connect one
 existing external movie and television engine, or manage multiple independent
 external instances. Each instance keeps its credentials, settings,
 destinations, requests, searches, queues, profiles, providers, history,
 calendar, and wanted-media workflows isolated.
+
+This release consolidates repeated React loading and error presentation into
+shared typed components and utilities across the application. Existing page
+behavior, actions, fallback messages, and engine workflows remain unchanged,
+while route code is smaller and error handling is consistent.
 
 New installations can follow the in-app **Setup Center** to configure engines,
 storage and destinations, quality preferences, indexers, download clients,

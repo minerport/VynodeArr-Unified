@@ -1,4 +1,5 @@
 import type {AppState} from "./app-state";
+import {esc} from "./shell-utils";
 
 type SearchItem={title:string;description:string;href:string;keywords?:string;kind:"Movie"|"Television"|"Page"|"Setting"};
 type Request=(path:string,options?:RequestInit)=>Promise<unknown>;
@@ -77,7 +78,7 @@ export function wireGlobalSearch(input:HTMLInputElement,state:Pick<AppState,"mov
       const aTitle=text(a.title),bTitle=text(b.title);
       return Number(bTitle.startsWith(query))-Number(aTitle.startsWith(query))||aTitle.localeCompare(bTitle);
     }).slice(0,12);
-    host.innerHTML=results.length?results.map((item,index)=>`<a href="${item.href}" data-index="${index}"${index===active?' class="active"':''}><span><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.description)}</small></span><em>${item.kind}</em></a>`).join(""):`<div class="global-search-empty">No titles, pages, or settings match “${escapeHtml(input.value)}”.</div>`;
+    host.innerHTML=results.length?results.map((item,index)=>`<a href="${item.href}" data-index="${index}"${index===active?' class="active"':''}><span><strong>${esc(item.title)}</strong><small>${esc(item.description)}</small></span><em>${item.kind}</em></a>`).join(""):`<div class="global-search-empty">No titles, pages, or settings match “${esc(input.value)}”.</div>`;
     host.hidden=false;
   };
   input.setAttribute("autocomplete","off");
@@ -94,5 +95,3 @@ export function wireGlobalSearch(input:HTMLInputElement,state:Pick<AppState,"mov
   host.addEventListener("click",()=>{input.value="";state.query="";close();});
   document.addEventListener("pointerdown",event=>{if(!input.parentElement?.contains(event.target as Node))close();});
 }
-
-function escapeHtml(value:unknown){return String(value??"").replace(/[&<>"']/g,character=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[character]!));}

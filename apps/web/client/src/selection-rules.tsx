@@ -4,11 +4,12 @@ import type { ApiRecord,CustomFormat,CustomFormatSpecification,NativeField,Quali
 import {addCustomFormatsToken,customFormatsToken,namingHasCustomFormatsToken,type NamingSettings} from './custom-format-naming';
 import {ServiceTabs,type ServiceSection} from './service-tabs';
 import {EngineInstanceFilter,loadForEngineInstances,useEngineInstance} from './engine-instance-control';
+import {errorMessage as normalizeErrorMessage} from './shell-utils';
 import './react-selection-rules.css';
 
 const list=(value:unknown)=>Array.isArray(value)?value.map(String):String(value||'').split(',').map(item=>item.trim()).filter(Boolean);
 const numbers=(value:unknown)=>Array.isArray(value)?value.map(Number).filter(Number.isFinite):[];
-const errorMessage=(reason:unknown)=>reason instanceof Error?reason.message:'The engine settings could not be updated.';
+const errorMessage=(reason:unknown)=>normalizeErrorMessage(reason,'The engine settings could not be updated.');
 const releaseResource=(_domain:SelectionDomain)=>'releaseProfiles';
 const clone=<T,>(value:T):T=>structuredClone(value);
 const labelFor=(value:ApiRecord)=>String(value.label||value.name||value.implementationName||value.implementation||'Condition');
