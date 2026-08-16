@@ -44,7 +44,7 @@ consistent experience and account system.
 
 ## Current release
 
-Version **2.0.47** is the current stable release and is published as the
+Version **2.0.48** is the current stable release and is published as the
 `latest` image. Administrators can use the bundled media engines, connect one
 existing external movie and television engine, or manage multiple independent
 external instances. Each instance keeps its credentials, settings,
@@ -562,6 +562,18 @@ docker logs -f vynodearr
 docker stop vynodearr
 docker start vynodearr
 ```
+
+VynodeArr writes timestamped, component-labeled lifecycle, connection,
+synchronization, and management events to the container log. External Radarr
+and Sonarr connections are identified by media domain and instance name, so
+connection loss, recovery, validation, and VynodeArr-triggered changes remain
+clear without copying or exposing the external application's own logs. API
+keys, tokens, credentials, cookies, and passwords are redacted.
+
+The default `info` level is recommended for normal use. Set
+`VYNODEARR_LOG_LEVEL=debug` temporarily for additional request activity, or set
+`VYNODEARR_LOG_FORMAT=json` when forwarding logs to a structured collector.
+Both options are available under **Show more settings** in the Unraid template.
 
 #### Building the development stack from source
 

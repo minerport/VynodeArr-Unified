@@ -7,6 +7,23 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.48] - 2026-08-16
+
+### Added
+
+- Added clear, timestamped Docker and Unraid logs for application startup and
+  shutdown, bundled-engine processes, catalog synchronization, and engine
+  connection state.
+- Added per-domain and per-instance VynodeArr activity logs for external Radarr
+  and Sonarr connections without ingesting their independent application logs.
+- Added configurable `error`, `warn`, `info`, and `debug` log levels plus
+  readable or JSON output in Docker and the Unraid template.
+
+### Security
+
+- Redacted credentials, API keys, authorization values, tokens, cookies,
+  passwords, and secrets from log metadata and error messages.
+
 ## [2.0.47] - 2026-08-15
 
 ### Added
@@ -2992,7 +3009,11 @@ Open `http://localhost:8686`. Existing host media folders can be mapped to
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.44...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.48...HEAD
+[2.0.48]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.47...v2.0.48
+[2.0.47]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.46...v2.0.47
+[2.0.46]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.45...v2.0.46
+[2.0.45]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.44...v2.0.45
 [2.0.44]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.43...v2.0.44
 [2.0.43]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.42...v2.0.43
 [2.0.43-rc.8]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.43-rc.7...v2.0.43-rc.8

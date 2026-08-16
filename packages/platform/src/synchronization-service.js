@@ -1,8 +1,8 @@
 import {PriorityWorkQueue} from './priority-work-queue.js';
 
 export class SynchronizationService {
-  constructor({movie,tv,maxItems=Infinity,pollIntervalMs=300000,projectionStore=null}) {
-    this.engines={movie,tv};this.maxItems=maxItems;this.pollIntervalMs=pollIntervalMs;this.projectionStore=projectionStore;
+  constructor({movie,tv,maxItems=Infinity,pollIntervalMs=300000,projectionStore=null,logger=null}) {
+    this.engines={movie,tv};this.maxItems=maxItems;this.pollIntervalMs=pollIntervalMs;this.projectionStore=projectionStore;this.logger=logger;
     this.domainRuns=new Map();this.itemRuns=new Map();this.workQueues={movie:new PriorityWorkQueue(),tv:new PriorityWorkQueue()};this.startupRun=null;this.operationsRun=null;this.fullSyncListeners=new Set();
     this.metrics={catalogReads:0,engineReads:0,fullReconciliations:0,targetedReconciliations:0};
     this.cache=new Map();this.state={
@@ -28,17 +28,21 @@ export class SynchronizationService {
   }
   async runDomainSynchronization(domain){
     const started=Date.now();this.state[domain].status='synchronizing';
+    this.logger?.info('catalog.sync.started',`${domain==='movie'?'Movies':'Television'} catalog synchronization started`,{domain});
     try{
       this.metrics.engineReads++;this.metrics.fullReconciliations++;
       const items=domain==='movie'?await this.engines.movie.listMovies({limit:this.maxItems}):await this.engines.tv.listSeries({limit:this.maxItems});
       const bounded=Number.isFinite(this.maxItems)?items.slice(0,this.maxItems):items;const projection=this.projectionStore?await this.projectionStore.replaceDomain(domain,bounded):{updated:bounded.length,total:bounded.length};
       if(typeof this.projectionStore?.queryDomain!=='function')this.cache.set(domain,{items:bounded,cachedAt:new Date().toISOString()});
       const completedAt=new Date().toISOString();Object.assign(this.state[domain],{status:'ready',lastSuccess:completedAt,lastFullSync:completedAt,lastFailure:null,safeError:null,durationMs:Date.now()-started,itemCount:bounded.length,itemsUpdated:projection.updated,itemsRemoved:projection.removed||0,source:'full-reconciliation'});
+      this.logger?.info('catalog.sync.completed',`${domain==='movie'?'Movies':'Television'} catalog synchronized`,{domain,itemCount:bounded.length,itemsUpdated:projection.updated,itemsRemoved:projection.removed||0,durationMs:Date.now()-started});
       for(const listener of this.fullSyncListeners)try{listener({domain,itemsUpdated:projection.updated,itemsRemoved:projection.removed||0,itemCount:bounded.length,updatedAt:completedAt});}catch{}
       return bounded;
     }catch(error){
       const persisted=typeof this.projectionStore?.countDomain==='function'&&(await this.projectionStore.countDomain(domain))>0;
       Object.assign(this.state[domain],{status:this.cache.has(domain)||persisted?'stale':'unavailable',lastFailure:new Date().toISOString(),safeError:error.safeMessage||`${domain==='movie'?'Movie':'TV'} service unavailable`,durationMs:Date.now()-started,itemsUpdated:0});
+      const retained=this.cache.has(domain)||persisted;
+      this.logger?.warn('catalog.sync.deferred',`${domain==='movie'?'Movies':'Television'} synchronization deferred${retained?'; retained catalog remains available':''}`,{domain,retainedCatalog:retained,durationMs:Date.now()-started,error});
       if(this.cache.has(domain))return this.cache.get(domain).items;
       if(persisted)return this.projectionStore.domain(domain);
       throw error;

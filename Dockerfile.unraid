@@ -45,6 +45,7 @@ RUN sed -i 's/\r$//' /usr/local/bin/vynodearr-entrypoint \
     && mkdir -p /config /movies /tv /downloads \
     && chown -R vynodearr:vynodearr /config /movies /tv /downloads
 ENV NODE_ENV=production PORT=8686 VYNODEARR_DATA_DIR=/config/vynodearr \
+    VYNODEARR_VERSION=${VYNODEARR_VERSION} VYNODEARR_LOG_LEVEL=info VYNODEARR_LOG_FORMAT=pretty \
     VYNODEARR_DATA_MODE=engine VYNODEARR_BUNDLED_ENGINES=true \
     VYNODEARR_MOVIE_ENGINE_VERSION=${RADARR_VERSION} VYNODEARR_TV_ENGINE_VERSION=${SONARR_VERSION} \
     VYNODEARR_BOOTSTRAP_ROOT_FOLDERS=true VYNODEARR_SECURE_COOKIES=false \

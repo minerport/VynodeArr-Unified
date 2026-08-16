@@ -44,7 +44,7 @@ test('production image is non-root and has a health check',async()=>{
 
 test('Docker environment example uses current variables and safe defaults',async()=>{
   const text=await readFile(new URL('../.env.example',import.meta.url),'utf8');
-  for(const value of ['VYNODEARR_PORT=8686','VYNODEARR_BIND_ADDRESS=0.0.0.0','VYNODEARR_DATA_MODE=engine','VYNODEARR_DATA_DIR=/data','PUID=1000','PGID=1000'])assert.ok(text.includes(value),value);
+  for(const value of ['VYNODEARR_PORT=8686','VYNODEARR_BIND_ADDRESS=0.0.0.0','VYNODEARR_DATA_MODE=engine','VYNODEARR_DATA_DIR=/data','VYNODEARR_LOG_LEVEL=info','VYNODEARR_LOG_FORMAT=pretty','PUID=1000','PGID=1000'])assert.ok(text.includes(value),value);
   assert.doesNotMatch(text,/VYNODENEW_/);
 });
 
@@ -88,6 +88,9 @@ test('1.0 release includes self-contained Unraid and Windows distributions',asyn
   assert.match(windows,/ghcr\.io\/minerport\/vynodearr-unified/);
   assert.match(image,/VYNODEARR_SECURE_COOKIES=false/);
   assert.match(template,/Target="VYNODEARR_SECURE_COOKIES".*Default="false"/);
+  assert.match(template,/Target="VYNODEARR_LOG_LEVEL".*Default="info"/);
+  assert.match(template,/Target="VYNODEARR_LOG_FORMAT".*Default="pretty"/);
+  for(const value of ['Starting VynodeArr','Engine sources selected','connection and synchronization state','exited unexpectedly'])assert.ok(entrypoint.includes(value),value);
   assert.match(windows,/VYNODEARR_SECURE_COOKIES:\s*"false"/);
 });
 test('README and Unraid metadata use the current product tour assets',async()=>{

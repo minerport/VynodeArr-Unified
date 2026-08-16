@@ -78,7 +78,7 @@ const domainResources=Object.freeze({
 const cleanQuery=(query={})=>Object.fromEntries(Object.entries(query).filter(([,value])=>value!==''&&value!=null));
 
 export class EngineManagementService {
-  constructor(registry){this.registry=registry;this.instances=new Map();}
+  constructor(registry,logger=null){this.registry=registry;this.logger=logger;this.instances=new Map();}
   setInstances(values=[]){this.instances=new Map(values.map(value=>[value.id,value]));return this;}
   instance(id,domain){const value=this.instances.get(id);if(!value||value.domain!==domain)throw new Error('The selected engine instance is unavailable');return value;}
   available(domain){return Boolean(this.registry.get(domain)?.client);}
@@ -95,6 +95,7 @@ export class EngineManagementService {
     const client=engineInstanceId?this.instance(engineInstanceId,domain).client:this.registry.get(domain).client;
     if(!client)throw new Error('The connected engine does not support management');
     if(method==='GET')return client.get(path,cleanQuery(query));
+    this.logger?.info('engine.management.requested','Administrative engine change requested',{domain,engineInstanceId:engineInstanceId||null,method,resource});
     if(method==='POST')return client.post(path,payload,cleanQuery(query));
     if(method==='PUT')return client.put(path,payload,cleanQuery(query));
     return client.delete(path,cleanQuery(query),payload);

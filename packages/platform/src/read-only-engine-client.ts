@@ -8,8 +8,10 @@ export class ReadOnlyEngineClient {
   activeRequests = 0;
   pendingRequests: Array<()=>void> = [];
   circuit={state:'closed',failures:0,openedAt:null as string|null,retryAt:null as string|null,lastFailure:null as string|null,probe:false};
+  logger: any;
+  connectionState='unknown';
 
-  constructor(config: Record<string, any>, domain: string) { this.config=config;this.domain=domain; }
+  constructor(config: Record<string, any>, domain: string,logger: any=null) { this.config=config;this.domain=domain;this.logger=logger||config.logger||null; }
   circuitSnapshot(){return{...this.circuit,threshold:Math.max(2,Number(this.config.circuitFailureThreshold)||3),cooldownMs:Math.max(5000,Number(this.config.circuitCooldownMs)||30000)};}
   resetCircuit(){this.circuit={state:'closed',failures:0,openedAt:null,retryAt:null,lastFailure:null,probe:false};return this.circuitSnapshot();}
   #beforeCircuit(){
@@ -18,15 +20,22 @@ export class ReadOnlyEngineClient {
     if(this.circuit.retryAt&&Date.now()>=Date.parse(this.circuit.retryAt)&&!this.circuit.probe){this.circuit.state='half-open';this.circuit.probe=true;return;}
     throw engineError.unavailable(this.domain);
   }
-  #circuitSuccess(){this.resetCircuit();}
+  #circuitSuccess(){const previous=this.connectionState;this.connectionState='connected';this.resetCircuit();if(previous!=='connected')this.logger?.info(previous==='unavailable'?'engine.connection.restored':'engine.connection.established',previous==='unavailable'?'Engine connection restored':'Engine connection established');}
   #circuitFailure(error:any){
-    if(['engine_validation_failed','engine_authentication_failed'].includes(String(error?.code||'')))return error;
+    if(String(error?.code||'')==='engine_validation_failed')return error;
+    if(String(error?.code||'')==='engine_authentication_failed'){
+      this.connectionState='unavailable';
+      this.logger?.error('engine.connection.failed',error?.safeMessage||'Engine authentication failed',{code:error?.code,failures:this.circuit.failures,circuit:this.circuit.state,retryAt:this.circuit.retryAt});
+      return error;
+    }
     this.circuit.probe=false;this.circuit.failures+=1;this.circuit.lastFailure=new Date().toISOString();
     const threshold=Math.max(2,Number(this.config.circuitFailureThreshold)||3);
     if(this.circuit.failures>=threshold||this.circuit.state==='half-open'){
       const cooldown=Math.max(5000,Number(this.config.circuitCooldownMs)||30000)*Math.min(8,2**Math.max(0,this.circuit.failures-threshold));
       this.circuit.state='open';this.circuit.openedAt=new Date().toISOString();this.circuit.retryAt=new Date(Date.now()+cooldown).toISOString();
     }
+    this.connectionState='unavailable';
+    this.logger?.[error?.code==='engine_authentication_failed'?'error':'warn']?.('engine.connection.failed',error?.safeMessage||'Engine connection unavailable',{code:error?.code||'engine_unavailable',failures:this.circuit.failures,circuit:this.circuit.state,retryAt:this.circuit.retryAt});
     return error;
   }
   buildUrl(path: string,query: Record<string, unknown>={}){
@@ -132,7 +141,9 @@ export class ReadOnlyEngineClient {
     if(!this.config.enabled)throw engineError.unavailable(this.domain);
     this.#beforeCircuit();
     const timeoutMs=Math.max(Number(this.config.timeoutMs)||0,method==='POST'&&String(path).replace(/^\/+/,'')==='release'?120_000:30_000);
-    try{const value=await this.#request(this.buildUrl(path,query),{method,payload,timeoutMs});this.#circuitSuccess();return value;}
+    const started=Date.now(),resource=String(path).replace(/^\/+/, '').split('/')[0]||'engine';
+    this.logger?.debug('engine.mutation.started','Sending change to engine',{method,resource});
+    try{const value=await this.#request(this.buildUrl(path,query),{method,payload,timeoutMs});this.#circuitSuccess();this.logger?.info('engine.mutation.completed','Engine change completed',{method,resource,durationMs:Date.now()-started});return value;}
     catch(error:any){this.#circuitFailure(error);if(error?.safeMessage)throw error;throw engineError.unavailable(this.domain);}
   }
   post(path: string,payload?: unknown,query?: Record<string, unknown>){return this.mutate('POST',path,payload,query);}

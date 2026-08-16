@@ -9,7 +9,7 @@ COPY tsconfig.server.json ./
 RUN npm run typecheck:web && npm run build:web && npm run build:server
 
 FROM node:24-alpine
-ENV NODE_ENV=production
+ENV NODE_ENV=production VYNODEARR_LOG_LEVEL=info VYNODEARR_LOG_FORMAT=pretty
 WORKDIR /app
 RUN apk add --no-cache font-dejavu ffmpeg yt-dlp
 COPY package.json package-lock.json ./

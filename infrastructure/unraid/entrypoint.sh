@@ -6,6 +6,15 @@ tv_config=/config/television
 app_config=/config/vynodearr
 mkdir -p "$movie_config" "$tv_config" "$app_config" /movies /tv /downloads
 
+log() {
+  level="$1"
+  component="$2"
+  shift 2
+  printf '%s %-5s [%s] %s\n' "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" "$level" "$component" "$*"
+}
+
+log INFO SYSTEM "Starting VynodeArr ${VYNODEARR_VERSION:-unknown}"
+
 movie_engine_mode=bundled
 tv_engine_mode=bundled
 settings_file="$app_config/engine-settings.json"
@@ -17,6 +26,7 @@ fi
 if [ "$movie_engine_mode" = "$tv_engine_mode" ]; then export VYNODEARR_ENGINE_MODE="$movie_engine_mode"; else export VYNODEARR_ENGINE_MODE=mixed; fi
 export VYNODEARR_MOVIE_ENGINE_MODE="$movie_engine_mode"
 export VYNODEARR_TV_ENGINE_MODE="$tv_engine_mode"
+log INFO SYSTEM "Engine sources selected: Movies=$movie_engine_mode Television=$tv_engine_mode"
 
 random_key() {
   od -An -N16 -tx1 /dev/urandom | tr -d ' \n'
@@ -33,27 +43,45 @@ fi
 
 if [ "$movie_engine_mode" = bundled ]; then
   export MOVIE_ENGINE_API_CREDENTIAL="$(sed -n 's:.*<ApiKey>\([^<]*\)</ApiKey>.*:\1:p' "$movie_config/config.xml")"
+  log INFO MOVIES "Starting bundled movie engine"
   env -u PORT /opt/vynodearr/movies/Radarr -nobrowser -data="$movie_config" &
   movie_pid=$!
+  log INFO MOVIES "Bundled movie engine started (pid=$movie_pid)"
+else
+  log INFO MOVIES "Using external movie engine; VynodeArr will report connection and synchronization state"
 fi
 if [ "$tv_engine_mode" = bundled ]; then
   export TV_ENGINE_API_CREDENTIAL="$(sed -n 's:.*<ApiKey>\([^<]*\)</ApiKey>.*:\1:p' "$tv_config/config.xml")"
+  log INFO TELEVISION "Starting bundled television engine"
   env -u PORT /opt/vynodearr/television/Sonarr -nobrowser -data="$tv_config" &
   tv_pid=$!
+  log INFO TELEVISION "Bundled television engine started (pid=$tv_pid)"
+else
+  log INFO TELEVISION "Using external television engine; VynodeArr will report connection and synchronization state"
 fi
+log INFO SYSTEM "Starting VynodeArr application server"
 node apps/api/src/server.js &
 app_pid=$!
+log INFO SYSTEM "Application server started (pid=$app_pid)"
 
 shutdown() {
+  [ "${shutdown_started:-false}" = true ] && return
+  shutdown_started=true
+  log INFO SYSTEM "Stopping VynodeArr services"
   kill -TERM "$app_pid" ${movie_pid:-} ${tv_pid:-} 2>/dev/null || true
   wait "$app_pid" ${movie_pid:-} ${tv_pid:-} 2>/dev/null || true
+  log INFO SYSTEM "VynodeArr services stopped"
 }
-trap shutdown INT TERM EXIT
+trap 'shutdown; exit 0' INT TERM
+trap shutdown EXIT
 
 while kill -0 "$app_pid" 2>/dev/null; do
   if { [ "$movie_engine_mode" = bundled ] && ! kill -0 "$movie_pid" 2>/dev/null; } || { [ "$tv_engine_mode" = bundled ] && ! kill -0 "$tv_pid" 2>/dev/null; }; then
+    if [ "$movie_engine_mode" = bundled ] && ! kill -0 "$movie_pid" 2>/dev/null; then log ERROR MOVIES "Bundled movie engine exited unexpectedly"; fi
+    if [ "$tv_engine_mode" = bundled ] && ! kill -0 "$tv_pid" 2>/dev/null; then log ERROR TELEVISION "Bundled television engine exited unexpectedly"; fi
     exit 1
   fi
   sleep 2
 done
+log ERROR SYSTEM "VynodeArr application server exited unexpectedly"
 exit 1

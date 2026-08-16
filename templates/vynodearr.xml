@@ -50,4 +50,6 @@
   <Config Name="Timezone" Target="TZ" Default="America/New_York" Mode="" Description="IANA timezone used for schedules and displayed dates, for example America/New_York." Type="Variable" Display="always" Required="true" Mask="false">America/New_York</Config>
   <Config Name="TMDB read token (optional)" Target="TMDB_API_READ_TOKEN" Default="" Mode="" Description="Optional token for Discover during first start. It can be added or replaced later under Service Settings." Type="Variable" Display="always" Required="false" Mask="true"></Config>
   <Config Name="HTTPS-only cookies" Target="VYNODEARR_SECURE_COOKIES" Default="false" Mode="" Description="Set to true only when every browser connection reaches VynodeArr through HTTPS." Type="Variable" Display="advanced" Required="true" Mask="false">false</Config>
+  <Config Name="Log level" Target="VYNODEARR_LOG_LEVEL" Default="info" Mode="" Description="Controls VynodeArr container detail: error, warn, info, or debug. Use debug temporarily when troubleshooting." Type="Variable" Display="advanced" Required="true" Mask="false">info</Config>
+  <Config Name="Log format" Target="VYNODEARR_LOG_FORMAT" Default="pretty" Mode="" Description="Use pretty for readable Unraid and Docker logs, or json for structured log collectors." Type="Variable" Display="advanced" Required="true" Mask="false">pretty</Config>
 </Container>

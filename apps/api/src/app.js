@@ -45,6 +45,7 @@ import {
 } from "../../../packages/platform/src/guide-template-service.js";
 import { BoundedCache } from "../../../packages/platform/src/bounded-cache.js";
 import { AsyncLimiter } from "../../../packages/platform/src/async-limiter.js";
+import { createLogger } from "../../../packages/platform/src/logger.js";
 import { MovieEngineAdapter } from "../../../packages/movie-domain/src/engine-adapter.js";
 import { TvEngineAdapter } from "../../../packages/tv-domain/src/engine-adapter.js";
 import { MultiInstanceReadAdapter } from "../../../packages/platform/src/multi-instance-read-adapter.js";
@@ -431,7 +432,9 @@ function dashboardAnalytics(
 }
 export function createApplication(options = {}) {
   const env = options.env || process.env,
-    baseConfig = options.config || loadEngineConfiguration(env);
+    baseConfig = options.config || loadEngineConfiguration(env),
+    logger = options.logger || createLogger({env});
+  const loggedEngineConfig=(config,domain,{source='configured',instanceId=null,instance=null}={})=>({...config,logger:logger.child({component:'engine',domain,source,instanceId,instance:instance||config.name||config.displayName})});
   let dashboardSnapshot = null,
     dashboardSnapshotExpires = 0,
     dashboardSnapshotRun = null;
@@ -2683,12 +2686,12 @@ export function createApplication(options = {}) {
     options.movie ||
     (mode === "fixture"
       ? new MovieFixtureAdapter(baseConfig.movie)
-      : new MovieEngineAdapter(baseConfig.movie));
+      : new MovieEngineAdapter(loggedEngineConfig(baseConfig.movie,'movie',{source:String(env.VYNODEARR_BUNDLED_ENGINES||'false')==='true'?'bundled':'configured'})));
   let tv =
     options.tv ||
     (mode === "fixture"
       ? new TvFixtureAdapter(baseConfig.tv)
-      : new TvEngineAdapter(baseConfig.tv));
+      : new TvEngineAdapter(loggedEngineConfig(baseConfig.tv,'tv',{source:String(env.VYNODEARR_BUNDLED_ENGINES||'false')==='true'?'bundled':'configured'})));
   const registry =
     options.registry ||
     new MediaEngineRegistry().register("movie", movie).register("tv", tv);
@@ -2706,6 +2709,7 @@ export function createApplication(options = {}) {
       tv: tv,
       pollIntervalMs: integrityIntervalMs,
       projectionStore: projectionStore,
+      logger: logger.child({component:'catalog'}),
     });
   const eventProcessor =
     typeof projectionStore.enqueueEvent === "function"
@@ -2735,7 +2739,7 @@ export function createApplication(options = {}) {
   const enginesConfigured = () =>
     mode === "fixture" || engineSettings.configured();
   const bundledEnginesActive = (domain) => domain?engineSettings.mode(domain)==="bundled":["movie","tv"].some(value=>engineSettings.mode(value)==="bundled");
-  const management = new EngineManagementService(registry);
+  const management = new EngineManagementService(registry,logger.child({component:'management'}));
   const decodeOwnedMediaId=(domain,id)=>{
     const raw=String(id||''),prefix=domain==='movie'?'movie_':'series_',value=raw.startsWith(prefix)?raw.slice(prefix.length):raw;
     for(const instance of engineSettings.public().instances.filter(item=>item.domain===domain)){for(const separator of ['_',':']){const marker=`${instance.id}${separator}`;if(value.startsWith(marker))return{engineInstanceId:instance.id,id:value.slice(marker.length)};}}
@@ -5102,12 +5106,12 @@ export function createApplication(options = {}) {
   async function rebuildFromSettings() {
     const runtime = await engineSettings.runtime();
     if (!runtime) return;
-    movie = new MovieEngineAdapter(runtime.movie);
-    tv = new TvEngineAdapter(runtime.tv);
+    movie = new MovieEngineAdapter(loggedEngineConfig(runtime.movie,'movie',{source:engineSettings.mode('movie')}));
+    tv = new TvEngineAdapter(loggedEngineConfig(runtime.tv,'tv',{source:engineSettings.mode('tv')}));
     registry.register("movie", movie).register("tv", tv);
     if(engineSettings.mode()!=="bundled"){
       const configured=engineSettings.public().instances.filter(instance=>instance.enabled!==false&&engineSettings.mode(instance.domain)==="external"),groups={movie:[],tv:[]};
-      for(const instance of configured){const value=await engineSettings.instanceRuntime(instance.id);if(!value)continue;groups[instance.domain].push({...instance,adapter:instance.domain==="movie"?new MovieEngineAdapter(value):new TvEngineAdapter(value)});}
+      for(const instance of configured){const value=await engineSettings.instanceRuntime(instance.id);if(!value)continue;const config=loggedEngineConfig(value,instance.domain,{source:'external',instanceId:instance.id,instance:instance.name});groups[instance.domain].push({...instance,adapter:instance.domain==="movie"?new MovieEngineAdapter(config):new TvEngineAdapter(config)});}
       const movieRead=engineSettings.mode("movie")==="external"&&groups.movie.length?new MultiInstanceReadAdapter("movie",groups.movie):movie,
         tvRead=engineSettings.mode("tv")==="external"&&groups.tv.length?new MultiInstanceReadAdapter("tv",groups.tv):tv;
       sync.setEngines(movieRead,tvRead);
@@ -5418,6 +5422,8 @@ export function createApplication(options = {}) {
   }
   async function initialize() {
     if (initialized) return;
+    const initializedAt=Date.now();
+    logger.info('application.initializing',`Initializing VynodeArr ${applicationVersion}`,{version:applicationVersion});
     await Promise.all([
       auth.initialize(),
       engineSettings.initialize(),
@@ -5438,6 +5444,7 @@ export function createApplication(options = {}) {
     );
     await masterKeyService.initialize(engineSettings);
     await engineSettings.applyPendingMode();
+    logger.info('engine.modes.selected','Engine sources selected',{movie:engineSettings.mode('movie'),tv:engineSettings.mode('tv')});
     const storedDiscoveryCredential =
       await engineSettings.discoveryCredential();
     if (storedDiscoveryCredential)
@@ -5461,10 +5468,7 @@ export function createApplication(options = {}) {
       for (const domain of ["movie", "tv"])
         void broadcastAuthoritativeAttention(domain).catch(() => {});
     } catch (error) {
-      console.warn(
-        "Engine startup synchronization deferred:",
-        redact(error?.safeMessage || error?.message || "Engine unavailable"),
-      );
+      logger.warn('application.engine_startup.deferred','Engine startup synchronization deferred',{error});
     }
     sync.startPolling();
     if (!sync.catalogShutdownAttached) {
@@ -5549,6 +5553,7 @@ export function createApplication(options = {}) {
       initialAutomationPoll.unref?.();
     }
     initialized = true;
+    logger.info('application.initialized','VynodeArr initialization completed',{durationMs:Date.now()-initializedAt});
     const automaticValidation = setTimeout(() => {
       systemValidation()
         .then((report) =>
@@ -5565,10 +5570,12 @@ export function createApplication(options = {}) {
   async function testEngine(domain, input) {
     const config = engineSettings.normalize(domain, input);
     config.apiCredential = String(input.apiCredential || "");
+    const testLogger=logger.child({component:'engine',domain,source:'external',instance:input.name||input.displayName||`${domain} engine`}),started=Date.now();
+    testLogger.info('engine.validation.started','External engine validation started');
     const adapter =
       domain === "movie"
-        ? new MovieEngineAdapter(config)
-        : new TvEngineAdapter(config);
+        ? new MovieEngineAdapter({...config,logger:testLogger})
+        : new TvEngineAdapter({...config,logger:testLogger});
     const connection = await adapter.testConnection();
     let counts = null;
     let checks = [];
@@ -5635,7 +5642,7 @@ export function createApplication(options = {}) {
         };
       });
     }
-    return {
+    const result = {
       connection: connection,
       counts: counts,
       checks: checks,
@@ -5646,6 +5653,8 @@ export function createApplication(options = {}) {
         checks.every((check) => check.ok),
       ),
     };
+    testLogger[result.validated?'info':'warn']('engine.validation.completed',result.validated?'External engine validation passed':'External engine validation failed',{validated:result.validated,reachable:connection.reachable,authenticated:connection.authenticated,compatible:connection.compatible,durationMs:Date.now()-started});
+    return result;
   }
   async function repairBundledConnections() {
     if (
@@ -11619,6 +11628,7 @@ export function createApplication(options = {}) {
           if(!result.validated)return json(res,422,{error:{code:"engine_validation_failed",message:result.connection.safeError||"Engine validation did not succeed."}});
           const instance=await engineSettings.createInstance(domain,input,String(input.apiCredential||""));
           await rebuildFromSettings();
+          logger.info('engine.instance.created','External engine instance added',{component:'engine',domain,source:'external',instanceId:instance.id,instance:instance.name});
           return json(res,201,{instance,settings:engineSettings.public(),validation:result});
         }
         if (engineInstance && req.method === "PUT") {
@@ -11629,12 +11639,15 @@ export function createApplication(options = {}) {
           if(!result.validated)return json(res,422,{error:{code:"engine_validation_failed",message:result.connection.safeError||"Engine validation did not succeed."}});
           const instance=await engineSettings.updateInstance(engineInstance[1],input,String(input.apiCredential||""));
           await rebuildFromSettings();
+          logger.info('engine.instance.updated','External engine instance updated',{component:'engine',domain:instance.domain,source:'external',instanceId:instance.id,instance:instance.name});
           return json(res,200,{instance,settings:engineSettings.public(),validation:result});
         }
         if (engineInstanceDefault && req.method === "PUT") {
           if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
           const settings=await engineSettings.setDefaultInstance(engineInstanceDefault[1]);
           await rebuildFromSettings();
+          const selected=settings.instances.find(instance=>instance.id===engineInstanceDefault[1]);
+          logger.info('engine.instance.default_changed','Default external engine instance changed',{component:'engine',domain:selected?.domain,source:'external',instanceId:selected?.id,instance:selected?.name});
           return json(res,200,{settings});
         }
         if (engineInstance && req.method === "DELETE") {
@@ -11651,12 +11664,13 @@ export function createApplication(options = {}) {
                 message: `Move or remove ${ownedDestinations.length} media destination${ownedDestinations.length === 1 ? "" : "s"} assigned to this engine before removing it.`,
               },
             });
-          const settings=await engineSettings.removeInstance(instanceId);
+          const removed=engineSettings.public().instances.find(instance=>instance.id===instanceId),settings=await engineSettings.removeInstance(instanceId);
           await engineStorageMappingStore.update((current) => {
             current.mappings = (Array.isArray(current.mappings) ? current.mappings : []).filter((item) => item.engineInstanceId !== instanceId);
             current.updatedAt = new Date().toISOString(); return current;
           });
           await rebuildFromSettings();
+          logger.info('engine.instance.removed','External engine instance removed',{component:'engine',domain:removed?.domain,source:'external',instanceId,instance:removed?.name});
           return json(res,200,{settings});
         }
         if (
