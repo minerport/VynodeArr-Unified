@@ -1463,6 +1463,7 @@ test('poster overlay editor can switch between exact production library cards an
   assert.match(preview,/LibraryCardPreview item=\{previewItem\}/);
   assert.match(editor,/OverlayCanvasTools view=\{canvasView\}/);
   assert.match(library,/export function LibraryCardPreview/);
+  assert.match(library,/className=\{`grid view-\$\{view\} library-results-grid`\}/);
   assert.match(css,/\.overlay-editor-library-preview/);
   assert.match(css,/\.overlay-editor-library-preview\{[^}]*min-height:max-content[^}]*height:max-content[^}]*align-self:start/);
   assert.match(css,/\.overlay-editor-preview-switch button\[aria-pressed=true\]/);

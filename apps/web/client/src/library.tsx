@@ -328,7 +328,7 @@ export function LibraryCardPreview({
       className={`react-library overlay-library-exact-preview view-${view}`}
       onClickCapture={(event) => event.preventDefault()}
     >
-      <div className="library-results-grid">
+      <div className={`grid view-${view} library-results-grid`}>
         <LibraryCard
           item={item}
           kind={kind}
