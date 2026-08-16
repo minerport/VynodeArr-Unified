@@ -24,6 +24,11 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Redacted credentials, API keys, authorization values, tokens, cookies,
   passwords, and secrets from log metadata and error messages.
 
+### Fixed
+
+- Corrected stable container version metadata so the Updates screen and startup
+  logs report the release tag instead of the legacy `2.0.3` image default.
+
 ## [2.0.47] - 2026-08-15
 
 ### Added

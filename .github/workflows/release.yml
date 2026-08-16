@@ -49,6 +49,8 @@ jobs:
           file: Dockerfile.unraid
           platforms: linux/amd64
           push: true
+          build-args: |
+            VYNODEARR_VERSION=${{ steps.meta.outputs.version }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 

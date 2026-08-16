@@ -93,6 +93,15 @@ test('1.0 release includes self-contained Unraid and Windows distributions',asyn
   for(const value of ['Starting VynodeArr','Engine sources selected','connection and synchronization state','exited unexpectedly'])assert.ok(entrypoint.includes(value),value);
   assert.match(windows,/VYNODEARR_SECURE_COOKIES:\s*"false"/);
 });
+test('stable release injects its tag version into the unified image',async()=>{
+  const [workflow,image]=await Promise.all([
+    readFile(new URL('../.github/workflows/release.yml',import.meta.url),'utf8'),
+    readFile(new URL('../Dockerfile.unraid',import.meta.url),'utf8')
+  ]);
+  assert.match(workflow,/build-args:\s*\|\s*\n\s*VYNODEARR_VERSION=\$\{\{ steps\.meta\.outputs\.version \}\}/);
+  assert.match(image,/ARG VYNODEARR_VERSION=local/);
+  assert.doesNotMatch(image,/ARG VYNODEARR_VERSION=2\.0\.3/);
+});
 test('README and Unraid metadata use the current product tour assets',async()=>{
   const assets=['dashboard.png','discover.png','my-requests.png','collections.png','tv-library.png','poster-overlay-studio.png','vynodearr-walkthrough.mp4'];
   const templateScreenshots=['dashboard.png','movie-library.png','tv-library.png','discover.png','my-requests.png','collections.png','poster-overlay-studio.png'];
