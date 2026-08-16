@@ -15,12 +15,27 @@
   <Support>https://github.com/minerport/VynodeArr-Unified/issues</Support>
 
   <Overview>
-    Unified, self-hosted movie and television library management for Unraid.
-    VynodeArr includes installation-managed Radarr and Sonarr engines behind one secure dashboard while keeping each engine's database and settings isolated.
-    Manage libraries, requests, automatic and interactive searches, queues, history, wanted media, calendars, collections, discovery, trailers, poster overlays, backups, and service configuration.
-    Radarr and Sonarr remain GPLv3 projects maintained by their respective contributors. VynodeArr is licensed under Apache 2.0.
-  </Overview>
+  VynodeArr is a unified, self-hosted movie and television automation platform built for Unraid. It combines installation-managed Radarr and Sonarr engines behind one secure dashboard while keeping their databases, settings, credentials, and operations isolated.
 
+  Browse and manage movie and television libraries, add and monitor media, handle user requests, discover new titles, run automatic or interactive searches, review releases, and manage wanted items, queues, history, calendars, seasons, episodes, collections, and media files.
+
+  Configure quality profiles, custom formats, release rules, root folders, indexers—including Prowlarr-compatible Newznab and Torznab sources—download clients, import lists, remote path mappings, notifications, backups, and health monitoring directly from VynodeArr.
+
+  VynodeArr also includes a complete Poster Overlay Studio with reusable layers, text, shapes, icons, metadata-driven conditions, real-poster previews, reusable components, poster-pack import and export, Plex artwork application, assignment review, rollback protection, and independent movie and television designs.
+
+  Use the bundled engines, connect external Radarr or Sonarr instances independently, or run a mixed configuration. Multi-instance support allows separate libraries and engine destinations to be managed from the same interface without imposing movie or television library-size limits.
+
+  Radarr and Sonarr are independent GPLv3 projects maintained by their respective contributors. VynodeArr is licensed under the Apache License 2.0.
+  </Overview>
+   
+  <Screenshot>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/docs/screenshots/dashboard.png</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/docs/screenshots/movie-library.png</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/docs/screenshots/tv-library.png</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/docs/screenshots/discover.png</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/docs/screenshots/my-requests.png</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/docs/screenshots/collections.png</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/docs/screenshots/poster-overlay-studio.png</Screenshot>
+  
   <Category>MediaApp:Video</Category>
 
   <TemplateURL>https://raw.githubusercontent.com/minerport/VynodeArr-Unified/main/templates/vynodearr.xml</TemplateURL>
