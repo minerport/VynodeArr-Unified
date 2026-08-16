@@ -570,6 +570,51 @@ export class MusicService {
     }
     return job;
   }
+  async searchMonitoredMissing({ limit = 3, minScore = 0, cooldownHours = 24 } = {}) {
+    const state = await this.store.read(),
+      artists = new Map((state.artists || []).map((value) => [value.id, value])),
+      cutoff = Date.now() - Math.max(1, Number(cooldownHours) || 24) * 36e5,
+      candidates = (state.albums || [])
+        .filter((album) => {
+          const artist = artists.get(album.artistId),
+            missing = Number(album.trackCount || 0) > Number(album.availableTrackCount || 0),
+            recent = (state.jobs || []).some(
+              (job) =>
+                job.albumId === album.id &&
+                ["queued", "sent", "downloading", "completed", "import-review", "imported"].includes(job.status) &&
+                Date.parse(job.createdAt || 0) >= cutoff,
+            );
+          return album.monitored !== false && artist?.monitored !== false && missing && !recent;
+        })
+        .slice(0, Math.max(1, Math.min(25, Number(limit) || 3))),
+      searched = [],
+      grabbed = [],
+      skipped = [];
+    for (const album of candidates) {
+      const artist = artists.get(album.artistId),
+        query = `${artist.name} ${album.title}`,
+        result = await this.search(query),
+        best = result.items.find((item) => Number(item.score || 0) >= Number(minScore || 0));
+      searched.push({ albumId: album.id, query, resultCount: result.items.length });
+      if (!best) {
+        skipped.push({ albumId: album.id, reason: result.warnings[0] || "No eligible release was found" });
+        continue;
+      }
+      try {
+        grabbed.push(
+          await this.grab({
+            ...best,
+            title: best.title || `${artist.name} - ${album.title}`,
+            artistId: artist.id,
+            albumId: album.id,
+          }),
+        );
+      } catch (error) {
+        skipped.push({ albumId: album.id, reason: text(error?.message || error, 500) });
+      }
+    }
+    return { candidates: candidates.length, searched, grabbed, skipped };
+  }
   async pollDownloads() {
     if (!this.downloadPoller)
       throw new Error("No music download polling connector is installed");

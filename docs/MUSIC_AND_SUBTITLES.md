@@ -56,6 +56,15 @@ dedicated music category. A job associated with an album and an output path is
 handed to the guarded importer automatically; the same root-boundary, matching,
 retention, and no-overwrite rules still apply.
 
+Background media automation polls download clients, searches a bounded batch of
+monitored albums with missing tracks, and retries due subtitle jobs. Album search
+uses a configurable score floor and cooldown to prevent duplicate grabs.
+Unsuccessful subtitle searches use persisted exponential backoff. Set
+`VYNODEARR_MEDIA_AUTOMATION_ENABLED=false` to disable the worker; its interval,
+batch sizes, music score floor, and cooldown are configurable with the
+`VYNODEARR_MEDIA_AUTOMATION_*`, `VYNODEARR_MUSIC_AUTOMATION_*`, and
+`VYNODEARR_SUBTITLE_AUTOMATION_*` environment variables.
+
 Each configured provider has an endpoint, credentials, priority, enabled state,
 capabilities, and connection test. Credentials are encrypted in the dedicated
 AES-256-GCM media-provider vault and removed from public API responses and JSON
@@ -97,6 +106,7 @@ language, path, and timestamp history.
 - Music operations use `/api/music/search` and `/api/music/grab`.
 - Music quality and completion automation use
   `/api/music/quality-profiles` and `/api/music/downloads/poll`.
+- A manual monitored-missing pass uses `/api/music/missing/search`.
 - Subtitle configuration uses `/api/subtitles/providers`, `/profiles`, and
   `/assignments`.
 - Per-file inventory and automation use `/api/subtitles/reconcile`, `/search`,

@@ -1063,6 +1063,24 @@ function Music({ options }: { options: MediaExpansionOptions }) {
       options.notify(errorMessage(error), "error");
     }
   }
+  async function searchMissing() {
+    try {
+      const value = await options.request<{
+        candidates: number;
+        grabbed: unknown[];
+        skipped: unknown[];
+      }>("/api/music/missing/search", {
+        method: "POST",
+        body: JSON.stringify({ limit: 5 }),
+      });
+      options.notify(
+        `Checked ${value.candidates} missing albums; ${value.grabbed.length} releases grabbed${value.skipped.length ? `, ${value.skipped.length} skipped` : ""}.`,
+      );
+      await load();
+    } catch (error) {
+      options.notify(errorMessage(error), "error");
+    }
+  }
   if (error) return <div className="panel error-state">{error}</div>;
   if (!data)
     return <div className="panel skeleton">Loading music workspace…</div>;
@@ -1090,6 +1108,9 @@ function Music({ options }: { options: MediaExpansionOptions }) {
         <div className="expansion-toolbar">
           <button type="button" onClick={() => void pollDownloads()}>
             Check download clients
+          </button>
+          <button type="button" onClick={() => void searchMissing()}>
+            Search monitored missing
           </button>
         </div>
       )}

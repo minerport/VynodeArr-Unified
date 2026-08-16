@@ -195,6 +195,36 @@ test("music quality profiles retain codec and technical thresholds", async () =>
   }
 });
 
+test("monitored missing music automation searches and grabs only eligible albums", async () => {
+  const value = await fixture(
+    "music-automation",
+    {
+      artists: [{ id: "artist_1", name: "Artist", monitored: true }],
+      albums: [
+        { id: "missing", artistId: "artist_1", title: "Missing", monitored: true, trackCount: 10, availableTrackCount: 2 },
+        { id: "complete", artistId: "artist_1", title: "Complete", monitored: true, trackCount: 8, availableTrackCount: 8 },
+      ],
+      jobs: [],
+      indexers: [{ id: "indexer_1", name: "Search", endpoint: "https://search.test", enabled: true, priority: 1 }],
+      downloadClients: [{ id: "client_1", name: "Client", endpoint: "https://client.test", enabled: true, priority: 1 }],
+    },
+    (store) => new MusicService({
+      store,
+      searcher: async ({ query }) => [{ title: query, score: 95, downloadUrl: "https://release.test/file" }],
+      grabber: async () => ({ id: "download-1" }),
+    }),
+  );
+  try {
+    const result = await value.service.searchMonitoredMissing({ limit: 5, minScore: 80 });
+    assert.equal(result.candidates, 1);
+    assert.equal(result.grabbed.length, 1);
+    assert.equal(result.grabbed[0].albumId, "missing");
+    assert.equal((await value.service.searchMonitoredMissing()).candidates, 0);
+  } finally {
+    await rm(value.directory, { recursive: true, force: true });
+  }
+});
+
 test("subtitle policies inherit from series and can be overridden per episode", async () => {
   const value = await fixture(
     "subtitles",
@@ -435,6 +465,24 @@ test("pending subtitle jobs can be retried and superseded after download", async
       "superseded",
     );
     assert.ok(provider.id);
+  } finally {
+    await rm(value.directory, { recursive: true, force: true });
+  }
+});
+
+test("automatic subtitle retries back off after an unsuccessful search", async () => {
+  const value = await fixture(
+    "subtitle-backoff",
+    { providers: [], profiles: [], assignments: [], items: [], jobs: [{ id: "pending", itemId: "episode", language: "en", status: "awaiting-search" }], history: [] },
+    (store) => new SubtitleService({ store }),
+  );
+  try {
+    const first = await value.service.retryPending({ respectSchedule: true });
+    assert.equal(first.attempted, 1);
+    const job = (await value.service.snapshot()).jobs[0];
+    assert.equal(job.attempts, 1);
+    assert.ok(Date.parse(job.nextAttemptAt) > Date.now());
+    assert.equal((await value.service.retryPending({ respectSchedule: true })).attempted, 0);
   } finally {
     await rm(value.directory, { recursive: true, force: true });
   }

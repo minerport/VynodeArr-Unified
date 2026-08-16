@@ -464,11 +464,13 @@ export class SubtitleService {
       downloaded,
     };
   }
-  async retryPending() {
+  async retryPending({ limit = 50, respectSchedule = false } = {}) {
     const state = await this.store.read(),
       pending = (state.jobs || []).filter(
-        (job) => job.status === "awaiting-search",
-      ),
+        (job) =>
+          job.status === "awaiting-search" &&
+          (!respectSchedule || !job.nextAttemptAt || Date.parse(job.nextAttemptAt) <= Date.now()),
+      ).slice(0, Math.max(1, Math.min(200, Number(limit) || 50))),
       completed = [],
       failed = [];
     for (const job of pending) {
@@ -496,11 +498,21 @@ export class SubtitleService {
         failed.push({ id: job.id, reason: text(error?.message || error) });
       }
     }
-    if (completed.length)
+    if (completed.length || failed.length)
       await this.store.update((value) => {
         for (const job of value.jobs || [])
           if (completed.includes(job.id)) {
             job.status = "superseded";
+            job.updatedAt = now();
+          } else {
+            const failure = failed.find((entry) => entry.id === job.id);
+            if (!failure) continue;
+            job.attempts = Number(job.attempts || 0) + 1;
+            job.lastError = failure.reason;
+            job.lastAttemptAt = now();
+            job.nextAttemptAt = new Date(
+              Date.now() + Math.min(24, 2 ** Math.min(job.attempts, 5)) * 36e5,
+            ).toISOString();
             job.updatedAt = now();
           }
       });

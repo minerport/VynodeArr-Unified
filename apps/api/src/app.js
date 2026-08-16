@@ -2959,6 +2959,8 @@ export function createApplication(options = {}) {
     queueCompletionTimer = null,
     operationalNotificationTimer = null,
     reeltrackAutomationTimer = null,
+    mediaAutomationTimer = null,
+    mediaAutomationRun = null,
     liveQueueRun = null,
     liveQueueSnapshot = [],
     liveQueueSnapshotAt = 0,
@@ -5682,6 +5684,8 @@ export function createApplication(options = {}) {
         operationalNotificationTimer = null;
         if (reeltrackAutomationTimer) clearInterval(reeltrackAutomationTimer);
         reeltrackAutomationTimer = null;
+        if (mediaAutomationTimer) clearInterval(mediaAutomationTimer);
+        mediaAutomationTimer = null;
         for (const timer of libraryWatchTimers.values()) clearTimeout(timer);
         libraryWatchTimers.clear();
         libraryWatchLastSync.clear();
@@ -5748,6 +5752,32 @@ export function createApplication(options = {}) {
         1e4,
       );
       initialAutomationPoll.unref?.();
+    }
+    if (!mediaAutomationTimer && String(env.VYNODEARR_MEDIA_AUTOMATION_ENABLED || "true").toLowerCase() !== "false") {
+      const interval = Math.max(
+        3e4,
+        Number(env.VYNODEARR_MEDIA_AUTOMATION_POLL_MS || 5 * 6e4),
+      );
+      const run = () => {
+        if (mediaAutomationRun) return mediaAutomationRun;
+        mediaAutomationRun = Promise.allSettled([
+          typeof music.pollDownloads === "function" ? music.pollDownloads() : Promise.resolve(null),
+          typeof music.searchMonitoredMissing === "function" ? music.searchMonitoredMissing({
+            limit: Math.max(1, Math.min(25, Number(env.VYNODEARR_MUSIC_AUTOMATION_BATCH || 3))),
+            minScore: Number(env.VYNODEARR_MUSIC_AUTOMATION_MIN_SCORE || 0),
+            cooldownHours: Number(env.VYNODEARR_MUSIC_AUTOMATION_COOLDOWN_HOURS || 24),
+          }) : Promise.resolve(null),
+          typeof subtitles.retryPending === "function" ? subtitles.retryPending({
+            limit: Math.max(1, Math.min(200, Number(env.VYNODEARR_SUBTITLE_AUTOMATION_BATCH || 25))),
+            respectSchedule: true,
+          }) : Promise.resolve(null),
+        ]).finally(() => { mediaAutomationRun = null; });
+        return mediaAutomationRun;
+      };
+      mediaAutomationTimer = setInterval(() => void run(), interval);
+      mediaAutomationTimer.unref?.();
+      const initialMediaAutomation = setTimeout(() => void run(), 15e3);
+      initialMediaAutomation.unref?.();
     }
     initialized = true;
     logger.info('application.initialized','VynodeArr initialization completed',{durationMs:Date.now()-initializedAt});
@@ -8749,6 +8779,10 @@ export function createApplication(options = {}) {
         if (url.pathname === "/api/music/downloads/poll" && req.method === "POST") {
           if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
           return json(res, 202, await music.pollDownloads());
+        }
+        if (url.pathname === "/api/music/missing/search" && req.method === "POST") {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          return json(res, 202, await music.searchMonitoredMissing(await body(req)));
         }
         if (url.pathname === "/api/music/import/settings") {
           if (!administrator(res, session)) return;
