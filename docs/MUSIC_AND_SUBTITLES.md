@@ -24,9 +24,9 @@ VynodeArr activity. Results retain protocol, size, age, seeders, score, and the
 human-readable reasons behind that score.
 
 Each configured provider has an endpoint, credentials, priority, enabled state,
-capabilities, and connection test. Credentials remain in the server-side JSON
-store and are removed from every public API response. Production connectors
-should migrate those fields to the credential vault before general release.
+capabilities, and connection test. Credentials are encrypted in the dedicated
+AES-256-GCM media-provider vault and removed from public API responses and JSON
+configuration. Existing plaintext provider records migrate on first read.
 
 ## Subtitles
 

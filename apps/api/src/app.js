@@ -28,6 +28,7 @@ import { CatalogEventProcessor } from "../../../packages/platform/src/catalog-ev
 import { AuthService } from "../../../packages/platform/src/auth-service.js";
 import { EngineSettingsService } from "../../../packages/platform/src/engine-settings-service.js";
 import { MasterKeyService } from "../../../packages/platform/src/master-key-service.js";
+import { EncryptedCredentialVault } from "../../../packages/platform/src/credential-vault.js";
 import { EngineManagementService } from "../../../packages/platform/src/engine-management-service.js";
 import { EngineUpdateReviewService } from "../../../packages/platform/src/engine-update-review-service.js";
 import {
@@ -688,8 +689,10 @@ export function createApplication(options = {}) {
   const subtitleStore = options.subtitleStore || new JsonStore(join(dataDir, "subtitles.json"), {
     version: 1, providers: [], profiles: [], assignments: [], items: [], jobs: [], history: [], updatedAt: null,
   });
+  const mediaProviderVault = options.mediaProviderVault || new EncryptedCredentialVault(join(dataDir, "media-provider-credentials.enc"), masterKeyService.resolve());
   const music = options.music || new MusicService({
     store: musicStore,
+    vault: mediaProviderVault,
     indexerTester: options.musicIndexerTester || testMusicProvider,
     downloadClientTester: options.musicDownloadClientTester || testMusicProvider,
     searcher: options.musicSearcher || searchNewznab,
@@ -697,6 +700,7 @@ export function createApplication(options = {}) {
   });
   const subtitles = options.subtitles || new SubtitleService({
     store: subtitleStore,
+    vault: mediaProviderVault,
     providerTester: options.subtitleProviderTester || testSubtitleProvider,
     searcher: options.subtitleSearcher || searchSubtitles,
     downloader: options.subtitleDownloader || downloadSubtitle,
