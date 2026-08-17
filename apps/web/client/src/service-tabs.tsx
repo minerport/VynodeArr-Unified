@@ -14,6 +14,8 @@ export type ServiceSection =
   | "download-clients"
   | "import-lists"
   | "discover"
+  | "music"
+  | "subtitles"
   | "advanced";
 
 type ServiceGroup = "Library" | "Quality & automation" | "Connections" | "Application";
@@ -81,6 +83,8 @@ const tabs: Array<{ section: ServiceSection; label: string; href: string; group:
     group: "Connections",
   },
   { section: "discover", label: "Discover", href: "#service/discover", group: "Connections" },
+  { section: "music", label: "Music Setup", href: "#service/music", group: "Application" },
+  { section: "subtitles", label: "Subtitles", href: "#service/subtitles", group: "Application" },
   { section: "advanced", label: "Advanced", href: "#management", group: "Application" },
 ];
 

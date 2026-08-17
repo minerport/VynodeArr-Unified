@@ -1,0 +1,38 @@
+.expansion-library-scope {
+  justify-content: flex-start;
+  margin-bottom: 18px;
+}
+.expansion-library-scope .muted {
+  align-self: end;
+  padding-bottom: 10px;
+}
+.music-specific-settings,
+.subtitle-settings-layout,
+.subtitle-status-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  align-items: start;
+}
+.music-specific-settings > section,
+.subtitle-settings-layout > div {
+  display: grid;
+  gap: 18px;
+}
+.subtitle-settings-status { margin-top: 18px; }
+.subtitle-settings-status summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  cursor: pointer;
+}
+.subtitle-settings-status[open] summary { margin-bottom: 18px; }
+.service-media-expansion .hero { margin-bottom: 18px; }
+@media (max-width: 900px) {
+  .music-specific-settings,
+  .subtitle-settings-layout,
+  .subtitle-status-grid { grid-template-columns: 1fr; }
+  .expansion-library-scope { align-items: stretch; }
+  .expansion-library-scope .muted { padding-bottom: 0; }
+}

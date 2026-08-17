@@ -885,8 +885,8 @@ test('route dispatch resolves typed React destinations without changing page han
   }
   assert.match(dispatch,/state\.preserveLibrary&&!state\.libraryStale\[key\]/);
   assert.match(dispatch,/parts\[1\]==='engines'/);
-  assert.match(dispatch,/key==='music'\|\|key==='subtitles'/);
-  assert.match(dispatch,/view:parts\.slice\(1\)\.join\('\/'\)/);
+  assert.match(dispatch,/key==='music'.*view:'library'/);
+  assert.match(dispatch,/key==='subtitles'.*'#service\/subtitles'/);
   assert.match(shell,/import \{resolveRouteAction\} from '\.\/route-dispatch'/);
   assert.match(shell,/const action=resolveRouteAction\(currentRoute/);
   assert.match(shell,/switch\(action\.name\)/);

@@ -3,6 +3,7 @@ import type {
   MediaExpansionOptions,
   ProviderSummary,
 } from "./media-expansion-types";
+import { ServiceTabs, type ServiceSection } from "./service-tabs";
 
 type MusicSnapshot = {
   artists: Array<{
@@ -1042,26 +1043,13 @@ function SubtitleActions({
   );
 }
 
-function MusicNavigation({ view }: { view: string }) {
-  const current = view || "library",
-    links = [
-      ["library", "Library", "#music"],
-      ["settings/folders", "Folders & import", "#music/settings/folders"],
-      ["settings/profiles", "Quality profiles", "#music/settings/profiles"],
-      ["settings/indexers", "Indexers", "#music/settings/indexers"],
-      ["settings/download-clients", "Download clients", "#music/settings/download-clients"],
-      ["settings/metadata", "Metadata", "#music/settings/metadata"],
-      ["settings/automation", "Automation", "#music/settings/automation"],
-    ];
-  return (
-    <nav className="expansion-section-nav" aria-label="Music pages">
-      {links.map(([key, label, href]) => (
-        <a className={current === key ? "selected" : ""} href={href} key={key}>
-          {label}
-        </a>
-      ))}
-    </nav>
-  );
+function ServiceLibraryScope({ section }: { section: "root-folders" | "profiles" | "indexers" | "download-clients" }) {
+  return <div className="management-toolbar expansion-library-scope"><label>Library<select value="music" onChange={event=>{if(event.target.value!=="music")window.location.hash=`service/${section}`;}}><option value="movie">Movies & Television</option><option value="music">Music</option></select></label><span className="muted">Music uses VynodeArr-native providers and profiles.</span></div>;
+}
+
+function MusicSettingsChrome({ options }: { options: MediaExpansionOptions }) {
+  const section=(options.serviceSection||"music") as ServiceSection;
+  return <><ServiceTabs active={section}/>{["root-folders","profiles","indexers","download-clients"].includes(section)?<ServiceLibraryScope section={section as "root-folders" | "profiles" | "indexers" | "download-clients"}/>:null}</>;
 }
 
 function Music({ options, view = "library" }: { options: MediaExpansionOptions; view?: string }) {
@@ -1185,12 +1173,13 @@ function Music({ options, view = "library" }: { options: MediaExpansionOptions; 
           </div>
           <div className="form-actions"><button className="primary">Save automation</button></div>
         </form>
-      ) : <div className="panel empty"><h2>Music settings page not found</h2><a href="#music">Return to Music</a></div>;
-    return <><MusicNavigation view={view} /><section className="focused-settings-layout">{content}</section></>;
+      ) : view === "settings/specific" ? (
+        <div className="music-specific-settings"><section><ProviderList title="Music metadata" items={data.metadataProviders} options={options} endpoint="/api/music/metadata-providers" onChange={() => void load()} />{options.administrator && <ProviderForm kind="music-metadata" options={options} onSave={() => void load()} />}</section><form className="panel expansion-provider-form" onSubmit={saveAutomation}><div className="panel-heading"><div><h2>Music automation</h2><p className="muted">Bound background searches and avoid duplicate grabs.</p></div><span className={`badge ${data.automation.enabled ? "green" : "warm"}`}>{data.automation.enabled ? "Active" : "Paused"}</span></div><div className="form-grid"><label className="check"><input name="enabled" type="checkbox" defaultChecked={data.automation.enabled} /> Enable music automation</label><label>Albums per pass<input name="musicBatch" type="number" min="1" max="25" defaultValue={data.automation.musicBatch} /></label><label>Minimum release score<input name="musicMinScore" type="number" min="0" defaultValue={data.automation.musicMinScore} /></label><label>Duplicate cooldown hours<input name="musicCooldownHours" type="number" min="1" max="720" defaultValue={data.automation.musicCooldownHours} /></label><input name="subtitleBatch" type="hidden" value={data.automation.subtitleBatch}/></div><div className="form-actions"><button className="primary">Save music setup</button></div></form></div>
+      ) : <div className="panel empty"><h2>Music settings page not found</h2><a href="#service/music">Return to Music Setup</a></div>;
+    return <><MusicSettingsChrome options={options} /><section className="focused-settings-layout">{content}</section></>;
   }
   return (
     <>
-      <MusicNavigation view={view} />
       <div className="expansion-summary">
         <div>
           <strong>{data.artists.length}</strong>
@@ -1357,6 +1346,7 @@ function Subtitles({ options, view = "overview" }: { options: MediaExpansionOpti
   if (!data)
     return <div className="panel skeleton">Loading subtitle workspace…</div>;
   const missing = data.items.filter((item) => !item.complete);
+  if(view === "settings")return <><ServiceTabs active="subtitles"/><div className="expansion-summary"><div><strong>{data.items.length}</strong><span>Tracked files</span></div><div><strong>{missing.length}</strong><span>Need subtitles</span></div><div><strong>{data.profiles.length}</strong><span>Profiles</span></div><div><strong>{data.providers.length}</strong><span>Providers</span></div></div><section className="subtitle-settings-layout"><div><section className="panel"><div className="panel-heading"><div><h2>Language profiles</h2><p className="muted">Reusable requirements inherited by movies, series, seasons, and episodes.</p></div><span className="badge">{data.profiles.length}</span></div>{data.profiles.map(profile=><div className="data-row" key={profile.id}><span><strong>{profile.name}</strong><small>{profile.languages.join(", ")}{profile.forced.length?` · forced ${profile.forced.join(", ")}`:""}</small></span></div>)}{!data.profiles.length?<p className="muted">No language profiles configured.</p>:null}</section>{options.administrator?<SubtitleProfileForm options={options} onSave={()=>void load()}/>:null}</div><div><ProviderList title="Subtitle providers" items={data.providers} options={options} endpoint="/api/subtitles/providers" onChange={()=>void load()}/>{options.administrator?<ProviderForm kind="subtitle" options={options} onSave={()=>void load()}/>:null}</div></section><details className="panel subtitle-settings-status"><summary><strong>Coverage and recent activity</strong><span className="muted">{missing.length} missing · {data.jobs.length} jobs</span></summary><div className="subtitle-status-grid"><div><h3>Titles needing attention</h3>{missing.slice(0,8).map(item=><div className="data-row" key={item.id}><span><strong>{item.title||item.id}</strong><small>{item.missingLanguages.join(", ")}</small></span></div>)}{!missing.length?<p className="muted">All tracked titles meet their assigned profiles.</p>:null}</div><div><div className="panel-heading"><h3>Recent jobs</h3>{options.administrator&&data.jobs.some(job=>job.status==='awaiting-search')?<button className="secondary" onClick={()=>void retryPending()}>Retry due</button>:null}</div>{data.jobs.slice(0,8).map(job=><div className="data-row" key={job.id}><span><strong>{job.language.toUpperCase()} · {job.itemId}</strong></span><span className={`badge ${job.status==='completed'?'green':'warm'}`}>{job.status}</span></div>)}{!data.jobs.length?<p className="muted">No subtitle jobs yet.</p>:null}</div></div></details></>;
   if (view === "overview")
     return (
       <><SubtitleNavigation view={view} />
@@ -1474,20 +1464,16 @@ export function MediaExpansionView({
 }) {
   const section = options.initialSection,
     view = options.initialView || (section === "music" ? "library" : "overview"),
-    title =
-      section === "music"
-        ? view === "library" ? "Music" : "Music settings"
-        : view === "overview" ? "Subtitles" : `Subtitles · ${view[0].toUpperCase()}${view.slice(1)}`;
+    serviceTitles:Record<string,string>={"root-folders":"Root Folders",profiles:"Quality Profiles",indexers:"Indexers","download-clients":"Download Clients",music:"Music Setup",subtitles:"Subtitles"},
+    title = options.serviceSection?serviceTitles[options.serviceSection]||"Service Settings":section === "music"?"Music":"Subtitles";
   return (
-    <div className="media-expansion">
+    <div className={`media-expansion${options.serviceSection?" service-media-expansion":""}`}>
       <div className="hero">
         <div>
-          <span className="eyebrow">{section === "music" ? "MUSIC LIBRARY" : "SUBTITLE MANAGEMENT"}</span>
+          <span className="eyebrow">{options.serviceSection?"SERVICE SETTINGS":section === "music" ? "MUSIC LIBRARY" : "SUBTITLE MANAGEMENT"}</span>
           <h1>{title}</h1>
           <p className="lede">
-            {section === "music"
-              ? "A native music library built around artist intent, album completeness, and explainable grabs."
-              : "Subtitle coverage that follows every movie and individual television episode."}
+            {options.serviceSection==="music"?"Configure music-only metadata discovery and bounded background automation.":options.serviceSection==="subtitles"?"Configure language policies, providers, coverage, and retries in one focused workspace.":options.serviceSection?`Configure Music ${title.toLowerCase()} alongside the equivalent Movies and Television settings.`:section === "music"?"Browse and manage artists, albums, tracks, monitoring, and library operations.":"Subtitle coverage that follows every movie and individual television episode."}
           </p>
         </div>
       </div>

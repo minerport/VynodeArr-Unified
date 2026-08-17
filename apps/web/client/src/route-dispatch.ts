@@ -53,7 +53,8 @@ export function resolveRouteAction(route:AppRoute,state:RouteActionState):RouteA
       ?{name:'skip'}
       :{name:'library',kind:key};
   }
-  if(key==='music'||key==='subtitles')return{name:'mediaExpansion',section:key,view:parts.slice(1).join('/')};
+  if(key==='music')return{name:'mediaExpansion',section:key,view:'library'};
+  if(key==='subtitles')return{name:'redirect',hash:'#service/subtitles'};
   if(key==='collections')return{name:'collections'};
   if(key==='lists')return{name:'lists',section:parts[1]==='automation'?'automation':'titles'};
   if(key==='add')return{name:'addMedia'};
