@@ -1202,6 +1202,19 @@ test('Service Settings page selection has typed ownership',async()=>{
   assert.doesNotMatch(shell,/if\(section==='discover'\)return showDiscoverSettings/);
 });
 
+test('Music storage uses the shared folder route and engine-style folder access',async()=>{
+  const [routing,islands,view,server]=await Promise.all([
+    read('apps/web/client/src/service-settings-routing.ts'),
+    read('apps/web/client/src/react-islands.tsx'),
+    read('apps/web/client/src/music-storage-folders.tsx'),
+    read('apps/api/src/app.js')
+  ]);
+  assert.match(routing,/section==='root-folders'\)return\{name:'rootFolders',initialDomain:'music'/);
+  assert.match(islands,/options\.initialDomain==='music'/);
+  for(const value of ['storage-config-grid','storage-root-list','root-folder-browser','Show subfolders','Use for Music'])assert.ok(view.includes(value),value);
+  for(const value of ['/api/music/storage/filesystem','downloadAccessible','libraryAccessible','registeredMusic'])assert.ok(server.includes(value),value);
+});
+
 test('legacy library filtering and sorting have typed ownership',async()=>{
   const [filtering,shell]=await Promise.all([
     read('apps/web/client/src/legacy-library-filtering.ts'),

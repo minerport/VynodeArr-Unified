@@ -31,7 +31,7 @@ function ExternalStorageRow({ mapping, busy, onSave }: { mapping: EngineStorageM
   </article>;
 }
 export function RootFoldersView({ options }: { options: RootFoldersMountOptions }) {
-  const [domain, setDomain] = useState<StorageDomain>(options.initialDomain || "movie"),
+  const [domain, setDomain] = useState<StorageDomain>(options.initialDomain === "tv" ? "tv" : "movie"),
     [roots, setRoots] = useState<RootFolder[]>([]),
     [downloads, setDownloads] = useState<DownloadFolders>({}),
     [destinations, setDestinations] = useState<MediaDestination[]>([]),

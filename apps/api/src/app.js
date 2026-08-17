@@ -8847,8 +8847,20 @@ export function createApplication(options = {}) {
         }
         if (url.pathname === "/api/music/import/settings") {
           if (!administrator(res, session)) return;
-          if (req.method === "GET") return json(res, 200, await musicImports.settings());
-          if (req.method === "PUT") { if (!requireCsrf(req, res, session)) return; return json(res, 200, await musicImports.settings(await body(req))); }
+          const decorateMusicFolders = async (value) => {
+            const usable = async (path) => { try { const details = await stat(path); if (!details.isDirectory()) return false; await access(path, fsConstants.R_OK | fsConstants.W_OK); return true; } catch { return false; } };
+            return { ...value, downloadAccessible: await usable(value.downloadPath), libraryAccessible: await usable(value.libraryRoot) };
+          };
+          if (req.method === "GET") return json(res, 200, await decorateMusicFolders(await musicImports.settings()));
+          if (req.method === "PUT") { if (!requireCsrf(req, res, session)) return; const input=await body(req),current=await musicImports.settings(),next={...current,...input};if(normalizeMediaPath(next.downloadPath)===normalizeMediaPath(next.libraryRoot))throw new Error("Choose separate Music download and library folders");const checked=await decorateMusicFolders(next);if(!checked.downloadAccessible||!checked.libraryAccessible)throw new Error("Both Music folders must exist and be readable and writable inside VynodeArr");return json(res, 200, await decorateMusicFolders(await musicImports.settings(next))); }
+        }
+        if (url.pathname === "/api/music/storage/filesystem" && req.method === "GET") {
+          if (!administrator(res, session)) return;
+          const requested=normalizeMediaPath(url.searchParams.get("path")),segments=requested.split("/").filter(Boolean),allowed=["/media","/music","/downloads"].some(root=>requested===root||requested.startsWith(`${root}/`));
+          if(!allowed||segments.includes(".")||segments.includes("..")||segments.length>10)throw new Error("Choose a folder inside /media, /music, or /downloads");
+          const details=await stat(requested);if(!details.isDirectory())throw new Error("The selected path is not a folder");
+          const directories=(await readdir(requested,{withFileTypes:true})).filter(item=>item.isDirectory()&&!item.name.startsWith(".")).slice(0,200).map(item=>({name:item.name,path:`${requested.replace(/\/$/,"")}/${item.name}`})).sort((a,b)=>a.name.localeCompare(b.name));
+          return json(res,200,{path:requested,directories});
         }
         if (url.pathname === "/api/music/import/analyze" && req.method === "POST") {
           if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
@@ -9688,9 +9700,10 @@ export function createApplication(options = {}) {
             { path: "/movies", label: "Legacy movie library", domain: "movie" },
             { path: "/tv", label: "Legacy television library", domain: "tv" },
           ], roots = await Promise.all([management.execute("movie", "rootFolders", "GET", {}).catch(() => []), management.execute("tv", "rootFolders", "GET", {}).catch(() => [])]), normalized = value => String(value || "").replaceAll("\\", "/").replace(/\/+$/, "") || "/", registered = Object.fromEntries(["movie", "tv"].map((domain, index) => [domain, new Set((Array.isArray(roots[index]) ? roots[index] : []).map(item => normalized(item.path)))])), mountPoints = await readFile("/proc/self/mountinfo", "utf8").then(value => new Set(value.split(/\r?\n/).map(line => line.split(" ")[4]).filter(Boolean).map(path => path.replace(/\\040/g, " ").replace(/\\011/g, "\t").replace(/\\134/g, "\\")))).catch(() => new Set());
+          const musicSettings = await musicImports.settings(), musicRoot = normalized(musicSettings.libraryRoot);
           const folders = definitions.map(item => ({ ...item, configured: mountPoints.has(item.path), registered: registered[item.domain].has(item.path) }));
           const ignoredMediaChildren = new Set(["cdrom", "floppy", "usb"]);
-          const mediaChildren = await readdir("/media", { withFileTypes: true }).then(items => items.filter(item => item.isDirectory() && !item.name.startsWith(".") && !ignoredMediaChildren.has(item.name.toLowerCase())).slice(0, 200).map(item => { const path = `/media/${item.name}`;return { path, label: item.name.replace(/[-_]+/g, " ").replace(/\b\w/g, letter => letter.toUpperCase()), domain: null, configured: true, registeredMovie: registered.movie.has(path), registeredTv: registered.tv.has(path) }; })).catch(() => []);
+          const mediaChildren = await readdir("/media", { withFileTypes: true }).then(items => items.filter(item => item.isDirectory() && !item.name.startsWith(".") && !ignoredMediaChildren.has(item.name.toLowerCase())).slice(0, 200).map(item => { const path = `/media/${item.name}`;return { path, label: item.name.replace(/[-_]+/g, " ").replace(/\b\w/g, letter => letter.toUpperCase()), domain: null, configured: true, registeredMovie: registered.movie.has(path), registeredTv: registered.tv.has(path), registeredMusic: musicRoot === path }; })).catch(() => []);
           return json(res, 200, { mainMediaConfigured: mountPoints.has("/media"), folders, mediaChildren: mountPoints.has("/media") ? mediaChildren : [] });
         }
         if (url.pathname === "/api/storage/library-folder-children" && req.method === "GET") {
@@ -9705,13 +9718,14 @@ export function createApplication(options = {}) {
             ]),
             registeredMovie = new Set((Array.isArray(movieRoots) ? movieRoots : []).map((item) => normalizeMediaPath(item.path))),
             registeredTv = new Set((Array.isArray(tvRoots) ? tvRoots : []).map((item) => normalizeMediaPath(item.path))),
+            musicRoot = normalizeMediaPath((await musicImports.settings()).libraryRoot),
             ignored = new Set(["cdrom", "floppy", "usb"]),
             folders = (await readdir(requested, { withFileTypes: true }))
               .filter((item) => item.isDirectory() && !item.name.startsWith(".") && !ignored.has(item.name.toLowerCase()))
               .slice(0, 200)
               .map((item) => {
                 const path = `${requested}/${item.name}`;
-                return { path, label: item.name.replace(/[-_]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase()), domain: null, configured: true, registeredMovie: registeredMovie.has(path), registeredTv: registeredTv.has(path) };
+                return { path, label: item.name.replace(/[-_]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase()), domain: null, configured: true, registeredMovie: registeredMovie.has(path), registeredTv: registeredTv.has(path), registeredMusic: musicRoot === path };
               })
               .sort((left, right) => left.label.localeCompare(right.label));
           return json(res, 200, { parent: requested, folders });

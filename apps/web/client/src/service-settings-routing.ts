@@ -8,7 +8,7 @@ export type ServiceSettingsAction=
   |{name:'selectionRules';section:'custom-formats'|'release-profiles'}
   |{name:'providerSettings';kind:'indexers'|'downloadClients'|'importLists'}
   |{name:'mediaExpansionSettings';section:'music'|'subtitles';view:string;serviceSection:string}
-  |{name:'rootFolders'};
+  |{name:'rootFolders';initialDomain?:'movie'|'tv'|'music'};
 
 export function resolveServiceSettingsAction(
   section:string,
@@ -17,7 +17,7 @@ export function resolveServiceSettingsAction(
   if(section==='music')return{name:'mediaExpansionSettings',section:'music',view:'settings/specific',serviceSection:'music'};
   if(section==='subtitles')return{name:'mediaExpansionSettings',section:'subtitles',view:'settings',serviceSection:'subtitles'};
   if(templateFilter==='music'){
-    if(section==='root-folders')return{name:'mediaExpansionSettings',section:'music',view:'settings/folders',serviceSection:section};
+    if(section==='root-folders')return{name:'rootFolders',initialDomain:'music'};
     if(section==='profiles')return{name:'mediaExpansionSettings',section:'music',view:'settings/profiles',serviceSection:section};
     if(section==='indexers')return{name:'mediaExpansionSettings',section:'music',view:'settings/indexers',serviceSection:section};
     if(section==='download-clients')return{name:'mediaExpansionSettings',section:'music',view:'settings/download-clients',serviceSection:section};
@@ -34,5 +34,5 @@ export function resolveServiceSettingsAction(
   if(section==='indexers')return{name:'providerSettings',kind:'indexers'};
   if(section==='download-clients')return{name:'providerSettings',kind:'downloadClients'};
   if(section==='import-lists')return{name:'providerSettings',kind:'importLists'};
-  return{name:'rootFolders'};
+  return{name:'rootFolders',initialDomain:templateFilter==='tv'?'tv':'movie'};
 }

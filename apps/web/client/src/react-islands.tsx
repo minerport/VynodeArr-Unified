@@ -156,7 +156,8 @@ function mountMediaManagement(element:HTMLElement,options:MediaManagementMountOp
 function unmountRootFolders(){rootFoldersRoot?.unmount();rootFoldersRoot=null;}
 function mountRootFolders(element:HTMLElement,options:RootFoldersMountOptions){
   unmountRootFolders();const root=createRoot(element);rootFoldersRoot=root;root.render(loading('storage folders'));
-  void import('./root-folders').then(({RootFoldersView})=>{if(rootFoldersRoot===root)root.render(guarded(<RootFoldersView options={options}/>));});
+  if(options.initialDomain==='music')void import('./music-storage-folders').then(({default:View})=>{if(rootFoldersRoot===root)root.render(guarded(<View options={options}/>));});
+  else void import('./root-folders').then(({RootFoldersView})=>{if(rootFoldersRoot===root)root.render(guarded(<RootFoldersView options={options}/>));});
 }
 function unmountProviderSettings(){providerSettingsRoot?.unmount();providerSettingsRoot=null;}
 function mountProviderSettings(element:HTMLElement,options:ProviderSettingsMountOptions){
