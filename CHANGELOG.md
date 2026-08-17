@@ -7,6 +7,24 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.51] - 2026-08-17
+
+### Fixed
+
+- Kept interactive movie and television release caches isolated by engine
+  instance so searches cannot reuse results from another configured engine.
+- Routed television series, season, and episode release searches through the
+  engine instance that owns the selected title.
+- Preserved equivalent releases returned by different indexers so every source
+  represented in the results remains available in interactive-search filters.
+- Changed request-time television searches to target monitored, aired, missing
+  episodes individually instead of allowing whole-series season-pack grabs.
+
+### Validation
+
+- Passed all 300 automated tests, focused management and React tests, web
+  TypeScript checks, the server build, and Git whitespace validation.
+
 ## [2.0.50] - 2026-08-16
 
 ### Added
@@ -3162,7 +3180,8 @@ Open `http://localhost:8686`. Existing host media folders can be mapped to
 - Engine-native template comparison, customization, overwrite confirmation,
   and naming-token assistance.
 
-[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.50...HEAD
+[Unreleased]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.51...HEAD
+[2.0.51]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.50...v2.0.51
 [2.0.50]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.49...v2.0.50
 [2.0.50-rc.6]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.50-rc.5...v2.0.50-rc.6
 [2.0.50-rc.5]: https://github.com/minerport/VynodeArr-Unified/compare/v2.0.50-rc.4...v2.0.50-rc.5

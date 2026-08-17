@@ -3774,9 +3774,10 @@ export function createApplication(options = {}) {
       );
     return promise;
   }
-  async function televisionSeriesReleases(seriesId, seasonNumber) {
+  async function televisionSeriesReleases(seriesId, seasonNumber, engineInstanceId = null) {
     const episodes = await management.execute("tv", "episodes", "GET", {
       query: { seriesId: Number(seriesId), includeEpisodeFile: true },
+      engineInstanceId,
     });
     const candidates = (Array.isArray(episodes) ? episodes : [])
       .filter(
@@ -3801,8 +3802,12 @@ export function createApplication(options = {}) {
       const batch = await Promise.all(
         episodeBatch.map((episode) => {
           const query = { episodeId: Number(episode.id) };
-          return cachedInteractiveReleases("tv", query, () =>
-            management.execute("tv", "releases", "GET", { query: query }),
+          const cacheQuery = { ...query, engineInstanceId };
+          return cachedInteractiveReleases("tv", cacheQuery, () =>
+            management.execute("tv", "releases", "GET", {
+              query,
+              engineInstanceId,
+            }),
           ).catch(() => []);
         }),
       );
@@ -3816,10 +3821,12 @@ export function createApplication(options = {}) {
               rawRelease.episodeId || episodeBatch[batchIndex].id,
             ),
           };
-          const key = String(
+          const identity = String(
             release.guid || release.downloadUrl || release.title || "",
           );
-          if (!key || seen.has(key)) continue;
+          if (!identity) continue;
+          const key = `${release.indexerId ?? release.indexer ?? "unknown"}:${identity}`;
+          if (seen.has(key)) continue;
           seen.add(key);
           releases.push(release);
         }
@@ -3914,11 +3921,11 @@ export function createApplication(options = {}) {
     }
     return result;
   }
-  async function explainEmptyTelevisionSearch(query, result) {
+  async function explainEmptyTelevisionSearch(query, result, engineInstanceId = null) {
     if (!query.episodeId || !Array.isArray(result) || result.length)
       return result;
     const indexers = await management
-      .execute("tv", "indexers", "GET")
+      .execute("tv", "indexers", "GET", { engineInstanceId })
       .catch(() => []);
     const enabled = (Array.isArray(indexers) ? indexers : []).filter(
       (indexer) =>
@@ -6245,24 +6252,38 @@ export function createApplication(options = {}) {
       payload: addPayload,engineInstanceId,
     });
     if (record.domain === "tv" && searchRequested) {
-      const command = await management.execute("tv", "commands", "POST", {
-        payload: { name: "SeriesSearch", seriesId: result.id },engineInstanceId,
+      const episodes = await management.execute("tv", "episodes", "GET", {
+        query: { seriesId: Number(result.id), includeEpisodeFile: true },
+        engineInstanceId,
       });
-      await createSearchActivity(
-        record.userId,
-        { name: "SeriesSearch", seriesId: result.id },
-        command,
-        {
-          domain: "tv",
-          engineInstanceId,
-          source: "request",
-          scope: "series",
-          title: result.title || metadata.title || record.title,
-          status: "searching",
-          message:
-            "Request added to the library; searching for monitored missing episodes.",
-        },
-      );
+      const now = Date.now(), episodeIds = (Array.isArray(episodes) ? episodes : [])
+        .filter((episode) => episode.monitored !== false && !episode.hasFile)
+        .filter((episode) => {
+          const airDate = Date.parse(episode.airDateUtc || episode.airDate || "");
+          return Number.isFinite(airDate) && airDate <= now;
+        })
+        .map((episode) => Number(episode.id))
+        .filter(Number.isFinite);
+      if (episodeIds.length) {
+        const command = await management.execute("tv", "commands", "POST", {
+          payload: { name: "EpisodeSearch", episodeIds },engineInstanceId,
+        });
+        await createSearchActivity(
+          record.userId,
+          { name: "EpisodeSearch", episodeIds },
+          command,
+          {
+            domain: "tv",
+            engineInstanceId,
+            source: "request",
+            scope: "episodes",
+            title: result.title || metadata.title || record.title,
+            status: "searching",
+            message:
+              `Request added to the library; searching ${episodeIds.length} monitored, aired, missing episode${episodeIds.length === 1 ? "" : "s"}.`,
+          },
+        );
+      }
     }
     if (record.domain === "movie" && searchRequested) {
       const query = { movieId: Number(result.id) };
@@ -15337,7 +15358,7 @@ export function createApplication(options = {}) {
             const domain = managementMatch[1],
               load = () =>
                 domain === "tv" && query.seriesId
-                  ? televisionSeriesReleases(query.seriesId, query.seasonNumber)
+                  ? televisionSeriesReleases(query.seriesId, query.seasonNumber, requestedInstance)
                   : management.execute(domain, "releases", "GET", {
                       query: Object.fromEntries(
                         Object.entries(query).filter(
@@ -15346,9 +15367,12 @@ export function createApplication(options = {}) {
                       ),
                       engineInstanceId:requestedInstance,
                     });
-            result = await cachedInteractiveReleases(domain, query, load);
+            result = await cachedInteractiveReleases(domain, {
+              ...query,
+              engineInstanceId: requestedInstance,
+            }, load);
             if (domain === "tv" && !query.seriesId)
-              result = await explainEmptyTelevisionSearch(query, result);
+              result = await explainEmptyTelevisionSearch(query, result, requestedInstance);
             if (Array.isArray(result))
               result = result.map((release) =>
                 domain === "movie" && query.movieId
