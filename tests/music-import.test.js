@@ -6,6 +6,22 @@ import { join } from "node:path";
 import { JsonStore } from "../.server-build/packages/platform/src/json-store.js";
 import { MusicImportService } from "../.server-build/packages/platform/src/music-import-service.js";
 
+test("music storage folders can be configured independently", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "vynode-music-settings-")),
+    store = new JsonStore(join(directory, "music.json"), { version: 1 }),
+    service = new MusicImportService({ store });
+  try {
+    const libraryOnly = await service.settings({ libraryRoot: join(directory, "library") });
+    assert.equal(libraryOnly.downloadPath, "");
+    assert.equal(libraryOnly.libraryRoot, join(directory, "library"));
+    const completed = await service.settings({ downloadPath: join(directory, "downloads") });
+    assert.equal(completed.libraryRoot, join(directory, "library"));
+    assert.equal(completed.downloadPath, join(directory, "downloads"));
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test("music imports are constrained, reviewed, copied, and recorded without deleting downloads", async () => {
   const directory = await mkdtemp(join(tmpdir(), "vynode-music-import-")),
     downloads = join(directory, "downloads"),

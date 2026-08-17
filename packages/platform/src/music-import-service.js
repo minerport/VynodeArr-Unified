@@ -86,16 +86,17 @@ export class MusicImportService {
   }
   async settings(input = null) {
     if (input) {
-      const downloadPath = resolve(clean(input.downloadPath)),
-        libraryRoot = resolve(clean(input.libraryRoot));
-      if (!clean(input.downloadPath) || !clean(input.libraryRoot))
-        throw new TypeError("Music download and library paths are required");
+      const existing = (await this.store.read()).settings || {},
+        rawDownloadPath = clean(input.downloadPath ?? existing.downloadPath),
+        rawLibraryRoot = clean(input.libraryRoot ?? existing.libraryRoot),
+        downloadPath = rawDownloadPath ? resolve(rawDownloadPath) : "",
+        libraryRoot = rawLibraryRoot ? resolve(rawLibraryRoot) : "";
       await this.store.update((state) => {
         state.settings = {
           ...(state.settings || {}),
           downloadPath,
           libraryRoot,
-          naming: clean(input.naming) || "{track:02} - {title}",
+          naming: clean(input.naming ?? existing.naming) || "{track:02} - {title}",
           updatedAt: new Date().toISOString(),
         };
       });

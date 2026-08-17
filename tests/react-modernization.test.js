@@ -1224,6 +1224,7 @@ test('Music storage uses the shared folder route and engine-style folder access'
   assert.doesNotMatch(expansion,/Save music folders/);
   for(const value of ['/api/music/storage/filesystem','downloadAccessible','libraryAccessible','registeredMusic','changesDownload','changesLibrary','The selected Music library folder'])assert.ok(server.includes(value),value);
   assert.match(view,/body:JSON\.stringify\(next\)/);
+  assert.match(view,/Boolean\(settings\.downloadPath&&settings\.libraryRoot/);
 });
 
 test('legacy library filtering and sorting have typed ownership',async()=>{
