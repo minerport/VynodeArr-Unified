@@ -1080,12 +1080,12 @@ function Music({ options, view = "library" }: { options: MediaExpansionOptions; 
   }
   async function scanLibrary() {
     try {
-      const value = await options.request<{ scanned: number; matched: number; unmatched: unknown[]; unmatchedCount?:number; skippedCount?:number }>(
+      const value = await options.request<{ scanned: number; matched: number; imported?:number; unmatched: unknown[]; unmatchedCount?:number; skippedCount?:number }>(
         "/api/music/library/scan",
         { method: "POST" },
       );
       options.notify(
-        `Scanned ${value.scanned} music files; ${value.matched} matched, ${value.unmatchedCount??value.unmatched.length} unmatched${value.skippedCount?`, ${value.skippedCount} unreadable folder${value.skippedCount===1?"":"s"} skipped`:""}.`,
+        `Scanned ${value.scanned} music files; ${value.matched} matched${value.imported?`, ${value.imported} added to the library`:""}, ${value.unmatchedCount??value.unmatched.length} unmatched${value.skippedCount?`, ${value.skippedCount} unreadable folder${value.skippedCount===1?"":"s"} skipped`:""}.`,
       );
       await load();
     } catch (error) {

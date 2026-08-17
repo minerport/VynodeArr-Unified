@@ -8,6 +8,7 @@ import {
   stat,
 } from "node:fs/promises";
 import { constants as fsConstants } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { basename, extname, join, relative, resolve } from "node:path";
 import { audioQuality, inspectAudioFile } from "./audio-inspector.js";
 import { writeAudioTags } from "./audio-tagger.js";
@@ -384,7 +385,7 @@ export class MusicImportService {
         inspected.push({ path, metadata: null, error: clean(error?.message || error) });
       }
     }
-    let matched = 0;
+    let matched = 0, imported = 0;
     await this.store.update((value) => {
       for (const track of value.tracks || []) {
         const found = inspected.find((file) =>
@@ -405,6 +406,19 @@ export class MusicImportService {
         album.availableTrackCount = (value.tracks || []).filter(
           (track) => track.albumId === album.id && track.hasFile,
         ).length;
+      value.artists ||= [];
+      value.albums ||= [];
+      value.tracks ||= [];
+      for (const file of inspected) {
+        const metadata=file.metadata, artistName=clean(metadata?.albumArtist||metadata?.artist), albumTitle=clean(metadata?.album), trackTitle=clean(metadata?.title)||basename(file.path,extname(file.path));
+        if(!metadata||!artistName||!albumTitle||value.tracks.some(track=>track.filePath===file.path))continue;
+        let artist=value.artists.find(item=>normalize(item.name)===normalize(artistName));
+        if(!artist){artist={id:`scan_artist_${randomUUID()}`,name:artistName,sortName:artistName,monitored:true,monitorMode:"all",genres:[],source:"library-scan",addedAt:new Date().toISOString()};value.artists.push(artist);}
+        let album=value.albums.find(item=>item.artistId===artist.id&&normalize(item.title)===normalize(albumTitle));
+        if(!album){album={id:`scan_album_${randomUUID()}`,artistId:artist.id,title:albumTitle,trackCount:0,availableTrackCount:0,source:"library-scan",addedAt:new Date().toISOString()};value.albums.push(album);}
+        value.tracks.push({id:`scan_track_${randomUUID()}`,albumId:album.id,title:trackTitle,mediumNumber:Number(metadata.discNumber)||1,trackNumber:Number(metadata.trackNumber)||album.trackCount+1,foreignTrackId:metadata.musicBrainzTrackId||null,foreignRecordingId:metadata.musicBrainzRecordingId||null,isrcs:metadata.isrc?[metadata.isrc]:[],hasFile:true,filePath:file.path,quality:audioQuality(metadata),scannedAt:new Date().toISOString(),source:"library-scan"});
+        album.trackCount+=1;album.availableTrackCount+=1;matched+=1;imported+=1;
+      }
       value.jobs ||= [];
       value.jobs.unshift({
         id: `music_scan_${Date.now()}`,
@@ -413,12 +427,13 @@ export class MusicImportService {
         status: "completed",
         fileCount: discovered.length,
         matchedCount: matched,
+        importedCount: imported,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       });
     });
-    const unmatched = inspected.filter((file) =>
-      !(state.tracks || []).some((track) =>
+    const updated=await this.store.read(), unmatched = inspected.filter((file) =>
+      !(updated.tracks || []).some((track) =>
         file.path === track.filePath ||
         (track.foreignTrackId && file.metadata?.musicBrainzTrackId === track.foreignTrackId) ||
         (track.foreignRecordingId && file.metadata?.musicBrainzRecordingId === track.foreignRecordingId) ||
@@ -428,6 +443,7 @@ export class MusicImportService {
     return {
       scanned: discovered.length,
       matched,
+      imported,
       unmatchedCount: unmatched.length,
       unmatched: unmatched.slice(0, 200),
       skippedCount: skipped.length,

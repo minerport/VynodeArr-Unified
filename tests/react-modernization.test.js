@@ -914,6 +914,8 @@ test('music service settings mirror the movie and television workspace structure
   assert.match(storage,/storage-config-grid/);
   assert.match(storage,/INCOMING MEDIA/);
   assert.match(storage,/ORGANIZED MEDIA/);
+  assert.match(storage,/Scan library/);
+  assert.match(storage,/\/api\/music\/library\/scan/);
   assert.match(view,/music-provider-settings provider-settings-route/);
   assert.match(view,/Add \{singular\}/);
   assert.match(view,/Select a provider/);

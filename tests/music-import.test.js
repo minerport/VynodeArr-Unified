@@ -224,3 +224,25 @@ test("music library scans bound unmatched output for existing unmanaged librarie
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test("music library scans discover tagged artists albums and tracks", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "vynode-music-discovery-")), library = join(directory, "library"), file = join(library, "Artist", "Album", "01 - Song.flac");
+  await mkdir(join(library, "Artist", "Album"), { recursive: true });
+  await writeFile(file, "audio");
+  const store = new JsonStore(join(directory, "music.json"), { artists: [], albums: [], tracks: [] }), service = new MusicImportService({ store, inspector: async path => ({ path, codec: "flac", artist: "Artist", album: "Album", title: "Song", trackNumber: 1 }) });
+  try {
+    await service.settings({ libraryRoot: library });
+    const result = await service.scanLibrary();
+    assert.equal(result.scanned, 1);
+    assert.equal(result.matched, 1);
+    assert.equal(result.imported, 1);
+    assert.equal(result.unmatchedCount, 0);
+    const state = await store.read();
+    assert.equal(state.artists[0].name, "Artist");
+    assert.equal(state.albums[0].title, "Album");
+    assert.equal(state.tracks[0].filePath, file);
+    assert.equal(state.tracks[0].hasFile, true);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
