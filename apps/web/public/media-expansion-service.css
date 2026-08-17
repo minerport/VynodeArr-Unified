@@ -22,8 +22,44 @@
 }
 .music-settings-launcher .route-card { min-height: 190px; }
 .music-provider-settings { width: 100%; }
+.music-provider-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 18px;
+}
 .music-provider-settings > .panel { min-width: 0; }
 .music-provider-settings .expansion-provider-form { align-self: start; }
+.music-library-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.music-library-toolbar { margin-top: 18px; }
+.music-library-grid { margin-top: 18px; }
+.music-library-card { position: relative; min-width: 0; }
+.music-artist-art {
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 25% 20%, rgba(34,211,238,.38), transparent 34%),
+    linear-gradient(145deg, #172a55, #071326 68%);
+  color: #fff;
+  font-size: clamp(2rem, 5vw, 4rem);
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+.music-artist-art span { text-shadow: 0 8px 28px rgba(0,0,0,.5); }
+.music-library-card .music-album-list { margin-top: 12px; }
+.music-library-operations { margin-top: 22px; }
+.music-library-operations > summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+}
+.music-library-operations[open] > summary { margin-bottom: 18px; }
 .music-storage-settings { display: grid; gap: 18px; }
 .music-storage-settings .storage-config-grid { margin: 0; }
 .music-storage-settings .storage-save-row {

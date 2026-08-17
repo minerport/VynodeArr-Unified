@@ -206,3 +206,21 @@ test("music library scans reconcile exact embedded identities and missing tracks
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test("music library scans bound unmatched output for existing unmanaged libraries", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "vynode-music-unmatched-")),
+    library = join(directory, "library");
+  await mkdir(library, { recursive: true });
+  await Promise.all(Array.from({ length: 205 }, (_, index) => writeFile(join(library, `${index}.mp3`), "audio")));
+  const store = new JsonStore(join(directory, "music.json"), { artists: [], albums: [], tracks: [] }),
+    service = new MusicImportService({ store, inspector: async (path) => ({ path, codec: "mp3" }) });
+  try {
+    await service.settings({ libraryRoot: library });
+    const result = await service.scanLibrary();
+    assert.equal(result.scanned, 205);
+    assert.equal(result.unmatchedCount, 205);
+    assert.equal(result.unmatched.length, 200);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});

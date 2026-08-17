@@ -61,11 +61,18 @@ const qualityCompliance = (metadata, profile) => {
     reasons.push(`Bit depth ${Number(metadata.bitDepth || 0)} is below ${profile.minBitDepth}`);
   return { accepted: reasons.length === 0, reasons };
 };
-async function files(path) {
+async function files(path, skipped = []) {
   const output = [];
-  for (const entry of await readdir(path, { withFileTypes: true })) {
+  let entries;
+  try {
+    entries = await readdir(path, { withFileTypes: true });
+  } catch (error) {
+    skipped.push({ path, error: clean(error?.message || error) });
+    return output;
+  }
+  for (const entry of entries) {
     const target = join(path, entry.name);
-    if (entry.isDirectory()) output.push(...(await files(target)));
+    if (entry.isDirectory()) output.push(...(await files(target, skipped)));
     else if (
       entry.isFile() &&
       audioExtensions.has(extname(entry.name).toLowerCase())
@@ -367,7 +374,8 @@ export class MusicImportService {
     if (!settings.libraryRoot)
       throw new Error("Configure the music library folder before scanning");
     const root = await realpath(settings.libraryRoot),
-      discovered = await files(root),
+      skipped = [],
+      discovered = await files(root, skipped),
       inspected = [];
     for (const path of discovered) {
       try {
@@ -409,17 +417,21 @@ export class MusicImportService {
         updatedAt: new Date().toISOString(),
       });
     });
+    const unmatched = inspected.filter((file) =>
+      !(state.tracks || []).some((track) =>
+        file.path === track.filePath ||
+        (track.foreignTrackId && file.metadata?.musicBrainzTrackId === track.foreignTrackId) ||
+        (track.foreignRecordingId && file.metadata?.musicBrainzRecordingId === track.foreignRecordingId) ||
+        (file.metadata?.isrc && track.isrcs?.includes(file.metadata.isrc)),
+      ),
+    ).map((file) => ({ path: file.path, error: file.error || null }));
     return {
       scanned: discovered.length,
       matched,
-      unmatched: inspected.filter((file) =>
-        !(state.tracks || []).some((track) =>
-          file.path === track.filePath ||
-          (track.foreignTrackId && file.metadata?.musicBrainzTrackId === track.foreignTrackId) ||
-          (track.foreignRecordingId && file.metadata?.musicBrainzRecordingId === track.foreignRecordingId) ||
-          (file.metadata?.isrc && track.isrcs?.includes(file.metadata.isrc)),
-        ),
-      ).map((file) => ({ path: file.path, error: file.error || null })),
+      unmatchedCount: unmatched.length,
+      unmatched: unmatched.slice(0, 200),
+      skippedCount: skipped.length,
+      skipped: skipped.slice(0, 50),
     };
   }
 }

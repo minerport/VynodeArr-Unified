@@ -900,11 +900,12 @@ test('route dispatch resolves typed React destinations without changing page han
 });
 
 test('music service settings mirror the movie and television workspace structure',async()=>{
-  const [view,storage,routing,styles]=await Promise.all([
+  const [view,storage,routing,styles,musicLibrary]=await Promise.all([
     read('apps/web/client/src/media-expansion.tsx'),
     read('apps/web/client/src/music-storage-folders.tsx'),
     read('apps/web/client/src/service-settings-routing.ts'),
-    read('apps/web/public/media-expansion-service.css')
+    read('apps/web/public/media-expansion-service.css'),
+    read('apps/web/client/src/music-library.tsx')
   ]);
   for(const destination of ['root-folders','profiles','indexers','download-clients']){
     assert.match(view,new RegExp(`#service/${destination}/music`));
@@ -913,9 +914,15 @@ test('music service settings mirror the movie and television workspace structure
   assert.match(storage,/storage-config-grid/);
   assert.match(storage,/INCOMING MEDIA/);
   assert.match(storage,/ORGANIZED MEDIA/);
-  assert.match(view,/music-provider-settings provider-settings-layout/);
+  assert.match(view,/music-provider-settings provider-settings-route/);
+  assert.match(view,/Add \{singular\}/);
+  assert.match(view,/Select a provider/);
+  assert.match(view,/Test connection/);
+  for(const control of ['Filter artists','Search artists or genres','Sort music','Select visible','Refresh & scan selected'])assert.match(musicLibrary,new RegExp(control.replace(/[&]/g,'&')));
+  assert.match(musicLibrary,/\["poster","cards","compact","list"\]/);
   assert.match(routing,/templateFilter==='music'/);
   assert.match(styles,/\.music-settings-launcher/);
+  assert.match(view,/unmatchedCount\?\?value\.unmatched\.length/);
 });
 
 test('navigation events and route preloading have typed lifecycle ownership',async()=>{

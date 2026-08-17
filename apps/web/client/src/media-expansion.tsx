@@ -107,6 +107,7 @@ type SubtitleSnapshot = {
 };
 const SubtitleProviderForm = lazy(() => import("./subtitle-provider-form"));
 const SubtitleLibrarySync = lazy(() => import("./subtitle-library-sync"));
+const MusicLibrary = lazy(() => import("./music-library"));
 const errorMessage = (error: unknown) =>
   error instanceof Error
     ? error.message
@@ -1017,7 +1018,7 @@ function MusicSettingsChrome({ options }: { options: MediaExpansionOptions }) {
 
 function Music({ options, view = "library" }: { options: MediaExpansionOptions; view?: string }) {
   const [data, setData] = useState<MusicSnapshot | null>(null),
-    [error, setError] = useState("");
+    [error, setError] = useState(""),[showDiscovery,setShowDiscovery]=useState(false);
   const load = useCallback(
     () =>
       options
@@ -1079,12 +1080,12 @@ function Music({ options, view = "library" }: { options: MediaExpansionOptions; 
   }
   async function scanLibrary() {
     try {
-      const value = await options.request<{ scanned: number; matched: number; unmatched: unknown[] }>(
+      const value = await options.request<{ scanned: number; matched: number; unmatched: unknown[]; unmatchedCount?:number; skippedCount?:number }>(
         "/api/music/library/scan",
         { method: "POST" },
       );
       options.notify(
-        `Scanned ${value.scanned} music files; ${value.matched} matched, ${value.unmatched.length} unmatched.`,
+        `Scanned ${value.scanned} music files; ${value.matched} matched, ${value.unmatchedCount??value.unmatched.length} unmatched${value.skippedCount?`, ${value.skippedCount} unreadable folder${value.skippedCount===1?"":"s"} skipped`:""}.`,
       );
       await load();
     } catch (error) {
@@ -1141,122 +1142,7 @@ function Music({ options, view = "library" }: { options: MediaExpansionOptions; 
       ) : <div className="panel empty"><h2>Music settings page not found</h2><a href="#service/music">Return to Music Setup</a></div>;
     return <><MusicSettingsChrome options={options} /><section className="focused-settings-layout">{content}</section></>;
   }
-  return (
-    <>
-      <div className="expansion-summary">
-        <div>
-          <strong>{data.artists.length}</strong>
-          <span>Artists</span>
-        </div>
-        <div>
-          <strong>{data.albums.length}</strong>
-          <span>Albums</span>
-        </div>
-        <div>
-          <strong>{data.indexers.length}</strong>
-          <span>Indexers</span>
-        </div>
-        <div>
-          <strong>{data.downloadClients.length}</strong>
-          <span>Download clients</span>
-        </div>
-      </div>
-      {options.administrator && (
-        <div className="expansion-toolbar">
-          <button type="button" onClick={() => void pollDownloads()}>
-            Check download clients
-          </button>
-          <button type="button" onClick={() => void searchMissing()}>
-            Search monitored missing
-          </button>
-          <button type="button" onClick={() => void scanLibrary()}>
-            Scan music library
-          </button>
-        </div>
-      )}
-      <section className="expansion-columns">
-        <div>
-          <h2>Music library</h2>
-          <p className="muted">
-            Artist → album → track monitoring, with transparent release scoring
-            and independent quality policies.
-          </p>
-          {data.artists.length ? (
-            data.artists.map((artist) => (
-              <article className="panel" key={artist.id}>
-                <h3>{artist.name}</h3>
-                <p>
-                  {artist.monitorMode} monitoring ·{" "}
-                  {artist.genres.join(", ") || "No genres"}
-                </p>
-                <div className="music-album-list">
-                  {data.albums
-                    .filter((album) => album.artistId === artist.id)
-                    .map((album) => (
-                      <div className="data-row" key={album.id}>
-                        <span>
-                          <strong>{album.title}</strong>
-                          <small>
-                            {[
-                              album.releaseDate,
-                              album.releaseType,
-                              album.trackCount
-                                ? `${album.trackCount} tracks`
-                                : "edition not loaded",
-                            ]
-                              .filter(Boolean)
-                              .join(" · ")}
-                          </small>
-                        </span>
-                        {options.administrator && (
-                          <button
-                            type="button"
-                            onClick={() => void refreshAlbum(album.id)}
-                          >
-                            {album.selectedEditionId
-                              ? "Refresh"
-                              : "Load editions"}
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                </div>
-              </article>
-            ))
-          ) : (
-            <div className="panel empty compact">
-              <h3>No artists yet</h3>
-              <p>
-                Add artists after configuring search and download providers.
-              </p>
-            </div>
-          )}
-          {options.administrator && (
-            <>
-              <ArtistDiscovery options={options} onSave={() => void load()} />
-              <MusicActions options={options} onSave={() => void load()} />
-            </>
-          )}
-        </div>
-        <div>
-          <section className="panel">
-            <h3>Music operations</h3>
-            {data.jobs.slice(0, 12).map((job) => (
-              <div className="data-row" key={job.id}>
-                <span>
-                  <strong>{job.title}</strong>
-                  <small>{[job.kind, job.createdAt, job.error].filter(Boolean).join(" · ")}</small>
-                </span>
-                <span className={`badge ${job.status === "completed" || job.status === "imported" ? "green" : "warm"}`}>
-                  {job.status}
-                </span>
-              </div>
-            ))}
-          </section>
-        </div>
-      </section>
-    </>
-  );
+  return <MusicLibrary data={data} administrator={options.administrator} onAdd={()=>setShowDiscovery(value=>!value)} onPoll={()=>void pollDownloads()} onSearch={()=>void searchMissing()} onScan={()=>void scanLibrary()} onRefreshAlbum={id=>void refreshAlbum(id)} onRefreshSelected={async ids=>{const albums=data.albums.filter(album=>ids.has(album.artistId));for(const album of albums)await options.request(`/api/music/albums/${encodeURIComponent(album.id)}/refresh`,{method:"POST"});options.notify(`Refreshed ${albums.length} albums.`);await load();}} discovery={showDiscovery&&options.administrator?<ArtistDiscovery options={options} onSave={()=>{setShowDiscovery(false);void load();}}/>:null} operations={<MusicActions options={options} onSave={()=>void load()}/>}/>;
 }
 
 function SubtitleNavigation({ view }: { view: string }) {
@@ -1278,9 +1164,16 @@ function SubtitleNavigation({ view }: { view: string }) {
 }
 
 function MusicProviderSettings({kind,title,items,endpoint,options,onSave}:{kind:"music-indexer"|"music-client";title:string;items:ProviderSummary[];endpoint:string;options:MediaExpansionOptions;onSave:()=>void}) {
-  return <div className="music-provider-settings provider-settings-layout">
-    <ProviderList title={`Configured ${title.toLowerCase()}`} items={items} options={options} endpoint={endpoint} onChange={onSave}/>
-    {options.administrator?<ProviderForm kind={kind} options={options} onSave={onSave}/>:<section className="panel provider-editor empty"><h2>Administrator access required</h2><p>Only administrators can add or change music connections.</p></section>}
+  const [selected,setSelected]=useState<ProviderSummary|null>(null),[adding,setAdding]=useState(false),[busy,setBusy]=useState("");
+  const singular=kind==="music-indexer"?"indexer":"download client";
+  async function test(item:ProviderSummary){setBusy(`test:${item.id}`);try{const value=await options.request<{message?:string;latencyMs?:number}>(`${endpoint}/${encodeURIComponent(item.id)}/test`,{method:"POST",body:"{}"});options.notify(`${item.name}: ${value.message||"Connection successful"}${value.latencyMs!=null?` (${value.latencyMs} ms)`:""}`);}catch(error){options.notify(errorMessage(error),"error");}finally{setBusy("");}}
+  async function remove(item:ProviderSummary){if(!confirm(`Delete ${item.name}?`))return;setBusy(`delete:${item.id}`);try{await options.request(`${endpoint}/${encodeURIComponent(item.id)}`,{method:"DELETE"});options.notify(`${item.name} deleted.`);setSelected(null);onSave();}catch(error){options.notify(errorMessage(error),"error");}finally{setBusy("");}}
+  return <div className="music-provider-settings provider-settings-route">
+    <div className="music-provider-actions"><button className="primary" disabled={!options.administrator} onClick={()=>{setSelected(null);setAdding(true);}}>Add {singular}</button></div>
+    <div className="provider-settings-layout">
+      <section className="panel provider-list"><div className="panel-heading"><h2>Configured</h2><span className="badge">{items.length}</span></div>{items.length?items.map(item=><button className={selected?.id===item.id?"profile-item selected":"profile-item"} key={item.id} onClick={()=>{setAdding(false);setSelected(item);}}><strong>{item.name}</strong><small>{item.implementation} · priority {item.priority} · {item.enabled?"Enabled":"Disabled"}</small></button>):<div className="empty compact"><h3>No {title.toLowerCase()}</h3><p>Add one to begin.</p></div>}</section>
+      {adding&&options.administrator?<ProviderForm kind={kind} options={options} onSave={()=>{setAdding(false);onSave();}}/>:selected?<section className="panel provider-editor"><div className="panel-heading"><div><span className="eyebrow">MUSIC CONFIGURATION</span><h2>{selected.name}</h2></div><span className={`badge ${selected.enabled?"green":""}`}>{selected.enabled?"Enabled":"Disabled"}</span></div><div className="provider-core-grid"><div><small>Provider type</small><strong>{selected.implementation}</strong></div><div><small>Priority</small><strong>{selected.priority}</strong></div><div><small>{kind==="music-indexer"?"Categories":"Download category"}</small><strong>{selected.categories?.join(", ")||"Not set"}</strong></div></div>{options.administrator?<div className="form-actions"><button className="danger" disabled={Boolean(busy)} onClick={()=>void remove(selected)}>Delete</button><button className="secondary" disabled={Boolean(busy)} onClick={()=>void test(selected)}>{busy===`test:${selected.id}`?"Testing…":"Test connection"}</button></div>:null}</section>:<section className="panel provider-editor empty"><h2>Select a provider</h2><p>Choose a configured {singular} or add a new one.</p></section>}
+    </div>
   </div>;
 }
 
