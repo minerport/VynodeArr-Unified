@@ -165,8 +165,7 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
     setBusy(`available-${targetDomain}-${path}`);
     try {
       if(targetDomain==="music"){
-        const settings=await options.request<Record<string,unknown>>("/api/music/import/settings");
-        await options.request("/api/music/import/settings",{method:"PUT",body:JSON.stringify({...settings,libraryRoot:path})});
+        await options.request("/api/music/import/settings",{method:"PUT",body:JSON.stringify({libraryRoot:path})});
       }else{
         const targetRoute=targetDomain===domain?engine.route(`/api/manage/${targetDomain}/rootFolders`):`/api/manage/${targetDomain}/rootFolders`;
         await options.request(targetRoute, { method: "POST", body: JSON.stringify({ path }) });
