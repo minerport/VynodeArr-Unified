@@ -93,6 +93,14 @@ type SubtitleSnapshot = {
     complete: boolean;
   }>;
   jobs: Array<{ id: string; itemId: string; language: string; status: string }>;
+  history: Array<{
+    id: string;
+    itemId: string;
+    language: string;
+    provider: string;
+    score?: number;
+    createdAt: string;
+  }>;
 };
 const errorMessage = (error: unknown) =>
   error instanceof Error
@@ -1034,7 +1042,29 @@ function SubtitleActions({
   );
 }
 
-function Music({ options }: { options: MediaExpansionOptions }) {
+function MusicNavigation({ view }: { view: string }) {
+  const current = view || "library",
+    links = [
+      ["library", "Library", "#music"],
+      ["settings/folders", "Folders & import", "#music/settings/folders"],
+      ["settings/profiles", "Quality profiles", "#music/settings/profiles"],
+      ["settings/indexers", "Indexers", "#music/settings/indexers"],
+      ["settings/download-clients", "Download clients", "#music/settings/download-clients"],
+      ["settings/metadata", "Metadata", "#music/settings/metadata"],
+      ["settings/automation", "Automation", "#music/settings/automation"],
+    ];
+  return (
+    <nav className="expansion-section-nav" aria-label="Music pages">
+      {links.map(([key, label, href]) => (
+        <a className={current === key ? "selected" : ""} href={href} key={key}>
+          {label}
+        </a>
+      ))}
+    </nav>
+  );
+}
+
+function Music({ options, view = "library" }: { options: MediaExpansionOptions; view?: string }) {
   const [data, setData] = useState<MusicSnapshot | null>(null),
     [error, setError] = useState("");
   const load = useCallback(
@@ -1131,8 +1161,36 @@ function Music({ options }: { options: MediaExpansionOptions }) {
   if (error) return <div className="panel error-state">{error}</div>;
   if (!data)
     return <div className="panel skeleton">Loading music workspace…</div>;
+  if (view !== "library") {
+    const content =
+      view === "settings/folders" ? (
+        <MusicImport data={data} options={options} onSave={() => void load()} />
+      ) : view === "settings/profiles" ? (
+        <MusicQualityProfiles data={data} options={options} onSave={() => void load()} />
+      ) : view === "settings/indexers" ? (
+        <><ProviderList title="Music indexers" items={data.indexers} options={options} endpoint="/api/music/indexers" onChange={() => void load()} />{options.administrator && <ProviderForm kind="music-indexer" options={options} onSave={() => void load()} />}</>
+      ) : view === "settings/download-clients" ? (
+        <><ProviderList title="Music download clients" items={data.downloadClients} options={options} endpoint="/api/music/download-clients" onChange={() => void load()} />{options.administrator && <ProviderForm kind="music-client" options={options} onSave={() => void load()} />}</>
+      ) : view === "settings/metadata" ? (
+        <><ProviderList title="Music metadata" items={data.metadataProviders} options={options} endpoint="/api/music/metadata-providers" onChange={() => void load()} />{options.administrator && <ProviderForm kind="music-metadata" options={options} onSave={() => void load()} />}</>
+      ) : view === "settings/automation" ? (
+        <form className="panel expansion-provider-form focused-settings" onSubmit={saveAutomation}>
+          <div className="panel-heading"><div><span className="eyebrow">MUSIC & SUBTITLES</span><h2>Background automation</h2><p className="muted">Control bounded searches, retry volume, and duplicate protection.</p></div><span className={`badge ${data.automation.enabled ? "green" : "warm"}`}>{data.automation.enabled ? "Active" : "Paused"}</span></div>
+          <div className="form-grid">
+            <label className="check"><input name="enabled" type="checkbox" defaultChecked={data.automation.enabled} /> Enable background automation</label>
+            <label>Albums per pass<input name="musicBatch" type="number" min="1" max="25" defaultValue={data.automation.musicBatch} /></label>
+            <label>Minimum release score<input name="musicMinScore" type="number" min="0" defaultValue={data.automation.musicMinScore} /></label>
+            <label>Duplicate cooldown hours<input name="musicCooldownHours" type="number" min="1" max="720" defaultValue={data.automation.musicCooldownHours} /></label>
+            <label>Subtitle retries per pass<input name="subtitleBatch" type="number" min="1" max="200" defaultValue={data.automation.subtitleBatch} /></label>
+          </div>
+          <div className="form-actions"><button className="primary">Save automation</button></div>
+        </form>
+      ) : <div className="panel empty"><h2>Music settings page not found</h2><a href="#music">Return to Music</a></div>;
+    return <><MusicNavigation view={view} /><section className="focused-settings-layout">{content}</section></>;
+  }
   return (
     <>
+      <MusicNavigation view={view} />
       <div className="expansion-summary">
         <div>
           <strong>{data.artists.length}</strong>
@@ -1223,92 +1281,12 @@ function Music({ options }: { options: MediaExpansionOptions }) {
           )}
           {options.administrator && (
             <>
-              <form className="panel expansion-provider-form" onSubmit={saveAutomation}>
-                <h3>Background media automation</h3>
-                <div className="form-grid">
-                  <label>
-                    Enabled
-                    <input name="enabled" type="checkbox" defaultChecked={data.automation.enabled} />
-                  </label>
-                  <label>
-                    Albums per pass
-                    <input name="musicBatch" type="number" min="1" max="25" defaultValue={data.automation.musicBatch} />
-                  </label>
-                  <label>
-                    Minimum release score
-                    <input name="musicMinScore" type="number" min="0" defaultValue={data.automation.musicMinScore} />
-                  </label>
-                  <label>
-                    Duplicate cooldown hours
-                    <input name="musicCooldownHours" type="number" min="1" max="720" defaultValue={data.automation.musicCooldownHours} />
-                  </label>
-                  <label>
-                    Subtitle retries per pass
-                    <input name="subtitleBatch" type="number" min="1" max="200" defaultValue={data.automation.subtitleBatch} />
-                  </label>
-                </div>
-                <button className="primary">Save automation</button>
-              </form>
               <ArtistDiscovery options={options} onSave={() => void load()} />
-              <MusicImport
-                data={data}
-                options={options}
-                onSave={() => void load()}
-              />
               <MusicActions options={options} onSave={() => void load()} />
             </>
           )}
         </div>
         <div>
-          {options.administrator && (
-            <MusicQualityProfiles
-              data={data}
-              options={options}
-              onSave={() => void load()}
-            />
-          )}
-          <ProviderList
-            title="Music metadata"
-            items={data.metadataProviders}
-            options={options}
-            endpoint="/api/music/metadata-providers"
-            onChange={() => void load()}
-          />
-          {options.administrator && (
-            <ProviderForm
-              kind="music-metadata"
-              options={options}
-              onSave={() => void load()}
-            />
-          )}
-          <ProviderList
-            title="Music indexers"
-            items={data.indexers}
-            options={options}
-            endpoint="/api/music/indexers"
-            onChange={() => void load()}
-          />
-          {options.administrator && (
-            <ProviderForm
-              kind="music-indexer"
-              options={options}
-              onSave={() => void load()}
-            />
-          )}
-          <ProviderList
-            title="Music download clients"
-            items={data.downloadClients}
-            options={options}
-            endpoint="/api/music/download-clients"
-            onChange={() => void load()}
-          />
-          {options.administrator && (
-            <ProviderForm
-              kind="music-client"
-              options={options}
-              onSave={() => void load()}
-            />
-          )}
           <section className="panel">
             <h3>Music operations</h3>
             {data.jobs.slice(0, 12).map((job) => (
@@ -1329,7 +1307,25 @@ function Music({ options }: { options: MediaExpansionOptions }) {
   );
 }
 
-function Subtitles({ options }: { options: MediaExpansionOptions }) {
+function SubtitleNavigation({ view }: { view: string }) {
+  const current = view || "overview",
+    links = [
+      ["overview", "Overview", "#subtitles"],
+      ["coverage", "Coverage", "#subtitles/coverage"],
+      ["profiles", "Language profiles", "#subtitles/profiles"],
+      ["providers", "Providers", "#subtitles/providers"],
+      ["activity", "Activity", "#subtitles/activity"],
+    ];
+  return (
+    <nav className="expansion-section-nav" aria-label="Subtitle pages">
+      {links.map(([key, label, href]) => (
+        <a className={current === key ? "selected" : ""} href={href} key={key}>{label}</a>
+      ))}
+    </nav>
+  );
+}
+
+function Subtitles({ options, view = "overview" }: { options: MediaExpansionOptions; view?: string }) {
   const [data, setData] = useState<SubtitleSnapshot | null>(null),
     [error, setError] = useState("");
   const load = useCallback(
@@ -1361,8 +1357,32 @@ function Subtitles({ options }: { options: MediaExpansionOptions }) {
   if (!data)
     return <div className="panel skeleton">Loading subtitle workspace…</div>;
   const missing = data.items.filter((item) => !item.complete);
+  if (view === "overview")
+    return (
+      <><SubtitleNavigation view={view} />
+        <div className="expansion-summary">
+          <div><strong>{data.items.length}</strong><span>Tracked files</span></div>
+          <div><strong>{data.items.length - missing.length}</strong><span>Complete</span></div>
+          <div><strong>{missing.length}</strong><span>Need subtitles</span></div>
+          <div><strong>{data.jobs.filter((job) => job.status === "awaiting-search").length}</strong><span>Waiting to retry</span></div>
+        </div>
+        <section className="subtitle-overview-grid">
+          <a className="panel route-card" href="#subtitles/coverage"><span className="eyebrow">LIBRARY</span><h2>Coverage</h2><p>Review every movie and episode, see missing languages, and run targeted searches.</p><strong>Open coverage →</strong></a>
+          <a className="panel route-card" href="#subtitles/profiles"><span className="eyebrow">POLICY</span><h2>Language profiles</h2><p>Define required, forced, and hearing-impaired preferences with upgrade targets.</p><strong>{data.profiles.length} configured →</strong></a>
+          <a className="panel route-card" href="#subtitles/providers"><span className="eyebrow">SOURCES</span><h2>Providers</h2><p>Connect OpenSubtitles or local Whisper transcription and test readiness.</p><strong>{data.providers.length} connected →</strong></a>
+          <a className="panel route-card" href="#subtitles/activity"><span className="eyebrow">OPERATIONS</span><h2>Activity</h2><p>See downloads, retries, upgrades, and recent provider history.</p><strong>Review activity →</strong></a>
+        </section>
+      </>
+    );
+  if (view === "providers")
+    return <><SubtitleNavigation view={view} /><section className="focused-settings-layout"><ProviderList title="Subtitle providers" items={data.providers} options={options} endpoint="/api/subtitles/providers" onChange={() => void load()} />{options.administrator && <ProviderForm kind="subtitle" options={options} onSave={() => void load()} />}</section></>;
+  if (view === "profiles")
+    return <><SubtitleNavigation view={view} /><section className="focused-settings-layout"><section className="panel"><div className="panel-heading"><div><h2>Language profiles</h2><p className="muted">Reusable language requirements applied to movies, series, seasons, or episodes.</p></div><span className="badge">{data.profiles.length}</span></div>{data.profiles.map((profile) => <div className="data-row" key={profile.id}><span><strong>{profile.name}</strong><small>{profile.languages.join(", ")}{profile.forced.length ? ` · forced ${profile.forced.join(", ")}` : ""}</small></span></div>)}{!data.profiles.length && <p className="muted">No language profiles configured.</p>}</section>{options.administrator && <SubtitleProfileForm options={options} onSave={() => void load()} />}</section></>;
+  if (view === "activity")
+    return <><SubtitleNavigation view={view} /><section className="focused-settings-layout"><section className="panel"><div className="panel-heading"><div><h2>Pending work</h2><p className="muted">Retries use persisted backoff and do not repeatedly contact failing providers.</p></div>{options.administrator && <button className="secondary" onClick={() => void retryPending()}>Retry due jobs</button>}</div>{data.jobs.slice(0, 50).map((job) => <div className="data-row" key={job.id}><span><strong>{job.language.toUpperCase()} · {job.itemId}</strong></span><span className={`badge ${job.status === "completed" ? "green" : "warm"}`}>{job.status}</span></div>)}{!data.jobs.length && <p className="muted">No subtitle jobs yet.</p>}</section><section className="panel"><div className="panel-heading"><h2>Download history</h2><span className="badge">{data.history.length}</span></div>{data.history.slice(0, 50).map((item) => <div className="data-row" key={item.id}><span><strong>{item.language.toUpperCase()} · {item.provider}</strong><small>{item.createdAt}{item.score != null ? ` · score ${item.score}` : ""}</small></span></div>)}{!data.history.length && <p className="muted">No downloaded subtitles yet.</p>}</section></section></>;
   return (
     <>
+      <SubtitleNavigation view="coverage" />
       <div className="expansion-summary">
         <div>
           <strong>{data.items.length}</strong>
@@ -1440,45 +1460,7 @@ function Subtitles({ options }: { options: MediaExpansionOptions }) {
           )}
         </div>
         <div>
-          <ProviderList
-            title="Subtitle providers"
-            items={data.providers}
-            options={options}
-            endpoint="/api/subtitles/providers"
-            onChange={() => void load()}
-          />
-          {options.administrator && (
-            <ProviderForm
-              kind="subtitle"
-              options={options}
-              onSave={() => void load()}
-            />
-          )}
-          <section className="panel">
-            <div className="panel-heading">
-              <h3>Language profiles</h3>
-              <span className="badge">{data.profiles.length}</span>
-            </div>
-            {data.profiles.map((profile) => (
-              <div className="data-row" key={profile.id}>
-                <span>
-                  <strong>{profile.name}</strong>
-                  <small>
-                    {profile.languages.join(", ")}
-                    {profile.forced.length
-                      ? ` · forced ${profile.forced.join(", ")}`
-                      : ""}
-                  </small>
-                </span>
-              </div>
-            ))}
-            {!data.profiles.length && (
-              <p className="muted">No language profiles configured.</p>
-            )}
-          </section>
-          {options.administrator && (
-            <SubtitleProfileForm options={options} onSave={() => void load()} />
-          )}
+          <section className="panel coverage-help"><span className="eyebrow">HOW IT WORKS</span><h2>Policies follow the title</h2><p>Series rules flow to seasons and episodes. A more specific assignment overrides the inherited profile.</p><a className="secondary button-link" href="#subtitles/profiles">Manage language profiles</a><a className="secondary button-link" href="#subtitles/providers">Manage providers</a></section>
         </div>
       </section>
     </>
@@ -1490,14 +1472,18 @@ export function MediaExpansionView({
 }: {
   options: MediaExpansionOptions;
 }) {
-  const [section, setSection] = useState(options.initialSection);
-  useEffect(() => setSection(options.initialSection), [options.initialSection]);
+  const section = options.initialSection,
+    view = options.initialView || (section === "music" ? "library" : "overview"),
+    title =
+      section === "music"
+        ? view === "library" ? "Music" : "Music settings"
+        : view === "overview" ? "Subtitles" : `Subtitles · ${view[0].toUpperCase()}${view.slice(1)}`;
   return (
     <div className="media-expansion">
       <div className="hero">
         <div>
-          <span className="eyebrow">VYNODE MORE</span>
-          <h1>{section === "music" ? "Music" : "Subtitles"}</h1>
+          <span className="eyebrow">{section === "music" ? "MUSIC LIBRARY" : "SUBTITLE MANAGEMENT"}</span>
+          <h1>{title}</h1>
           <p className="lede">
             {section === "music"
               ? "A native music library built around artist intent, album completeness, and explainable grabs."
@@ -1505,26 +1491,10 @@ export function MediaExpansionView({
           </p>
         </div>
       </div>
-      <nav className="expansion-tabs">
-        <a
-          className={section === "music" ? "selected" : ""}
-          href="#music"
-          onClick={() => setSection("music")}
-        >
-          Music
-        </a>
-        <a
-          className={section === "subtitles" ? "selected" : ""}
-          href="#subtitles"
-          onClick={() => setSection("subtitles")}
-        >
-          Subtitles
-        </a>
-      </nav>
       {section === "music" ? (
-        <Music options={options} />
+        <Music options={options} view={view} />
       ) : (
-        <Subtitles options={options} />
+        <Subtitles options={options} view={view} />
       )}
     </div>
   );

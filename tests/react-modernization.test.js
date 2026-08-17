@@ -885,11 +885,14 @@ test('route dispatch resolves typed React destinations without changing page han
   }
   assert.match(dispatch,/state\.preserveLibrary&&!state\.libraryStale\[key\]/);
   assert.match(dispatch,/parts\[1\]==='engines'/);
+  assert.match(dispatch,/key==='music'\|\|key==='subtitles'/);
+  assert.match(dispatch,/view:parts\.slice\(1\)\.join\('\/'\)/);
   assert.match(shell,/import \{resolveRouteAction\} from '\.\/route-dispatch'/);
   assert.match(shell,/const action=resolveRouteAction\(currentRoute/);
   assert.match(shell,/switch\(action\.name\)/);
   assert.match(shell,/case'library':return showMedia\(action\.kind\)/);
   assert.match(shell,/case'serviceSettings':return showServiceSettings\(action\.section,action\.templateFilter\)/);
+  assert.match(shell,/case'mediaExpansion':return showMediaExpansion\(action\.section,action\.view\)/);
   assert.doesNotMatch(shell,/if\(key==='collections'\)return showCollectionsReact/);
 });
 
