@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { readdir } from "node:fs/promises";
 import { basename, dirname, extname } from "node:path";
 import { ProviderResilience } from "./provider-resilience.js";
+import { subtitleProviderDefinition } from "./subtitle-provider-catalog.js";
 
 const text = (value, max = 500) =>
   String(value ?? "")
@@ -23,6 +24,10 @@ const publicProvider = (value) => ({
   priority: value.priority,
   capabilities: value.capabilities || [],
   configured: Boolean(value.endpoint),
+  settings: value.settings || {},
+  configuredCredentials: Object.fromEntries(
+    secretFields.map((field) => [field, Boolean(value.configuredCredentials?.[field])]),
+  ),
 });
 const secretFields = ["apiKey", "username", "password"];
 const subtitleExtensions = new Set([".srt", ".ass", ".ssa", ".vtt", ".sub"]);
@@ -102,20 +107,27 @@ export class SubtitleService {
       items: state.items || [],
       jobs: state.jobs || [],
       history: state.history || [],
+      lastLibrarySync: state.lastLibrarySync || null,
       providerHealth: this.resilience.snapshot(),
     };
   }
   async saveProvider(input) {
+    const implementation = text(input.implementation, 60).toLowerCase() || "opensubtitles",
+      definition = subtitleProviderDefinition(implementation);
+    if (!definition) throw new TypeError("Choose a supported subtitle provider");
     const record = {
         id: text(input.id) || `subtitle_provider_${randomUUID()}`,
         name: text(input.name, 80),
-        implementation: text(input.implementation, 60) || "opensubtitles",
-        endpoint: text(input.endpoint, 500),
+        implementation,
+        endpoint: text(input.endpoint, 500) || definition.endpoint,
         enabled: input.enabled !== false,
         priority: Math.max(1, Math.min(100, Number(input.priority) || 25)),
-        capabilities: Array.isArray(input.capabilities)
-          ? input.capabilities.map((value) => text(value, 40))
-          : [],
+        capabilities: definition.capabilities,
+        settings: Object.fromEntries(
+          definition.fields
+            .filter((value) => value.type === "checkbox")
+            .map((value) => [value.key, input[value.key] === true || input[value.key] === "on"]),
+        ),
         updatedAt: now(),
       },
       credentials = Object.fromEntries(
@@ -128,6 +140,13 @@ export class SubtitleService {
       );
     if (!record.name || !record.endpoint)
       throw new TypeError("Provider name and endpoint are required");
+    const state = await this.store.read(),
+      previous = (state.providers || []).find((item) => item.id === record.id),
+      storedCredentials = this.vault && previous ? await this.vault.get(`subtitle:${record.id}`) : {},
+      availableCredentials = { ...storedCredentials, ...credentials };
+    for (const requirement of definition.fields.filter((value) => this.vault && value.required && secretFields.includes(value.key)))
+      if (!availableCredentials?.[requirement.key]) throw new TypeError(`${requirement.label} is required for ${definition.name}`);
+    record.configuredCredentials = Object.fromEntries(secretFields.map((field) => [field, Boolean(availableCredentials?.[field])]));
     await this.store.update((state) => {
       state.providers ||= [];
       const index = state.providers.findIndex((item) => item.id === record.id);
@@ -262,6 +281,27 @@ export class SubtitleService {
       else state.items.push(item);
     });
     return item;
+  }
+  async syncInventory(input) {
+    const records = Array.isArray(input) ? input : Array.isArray(input?.items) ? input.items : [],
+      prune = Array.isArray(input) || input?.prune !== false, items = [];
+    for (const input of records) items.push(await this.reconcile(input));
+    const identities = new Set(items.map((item) => item.id));
+    let removed = 0;
+    await this.store.update((state) => {
+      const before = (state.items || []).length;
+      if (prune) state.items = (state.items || []).filter((item) =>
+        !["movie", "episode"].includes(item.domain) || identities.has(item.id),
+      );
+      removed = before - state.items.length;
+      state.lastLibrarySync = {
+        completedAt: now(),
+        movies: items.filter((item) => item.domain === "movie").length,
+        episodes: items.filter((item) => item.domain === "episode").length,
+        removed,
+      };
+    });
+    return { ...((await this.store.read()).lastLibrarySync), tracked: items.length };
   }
   async status(item) {
     const state = await this.store.read(),

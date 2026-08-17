@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { lazy, useCallback, useEffect, useState, type FormEvent } from "react";
 import type {
   MediaExpansionOptions,
   ProviderSummary,
@@ -102,7 +102,10 @@ type SubtitleSnapshot = {
     score?: number;
     createdAt: string;
   }>;
+  lastLibrarySync: { completedAt: string; movies: number; episodes: number; removed: number } | null;
 };
+const SubtitleProviderForm = lazy(() => import("./subtitle-provider-form"));
+const SubtitleLibrarySync = lazy(() => import("./subtitle-library-sync"));
 const errorMessage = (error: unknown) =>
   error instanceof Error
     ? error.message
@@ -1340,7 +1343,7 @@ function Subtitles({ options, view = "overview" }: { options: MediaExpansionOpti
   if (!data)
     return <div className="panel skeleton">Loading subtitle workspace…</div>;
   const missing = data.items.filter((item) => !item.complete);
-  if(view === "settings")return <><ServiceTabs active="subtitles"/><div className="expansion-summary"><div><strong>{data.items.length}</strong><span>Tracked files</span></div><div><strong>{missing.length}</strong><span>Need subtitles</span></div><div><strong>{data.profiles.length}</strong><span>Profiles</span></div><div><strong>{data.providers.length}</strong><span>Providers</span></div></div><section className="subtitle-settings-layout"><div><section className="panel"><div className="panel-heading"><div><h2>Language profiles</h2><p className="muted">Reusable requirements inherited by movies, series, seasons, and episodes.</p></div><span className="badge">{data.profiles.length}</span></div>{data.profiles.map(profile=><div className="data-row" key={profile.id}><span><strong>{profile.name}</strong><small>{profile.languages.join(", ")}{profile.forced.length?` · forced ${profile.forced.join(", ")}`:""}</small></span></div>)}{!data.profiles.length?<p className="muted">No language profiles configured.</p>:null}</section>{options.administrator?<SubtitleProfileForm options={options} onSave={()=>void load()}/>:null}</div><div><ProviderList title="Subtitle providers" items={data.providers} options={options} endpoint="/api/subtitles/providers" onChange={()=>void load()}/>{options.administrator?<ProviderForm kind="subtitle" options={options} onSave={()=>void load()}/>:null}</div></section><details className="panel subtitle-settings-status"><summary><strong>Coverage and recent activity</strong><span className="muted">{missing.length} missing · {data.jobs.length} jobs</span></summary><div className="subtitle-status-grid"><div><h3>Titles needing attention</h3>{missing.slice(0,8).map(item=><div className="data-row" key={item.id}><span><strong>{item.title||item.id}</strong><small>{item.missingLanguages.join(", ")}</small></span></div>)}{!missing.length?<p className="muted">All tracked titles meet their assigned profiles.</p>:null}</div><div><div className="panel-heading"><h3>Recent jobs</h3>{options.administrator&&data.jobs.some(job=>job.status==='awaiting-search')?<button className="secondary" onClick={()=>void retryPending()}>Retry due</button>:null}</div>{data.jobs.slice(0,8).map(job=><div className="data-row" key={job.id}><span><strong>{job.language.toUpperCase()} · {job.itemId}</strong></span><span className={`badge ${job.status==='completed'?'green':'warm'}`}>{job.status}</span></div>)}{!data.jobs.length?<p className="muted">No subtitle jobs yet.</p>:null}</div></div></details></>;
+  if(view === "settings")return <><ServiceTabs active="subtitles"/><div className="expansion-summary"><div><strong>{data.items.length}</strong><span>Tracked files</span></div><div><strong>{missing.length}</strong><span>Need subtitles</span></div><div><strong>{data.profiles.length}</strong><span>Profiles</span></div><div><strong>{data.providers.length}</strong><span>Providers</span></div></div><section className="subtitle-settings-layout"><div><section className="panel"><div className="panel-heading"><div><h2>Language profiles</h2><p className="muted">Reusable requirements inherited by movies, series, seasons, and episodes.</p></div><span className="badge">{data.profiles.length}</span></div>{data.profiles.map(profile=><div className="data-row" key={profile.id}><span><strong>{profile.name}</strong><small>{profile.languages.join(", ")}{profile.forced.length?` · forced ${profile.forced.join(", ")}`:""}</small></span></div>)}{!data.profiles.length?<p className="muted">No language profiles configured.</p>:null}</section>{options.administrator?<SubtitleProfileForm options={options} onSave={()=>void load()}/>:null}</div><div><ProviderList title="Subtitle providers" items={data.providers} options={options} endpoint="/api/subtitles/providers" onChange={()=>void load()}/>{options.administrator?<SubtitleProviderForm options={options} onSave={()=>void load()}/>:null}</div></section><details className="panel subtitle-settings-status"><summary><strong>Coverage and recent activity</strong><span className="muted">{missing.length} missing · {data.jobs.length} jobs</span></summary><div className="subtitle-status-grid"><div><h3>Titles needing attention</h3>{missing.slice(0,8).map(item=><div className="data-row" key={item.id}><span><strong>{item.title||item.id}</strong><small>{item.missingLanguages.join(", ")}</small></span></div>)}{!missing.length?<p className="muted">All tracked titles meet their assigned profiles.</p>:null}</div><div><div className="panel-heading"><h3>Recent jobs</h3>{options.administrator&&data.jobs.some(job=>job.status==='awaiting-search')?<button className="secondary" onClick={()=>void retryPending()}>Retry due</button>:null}</div>{data.jobs.slice(0,8).map(job=><div className="data-row" key={job.id}><span><strong>{job.language.toUpperCase()} · {job.itemId}</strong></span><span className={`badge ${job.status==='completed'?'green':'warm'}`}>{job.status}</span></div>)}{!data.jobs.length?<p className="muted">No subtitle jobs yet.</p>:null}</div></div></details></>;
   if (view === "overview")
     return (
       <><SubtitleNavigation view={view} />
@@ -1353,13 +1356,13 @@ function Subtitles({ options, view = "overview" }: { options: MediaExpansionOpti
         <section className="subtitle-overview-grid">
           <a className="panel route-card" href="#subtitles/coverage"><span className="eyebrow">LIBRARY</span><h2>Coverage</h2><p>Review every movie and episode, see missing languages, and run targeted searches.</p><strong>Open coverage →</strong></a>
           <a className="panel route-card" href="#subtitles/profiles"><span className="eyebrow">POLICY</span><h2>Language profiles</h2><p>Define required, forced, and hearing-impaired preferences with upgrade targets.</p><strong>{data.profiles.length} configured →</strong></a>
-          <a className="panel route-card" href="#subtitles/providers"><span className="eyebrow">SOURCES</span><h2>Providers</h2><p>Connect OpenSubtitles or local Whisper transcription and test readiness.</p><strong>{data.providers.length} connected →</strong></a>
+          <a className="panel route-card" href="#subtitles/providers"><span className="eyebrow">SOURCES</span><h2>Providers</h2><p>Connect OpenSubtitles.com, SubDL, or local Whisper with source-specific setup.</p><strong>{data.providers.length} connected →</strong></a>
           <a className="panel route-card" href="#subtitles/activity"><span className="eyebrow">OPERATIONS</span><h2>Activity</h2><p>See downloads, retries, upgrades, and recent provider history.</p><strong>Review activity →</strong></a>
         </section>
       </>
     );
   if (view === "providers")
-    return <><SubtitleNavigation view={view} /><section className="focused-settings-layout"><ProviderList title="Subtitle providers" items={data.providers} options={options} endpoint="/api/subtitles/providers" onChange={() => void load()} />{options.administrator && <ProviderForm kind="subtitle" options={options} onSave={() => void load()} />}</section></>;
+    return <><SubtitleNavigation view={view} /><section className="focused-settings-layout"><ProviderList title="Subtitle providers" items={data.providers} options={options} endpoint="/api/subtitles/providers" onChange={() => void load()} />{options.administrator && <SubtitleProviderForm options={options} onSave={() => void load()} />}</section></>;
   if (view === "profiles")
     return <><SubtitleNavigation view={view} /><section className="focused-settings-layout"><section className="panel"><div className="panel-heading"><div><h2>Language profiles</h2><p className="muted">Reusable language requirements applied to movies, series, seasons, or episodes.</p></div><span className="badge">{data.profiles.length}</span></div>{data.profiles.map((profile) => <div className="data-row" key={profile.id}><span><strong>{profile.name}</strong><small>{profile.languages.join(", ")}{profile.forced.length ? ` · forced ${profile.forced.join(", ")}` : ""}</small></span></div>)}{!data.profiles.length && <p className="muted">No language profiles configured.</p>}</section>{options.administrator && <SubtitleProfileForm options={options} onSave={() => void load()} />}</section></>;
   if (view === "activity")
@@ -1389,6 +1392,7 @@ function Subtitles({ options, view = "overview" }: { options: MediaExpansionOpti
         <div>
           <div className="panel-heading">
             <h2>Episode-aware subtitle coverage</h2>
+            {options.administrator && <SubtitleLibrarySync options={options} onSync={load} last={data.lastLibrarySync?.completedAt || null}/>}
             {options.administrator &&
               data.jobs.some((job) => job.status === "awaiting-search") && (
                 <button type="button" onClick={() => void retryPending()}>
@@ -1396,10 +1400,6 @@ function Subtitles({ options, view = "overview" }: { options: MediaExpansionOpti
                 </button>
               )}
           </div>
-          <p className="muted">
-            Policies inherit from series to season to episode, with episode
-            overrides taking priority.
-          </p>
           {data.items.length ? (
             data.items.map((item) => (
               <article className="panel subtitle-item" key={item.id}>

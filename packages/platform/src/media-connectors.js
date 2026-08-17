@@ -375,6 +375,14 @@ export async function testSubtitleProvider(input) {
     await limited(await fetch(url, { signal: timeout(10_000) }), 500_000);
     return { languages: [], capabilities: ["transcribe", "episode", "movie"] };
   }
+  if (input.implementation === "subdl") {
+    const url = endpoint(input.endpoint || "https://api.subdl.com");
+    url.pathname = "/api/v1/subtitles";
+    url.searchParams.set("api_key", input.apiKey || "");
+    url.searchParams.set("film_name", "vynodearr-connection-test");
+    await requestJson(url);
+    return { languages: [], capabilities: ["search", "download", "episode", "movie", "season-pack"] };
+  }
   const token = await openSubtitlesToken(input);
   return {
     languages: [],
@@ -397,6 +405,40 @@ export async function searchSubtitles({ item, languages, providers }) {
           machineGenerated: true,
           reasons: ["generated locally from the media file"],
         });
+      continue;
+    }
+    if (provider.implementation === "subdl") {
+      const url = endpoint(provider.endpoint || "https://api.subdl.com");
+      url.pathname = "/api/v1/subtitles";
+      url.searchParams.set("api_key", provider.apiKey || "");
+      url.searchParams.set("type", item.domain === "episode" ? "tv" : "movie");
+      url.searchParams.set("languages", languages.map((value) => String(value).toUpperCase()).join(","));
+      url.searchParams.set("unpack", "1");
+      if (item.title) url.searchParams.set("film_name", item.title);
+      if (item.domain === "episode") {
+        if (item.seasonNumber != null) url.searchParams.set("season_number", String(item.seasonNumber));
+        if (item.episodeNumber != null) url.searchParams.set("episode_number", String(item.episodeNumber));
+      }
+      const value = await requestJson(url);
+      for (const entry of value.subtitles || []) {
+        const language = String(entry.lang || entry.language || "und").toLowerCase(),
+          files = Array.isArray(entry.unpack_files) && entry.unpack_files.length ? entry.unpack_files : [entry];
+        for (const file of files) {
+          const downloadUrl = file.url || file.download_url || entry.url;
+          if (!downloadUrl) continue;
+          results.push({
+            id: String(file.id || entry.sd_id || entry.id || downloadUrl),
+            providerId: provider.id,
+            provider: provider.name,
+            language,
+            release: file.name || entry.release_name || entry.name || "SubDL release",
+            downloadUrl,
+            hearingImpaired: Boolean(entry.hi || entry.hearing_impaired),
+            score: Number(entry.rating || 0) * 10 + Number(entry.downloads || 0) / 1000,
+            reasons: [file.name || entry.release_name || "title and episode match"],
+          });
+        }
+      }
       continue;
     }
     const token = await openSubtitlesToken(provider),
@@ -468,6 +510,10 @@ export async function downloadSubtitle({ item, provider, result }) {
       }),
       20_000_000,
     );
+  } else if (provider.implementation === "subdl") {
+    const source = new URL(result.downloadUrl, "https://dl.subdl.com");
+    if (source.protocol !== "https:" && source.protocol !== "http:") throw new Error("SubDL returned an unsupported download URL");
+    bytes = await limited(await fetch(source, { signal: timeout(30_000) }), 20_000_000);
   } else {
     const token = await openSubtitlesToken(provider),
       url = endpoint(provider.endpoint || "https://api.opensubtitles.com");

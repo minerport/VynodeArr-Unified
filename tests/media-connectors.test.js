@@ -247,3 +247,27 @@ test("OpenSubtitles search and download preserve episode identity and write besi
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test("SubDL searches by television episode and downloads the selected sidecar", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "vynode-subdl-")), media = join(directory, "Show.S02E03.mkv");
+  await writeFile(media, "video");
+  try {
+    await server((req, res) => {
+      const url = new URL(req.url, "http://local");
+      if (url.pathname === "/api/v1/subtitles") {
+        assert.equal(url.searchParams.get("type"), "tv");
+        assert.equal(url.searchParams.get("season_number"), "2");
+        assert.equal(url.searchParams.get("episode_number"), "3");
+        return res.end(JSON.stringify({ subtitles: [{ id: 7, lang: "EN", url: `http://127.0.0.1:${res.socket.localPort}/subtitle`, release_name: "WEB" }] }));
+      }
+      if (url.pathname === "/subtitle") return res.end("1\n00:00:00,000 --> 00:00:01,000\nHello\n");
+      res.statusCode = 404; res.end();
+    }, async (endpoint) => {
+      const provider = { id: "subdl", name: "SubDL", implementation: "subdl", endpoint, apiKey: "key" }, item = { id: "episode_3", domain: "episode", title: "Show", seasonNumber: 2, episodeNumber: 3, filePath: media };
+      const results = await searchSubtitles({ item, languages: ["en"], providers: [provider] });
+      assert.equal(results[0].language, "en");
+      const saved = await downloadSubtitle({ item, provider, result: results[0] });
+      assert.match(await readFile(saved.path, "utf8"), /Hello/);
+    });
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});

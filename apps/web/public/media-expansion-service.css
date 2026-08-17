@@ -48,6 +48,29 @@
   cursor: pointer;
 }
 .subtitle-settings-status[open] summary { margin-bottom: 18px; }
+.subtitle-provider-choices {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.subtitle-provider-choices button {
+  display: grid;
+  gap: 5px;
+  min-height: 105px;
+  text-align: left;
+  align-content: start;
+}
+.subtitle-provider-choices button small { color: var(--muted); line-height: 1.35; }
+.subtitle-provider-choices button.selected { border-color: var(--accent); background: var(--accent-soft); }
+.provider-definition {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--panel-strong);
+}
 .service-media-expansion .hero { margin-bottom: 18px; }
 @media (max-width: 900px) {
   .music-specific-settings,
@@ -60,4 +83,5 @@
 }
 @media (max-width: 560px) {
   .music-settings-launcher { grid-template-columns: 1fr; }
+  .subtitle-provider-choices { grid-template-columns: 1fr; }
 }

@@ -50,6 +50,7 @@ import { createLogger } from "../../../packages/platform/src/logger.js";
 import { MusicService } from "../../../packages/platform/src/music-service.js";
 import { MusicImportService } from "../../../packages/platform/src/music-import-service.js";
 import { SubtitleService } from "../../../packages/platform/src/subtitle-service.js";
+import { publicSubtitleProviderCatalog } from "../../../packages/platform/src/subtitle-provider-catalog.js";
 import { downloadSubtitle, grabMusicRelease, pollMusicDownloads, searchNewznab, searchSubtitles, testMusicProvider, testSubtitleProvider } from "../../../packages/platform/src/media-connectors.js";
 import { enrichMusicArtist, loadMusicBrainzArtist, loadMusicBrainzReleaseGroup, searchMusicArtists, testMusicMetadataProvider } from "../../../packages/platform/src/music-metadata-connectors.js";
 import { MovieEngineAdapter } from "../../../packages/movie-domain/src/engine-adapter.js";
@@ -8756,6 +8757,41 @@ export function createApplication(options = {}) {
           const snapshot=await subtitles.snapshot();
           snapshot.items=await Promise.all(snapshot.items.map(item=>subtitles.status(item)));
           return json(res, 200, snapshot);
+        }
+        if (url.pathname === "/api/subtitles/provider-catalog" && req.method === "GET") {
+          if (!administrator(res, session)) return;
+          return json(res, 200, { providers: publicSubtitleProviderCatalog() });
+        }
+        if (url.pathname === "/api/subtitles/libraries/sync" && req.method === "POST") {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          const inventory = [], failures = [], configured = engineSettings.public().instances.filter((item) => item.enabled !== false && ["movie", "tv"].includes(item.domain));
+          for (const domain of ["movie", "tv"]) {
+            const domainInstances = configured.filter((item) => item.domain === domain),
+              sources = domainInstances.length ? domainInstances : [{ id: null, name: domain === "movie" ? "Movies" : "Television" }],
+              qualify = (instance, id) => sources.length > 1 ? `${instance.id}:${id}` : String(id);
+            for (const instance of sources) try {
+              const raw = await management.execute(domain, "library", "GET", { engineInstanceId: instance.id }),
+                records = Array.isArray(raw) ? raw : raw?.records || [];
+              if (domain === "movie") {
+                for (const movie of records) {
+                  const path = movie.movieFile?.path || (movie.path && movie.movieFile?.relativePath ? joinMediaPath(movie.path, movie.movieFile.relativePath) : null);
+                  if (!path) continue;
+                  inventory.push({ domain: "movie", mediaId: qualify(instance, movie.id), title: movie.title || "Untitled movie", filePath: await vynodeAccessiblePath("movie", path, instance.id), embedded: (movie.movieFile?.languages || []).map((value) => value.name || value) });
+                }
+              } else {
+                for (const series of records) {
+                  const episodes = await management.execute("tv", "episodes", "GET", { engineInstanceId: instance.id, query: { seriesId: Number(series.id), includeEpisodeFile: true } });
+                  for (const episode of Array.isArray(episodes) ? episodes : []) {
+                    const file = episode.episodeFile, path = file?.path || (series.path && file?.relativePath ? joinMediaPath(series.path, file.relativePath) : null);
+                    if (!path || episode.hasFile === false) continue;
+                    inventory.push({ domain: "episode", mediaId: qualify(instance, episode.id), seriesId: qualify(instance, series.id), seasonNumber: episode.seasonNumber, episodeNumber: episode.episodeNumber, title: `${series.title || "Untitled series"} — ${episode.title || `Episode ${episode.episodeNumber || ""}`}`, filePath: await vynodeAccessiblePath("tv", path, instance.id), embedded: (file?.languages || []).map((value) => value.name || value) });
+                  }
+                }
+              }
+            } catch (error) { failures.push(`${instance.name}: ${error?.message || "library review failed"}`); }
+          }
+          const result = await subtitles.syncInventory({ items: inventory, prune: failures.length === 0 });
+          return json(res, 200, { ...result, failures });
         }
         if (url.pathname === "/api/subtitles/providers" && req.method === "POST") {
           if (!administrator(res, session) || !requireCsrf(req, res, session)) return;

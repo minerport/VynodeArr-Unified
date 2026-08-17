@@ -515,6 +515,16 @@ test("automatic subtitle retries back off after an unsuccessful search", async (
   }
 });
 
+test("subtitle library review reconciles movie and episode inventory and safely controls pruning", async () => {
+  const value = await fixture("subtitle-sync", { providers: [], profiles: [], assignments: [], items: [{ id: "movie_stale", domain: "movie", mediaId: "stale" }], jobs: [], history: [] }, (store) => new SubtitleService({ store }));
+  try {
+    let result = await value.service.syncInventory({ items: [{ domain: "movie", mediaId: "1", title: "Movie" }, { domain: "episode", mediaId: "2", seriesId: "show", seasonNumber: 1, episodeNumber: 2, title: "Show" }], prune: false });
+    assert.equal(result.movies, 1); assert.equal(result.episodes, 1); assert.equal((await value.service.snapshot()).items.length, 3);
+    result = await value.service.syncInventory([{ domain: "movie", mediaId: "1", title: "Movie" }]);
+    assert.equal(result.removed, 2); assert.deepEqual((await value.service.snapshot()).items.map((item) => item.id), ["movie_1"]);
+  } finally { await rm(value.directory, { recursive: true, force: true }); }
+});
+
 test("subtitle profiles upgrade managed files by score and hearing-impaired preference", async () => {
   const value = await fixture(
     "subtitle-upgrade",
