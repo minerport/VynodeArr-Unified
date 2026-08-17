@@ -896,6 +896,23 @@ test('route dispatch resolves typed React destinations without changing page han
   assert.doesNotMatch(shell,/if\(key==='collections'\)return showCollectionsReact/);
 });
 
+test('music service settings mirror the movie and television workspace structure',async()=>{
+  const [view,routing,styles]=await Promise.all([
+    read('apps/web/client/src/media-expansion.tsx'),
+    read('apps/web/client/src/service-settings-routing.ts'),
+    read('apps/web/public/media-expansion-service.css')
+  ]);
+  for(const destination of ['root-folders','profiles','indexers','download-clients']){
+    assert.match(view,new RegExp(`#service/${destination}/music`));
+  }
+  assert.match(view,/storage-config-grid/);
+  assert.match(view,/INCOMING MEDIA/);
+  assert.match(view,/ORGANIZED MEDIA/);
+  assert.match(view,/music-provider-settings provider-settings-layout/);
+  assert.match(routing,/templateFilter==='music'/);
+  assert.match(styles,/\.music-settings-launcher/);
+});
+
 test('navigation events and route preloading have typed lifecycle ownership',async()=>{
   const [lifecycle,shell]=await Promise.all([
     read('apps/web/client/src/navigation-lifecycle.ts'),

@@ -631,31 +631,17 @@ function MusicImport({
   if (!settings)
     return <div className="panel skeleton">Loading import settings…</div>;
   return (
-    <section className="panel expansion-provider-form">
-      <h3>Completed music import</h3>
-      <form onSubmit={saveSettings}>
-        <div className="form-grid">
-          <label>
-            Completed downloads
-            <input
-              name="downloadPath"
-              required
-              defaultValue={settings.downloadPath}
-              placeholder="/downloads/music"
-            />
-          </label>
-          <label>
-            Music library root
-            <input
-              name="libraryRoot"
-              required
-              defaultValue={settings.libraryRoot}
-              placeholder="/music"
-            />
-          </label>
-        </div>
-        <button disabled={busy}>Save folders</button>
+    <div className="music-storage-settings">
+      <section className="storage-engine-bar"><div><span className="eyebrow">CONFIGURING</span><strong>Music storage</strong></div><label>Library<select value="music" disabled><option value="music">Music</option></select></label></section>
+      {settings.downloadPath&&settings.libraryRoot&&settings.downloadPath===settings.libraryRoot?<div className="notice storage-warning"><strong>Download and library paths match</strong><p>Use separate folders so completed downloads remain isolated until VynodeArr validates, renames, and imports them.</p></div>:null}
+      <form className="storage-config-grid" onSubmit={saveSettings}>
+        <section className="panel storage-folder-card"><div className="storage-card-heading"><span className="storage-card-icon">↓</span><div><span className="eyebrow">INCOMING MEDIA</span><h2>Download folder</h2><p>The completed-download staging folder used before music is imported.</p></div><span className={`badge ${settings.downloadPath?"green":"warm"}`}>{settings.downloadPath?"Configured":"Required"}</span></div><div className="storage-path-control"><label>Current folder<input name="downloadPath" required defaultValue={settings.downloadPath} placeholder="/downloads/music"/></label></div></section>
+        <section className="panel storage-folder-card"><div className="storage-card-heading"><span className="storage-card-icon">▰</span><div><span className="eyebrow">ORGANIZED MEDIA</span><h2>Root folder</h2><p>The permanent destination for organized artists, albums, and tracks.</p></div><span className={`badge ${settings.libraryRoot?"green":"warm"}`}>{settings.libraryRoot?"1 configured":"Required"}</span></div><div className="storage-path-control"><label>Music library root<input name="libraryRoot" required defaultValue={settings.libraryRoot} placeholder="/music"/></label></div></section>
+        <input name="naming" type="hidden" value={settings.naming}/>
+        <div className="storage-save-row"><p className="muted">Paths must be visible inside the VynodeArr container and must not overlap.</p><button className="primary" disabled={busy}>{busy?"Saving…":"Save music folders"}</button></div>
       </form>
+      <section className="panel expansion-provider-form music-import-review-card">
+      <div className="panel-heading"><div><span className="eyebrow">MANUAL IMPORT</span><h2>Completed music import</h2><p className="muted">Review a completed release against its album and quality profile before copying files into the library.</p></div></div>
       <form onSubmit={analyze}>
         <div className="form-grid">
           <label>
@@ -732,7 +718,8 @@ function MusicImport({
           </button>
         </div>
       )}
-    </section>
+      </section>
+    </div>
   );
 }
 
@@ -1044,7 +1031,7 @@ function SubtitleActions({
 }
 
 function ServiceLibraryScope({ section }: { section: "root-folders" | "profiles" | "indexers" | "download-clients" }) {
-  return <div className="management-toolbar expansion-library-scope"><label>Library<select value="music" onChange={event=>{if(event.target.value!=="music")window.location.hash=`service/${section}`;}}><option value="movie">Movies & Television</option><option value="music">Music</option></select></label><span className="muted">Music uses VynodeArr-native providers and profiles.</span></div>;
+  return <div className="management-toolbar expansion-library-scope"><label>Library<select value="music" onChange={event=>{if(event.target.value==="music")return;window.location.hash=`service/${section}`;}}><option value="movie">Movies</option><option value="tv">Television</option><option value="music">Music</option></select></label><span className="muted">Music uses VynodeArr-native storage, providers, and profiles.</span></div>;
 }
 
 function MusicSettingsChrome({ options }: { options: MediaExpansionOptions }) {
@@ -1156,9 +1143,9 @@ function Music({ options, view = "library" }: { options: MediaExpansionOptions; 
       ) : view === "settings/profiles" ? (
         <MusicQualityProfiles data={data} options={options} onSave={() => void load()} />
       ) : view === "settings/indexers" ? (
-        <><ProviderList title="Music indexers" items={data.indexers} options={options} endpoint="/api/music/indexers" onChange={() => void load()} />{options.administrator && <ProviderForm kind="music-indexer" options={options} onSave={() => void load()} />}</>
+        <MusicProviderSettings kind="music-indexer" title="Indexers" items={data.indexers} endpoint="/api/music/indexers" options={options} onSave={() => void load()}/>
       ) : view === "settings/download-clients" ? (
-        <><ProviderList title="Music download clients" items={data.downloadClients} options={options} endpoint="/api/music/download-clients" onChange={() => void load()} />{options.administrator && <ProviderForm kind="music-client" options={options} onSave={() => void load()} />}</>
+        <MusicProviderSettings kind="music-client" title="Download Clients" items={data.downloadClients} endpoint="/api/music/download-clients" options={options} onSave={() => void load()}/>
       ) : view === "settings/metadata" ? (
         <><ProviderList title="Music metadata" items={data.metadataProviders} options={options} endpoint="/api/music/metadata-providers" onChange={() => void load()} />{options.administrator && <ProviderForm kind="music-metadata" options={options} onSave={() => void load()} />}</>
       ) : view === "settings/automation" ? (
@@ -1174,7 +1161,7 @@ function Music({ options, view = "library" }: { options: MediaExpansionOptions; 
           <div className="form-actions"><button className="primary">Save automation</button></div>
         </form>
       ) : view === "settings/specific" ? (
-        <div className="music-specific-settings"><section><ProviderList title="Music metadata" items={data.metadataProviders} options={options} endpoint="/api/music/metadata-providers" onChange={() => void load()} />{options.administrator && <ProviderForm kind="music-metadata" options={options} onSave={() => void load()} />}</section><form className="panel expansion-provider-form" onSubmit={saveAutomation}><div className="panel-heading"><div><h2>Music automation</h2><p className="muted">Bound background searches and avoid duplicate grabs.</p></div><span className={`badge ${data.automation.enabled ? "green" : "warm"}`}>{data.automation.enabled ? "Active" : "Paused"}</span></div><div className="form-grid"><label className="check"><input name="enabled" type="checkbox" defaultChecked={data.automation.enabled} /> Enable music automation</label><label>Albums per pass<input name="musicBatch" type="number" min="1" max="25" defaultValue={data.automation.musicBatch} /></label><label>Minimum release score<input name="musicMinScore" type="number" min="0" defaultValue={data.automation.musicMinScore} /></label><label>Duplicate cooldown hours<input name="musicCooldownHours" type="number" min="1" max="720" defaultValue={data.automation.musicCooldownHours} /></label><input name="subtitleBatch" type="hidden" value={data.automation.subtitleBatch}/></div><div className="form-actions"><button className="primary">Save music setup</button></div></form></div>
+        <><section className="music-settings-launcher"><a className="panel route-card" href="#service/root-folders/music"><span className="eyebrow">STORAGE</span><h2>Root Folders</h2><p>Set the permanent music library and completed-download staging folders.</p><strong>Configure folders →</strong></a><a className="panel route-card" href="#service/indexers/music"><span className="eyebrow">SEARCH</span><h2>Indexers</h2><p>Connect Torznab, Prowlarr, or Newznab sources used for music releases.</p><strong>Configure indexers →</strong></a><a className="panel route-card" href="#service/download-clients/music"><span className="eyebrow">DOWNLOADS</span><h2>Download Clients</h2><p>Connect qBittorrent, SABnzbd, or NZBGet and assign the music category.</p><strong>Configure clients →</strong></a><a className="panel route-card" href="#service/profiles/music"><span className="eyebrow">QUALITY</span><h2>Quality Profiles</h2><p>Control codecs, bitrate, sample rate, and lossless preferences.</p><strong>Configure profiles →</strong></a></section><div className="music-specific-settings"><section><ProviderList title="Music metadata" items={data.metadataProviders} options={options} endpoint="/api/music/metadata-providers" onChange={() => void load()} />{options.administrator && <ProviderForm kind="music-metadata" options={options} onSave={() => void load()} />}</section><form className="panel expansion-provider-form" onSubmit={saveAutomation}><div className="panel-heading"><div><h2>Music automation</h2><p className="muted">Bound background searches and avoid duplicate grabs.</p></div><span className={`badge ${data.automation.enabled ? "green" : "warm"}`}>{data.automation.enabled ? "Active" : "Paused"}</span></div><div className="form-grid"><label className="check"><input name="enabled" type="checkbox" defaultChecked={data.automation.enabled} /> Enable music automation</label><label>Albums per pass<input name="musicBatch" type="number" min="1" max="25" defaultValue={data.automation.musicBatch} /></label><label>Minimum release score<input name="musicMinScore" type="number" min="0" defaultValue={data.automation.musicMinScore} /></label><label>Duplicate cooldown hours<input name="musicCooldownHours" type="number" min="1" max="720" defaultValue={data.automation.musicCooldownHours} /></label><input name="subtitleBatch" type="hidden" value={data.automation.subtitleBatch}/></div><div className="form-actions"><button className="primary">Save music setup</button></div></form></div></>
       ) : <div className="panel empty"><h2>Music settings page not found</h2><a href="#service/music">Return to Music Setup</a></div>;
     return <><MusicSettingsChrome options={options} /><section className="focused-settings-layout">{content}</section></>;
   }
@@ -1312,6 +1299,13 @@ function SubtitleNavigation({ view }: { view: string }) {
       ))}
     </nav>
   );
+}
+
+function MusicProviderSettings({kind,title,items,endpoint,options,onSave}:{kind:"music-indexer"|"music-client";title:string;items:ProviderSummary[];endpoint:string;options:MediaExpansionOptions;onSave:()=>void}) {
+  return <div className="music-provider-settings provider-settings-layout">
+    <ProviderList title={`Configured ${title.toLowerCase()}`} items={items} options={options} endpoint={endpoint} onChange={onSave}/>
+    {options.administrator?<ProviderForm kind={kind} options={options} onSave={onSave}/>:<section className="panel provider-editor empty"><h2>Administrator access required</h2><p>Only administrators can add or change music connections.</p></section>}
+  </div>;
 }
 
 function Subtitles({ options, view = "overview" }: { options: MediaExpansionOptions; view?: string }) {

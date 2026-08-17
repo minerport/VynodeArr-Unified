@@ -166,7 +166,7 @@ const exactOverlayAssignmentReviewAllowance={route:400,css:3_400};
 // download-client, metadata, and automation routes. Subtitles similarly splits
 // overview, coverage, profiles, providers, and activity into one lazy workspace.
 // Keep that deliberate navigation and clarity cost isolated to this route.
-const mediaExpansionWorkspaceAllowance={route:14_000};
+const mediaExpansionWorkspaceAllowance={route:21_000};
 const failures=[];
 
 if(!entry)failures.push('The React entry bundle was not produced.');
