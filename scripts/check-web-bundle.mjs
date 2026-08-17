@@ -167,9 +167,10 @@ const exactOverlayAssignmentReviewAllowance={route:400,css:3_400};
 // overview, coverage, profiles, providers, and activity into one lazy workspace.
 // Keep that deliberate navigation and clarity cost isolated to this route.
 const mediaExpansionWorkspaceAllowance={route:21_000};
-// Storage keeps Movies, Television, and Music in one library selector and
-// restores the selected engine-backed domain when returning from Music.
-const musicLibrarySelectorAllowance={rootFoldersRoute:400};
+// Storage keeps Movies, Television, and Music in one library selector, restores
+// the selected engine-backed domain, and can assign visible or nested folders
+// directly as the validated Music library root.
+const musicLibrarySelectorAllowance={rootFoldersRoute:1_000};
 const failures=[];
 
 if(!entry)failures.push('The React entry bundle was not produced.');

@@ -6,7 +6,7 @@ interface Props {
   busy: string;
   parentPath: string;
   options: RootFoldersMountOptions;
-  onRegister: (path: string, domain: StorageDomain) => Promise<void>;
+  onRegister: (path: string, domain: StorageDomain | "music") => Promise<void>;
 }
 
 function FolderLevel({ busy, parentPath, options, onRegister }: Props) {
@@ -22,9 +22,9 @@ function FolderLevel({ busy, parentPath, options, onRegister }: Props) {
   if (error) return <div className="empty compact error-state"><p>{error}</p></div>;
   if (!folders.length) return <div className="empty compact"><p>No subfolders were found inside {parentPath}.</p></div>;
   return <div className="media-folder-children">{folders.map((item) => {
-    const assigned = item.registeredMovie ? "Movies" : item.registeredTv ? "Television" : null, open = expanded === item.path;
+    const assigned = item.registeredMovie ? "Movies" : item.registeredTv ? "Television" : item.registeredMusic ? "Music" : null, open = expanded === item.path;
     return <div className="media-folder-tree-node" key={item.path}>
-      <article className="storage-path-row"><span className={`storage-path-state ${assigned ? "available" : "pending"}`} /><div className="storage-path-copy"><strong>{item.label}</strong><small>{item.path}</small><small>{assigned ? `Assigned to ${assigned}.` : "Choose this folder, or open it to browse one level deeper."}</small></div><div className="storage-path-actions"><button className="secondary" disabled={Boolean(busy)} onClick={() => setExpanded(open ? "" : item.path)}>{open ? "Hide subfolders" : "Show subfolders"}</button>{!assigned ? <div className="button-row"><button className="secondary" disabled={Boolean(busy)} onClick={() => void onRegister(item.path, "movie")}>Use for Movies</button><button className="secondary" disabled={Boolean(busy)} onClick={() => void onRegister(item.path, "tv")}>Use for Television</button></div> : null}</div></article>
+      <article className="storage-path-row"><span className={`storage-path-state ${assigned ? "available" : "pending"}`} /><div className="storage-path-copy"><strong>{item.label}</strong><small>{item.path}</small><small>{assigned ? `Assigned to ${assigned}.` : "Choose this folder, or open it to browse one level deeper."}</small></div><div className="storage-path-actions"><button className="secondary" disabled={Boolean(busy)} onClick={() => setExpanded(open ? "" : item.path)}>{open ? "Hide subfolders" : "Show subfolders"}</button>{!assigned ? <div className="button-row"><button className="secondary" disabled={Boolean(busy)} onClick={() => void onRegister(item.path, "movie")}>Use for Movies</button><button className="secondary" disabled={Boolean(busy)} onClick={() => void onRegister(item.path, "tv")}>Use for Television</button><button className="secondary" disabled={Boolean(busy)} onClick={() => void onRegister(item.path, "music")}>Use for Music</button></div> : null}</div></article>
       {open ? <FolderLevel busy={busy} parentPath={item.path} options={options} onRegister={onRegister} /> : null}
     </div>;
   })}</div>;

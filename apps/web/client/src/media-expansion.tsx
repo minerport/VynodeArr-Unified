@@ -4,6 +4,7 @@ import type {
   ProviderSummary,
 } from "./media-expansion-types";
 import { ServiceTabs, type ServiceSection } from "./service-tabs";
+import MusicStorageFolders from "./music-storage-folders";
 
 type MusicSnapshot = {
   artists: Array<{
@@ -567,27 +568,6 @@ function MusicImport({
         }),
       );
   }, [options]);
-  async function saveSettings(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setBusy(true);
-    try {
-      const input = values(event.currentTarget),
-        value = await options.request<{
-          downloadPath: string;
-          libraryRoot: string;
-          naming: string;
-        }>("/api/music/import/settings", {
-          method: "PUT",
-          body: JSON.stringify(input),
-        });
-      setSettings(value);
-      options.notify("Music import folders saved.");
-    } catch (error) {
-      options.notify(errorMessage(error), "error");
-    } finally {
-      setBusy(false);
-    }
-  }
   async function analyze(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
@@ -635,14 +615,7 @@ function MusicImport({
     return <div className="panel skeleton">Loading import settings…</div>;
   return (
     <div className="music-storage-settings">
-      <section className="storage-engine-bar"><div><span className="eyebrow">CONFIGURING</span><strong>Music storage</strong></div><label>Media library<select value="music" onChange={event=>{if(event.target.value!=="music")window.location.hash=`service/root-folders/${event.target.value}`;}}><option value="movie">Movies</option><option value="tv">Television</option><option value="music">Music</option></select></label></section>
-      {settings.downloadPath&&settings.libraryRoot&&settings.downloadPath===settings.libraryRoot?<div className="notice storage-warning"><strong>Download and library paths match</strong><p>Use separate folders so completed downloads remain isolated until VynodeArr validates, renames, and imports them.</p></div>:null}
-      <form className="storage-config-grid" onSubmit={saveSettings}>
-        <section className="panel storage-folder-card"><div className="storage-card-heading"><span className="storage-card-icon">↓</span><div><span className="eyebrow">INCOMING MEDIA</span><h2>Download folder</h2><p>The completed-download staging folder used before music is imported.</p></div><span className={`badge ${settings.downloadPath?"green":"warm"}`}>{settings.downloadPath?"Configured":"Required"}</span></div><div className="storage-path-control"><label>Current folder<input name="downloadPath" required defaultValue={settings.downloadPath} placeholder="/downloads/music"/></label></div></section>
-        <section className="panel storage-folder-card"><div className="storage-card-heading"><span className="storage-card-icon">▰</span><div><span className="eyebrow">ORGANIZED MEDIA</span><h2>Root folder</h2><p>The permanent destination for organized artists, albums, and tracks.</p></div><span className={`badge ${settings.libraryRoot?"green":"warm"}`}>{settings.libraryRoot?"1 configured":"Required"}</span></div><div className="storage-path-control"><label>Music library root<input name="libraryRoot" required defaultValue={settings.libraryRoot} placeholder="/music"/></label></div></section>
-        <input name="naming" type="hidden" value={settings.naming}/>
-        <div className="storage-save-row"><p className="muted">Paths must be visible inside the VynodeArr container and must not overlap.</p><button className="primary" disabled={busy}>{busy?"Saving…":"Save music folders"}</button></div>
-      </form>
+      <MusicStorageFolders embedded options={options}/>
       <section className="panel expansion-provider-form music-import-review-card">
       <div className="panel-heading"><div><span className="eyebrow">MANUAL IMPORT</span><h2>Completed music import</h2><p className="muted">Review a completed release against its album and quality profile before copying files into the library.</p></div></div>
       <form onSubmit={analyze}>

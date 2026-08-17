@@ -577,6 +577,9 @@ test('storage folders and import review use a typed React route and analysis bou
   assert.match(folderChildren,/library-folder-children/);
   assert.match(folderChildren,/Use for Movies/);
   assert.match(folderChildren,/Use for Television/);
+  assert.match(folderChildren,/Use for Music/);
+  assert.match(view,/targetDomain==="music"/);
+  assert.match(view,/Use for Music/);
   assert.match(view,/setScanRoot\(root\)/);
   assert.match(view,/LibraryImportReview/);
   assert.match(view,/ModalPortal/);
@@ -897,17 +900,19 @@ test('route dispatch resolves typed React destinations without changing page han
 });
 
 test('music service settings mirror the movie and television workspace structure',async()=>{
-  const [view,routing,styles]=await Promise.all([
+  const [view,storage,routing,styles]=await Promise.all([
     read('apps/web/client/src/media-expansion.tsx'),
+    read('apps/web/client/src/music-storage-folders.tsx'),
     read('apps/web/client/src/service-settings-routing.ts'),
     read('apps/web/public/media-expansion-service.css')
   ]);
   for(const destination of ['root-folders','profiles','indexers','download-clients']){
     assert.match(view,new RegExp(`#service/${destination}/music`));
   }
-  assert.match(view,/storage-config-grid/);
-  assert.match(view,/INCOMING MEDIA/);
-  assert.match(view,/ORGANIZED MEDIA/);
+  assert.match(view,/<MusicStorageFolders embedded/);
+  assert.match(storage,/storage-config-grid/);
+  assert.match(storage,/INCOMING MEDIA/);
+  assert.match(storage,/ORGANIZED MEDIA/);
   assert.match(view,/music-provider-settings provider-settings-layout/);
   assert.match(routing,/templateFilter==='music'/);
   assert.match(styles,/\.music-settings-launcher/);
@@ -1213,6 +1218,10 @@ test('Music storage uses the shared folder route and engine-style folder access'
   assert.match(routing,/section==='root-folders'\)return\{name:'rootFolders',initialDomain:'music'/);
   assert.match(islands,/options\.initialDomain==='music'/);
   for(const value of ['storage-config-grid','storage-root-list','root-folder-browser','Show subfolders','Use for Music'])assert.ok(view.includes(value),value);
+  assert.match(view,/embedded=false/);
+  const expansion=await read('apps/web/client/src/media-expansion.tsx');
+  assert.match(expansion,/<MusicStorageFolders embedded options=\{options\}\/\>/);
+  assert.doesNotMatch(expansion,/Save music folders/);
   for(const value of ['/api/music/storage/filesystem','downloadAccessible','libraryAccessible','registeredMusic'])assert.ok(server.includes(value),value);
 });
 
