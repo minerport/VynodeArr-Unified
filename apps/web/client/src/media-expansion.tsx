@@ -632,7 +632,7 @@ function MusicImport({
     return <div className="panel skeleton">Loading import settings…</div>;
   return (
     <div className="music-storage-settings">
-      <section className="storage-engine-bar"><div><span className="eyebrow">CONFIGURING</span><strong>Music storage</strong></div><label>Library<select value="music" disabled><option value="music">Music</option></select></label></section>
+      <section className="storage-engine-bar"><div><span className="eyebrow">CONFIGURING</span><strong>Music storage</strong></div><label>Media library<select value="music" onChange={event=>{if(event.target.value!=="music")window.location.hash=`service/root-folders/${event.target.value}`;}}><option value="movie">Movies</option><option value="tv">Television</option><option value="music">Music</option></select></label></section>
       {settings.downloadPath&&settings.libraryRoot&&settings.downloadPath===settings.libraryRoot?<div className="notice storage-warning"><strong>Download and library paths match</strong><p>Use separate folders so completed downloads remain isolated until VynodeArr validates, renames, and imports them.</p></div>:null}
       <form className="storage-config-grid" onSubmit={saveSettings}>
         <section className="panel storage-folder-card"><div className="storage-card-heading"><span className="storage-card-icon">↓</span><div><span className="eyebrow">INCOMING MEDIA</span><h2>Download folder</h2><p>The completed-download staging folder used before music is imported.</p></div><span className={`badge ${settings.downloadPath?"green":"warm"}`}>{settings.downloadPath?"Configured":"Required"}</span></div><div className="storage-path-control"><label>Current folder<input name="downloadPath" required defaultValue={settings.downloadPath} placeholder="/downloads/music"/></label></div></section>
@@ -1031,12 +1031,12 @@ function SubtitleActions({
 }
 
 function ServiceLibraryScope({ section }: { section: "root-folders" | "profiles" | "indexers" | "download-clients" }) {
-  return <div className="management-toolbar expansion-library-scope"><label>Library<select value="music" onChange={event=>{if(event.target.value==="music")return;window.location.hash=`service/${section}`;}}><option value="movie">Movies</option><option value="tv">Television</option><option value="music">Music</option></select></label><span className="muted">Music uses VynodeArr-native storage, providers, and profiles.</span></div>;
+  return <div className="management-toolbar expansion-library-scope"><label>Library<select value="music" onChange={event=>{if(event.target.value==="music")return;window.location.hash=`service/${section}/${event.target.value}`;}}><option value="movie">Movies</option><option value="tv">Television</option><option value="music">Music</option></select></label><span className="muted">Music uses VynodeArr-native storage, providers, and profiles.</span></div>;
 }
 
 function MusicSettingsChrome({ options }: { options: MediaExpansionOptions }) {
   const section=(options.serviceSection||"music") as ServiceSection;
-  return <><ServiceTabs active={section}/>{["root-folders","profiles","indexers","download-clients"].includes(section)?<ServiceLibraryScope section={section as "root-folders" | "profiles" | "indexers" | "download-clients"}/>:null}</>;
+  return <><ServiceTabs active={section}/>{["profiles","indexers","download-clients"].includes(section)?<ServiceLibraryScope section={section as "profiles" | "indexers" | "download-clients"}/>:null}</>;
 }
 
 function Music({ options, view = "library" }: { options: MediaExpansionOptions; view?: string }) {
@@ -1458,7 +1458,7 @@ export function MediaExpansionView({
 }) {
   const section = options.initialSection,
     view = options.initialView || (section === "music" ? "library" : "overview"),
-    serviceTitles:Record<string,string>={"root-folders":"Root Folders",profiles:"Quality Profiles",indexers:"Indexers","download-clients":"Download Clients",music:"Music Setup",subtitles:"Subtitles"},
+    serviceTitles:Record<string,string>={"root-folders":"Storage Folders",profiles:"Quality Profiles",indexers:"Indexers","download-clients":"Download Clients",music:"Music Setup",subtitles:"Subtitles"},
     title = options.serviceSection?serviceTitles[options.serviceSection]||"Service Settings":section === "music"?"Music":"Subtitles";
   return (
     <div className={`media-expansion${options.serviceSection?" service-media-expansion":""}`}>

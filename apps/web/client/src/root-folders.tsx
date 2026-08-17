@@ -31,7 +31,7 @@ function ExternalStorageRow({ mapping, busy, onSave }: { mapping: EngineStorageM
   </article>;
 }
 export function RootFoldersView({ options }: { options: RootFoldersMountOptions }) {
-  const [domain, setDomain] = useState<StorageDomain>("movie"),
+  const [domain, setDomain] = useState<StorageDomain>(options.initialDomain || "movie"),
     [roots, setRoots] = useState<RootFolder[]>([]),
     [downloads, setDownloads] = useState<DownloadFolders>({}),
     [destinations, setDestinations] = useState<MediaDestination[]>([]),
@@ -344,9 +344,10 @@ export function RootFoldersView({ options }: { options: RootFoldersMountOptions 
         </div>
         <label>
           Media engine
-          <select value={domain} onChange={(event) => setDomain(event.target.value as StorageDomain)}>
+          <select value={domain} onChange={(event) => { if (event.target.value === "music") window.location.hash = "service/root-folders/music"; else setDomain(event.target.value as StorageDomain); }}>
             <option value="movie">Movies</option>
             <option value="tv">Television</option>
+            <option value="music">Music</option>
           </select>
         </label>
       </section>

@@ -14,6 +14,7 @@ export interface PathMigrationItem{id:number;title:string;oldPath:string;newPath
 export interface PathMigrationMatch{sourceRoot:string;targetRoot:string;affected:PathMigrationItem[];affectedCollections?:PathMigrationItem[]}
 export interface PathMigrationPreview{domain:StorageDomain;targetRoot:string;equivalent:boolean;matches:PathMigrationMatch[];match:PathMigrationMatch|null}
 export interface RootFoldersMountOptions{
+  initialDomain?:StorageDomain;
   request:<T=unknown>(path:string,options?:RequestInit)=>Promise<T>;
   notify:(message:string,tone?:string)=>void;
   startImport:(domain:StorageDomain,items:Array<{title:string;payload:Record<string,unknown>}>,engineInstanceId?:string|null)=>Promise<void>;

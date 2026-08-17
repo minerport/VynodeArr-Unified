@@ -1198,7 +1198,7 @@ test('Service Settings page selection has typed ownership',async()=>{
   assert.match(shell,/const action=resolveServiceSettingsAction\(section,templateFilter\)/);
   assert.match(shell,/case'guideTemplates':return showGuideTemplatesReact\(action\.templateFilter\)/);
   assert.match(shell,/case'selectionRules':return showSelectionRulesReact\(action\.section\)/);
-  assert.match(shell,/case'providerSettings':return showProviderSettingsReact\(action\.kind\)/);
+  assert.match(shell,/case'providerSettings':return showProviderSettingsReact\(action\.kind,templateFilter\)/);
   assert.doesNotMatch(shell,/if\(section==='discover'\)return showDiscoverSettings/);
 });
 
