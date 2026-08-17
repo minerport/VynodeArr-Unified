@@ -14,7 +14,7 @@ export function resolveServiceSettingsAction(
   section:string,
   templateFilter:string
 ):ServiceSettingsAction{
-  if(section==='music')return{name:'mediaExpansionSettings',section:'music',view:'settings/specific',serviceSection:'music'};
+  if(section==='music')return{name:'rootFolders',initialDomain:'music'};
   if(section==='subtitles')return{name:'mediaExpansionSettings',section:'subtitles',view:'settings',serviceSection:'subtitles'};
   if(templateFilter==='music'){
     if(section==='root-folders')return{name:'rootFolders',initialDomain:'music'};

@@ -1209,6 +1209,7 @@ test('Music storage uses the shared folder route and engine-style folder access'
     read('apps/web/client/src/music-storage-folders.tsx'),
     read('apps/api/src/app.js')
   ]);
+  assert.match(routing,/section==='music'\)return\{name:'rootFolders',initialDomain:'music'\}/);
   assert.match(routing,/section==='root-folders'\)return\{name:'rootFolders',initialDomain:'music'/);
   assert.match(islands,/options\.initialDomain==='music'/);
   for(const value of ['storage-config-grid','storage-root-list','root-folder-browser','Show subfolders','Use for Music'])assert.ok(view.includes(value),value);
