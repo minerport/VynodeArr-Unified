@@ -7,6 +7,7 @@ import type {
 import { EngineInstanceFilter, useEngineInstances } from "./engine-instance-control";
 import { RouteError, RouteLoading } from "./react-route-state";
 import { errorMessage } from "./shell-utils";
+import { useVisibleRefresh } from "./use-visible-refresh";
 import "./react-history.css";
 
 type HistoryCategory =
@@ -218,7 +219,7 @@ export function HistoryView({ options }: { options: HistoryMountOptions }) {
     setRefreshing(true);
     try {
       const value = await options.request<{ items?: HistoryItem[] }>(
-        "/api/activity/history",
+        "/api/activity/history?refresh=true",
       );
       setItems(value.items || []);
       setLoadError("");
@@ -236,6 +237,7 @@ export function HistoryView({ options }: { options: HistoryMountOptions }) {
   useEffect(() => {
     if (!options.items) void refresh(false);
   }, [options.items, refresh]);
+  useVisibleRefresh(() => refresh(false), 60_000, { immediate: false });
   const scopedItems = useMemo(() => items.filter(item => engineInstanceId === "all" || item.engineInstanceId === engineInstanceId), [items, engineInstanceId]);
   const counts = useMemo(
     () =>

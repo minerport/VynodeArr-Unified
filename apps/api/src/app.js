@@ -16158,6 +16158,8 @@ export function createApplication(options = {}) {
         }
         if (url.pathname === "/api/activity/history") {
           if (!administrator(res, session)) return;
+          if (url.searchParams.get("refresh") === "true")
+            await sync.synchronizeHistory();
           let items = await sync.operations("history");
           const attributions = {
             ...(await requestAttribution(

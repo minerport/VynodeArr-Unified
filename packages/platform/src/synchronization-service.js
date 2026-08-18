@@ -3,7 +3,7 @@ import {PriorityWorkQueue} from './priority-work-queue.js';
 export class SynchronizationService {
   constructor({movie,tv,maxItems=Infinity,pollIntervalMs=300000,projectionStore=null,logger=null}) {
     this.engines={movie,tv};this.maxItems=maxItems;this.pollIntervalMs=pollIntervalMs;this.projectionStore=projectionStore;this.logger=logger;
-    this.domainRuns=new Map();this.itemRuns=new Map();this.workQueues={movie:new PriorityWorkQueue(),tv:new PriorityWorkQueue()};this.startupRun=null;this.operationsRun=null;this.fullSyncListeners=new Set();
+    this.domainRuns=new Map();this.itemRuns=new Map();this.workQueues={movie:new PriorityWorkQueue(),tv:new PriorityWorkQueue()};this.startupRun=null;this.operationsRun=null;this.historyRun=null;this.fullSyncListeners=new Set();
     this.metrics={catalogReads:0,engineReads:0,fullReconciliations:0,targetedReconciliations:0};
     this.cache=new Map();this.state={
       movie:{status:'idle',lastSuccess:null,lastFullSync:null,lastTargetedSync:null,lastFailure:null,durationMs:null,itemCount:0,itemsUpdated:0,source:'empty'},
@@ -65,6 +65,18 @@ export class SynchronizationService {
     settled.forEach((result,index)=>{if(result.status==='fulfilled')operations[names[index]]=result.value;});
     if(this.projectionStore)await this.projectionStore.replaceOperations(operations);
     this.operationCache=operations;return operations;
+  }
+  async synchronizeHistory(){
+    if(this.historyRun)return this.historyRun;
+    const run=(async()=>{
+      const history=(await Promise.all([this.engines.movie.getHistory(),this.engines.tv.getHistory()])).flat().sort((a,b)=>String(b.timestamp).localeCompare(String(a.timestamp)));
+      const current=this.projectionStore?await this.projectionStore.operations():(this.operationCache||{queue:[],history:[],calendar:[],health:[]}),operations={...current,history};
+      if(this.projectionStore)await this.projectionStore.replaceOperations(operations);
+      this.operationCache=operations;
+      return history;
+    })();
+    this.historyRun=run;
+    try{return await run;}finally{if(this.historyRun===run)this.historyRun=null;}
   }
   async reconcileItem(domain,id) {
     const key=`${domain}:${id}`;

@@ -72,6 +72,7 @@
 .naming-token-warning button{flex:none}
 .scoring-panel{display:grid;gap:1rem}
 .scoring-panel form{display:grid;gap:.8rem}
+.scoring-panel form>header{position:static;z-index:auto;height:auto;min-height:0;padding:0;border:0;background:transparent;backdrop-filter:none}
 .score-thresholds{display:grid;grid-template-columns:repeat(3,minmax(9rem,1fr));gap:.6rem}
 .format-score-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(12rem,1fr));gap:.6rem}
 .profile-score-heading{display:grid;gap:.2rem;min-width:9rem}.profile-score-heading small,.format-score-empty,.unscored-formats>p{color:var(--muted)}.format-score-section{display:grid;gap:.65rem;padding-top:.25rem}.format-score-section h3{margin:0;font-size:.82rem;text-transform:uppercase;letter-spacing:.08em;color:var(--cyan)}.format-score-empty{margin:.2rem 0;padding:.8rem;border:1px dashed var(--glass-border,var(--line));border-radius:.65rem}.unscored-formats{padding:.1rem 0 0;border-top:1px solid var(--glass-border,var(--line))}.unscored-formats summary{justify-content:flex-start;gap:.55rem;color:var(--text);font-weight:750}.unscored-formats summary span{padding:.1rem .42rem;border-radius:999px;background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--muted);font-size:.7rem}.unscored-formats>p{margin:0 0 .75rem;font-size:.78rem}
@@ -91,8 +92,16 @@
 .selection-rule-error{display:grid;justify-items:start;gap:.75rem;border-color:rgba(244,91,112,.35)}
 .selection-rule-error h2,.selection-rule-error p{margin:0}
 @media(max-width:850px){
-  .selection-rule-intro,.editor-actions,.scoring-panel form header,.preferred-heading{align-items:stretch;flex-direction:column}
+  .selection-rule-intro,.editor-actions,.preferred-heading{align-items:stretch;flex-direction:column}
   .rule-summary-grid,.score-thresholds,.tag-fields{grid-template-columns:1fr}
+  .scoring-panel{min-width:0;padding:.9rem}
+  .scoring-panel form{min-width:0;padding:.85rem;gap:.75rem}
+  .scoring-panel form>header{display:grid;grid-template-columns:minmax(0,1fr);align-items:stretch;justify-content:stretch;gap:.75rem}
+  .profile-score-heading,.score-thresholds,.format-score-grid,.unscored-formats{min-width:0;width:100%}
+  .profile-score-heading{min-width:0}
+  .format-score-grid{grid-template-columns:minmax(0,1fr)}
+  .unscored-formats summary{flex-wrap:wrap}
+  .scoring-panel form>button{width:100%}
   .rule-summary-card{align-items:flex-start}
   .custom-format-editor{top:1rem;width:calc(100vw - 2rem);max-height:calc(100vh - 2rem)}
   .release-profile-card{top:50%;width:calc(100vw - 2rem);max-height:calc(100vh - 2rem)}

@@ -224,28 +224,63 @@
   }
 }
 @media (max-width: 700px) {
+  .react-history .hero {
+    margin-bottom: 0.75rem;
+  }
+  .history-summary > div {
+    padding: 0.65rem 0.8rem;
+  }
+  .history-summary strong {
+    font-size: 1.15rem;
+  }
+  .history-help {
+    padding: 0.7rem 0.8rem;
+  }
   .react-history-toolbar {
     align-items: stretch;
     flex-direction: column;
+    gap: 0.6rem;
   }
   .react-history-toolbar label:last-child {
     flex-basis: auto;
   }
   .react-history-row {
     grid-template-columns: 0.5rem minmax(0, 1fr);
+    align-items: start;
+    gap: 0.55rem;
+    padding: 0.62rem 0.1rem;
   }
   .history-event-actions {
     grid-column: 2;
-    align-items: stretch;
-    flex-direction: column;
+    align-items: center;
+    flex-direction: row;
     justify-content: space-between;
+    gap: 0.45rem;
   }
   .history-event-actions button {
     width: 100%;
   }
   .history-event-heading {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 0.3rem;
+    align-items: center;
+    flex-direction: row;
+    gap: 0.35rem;
+  }
+  .history-event-heading strong {
+    flex: 1 1 10rem;
+  }
+  .history-event-badge {
+    padding: 0.14rem 0.34rem;
+    font-size: 0.59rem;
+  }
+  .history-event-description,
+  .history-context,
+  .react-history-row small {
+    margin-top: 0.1rem;
+  }
+  .history-raw-event {
+    display: none !important;
+  }
+  .react-history-row time {
+    font-size: 0.7rem;
   }
 }

@@ -988,6 +988,8 @@ test('history initial loading and refresh recovery are owned by typed React',asy
   assert.match(history,/if \(!options\.items\) void refresh\(false\)/);
   assert.match(history,/Loading history/);
   assert.match(history,/History refresh delayed/);
+  assert.match(history,/useVisibleRefresh\(\(\) => refresh\(false\), 60_000/);
+  assert.match(history,/\/api\/activity\/history\?refresh=true/);
   assert.match(history,/options\.administrator && item\.mediaId && event\.organizable/);
   assert.match(types,/items\?:HistoryItem\[\]/);
   assert.match(shell,/mountHistory\(host,\{administrator:state\.user\.role==='administrator',request:api,notify\}\)/);
@@ -1043,6 +1045,22 @@ test('release profile editor uses a bounded glass modal layout',async()=>{
   assert.match(styles,/\.release-profile-card>\.editor-actions\{bottom:0/);
   assert.match(view,/profile\.id\?<button className="danger-secondary"/);
   assert.match(view,/editor-action-spacer/);
+});
+
+test('quality profile custom-format scores remain in flow on mobile',async()=>{
+  const styles=await read('apps/web/client/src/react-selection-rules.css');
+  assert.match(styles,/\.scoring-panel form>header\{position:static;z-index:auto;height:auto;min-height:0;padding:0;border:0;background:transparent;backdrop-filter:none\}/);
+  assert.match(styles,/\.scoring-panel form>header\{display:grid;grid-template-columns:minmax\(0,1fr\);align-items:stretch/);
+  assert.match(styles,/\.format-score-grid\{grid-template-columns:minmax\(0,1fr\)\}/);
+  assert.match(styles,/\.scoring-panel form>button\{width:100%\}/);
+});
+
+test('custom format template review keeps mobile footer reachable',async()=>{
+  const styles=await read('apps/web/client/src/react-guide-template-families.css');
+  assert.match(styles,/height:calc\(100dvh - 1rem - env\(safe-area-inset-bottom\)\)!important/);
+  assert.match(styles,/overflow-y:auto;-webkit-overflow-scrolling:touch/);
+  assert.match(styles,/scroll-padding-bottom:calc\(7rem \+ env\(safe-area-inset-bottom\)\)/);
+  assert.match(styles,/padding-bottom:calc\(\.8rem \+ env\(safe-area-inset-bottom\)\)!important/);
 });
 
 test('new release profiles remain drafts until explicitly saved',async()=>{

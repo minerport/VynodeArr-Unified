@@ -103,6 +103,14 @@ test('operational synchronization is single flight under overlapping callers',as
   assert.strictEqual(await first,await second);
   assert.equal(reads,2,'each engine queue is read once for a shared operation cycle');
 });
+test('history synchronization refreshes only engine history and is single flight',async()=>{
+  let historyReads=0,queueReads=0,release;const ready=new Promise(resolve=>{release=resolve;});
+  const engine={getHistory:async()=>{historyReads+=1;await ready;return[{id:`event-${historyReads}`,timestamp:'2026-08-18T01:00:00Z'}];},getQueue:async()=>{queueReads+=1;return[];}};
+  const sync=new SynchronizationService({movie:engine,tv:engine,pollIntervalMs:999999});
+  const first=sync.synchronizeHistory(),second=sync.synchronizeHistory();release();
+  assert.strictEqual(await first,await second);assert.equal(historyReads,2);assert.equal(queueReads,0);
+  assert.equal((await sync.operations('history')).length,2);
+});
 
 async function appSession(options,run){
   const directory=await mkdtemp(join(tmpdir(),'vynodearr-n3-api-')),app=createApplication({...options,env:{VYNODEARR_DATA_MODE:'fixture',VYNODEARR_DATA_DIR:directory,VYNODEARR_MASTER_KEY:'test-master-key-with-32-characters',...(options.env||{})}});
