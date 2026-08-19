@@ -4,6 +4,7 @@ import type {RequestAllowance} from './my-requests-types';
 import { cachedRequest } from './query-client';
 import {DiscoverDetail} from './discover-detail';
 import {DiscoverRequest} from './discover-request';
+import {DiscoverTrailer} from './discover-trailer';
 import { errorMessage } from './shell-utils';
 
 const feeds=[
@@ -45,25 +46,26 @@ const libraryStatus=(domain:DiscoverDomain,item:LibraryItem):DiscoverLibraryStat
   return Number.parseInt(item.episodeProgress||'0',10)>0||Number(item.sizeOnDisk||0)>0?'available':'pending';
 };
 
-function Card({item,status,onOpen}:{item:DiscoverItem;status?:DiscoverLibraryStatus;onOpen:(item:DiscoverItem)=>void}){
+function Card({item,status,onOpen,onTrailer}:{item:DiscoverItem;status?:DiscoverLibraryStatus;onOpen:(item:DiscoverItem)=>void;onTrailer:(item:DiscoverItem)=>void}){
   const tracked=Boolean(status);
   return <article className="discover-card" role="button" tabIndex={0} onClick={()=>onOpen(item)} onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();onOpen(item);}}}>
     <div className="discover-poster">{item.poster?<img src={item.poster} alt={`${item.title} poster`} loading="lazy"/>:<span className="discover-poster-fallback">{item.title[0]}</span>}
       {item.rating?<span className="discover-score">★ {item.rating.toFixed(1)}</span>:null}
       {status?<span className={`discover-library-tag${status==='pending'?' pending':''}`}>{status==='available'?'In library':'Pending'}</span>:null}
+      <button className="discover-trailer-action" type="button" aria-label={`Watch ${item.title} trailer`} onClick={event=>{event.stopPropagation();onTrailer(item);}}><span aria-hidden="true">▶</span> Trailer</button>
       {!tracked?<button className="discover-action" type="button" aria-label={`Add ${item.title}`} onClick={event=>{event.stopPropagation();onOpen(item);}}><span aria-hidden="true">+</span> Add</button>:null}
     </div>
     <div className="discover-card-copy"><h3>{item.title}</h3><p><span>{item.year||'TBA'}</span><span>{item.domain==='movie'?'Movie':'TV'}</span></p></div>
   </article>;
 }
 
-function Row({title,subtitle,items,library,onOpen,onMore,onBack,grid=false}:{title:string;subtitle:string;items:DiscoverItem[];library:Map<string,DiscoverLibraryStatus>;onOpen:(item:DiscoverItem)=>void;onMore?:()=>void;onBack?:()=>void;grid?:boolean}){
+function Row({title,subtitle,items,library,onOpen,onTrailer,onMore,onBack,grid=false}:{title:string;subtitle:string;items:DiscoverItem[];library:Map<string,DiscoverLibraryStatus>;onOpen:(item:DiscoverItem)=>void;onTrailer:(item:DiscoverItem)=>void;onMore?:()=>void;onBack?:()=>void;grid?:boolean}){
   const strip=useRef<HTMLDivElement>(null);
   return <section className={`discover-row${grid?' discover-results-grid':''}`}>{onBack?<button className="discover-results-back" type="button" onClick={onBack}>← Back to Discover</button>:null}<div className="discover-row-heading"><div><h2>{title}</h2><p>{subtitle}</p></div><div className="discover-row-controls">
     <button type="button" aria-label={`Previous ${title}`} title="Previous" onClick={()=>strip.current?.scrollBy({left:-strip.current.clientWidth*.8,behavior:'smooth'})}>‹</button>
     <button type="button" aria-label={`Next ${title}`} title="Next" onClick={()=>{strip.current?.scrollBy({left:strip.current.clientWidth*.8,behavior:'smooth'});onMore?.();}}>›</button>
     {grid?<button className="discover-results-more" type="button" onClick={onMore} disabled={!onMore}>{onMore?'Load more':'All loaded'}</button>:null}
-  </div></div><div className="discover-strip" ref={strip}>{items.map(item=><Card key={item.id} item={item} status={findLibraryStatus(library,item)} onOpen={onOpen}/>)}</div></section>;
+  </div></div><div className="discover-strip" ref={strip}>{items.map(item=><Card key={item.id} item={item} status={findLibraryStatus(library,item)} onOpen={onOpen} onTrailer={onTrailer}/>)}</div></section>;
 }
 
 function Taxonomy({title,kind,items,onSelect}:{title:string;kind:'genre'|'studio'|'network';items:DiscoverCategory[];onSelect:(item:DiscoverCategory&{taxonomy:'genre'|'studio'|'network'})=>void}){
@@ -81,6 +83,7 @@ export function DiscoverView({options}:{options:DiscoverMountOptions}){
   const [library,setLibrary]=useState(new Map<string,DiscoverLibraryStatus>());
   const [libraryItems,setLibraryItems]=useState(new Map<string,LibraryItem>());
   const [selected,setSelected]=useState<DiscoverItem|null>(null);
+  const [trailerItem,setTrailerItem]=useState<DiscoverItem|null>(null);
   const [requesting,setRequesting]=useState<DiscoverItem|null>(null);
   const [taxonomies,setTaxonomies]=useState<{movie:DiscoverCategory[];tv:DiscoverCategory[];studios:DiscoverCategory[];networks:DiscoverCategory[]}>({movie:[],tv:[],studios:[],networks:[]});
   const [domain,setDomain]=useState<'all'|DiscoverDomain>('all');
@@ -216,6 +219,7 @@ export function DiscoverView({options}:{options:DiscoverMountOptions}){
   },[browseContext]);
 
   return <div className="react-discover">
+    {trailerItem?<DiscoverTrailer item={trailerItem} options={options} onClose={()=>setTrailerItem(null)}/>:null}
     {selected?<DiscoverDetail item={selected} libraryItem={[...identityKeys(selected.domain,selected),...libraryKeys(selected.domain,selected.title,selected.year)].map(key=>libraryItems.get(key)).find(Boolean)} options={options} onRequest={setRequesting} onClose={()=>setSelected(null)}/>:null}
     {requesting?<DiscoverRequest item={requesting} options={options} onClose={()=>setRequesting(null)} onRequested={requested=>{
       setLibrary(current=>{
@@ -231,9 +235,9 @@ export function DiscoverView({options}:{options:DiscoverMountOptions}){
     {browseContext?<section className="discover-results-filters" aria-label="Browse result filters"><label><input type="checkbox" checked={hideLibrary} onChange={event=>setHideLibrary(event.target.checked)}/> Hide titles already in library</label><label>Sort results<select value={browseSort} onChange={event=>setBrowseSort(event.target.value as BrowseSort)}><option value="recommended">Recommended</option><option value="rating">Highest rated</option><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="title">Title A–Z</option></select></label></section>:null}
     <div id="discover-rows">
       {error&&!Object.keys(rows).length?<div className="empty error-state"><h2>Connect Discover to TMDB</h2><p>{error}</p>{options.administrator?<a className="primary button-link" href="#service/discover">Configure Discover</a>:null}</div>:null}
-      {searchResults?<Row title={resultTitle||'Browse results'} subtitle={browseContext?`${displayedResults.length.toLocaleString()} shown · ${searchResults.length.toLocaleString()} loaded of ${browseContext.totalResults.toLocaleString()} TMDB titles`:'Live TMDB title search'} items={displayedResults} library={library} onOpen={open} grid={Boolean(browseContext)} onBack={browseContext?closeBrowse:undefined} onMore={browseContext&&browseContext.domain!=='all'&&browseContext.page<browseContext.totalPages&&!browseContext.loading?()=>void loadBrowsePages(browseContext,browseContext.page+1,3):undefined}/>:visible.map(([kind,title,subtitle])=>{
+      {searchResults?<Row title={resultTitle||'Browse results'} subtitle={browseContext?`${displayedResults.length.toLocaleString()} shown · ${searchResults.length.toLocaleString()} loaded of ${browseContext.totalResults.toLocaleString()} TMDB titles`:'Live TMDB title search'} items={displayedResults} library={library} onOpen={open} onTrailer={setTrailerItem} grid={Boolean(browseContext)} onBack={browseContext?closeBrowse:undefined} onMore={browseContext&&browseContext.domain!=='all'&&browseContext.page<browseContext.totalPages&&!browseContext.loading?()=>void loadBrowsePages(browseContext,browseContext.page+1,3):undefined}/>:visible.map(([kind,title,subtitle])=>{
         const items=rows[kind]||[];if(!items.length)return <section className="discover-row skeleton" key={kind}><div className="discover-row-heading"><h2>{title}</h2></div></section>;
-        return <div key={kind}><Row title={title} subtitle={subtitle} items={items} library={library} onOpen={open} onMore={()=>loadFeed(kind,(pages[kind]||1)+1).catch(()=>{})}/>
+        return <div key={kind}><Row title={title} subtitle={subtitle} items={items} library={library} onOpen={open} onTrailer={setTrailerItem} onMore={()=>loadFeed(kind,(pages[kind]||1)+1).catch(()=>{})}/>
           {kind==='popular_movies'?<><Taxonomy title="Movie genres" kind="genre" items={taxonomies.movie} onSelect={browse}/><Taxonomy title="Studios" kind="studio" items={taxonomies.studios} onSelect={browse}/></>:null}
           {kind==='popular_tv'?<><Taxonomy title="Television genres" kind="genre" items={taxonomies.tv} onSelect={browse}/><Taxonomy title="Networks" kind="network" items={taxonomies.networks} onSelect={browse}/></>:null}
         </div>;

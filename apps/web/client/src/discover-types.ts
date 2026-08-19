@@ -7,6 +7,7 @@ export interface DiscoverItem{
   genreIds:number[];genres?:string[];genre?:string;studio?:string|null;
   network?:string|null;runtime?:number|null;status?:string|null;
   certification?:string|null;
+  trailer?:{name?:string;url:string}|null;
 }
 export interface DiscoverPage{page:number;totalPages:number;totalResults:number;results:DiscoverItem[]}
 export interface DiscoverCategory{id:number;name:string;domain:DiscoverDomain;logo?:string|null;backdrop:string|null}

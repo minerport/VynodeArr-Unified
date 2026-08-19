@@ -1874,6 +1874,13 @@ test('movie and television details share lightweight hero trailer playback with 
   assert.match(movie,/api\/media\/trailers\/movie/);assert.match(tv,/api\/media\/trailers\/tv/);assert.match(movie,/Watch trailer/);assert.match(tv,/Watch trailer/);
 });
 
+test('Discover cards open sound-enabled trailers in a modal',async()=>{
+  const [discover,trailer,types,styles]=await Promise.all([read('apps/web/client/src/discover.tsx'),read('apps/web/client/src/discover-trailer.tsx'),read('apps/web/client/src/discover-types.ts'),read('apps/web/client/src/discover-trailer.css')]);
+  assert.match(discover,/discover-trailer-action/);assert.match(discover,/onTrailer=\{setTrailerItem\}/);assert.match(discover,/<DiscoverTrailer/);
+  assert.match(trailer,/api\/discover\/details/);assert.match(trailer,/youtube-nocookie\.com\/embed/);assert.match(trailer,/autoplay=1&mute=0/);assert.match(trailer,/allow="autoplay; encrypted-media; picture-in-picture"/);
+  assert.match(types,/trailer\?:\{name\?:string;url:string\}\|null/);assert.match(styles,/aspect-ratio:16\/9/);
+});
+
 test('detail trailers prefer protected Plex extras before local and TMDB fallbacks',async()=>{
   const [api,plex,hero]=await Promise.all([read('apps/api/src/app.js'),read('packages/platform/src/plex-service.js'),read('apps/web/client/src/detail-hero-trailer.tsx')]);
   assert.match(api,/plexService\.openTrailer/);assert.match(api,/trailerPlayback\.find/);assert.ok(api.indexOf('plexService.openTrailer')<api.indexOf('trailerPlayback.find(domain,'));
