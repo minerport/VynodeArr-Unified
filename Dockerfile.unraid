@@ -1,6 +1,6 @@
 FROM public.ecr.aws/docker/library/alpine:3.22 AS engines
-ARG RADARR_VERSION=6.3.0.10514
-ARG SONARR_VERSION=4.0.19.2979
+ARG RADARR_VERSION=6.4.4.10685
+ARG SONARR_VERSION=4.0.20.3014
 RUN apk add --no-cache curl tar \
     && mkdir -p /opt/engines \
     && curl -fsSL "https://github.com/Radarr/Radarr/releases/download/v${RADARR_VERSION}/Radarr.master.${RADARR_VERSION}.linux-musl-core-x64.tar.gz" \
@@ -20,8 +20,8 @@ RUN npm run typecheck:web && npm run build:web && npm run build:server
 
 FROM public.ecr.aws/docker/library/node:24-alpine
 ARG VYNODEARR_VERSION=local
-ARG RADARR_VERSION=6.3.0.10514
-ARG SONARR_VERSION=4.0.19.2979
+ARG RADARR_VERSION=6.4.4.10685
+ARG SONARR_VERSION=4.0.20.3014
 LABEL org.opencontainers.image.title="VynodeArr" \
       org.opencontainers.image.description="Unified movie and television management for Unraid" \
       org.opencontainers.image.source="https://github.com/minerport/VynodeArr-Unified" \

@@ -34,11 +34,11 @@ VynodeArr 1.0 Unraid image
 
 The VynodeArr 1.0 Unraid image aggregates unmodified executable distributions:
 
-Radarr 6.3.0.10514 — GNU General Public License version 3
-Corresponding source: https://github.com/Radarr/Radarr/tree/v6.3.0.10514
+Radarr 6.4.4.10685 — GNU General Public License version 3
+Corresponding source: https://github.com/Radarr/Radarr/tree/v6.4.4.10685
 
-Sonarr 4.0.19.2979 — GNU General Public License version 3
-Corresponding source: https://github.com/Sonarr/Sonarr/tree/v4.0.19.2979
+Sonarr 4.0.20.3014 — GNU General Public License version 3
+Corresponding source: https://github.com/Sonarr/Sonarr/tree/v4.0.20.3014
 
 The projects execute as isolated processes and retain separate configuration,
 databases, update metadata, copyrights, and licenses. Their names and interfaces

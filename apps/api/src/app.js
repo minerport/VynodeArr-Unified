@@ -742,8 +742,8 @@ export function createApplication(options = {}) {
     new EngineUpdateReviewService({
       fetcher: options.fetcher || globalThis.fetch,
       versions: {
-        movie: env.VYNODEARR_MOVIE_ENGINE_VERSION || "6.3.0.10514",
-        tv: env.VYNODEARR_TV_ENGINE_VERSION || "4.0.19.2979",
+        movie: env.VYNODEARR_MOVIE_ENGINE_VERSION || "6.4.4.10685",
+        tv: env.VYNODEARR_TV_ENGINE_VERSION || "4.0.20.3014",
       },
     });
   const applicationBackupFiles = [
