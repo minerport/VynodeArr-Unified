@@ -1,4 +1,4 @@
-FROM alpine:3.22 AS engines
+FROM public.ecr.aws/docker/library/alpine:3.22 AS engines
 ARG RADARR_VERSION=6.3.0.10514
 ARG SONARR_VERSION=4.0.19.2979
 RUN apk add --no-cache curl tar \
@@ -8,7 +8,7 @@ RUN apk add --no-cache curl tar \
     && curl -fsSL "https://github.com/Sonarr/Sonarr/releases/download/v${SONARR_VERSION}/Sonarr.main.${SONARR_VERSION}.linux-musl-x64.tar.gz" \
       | tar -xz -C /opt/engines
 
-FROM node:24-alpine AS web-build
+FROM public.ecr.aws/docker/library/node:24-alpine AS web-build
 WORKDIR /app
 COPY package.json ./
 RUN npm install --include=dev --no-audit --no-fund
@@ -18,7 +18,7 @@ COPY packages ./packages
 COPY tsconfig.server.json ./
 RUN npm run typecheck:web && npm run build:web && npm run build:server
 
-FROM node:24-alpine
+FROM public.ecr.aws/docker/library/node:24-alpine
 ARG VYNODEARR_VERSION=local
 ARG RADARR_VERSION=6.3.0.10514
 ARG SONARR_VERSION=4.0.19.2979
