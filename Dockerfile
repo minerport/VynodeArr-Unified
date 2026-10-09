@@ -1,4 +1,4 @@
-FROM node:24-alpine AS web-build
+FROM public.ecr.aws/docker/library/node:24-alpine AS web-build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --include=dev --no-audit --no-fund
@@ -8,7 +8,7 @@ COPY packages ./packages
 COPY tsconfig.server.json ./
 RUN npm run typecheck:web && npm run build:web && npm run build:server
 
-FROM node:24-alpine
+FROM public.ecr.aws/docker/library/node:24-alpine
 ENV NODE_ENV=production VYNODEARR_LOG_LEVEL=info VYNODEARR_LOG_FORMAT=pretty
 WORKDIR /app
 RUN apk add --no-cache font-dejavu ffmpeg yt-dlp
