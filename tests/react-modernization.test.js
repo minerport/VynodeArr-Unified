@@ -1881,6 +1881,12 @@ test('Discover cards open sound-enabled trailers in a modal',async()=>{
   assert.match(types,/trailer\?:\{name\?:string;url:string\}\|null/);assert.match(styles,/aspect-ratio:16\/9/);
 });
 
+test('Discover poster cards bypass unreliable native lazy loading in horizontal rows',async()=>{
+  const discover=await read('apps/web/client/src/discover.tsx');
+  assert.match(discover,/<img src=\{item\.poster\} alt=\{`\$\{item\.title\} poster`\} loading="eager" decoding="async" fetchPriority="low"\/>/);
+  assert.match(discover,/item\.logo\?<img src=\{item\.logo\} alt="" loading="lazy"\/>/);
+});
+
 test('detail trailers prefer protected Plex extras before local and TMDB fallbacks',async()=>{
   const [api,plex,hero]=await Promise.all([read('apps/api/src/app.js'),read('packages/platform/src/plex-service.js'),read('apps/web/client/src/detail-hero-trailer.tsx')]);
   assert.match(api,/plexService\.openTrailer/);assert.match(api,/trailerPlayback\.find/);assert.ok(api.indexOf('plexService.openTrailer')<api.indexOf('trailerPlayback.find(domain,'));
