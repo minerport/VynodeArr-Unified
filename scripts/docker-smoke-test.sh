@@ -19,7 +19,7 @@ docker volume create "$data_volume" >/dev/null
 docker volume create "$movie_volume" >/dev/null
 docker volume create "$tv_volume" >/dev/null
 docker volume create "$download_volume" >/dev/null
-docker run --rm -v "$data_volume:/data" alpine:3.22 chown -R 10001:1000 /data
+docker run --rm -v "$data_volume:/data" public.ecr.aws/docker/library/alpine:3.22 chown -R 10001:1000 /data
 docker run -d --name "$container" \
   -e VYNODEARR_DATA_MODE=fixture \
   -e VYNODEARR_SECURE_COOKIES=false \
