@@ -117,6 +117,16 @@ export function televisionAddPayload(input = {}) {
     },
   };
 }
+export function televisionEpisodesForAutomaticSearch(episodes = [], now = Date.now()) {
+  return (Array.isArray(episodes) ? episodes : [])
+    .filter((episode) => episode?.monitored !== false && !episode?.hasFile)
+    .filter((episode) => {
+      const airDate = Date.parse(episode?.airDateUtc || episode?.airDate || "");
+      return Number.isFinite(airDate) && airDate <= now;
+    })
+    .map((episode) => Number(episode.id))
+    .filter(Number.isFinite);
+}
 export function resolveOwnedEngineInstance(queryInstanceId, ownedInstanceId) {
   const queryId=String(queryInstanceId||'').trim()||null,ownedId=String(ownedInstanceId||'').trim()||null;
   if(queryId&&ownedId&&queryId!==ownedId)throw new Error('The media identifier belongs to a different engine instance');
@@ -3937,6 +3947,136 @@ export function createApplication(options = {}) {
       );
     return result;
   }
+  const individualEpisodeRelease = (release) =>
+    release?.fullSeason !== true &&
+    (!Array.isArray(release?.mappedEpisodeInfo) ||
+      release.mappedEpisodeInfo.length <= 1) &&
+    (!Array.isArray(release?.episodeNumbers) || release.episodeNumbers.length <= 1);
+  async function searchAddedTelevisionEpisodes({
+    userId,
+    seriesId,
+    title,
+    engineInstanceId = null,
+    source = "add",
+  }) {
+    const activity = await createSearchActivity(
+      userId,
+      { name: "EpisodeSearch", episodeIds: [] },
+      {},
+      {
+        domain: "tv",
+        engineInstanceId,
+        source,
+        scope: "episodes",
+        seriesId,
+        title,
+        status: "searching",
+        message: "Waiting for the television engine to populate monitored episodes.",
+        counts: { total: 0, completed: 0, failed: 0 },
+      },
+    );
+    try {
+      await management
+        .execute("tv", "commands", "POST", {
+          payload: { name: "RefreshSeries", seriesId: Number(seriesId) },
+          engineInstanceId,
+        })
+        .catch(() => null);
+      let episodes = [];
+      for (const delay of [0, 500, 1500, 3000]) {
+        if (delay) await pause(delay);
+        episodes = await management
+          .execute("tv", "episodes", "GET", {
+            query: { seriesId: Number(seriesId), includeEpisodeFile: true },
+            engineInstanceId,
+          })
+          .catch(() => []);
+        if (Array.isArray(episodes) && episodes.length) break;
+      }
+      const episodeIds = televisionEpisodesForAutomaticSearch(episodes).slice(0, 500);
+      if (!episodeIds.length) {
+        await updateSearchActivity(activity.id, {
+          status: "completed",
+          finishedAt: new Date().toISOString(),
+          message:
+            "The show was added, but no monitored, aired, missing episodes were ready to search.",
+          counts: { total: 0, completed: 0, failed: 0 },
+        });
+        return;
+      }
+      await updateSearchActivity(activity.id, {
+        episodeIds,
+        message: `Searching ${episodeIds.length} monitored, aired, missing episode${episodeIds.length === 1 ? "" : "s"} individually.`,
+        counts: { total: episodeIds.length, completed: 0, failed: 0 },
+      });
+      let cursor = 0,
+        completed = 0,
+        failed = 0,
+        grabbed = 0,
+        noResults = 0,
+        rejected = 0;
+      const worker = async () => {
+        while (cursor < episodeIds.length) {
+          const episodeId = episodeIds[cursor++],
+            query = { episodeId };
+          try {
+            const releases = await management.execute("tv", "releases", "GET", {
+                query,
+                engineInstanceId,
+              }),
+              candidates = Array.isArray(releases) ? releases : [],
+              accepted = candidates
+                .filter(eligibleRelease)
+                .filter(individualEpisodeRelease)
+                .sort(compareReleases);
+            await recordDownloadDecisions(userId, "tv", query, candidates, {
+              source,
+            });
+            if (!candidates.length) noResults += 1;
+            else if (!accepted.length) rejected += 1;
+            else {
+              const selected = accepted[0];
+              await grabReleaseWithImportGuard(
+                "tv",
+                selected,
+                episodeId,
+                engineInstanceId,
+              );
+              await recordDownloadDecisions(userId, "tv", query, candidates, {
+                source,
+                selected: releaseIdentity(selected),
+              });
+              clearReleaseCache("tv");
+              grabbed += 1;
+            }
+          } catch {
+            failed += 1;
+          } finally {
+            completed += 1;
+            await updateSearchActivity(activity.id, {
+              counts: { total: episodeIds.length, completed, failed },
+              message: `Checked ${completed} of ${episodeIds.length} episodes · ${grabbed} grabbed · ${noResults} with no results · ${rejected} rejected by policy${failed ? ` · ${failed} failed` : ""}.`,
+            });
+          }
+        }
+      };
+      await Promise.all(
+        Array.from({ length: Math.min(3, episodeIds.length) }, () => worker()),
+      );
+      await updateSearchActivity(activity.id, {
+        status: failed === episodeIds.length ? "failed" : grabbed ? "grabbed" : "completed",
+        finishedAt: new Date().toISOString(),
+        counts: { total: episodeIds.length, completed, failed },
+        message: `Automatic episode search finished · ${grabbed} grabbed · ${noResults} with no results · ${rejected} rejected by policy${failed ? ` · ${failed} failed` : ""}.`,
+      });
+    } catch (error) {
+      await updateSearchActivity(activity.id, {
+        status: "failed",
+        finishedAt: new Date().toISOString(),
+        message: redact(error?.safeMessage || error?.message || "Automatic episode search failed"),
+      });
+    }
+  }
   async function rematchMedia(input) {
     const domain = String(input.domain || ""),
       engineInstanceId = String(input.engineInstanceId || "").trim() || null,
@@ -6251,40 +6391,20 @@ export function createApplication(options = {}) {
     const result = await management.execute(record.domain, "library", "POST", {
       payload: addPayload,engineInstanceId,
     });
-    if (record.domain === "tv" && searchRequested) {
-      const episodes = await management.execute("tv", "episodes", "GET", {
-        query: { seriesId: Number(result.id), includeEpisodeFile: true },
+    if (record.domain === "tv" && searchRequested)
+      void searchAddedTelevisionEpisodes({
+        userId: record.userId,
+        seriesId: Number(result.id),
+        title: result.title || metadata.title || record.title,
         engineInstanceId,
-      });
-      const now = Date.now(), episodeIds = (Array.isArray(episodes) ? episodes : [])
-        .filter((episode) => episode.monitored !== false && !episode.hasFile)
-        .filter((episode) => {
-          const airDate = Date.parse(episode.airDateUtc || episode.airDate || "");
-          return Number.isFinite(airDate) && airDate <= now;
-        })
-        .map((episode) => Number(episode.id))
-        .filter(Number.isFinite);
-      if (episodeIds.length) {
-        const command = await management.execute("tv", "commands", "POST", {
-          payload: { name: "EpisodeSearch", episodeIds },engineInstanceId,
-        });
-        await createSearchActivity(
-          record.userId,
-          { name: "EpisodeSearch", episodeIds },
-          command,
-          {
-            domain: "tv",
-            engineInstanceId,
-            source: "request",
-            scope: "episodes",
-            title: result.title || metadata.title || record.title,
-            status: "searching",
-            message:
-              `Request added to the library; searching ${episodeIds.length} monitored, aired, missing episode${episodeIds.length === 1 ? "" : "s"}.`,
-          },
-        );
-      }
-    }
+        source: "request",
+      }).catch((error) =>
+        logger.warn(
+          "television.add_search_failed",
+          "Added-series automatic search could not start",
+          { error, seriesId: Number(result.id), engineInstanceId },
+        ),
+      );
     if (record.domain === "movie" && searchRequested) {
       const query = { movieId: Number(result.id) };
       let grabbed = false;
@@ -15407,9 +15527,22 @@ export function createApplication(options = {}) {
                     method === "POST"
                   ? televisionAddPayload(input)
                   : input;
+            const televisionSearchRequested =
+              managementMatch[1] === "tv" &&
+              managementMatch[2] === "library" &&
+              method === "POST" &&
+              televisionAddPayload(payload).addOptions.searchForMissingEpisodes;
             if (managementMatch[2] === "library" && method === "POST") {
               payload = await applyMediaDestination(managementMatch[1], { ...payload, engineInstanceId: requestedInstance }, true);
-              if (managementMatch[1] === "tv") payload = televisionAddPayload(payload);
+              if (managementMatch[1] === "tv")
+                payload = televisionAddPayload({
+                  ...payload,
+                  addOptions: {
+                    ...(payload.addOptions || {}),
+                    searchForMissingEpisodes: false,
+                    searchForCutoffUnmetEpisodes: false,
+                  },
+                });
             }
             const forwardedPayload = payload && typeof payload === "object" && !Array.isArray(payload)
               ? { ...payload }
@@ -15546,24 +15679,23 @@ export function createApplication(options = {}) {
                 domain: managementMatch[1],
                 source: "command",
               });
-            if (
-              method === "POST" &&
-              managementMatch[2] === "library" &&
-              payload?.addOptions?.searchForMissingEpisodes === true
-            )
-              await createSearchActivity(
-                session.user.id,
-                { name: "SeriesSearch", seriesId: result?.id },
-                result,
-                {
-                  domain: managementMatch[1],
-                  source: "add",
-                  scope: managementMatch[1] === "tv" ? "series" : "movie",
-                  title: result?.title || payload.title || "New library item",
-                  status: "searching",
-                  message:
-                    "Added to the library and searching for monitored missing media.",
-                },
+            if (televisionSearchRequested)
+              void searchAddedTelevisionEpisodes({
+                userId: session.user.id,
+                seriesId: Number(result?.id),
+                title: result?.title || payload.title || "New television series",
+                engineInstanceId: requestedInstance,
+                source: "add",
+              }).catch((error) =>
+                logger.warn(
+                  "television.add_search_failed",
+                  "Added-series automatic search could not start",
+                  {
+                    error,
+                    seriesId: Number(result?.id),
+                    engineInstanceId: requestedInstance,
+                  },
+                ),
               );
             if (
               method === "POST" &&

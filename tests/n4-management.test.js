@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { EngineManagementService } from '../.server-build/packages/platform/src/engine-management-service.js';
 import { EngineSettingsService } from '../.server-build/packages/platform/src/engine-settings-service.js';
-import { attachEngineOwnership, filesystemLocationIdentity, resolveOwnedEngineInstance, televisionAddPayload } from '../.server-build/apps/api/src/app.js';
+import { attachEngineOwnership, filesystemLocationIdentity, resolveOwnedEngineInstance, televisionAddPayload, televisionEpisodesForAutomaticSearch } from '../.server-build/apps/api/src/app.js';
 
 test('filesystem location identity recognizes repeated paths to the same folder',async()=>{
   const directory=await mkdtemp(join(tmpdir(),'vynodearr-location-'));
@@ -19,6 +19,18 @@ test('filesystem location identity recognizes repeated paths to the same folder'
 test('television adds preserve monitoring and immediate automatic-search options',()=>{
   assert.deepEqual(televisionAddPayload({title:'Series',monitor:'future',monitored:true,addOptions:{searchForMissingEpisodes:true}}).addOptions,{monitor:'future',searchForMissingEpisodes:true,searchForCutoffUnmetEpisodes:false});
   assert.deepEqual(televisionAddPayload({title:'Series',monitored:false,addOptions:{}}).addOptions,{monitor:'none',searchForMissingEpisodes:false,searchForCutoffUnmetEpisodes:false});
+});
+
+test('television add searches only monitored aired missing episodes',()=>{
+  const now=Date.parse('2026-10-11T12:00:00Z');
+  assert.deepEqual(televisionEpisodesForAutomaticSearch([
+    {id:1,monitored:true,hasFile:false,airDateUtc:'2026-10-10T12:00:00Z'},
+    {id:2,monitored:false,hasFile:false,airDateUtc:'2026-10-10T12:00:00Z'},
+    {id:3,monitored:true,hasFile:true,airDateUtc:'2026-10-10T12:00:00Z'},
+    {id:4,monitored:true,hasFile:false,airDateUtc:'2026-10-12T12:00:00Z'},
+    {id:5,monitored:true,hasFile:false,airDateUtc:null},
+    {id:'6',monitored:true,hasFile:false,airDate:'2026-10-09'},
+  ],now),[1,6]);
 });
 
 test('management gateway exposes native capabilities and forwards only allowlisted operations',async()=>{
