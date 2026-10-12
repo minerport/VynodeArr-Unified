@@ -199,8 +199,11 @@ export interface PlexOverlayConnection {
   server: null | { name: string; machineIdentifier: string; version: string };
   libraries: Array<{ key: string; title: string; type: "movie" | "show"; uuid: string }>;
   updatedAt?: string | null;
+  artworkRefresh: PlexArtworkRefresh;
   artworkWritesEnabled: boolean;
 }
+export interface PlexArtworkRefreshResult { source:"manual"|"schedule";startedAt:string;finishedAt:string;reviewed:number;updated:number;unchanged:number;skipped:number;failed:number;failures:Array<{applicationId:string;title:string;message:string}> }
+export interface PlexArtworkRefresh { enabled:boolean;time:string;timeZone:string;movie:boolean;tv:boolean;lastRunAt:string|null;nextRunAt:string|null;running:boolean;lastResult:PlexArtworkRefreshResult|null }
 export interface PlexMatchReview {
   generatedAt: string;
   summary: { matched: number; unmatched: number; ambiguous: number; total: number };

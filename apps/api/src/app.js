@@ -539,6 +539,15 @@ export function createApplication(options = {}) {
       endpoint: "",
       server: null,
       libraries: [],
+      artworkRefresh: {
+        enabled: false,
+        time: "03:00",
+        timeZone: "UTC",
+        movie: true,
+        tv: true,
+        lastRunAt: null,
+        lastResult: null,
+      },
       updatedAt: null,
     });
   const plexPosterApplicationStore =
@@ -2933,6 +2942,7 @@ export function createApplication(options = {}) {
     queueCompletionTimer = null,
     operationalNotificationTimer = null,
     reeltrackAutomationTimer = null,
+    plexArtworkRefreshTimer = null,
     liveQueueRun = null,
     liveQueueSnapshot = [],
     liveQueueSnapshotAt = 0,
@@ -5793,6 +5803,8 @@ export function createApplication(options = {}) {
         operationalNotificationTimer = null;
         if (reeltrackAutomationTimer) clearInterval(reeltrackAutomationTimer);
         reeltrackAutomationTimer = null;
+        if (plexArtworkRefreshTimer) clearInterval(plexArtworkRefreshTimer);
+        plexArtworkRefreshTimer = null;
         for (const timer of libraryWatchTimers.values()) clearTimeout(timer);
         libraryWatchTimers.clear();
         libraryWatchLastSync.clear();
@@ -5859,6 +5871,15 @@ export function createApplication(options = {}) {
         1e4,
       );
       initialAutomationPoll.unref?.();
+    }
+    if (!plexArtworkRefreshTimer) {
+      const poll = () => runDuePlexArtworkRefresh().catch((error) =>
+        logger.warn("plex.artwork_refresh_failed", "Scheduled Plex artwork refresh failed", { error }),
+      );
+      plexArtworkRefreshTimer = setInterval(poll, 6e4);
+      plexArtworkRefreshTimer.unref?.();
+      const initialArtworkRefreshPoll = setTimeout(poll, 15e3);
+      initialArtworkRefreshPoll.unref?.();
     }
     initialized = true;
     logger.info('application.initialized','VynodeArr initialization completed',{durationMs:Date.now()-initializedAt});
@@ -8137,6 +8158,7 @@ export function createApplication(options = {}) {
           : target.plex.addedAt,
       }),
       appliedAt: new Date().toISOString(),
+      userId: session?.user?.id || null,
       restoredAt: null,
     };
     await plexPosterApplicationStore.update((state) => {
@@ -8158,6 +8180,129 @@ export function createApplication(options = {}) {
       },
     });
     return application;
+  }
+  let plexArtworkRefreshRunning = false;
+  function sanitizePlexArtworkRefresh(value = {}) {
+    const time = /^([01]\d|2[0-3]):[0-5]\d$/.test(String(value.time || ""))
+      ? String(value.time)
+      : "03:00";
+    let timeZone = String(value.timeZone || "UTC").trim() || "UTC";
+    try { new Intl.DateTimeFormat("en-US", { timeZone }).format(); }
+    catch { timeZone = "UTC"; }
+    return {
+      enabled: value.enabled === true,
+      time,
+      timeZone,
+      movie: value.movie !== false,
+      tv: value.tv !== false,
+      lastRunAt: value.lastRunAt || null,
+      lastResult: value.lastResult || null,
+    };
+  }
+  function plexArtworkScheduleParts(date, timeZone) {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(date);
+    const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+    return { date: `${value.year}-${value.month}-${value.day}`, time: `${value.hour}:${value.minute}` };
+  }
+  function nextPlexArtworkRefreshAt(schedule, from = new Date()) {
+    if (!schedule.enabled) return null;
+    const start = new Date(Math.floor(from.getTime() / 6e4) * 6e4 + 6e4);
+    for (let offset = 0; offset < 3 * 24 * 60; offset += 1) {
+      const candidate = new Date(start.getTime() + offset * 6e4);
+      if (plexArtworkScheduleParts(candidate, schedule.timeZone).time === schedule.time)
+        return candidate.toISOString();
+    }
+    return null;
+  }
+  function publicPlexArtworkRefresh(value = {}) {
+    const schedule = sanitizePlexArtworkRefresh(value);
+    return { ...schedule, running: plexArtworkRefreshRunning, nextRunAt: nextPlexArtworkRefreshAt(schedule) };
+  }
+  async function refreshManagedPlexArtwork({ source = "manual" } = {}) {
+    if (plexArtworkRefreshRunning) throw new Error("A managed Plex artwork refresh is already running");
+    plexArtworkRefreshRunning = true;
+    const startedAt = new Date().toISOString(), failures = [], updates = new Map();
+    let reviewed = 0, updated = 0, unchanged = 0, skipped = 0;
+    try {
+      const [settings, token, configuration, stored] = await Promise.all([
+        plexSettingsStore.read(), engineSettings.plexCredential(), posterOverlayConfiguration(), plexPosterApplicationStore.read(),
+      ]);
+      if (!settings.endpoint || !token) throw new Error("Connect Plex before refreshing managed artwork");
+      const schedule = sanitizePlexArtworkRefresh(settings.artworkRefresh), templates = new Map(configuration.templates.map((item) => [item.id, item]));
+      for (const application of stored.applications || []) {
+        if (application.restoredAt || (application.domain === "movie" ? !schedule.movie : !schedule.tv)) continue;
+        reviewed += 1;
+        const template = templates.get(application.templateId);
+        if (!template?.enabled || template.target !== "plex") { skipped += 1; continue; }
+        try {
+          const cacheKey = collectionMediaId(application.domain, application.mediaId);
+          posterEpisodeMetadataCache.delete(cacheKey);
+          posterFileMetadataCache.delete(cacheKey);
+          await sync.reconcileItem(application.domain, application.mediaId).catch(() => null);
+          const target = await plexPreviewTarget({
+            domain: application.domain,
+            mediaId: application.mediaId,
+            libraryKey: application.libraryKey,
+            ratingKey: application.ratingKey,
+          });
+          target.poster = await originalPlexPoster(target.settings, target.library.key, target.plex.ratingKey, target.poster);
+          const renderSession = application.userId ? { user: { id: application.userId } } : null,
+            overlay = await renderedPlexOverlay(target, template, renderSession),
+            overlaySha256 = createHash("sha256").update(overlay).digest("hex"),
+            identity = plexArtworkIdentity(target.settings.server?.machineIdentifier || "", target.library.key, target.plex.ratingKey),
+            ledger = await plexArtworkLedgerStore.read(),
+            assignment = (ledger.assignments || []).find((item) => item.identity === identity && item.source === "standalone" && item.sourceKey === application.id && !item.removedAt),
+            plexAddedAt = Number(target.plex.addedAt),
+            enriched = await overlayRenderContext(application.domain, target.item, template, renderSession),
+            variableValues = posterVariableValues(enriched.item, {
+              ...enriched.context,
+              plexAddedAt: Number.isFinite(plexAddedAt) && plexAddedAt > 0
+                ? new Date(plexAddedAt < 1e12 ? plexAddedAt * 1000 : plexAddedAt).toISOString()
+                : target.plex.addedAt,
+            });
+          let renderedSha256 = application.renderedSha256;
+          if (assignment?.overlaySha256 === overlaySha256) unchanged += 1;
+          else {
+            const composed = await setPlexArtworkAssignment({
+              machineIdentifier: target.settings.server?.machineIdentifier || "", libraryKey: target.library.key,
+              ratingKey: target.plex.ratingKey, endpoint: target.settings.endpoint, token: target.token,
+              original: target.poster, source: "standalone", sourceKey: application.id, priority: 200, overlay,
+              metadata: { templateId: template.id, templateName: template.name, title: target.item.title, domain: application.domain },
+            });
+            renderedSha256 = createHash("sha256").update(composed.rendered).digest("hex");
+            updated += 1;
+          }
+          updates.set(application.id, { variableValues, renderedSha256, refreshedAt: new Date().toISOString() });
+        } catch (error) {
+          failures.push({ applicationId: application.id, title: application.title, message: redact(error?.message || "Artwork refresh failed") });
+        }
+      }
+      if (updates.size) await plexPosterApplicationStore.update((state) => {
+        state.applications = (state.applications || []).map((item) => updates.has(item.id) ? { ...item, ...updates.get(item.id) } : item);
+      });
+      const result = { source, startedAt, finishedAt: new Date().toISOString(), reviewed, updated, unchanged, skipped, failed: failures.length, failures: failures.slice(0, 25) };
+      await plexSettingsStore.update((state) => {
+        state.artworkRefresh = { ...sanitizePlexArtworkRefresh(state.artworkRefresh), lastRunAt: result.finishedAt, lastResult: result };
+        state.updatedAt = new Date().toISOString();
+      });
+      return result;
+    } finally { plexArtworkRefreshRunning = false; }
+  }
+  async function runDuePlexArtworkRefresh(now = new Date()) {
+    if (plexArtworkRefreshRunning) return null;
+    const settings = await plexSettingsStore.read(), schedule = sanitizePlexArtworkRefresh(settings.artworkRefresh);
+    if (!schedule.enabled || (!schedule.movie && !schedule.tv)) return null;
+    const current = plexArtworkScheduleParts(now, schedule.timeZone), last = schedule.lastRunAt ? plexArtworkScheduleParts(new Date(schedule.lastRunAt), schedule.timeZone) : null;
+    if (current.time !== schedule.time || last?.date === current.date) return null;
+    return refreshManagedPlexArtwork({ source: "schedule" });
   }
   async function decoratePosterArtwork(domain, items, session) {
     const state = await posterOverlayConfiguration(),
@@ -12880,6 +13025,7 @@ export function createApplication(options = {}) {
             server: settings.server || null,
             libraries: settings.libraries || [],
             updatedAt: settings.updatedAt || null,
+            artworkRefresh: publicPlexArtworkRefresh(settings.artworkRefresh),
             artworkWritesEnabled: true,
           });
         }
@@ -12890,6 +13036,7 @@ export function createApplication(options = {}) {
           if (!administrator(res, session) || !requireCsrf(req, res, session))
             return;
           const input = await body(req),
+            current = await plexSettingsStore.read(),
             existingToken = await engineSettings.plexCredential(),
             token = String(input.token || existingToken || "").trim(),
             endpoint = sanitizePlexEndpoint(input.endpoint),
@@ -12898,6 +13045,7 @@ export function createApplication(options = {}) {
           await plexSettingsStore.write({
             version: 1,
             ...inspection,
+            artworkRefresh: sanitizePlexArtworkRefresh(current.artworkRefresh),
             updatedAt: new Date().toISOString(),
           });
           await recordAudit(session, {
@@ -12915,8 +13063,48 @@ export function createApplication(options = {}) {
             configured: true,
             ...inspection,
             updatedAt: new Date().toISOString(),
+            artworkRefresh: publicPlexArtworkRefresh(current.artworkRefresh),
             artworkWritesEnabled: true,
           });
+        }
+        if (
+          url.pathname === "/api/poster-overlays/plex/artwork-refresh" &&
+          req.method === "PUT"
+        ) {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          const input = await body(req), settings = await plexSettingsStore.read(),
+            schedule = sanitizePlexArtworkRefresh({ ...settings.artworkRefresh, ...input });
+          if (schedule.enabled && !schedule.movie && !schedule.tv)
+            throw new Error("Choose Movies, Television, or both for automatic artwork refresh");
+          await plexSettingsStore.update((state) => {
+            state.artworkRefresh = schedule;
+            state.updatedAt = new Date().toISOString();
+          });
+          await recordAudit(session, {
+            category: "configuration",
+            action: "plex.artwork_refresh_schedule_updated",
+            target: "Managed Plex artwork",
+            summary: schedule.enabled ? `Scheduled managed Plex artwork refresh for ${schedule.time} ${schedule.timeZone}.` : "Disabled automatic managed Plex artwork refresh.",
+            metadata: { enabled: schedule.enabled, time: schedule.time, timeZone: schedule.timeZone, movie: schedule.movie, tv: schedule.tv },
+          });
+          return json(res, 200, { artworkRefresh: publicPlexArtworkRefresh(schedule) });
+        }
+        if (
+          url.pathname === "/api/poster-overlays/plex/artwork-refresh/run" &&
+          req.method === "POST"
+        ) {
+          if (!administrator(res, session) || !requireCsrf(req, res, session)) return;
+          await body(req);
+          const result = await refreshManagedPlexArtwork({ source: "manual" });
+          await recordAudit(session, {
+            category: "configuration",
+            action: "plex.artwork_refresh_completed",
+            target: "Managed Plex artwork",
+            summary: `Refreshed ${result.updated} Plex poster${result.updated === 1 ? "" : "s"}; ${result.unchanged} were already current and ${result.failed} failed.`,
+            metadata: result,
+          });
+          const settings = await plexSettingsStore.read();
+          return json(res, 200, { result, artworkRefresh: publicPlexArtworkRefresh(settings.artworkRefresh) });
         }
         if (
           url.pathname === "/api/poster-overlays/plex" &&

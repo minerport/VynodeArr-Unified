@@ -1502,6 +1502,12 @@ test('Plex poster batches support variable filters and direct scoped restoration
   assert.match(api,/variableValues:source\?posterVariableValues/);assert.match(api,/variableValues: posterVariableValues/);
 });
 
+test('managed Plex artwork has an opt-in daily refresh with manual recovery',async()=>{
+  const source=await read('apps/web/client/src/poster-overlays-plex.tsx'),api=await read('apps/api/src/app.js');
+  for(const value of ['Automatic template refresh','Refresh managed artwork every day','Save refresh schedule','Run now','Movies','Television'])assert.match(source,new RegExp(value));
+  assert.match(source,/\/api\/poster-overlays\/plex\/artwork-refresh/);assert.match(api,/runDuePlexArtworkRefresh/);assert.match(api,/assignment\?\.overlaySha256 === overlaySha256/);assert.match(api,/originalPlexPoster/);
+});
+
 test('poster overlay editor provides bounded layer fields and a shape library',async()=>{
   const rail=await read('apps/web/client/src/poster-overlay-editor-rail.tsx'),layout=await read('apps/web/client/src/poster-overlay-editor-layout.css');
   for(const shape of ['rounded','square','pill','circle','ticket','ribbon','tag','hexagon','chevron'])assert.ok(rail.includes(shape),shape);

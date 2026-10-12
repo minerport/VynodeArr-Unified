@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import type {
   OverlayTemplate,
   PlexMatchReview,
+  PlexArtworkRefresh,
+  PlexArtworkRefreshResult,
   PlexOverlayConnection,
   PlexPosterApplication,
   PosterOverlayMountOptions,
@@ -49,6 +51,7 @@ export function PlexConnectionPanel({
     [templateId, setTemplateId] = useState(""),
     [selectedTargets, setSelectedTargets] = useState<string[]>([]),
     [applications, setApplications] = useState<PlexPosterApplication[]>([]),
+    [refresh, setRefresh] = useState<PlexArtworkRefresh>({enabled:false,time:"03:00",timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone||"UTC",movie:true,tv:true,lastRunAt:null,nextRunAt:null,running:false,lastResult:null}),
     [historyExpanded, setHistoryExpanded] = useState(false);
   const load = useCallback(async () => {
     try {
@@ -61,6 +64,7 @@ export function PlexConnectionPanel({
       setPlex(connection);
       setEndpoint(connection.endpoint || "");
       setApplications(history.applications);
+      setRefresh(connection.artworkRefresh||{enabled:false,time:"03:00",timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone||"UTC",movie:true,tv:true,lastRunAt:null,nextRunAt:null,running:false,lastResult:null});
       setSelectedLibraries((current) =>
         current.length ? current : connection.libraries.map((item) => item.key),
       );
@@ -106,6 +110,25 @@ export function PlexConnectionPanel({
     } finally {
       setBusy(false);
     }
+  };
+  const saveRefresh = async () => {
+    setBusy(true);
+    try {
+      const value=await options.request<{artworkRefresh:PlexArtworkRefresh}>("/api/poster-overlays/plex/artwork-refresh",{method:"PUT",body:JSON.stringify(refresh)});
+      setRefresh(value.artworkRefresh);
+      options.notify(value.artworkRefresh.enabled?"Automatic Plex artwork refresh scheduled.":"Automatic Plex artwork refresh disabled.");
+    } catch(reason){options.notify(errorText(reason),"error");}
+    finally{setBusy(false);}
+  };
+  const runRefresh = async () => {
+    setBusy(true);setRefresh(current=>({...current,running:true}));
+    try {
+      const value=await options.request<{result:PlexArtworkRefreshResult;artworkRefresh:PlexArtworkRefresh}>("/api/poster-overlays/plex/artwork-refresh/run",{method:"POST",body:"{}"});
+      setRefresh(value.artworkRefresh);
+      await load();
+      options.notify(`Managed artwork refresh finished: ${value.result.updated} updated, ${value.result.unchanged} already current${value.result.failed?`, ${value.result.failed} failed`:""}.`,value.result.failed?"warning":undefined);
+    } catch(reason){setRefresh(current=>({...current,running:false}));options.notify(errorText(reason),"error");}
+    finally{setBusy(false);}
   };
   const reviewMatches = async () => {
     setBusy(true);
@@ -317,6 +340,20 @@ export function PlexConnectionPanel({
           </button>
         ) : null}
       </div>
+      {plex?.configured ? <section className="notice plex-artwork-refresh">
+        <div className="panel-heading"><div><strong>Automatic template refresh</strong><p className="muted">Re-render only active VynodeArr-managed Plex posters from their protected originals. Unchanged posters are skipped.</p></div><span className={`badge${refresh.enabled?" green":""}`}>{refresh.enabled?"SCHEDULED":"OFF"}</span></div>
+        <label className="check"><input type="checkbox" checked={refresh.enabled} onChange={event=>setRefresh(current=>({...current,enabled:event.target.checked}))}/><span>Refresh managed artwork every day</span></label>
+        <div className="overlay-scope-row">
+          <label>Daily time<input type="time" value={refresh.time} onChange={event=>setRefresh(current=>({...current,time:event.target.value}))}/></label>
+          <label>Time zone<input value={refresh.timeZone} onChange={event=>setRefresh(current=>({...current,timeZone:event.target.value}))} placeholder="America/New_York"/></label>
+        </div>
+        <div className="form-actions">
+          <label className="check"><input type="checkbox" checked={refresh.movie} onChange={event=>setRefresh(current=>({...current,movie:event.target.checked}))}/><span>Movies</span></label>
+          <label className="check"><input type="checkbox" checked={refresh.tv} onChange={event=>setRefresh(current=>({...current,tv:event.target.checked}))}/><span>Television</span></label>
+        </div>
+        <div className="form-actions"><button type="button" className="primary" disabled={busy||refresh.running||(!refresh.movie&&!refresh.tv)} onClick={()=>void saveRefresh()}>Save refresh schedule</button><button type="button" className="secondary" disabled={busy||refresh.running} onClick={()=>void runRefresh()}>{refresh.running?"Refreshing…":"Run now"}</button></div>
+        <p className="muted">{refresh.lastRunAt?`Last run ${new Date(refresh.lastRunAt).toLocaleString()} · ${refresh.lastResult?.updated||0} updated · ${refresh.lastResult?.unchanged||0} unchanged · ${refresh.lastResult?.failed||0} failed`:"No refresh has run yet."}{refresh.enabled&&refresh.nextRunAt?` Next run ${new Date(refresh.nextRunAt).toLocaleString()}.`:""}</p>
+      </section>:null}
       {plex?.configured ? (
         <div className="notice plex-library-review">
           <strong>Choose libraries and revalidate matches</strong>
