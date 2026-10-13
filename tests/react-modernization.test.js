@@ -288,6 +288,9 @@ test('the complete dashboard has a React view with a legacy-safe bridge',async()
   assert.match(wanted,/Search all missing/);
   assert.match(wanted,/Interactive search/);
   assert.match(wanted,/SeriesSearch/);
+  assert.match(wanted,/Filter Wanted by status/);
+  assert.match(wanted,/All statuses/);
+  assert.match(wanted,/visibleItems/);
   assert.match(calendar,/Previous month/);
   assert.match(calendar,/\/api\/calendar\?start=/);
   assert.doesNotMatch(calendar,/\/api\/manage\/(?:movie|tv)\/calendar/);
