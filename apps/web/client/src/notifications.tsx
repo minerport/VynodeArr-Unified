@@ -43,7 +43,7 @@ export function Notifications({options}:{options:NotificationMountOptions}){
   </div>;
 }
 
-function DownloadDecisionList({ items }: { items: DownloadDecision[] }) {
+export function DownloadDecisionList({ items }: { items: DownloadDecision[] }) {
   const [domain, setDomain] = useState("all"),
     [decision, setDecision] = useState("all"),
     [query, setQuery] = useState(""),

@@ -16632,6 +16632,7 @@ export function createApplication(options = {}) {
                   rawCalendar,
                   rawHealth,
                   tvProfiles,
+                  rawDecisionState,
                 ] = await Promise.all([
                   sync.list("movie"),
                   sync.list("tv"),
@@ -16640,6 +16641,9 @@ export function createApplication(options = {}) {
                   sync.operations("calendar"),
                   sync.operations("health"),
                   management.execute("tv", "profiles", "GET", {engineInstanceId:selectedTvDashboard?.id||null}).catch(() => []),
+                  session.user.role === "administrator" && combinedDashboard
+                    ? downloadDecisionStore.read().catch(() => ({ decisions: [] }))
+                    : Promise.resolve({ decisions: [] }),
                 ]),
                 owns=(item,domain)=>String(domain==="movie"?movieDashboardId:tvDashboardId)==="all"||String(item.engineInstanceId||"")===String(domain==="movie"?movieDashboardId:tvDashboardId),
                 movies=rawMovies.filter(item=>owns(item,"movie")),tvItems=rawTvItems.filter(item=>owns(item,"tv")),queue=rawQueue.filter(item=>owns(item,item.domain)),history=rawHistory.filter(item=>owns(item,item.domain)),calendar=rawCalendar.filter(item=>owns(item,item.domain)),health=rawHealth.filter(item=>owns(item,item.domain)),
@@ -16699,7 +16703,106 @@ export function createApplication(options = {}) {
                     context: item.context || null,
                     dateUtc: item.dateUtc,
                     mediaId: item.mediaId || null,
-                  }));
+                  })),
+                now = Date.now(),
+                recentThreshold = now - 24 * 60 * 60 * 1e3,
+                upcomingThreshold = now + 48 * 60 * 60 * 1e3,
+                recentHistory = history.filter((item) => {
+                  const timestamp = new Date(item.timestamp || item.dateUtc || item.date || 0).getTime();
+                  return Number.isFinite(timestamp) && timestamp >= recentThreshold;
+                }),
+                importedRecently = recentHistory.filter((item) =>
+                  /import/.test(String(item.eventType || item.status || "").toLowerCase()),
+                ).length,
+                grabbedRecently = recentHistory.filter((item) =>
+                  /grab/.test(String(item.eventType || item.status || "").toLowerCase()),
+                ).length,
+                arrivingSoon = futureCalendar.filter((item) =>
+                  new Date(item.dateUtc).getTime() <= upcomingThreshold,
+                ).length,
+                queueProblems = queue.filter((item) =>
+                  /fail|error|warning/.test(String(item.status || item.trackedDownloadStatus || "").toLowerCase()) ||
+                  Boolean(item.errorMessage || item.statusMessages?.length),
+                ).length,
+                recentDecisions = (rawDecisionState.decisions || []).filter((item) => {
+                  const timestamp = new Date(item.observedAt || 0).getTime();
+                  return Number.isFinite(timestamp) && timestamp >= recentThreshold;
+                }),
+                selectedRecently = recentDecisions.filter((item) => item.decision === "selected").length,
+                rejectedRecently = recentDecisions.filter((item) => item.decision === "rejected").length,
+                needsAttention = queueProblems + health.length,
+                briefing = {
+                  generatedAt: new Date(now).toISOString(),
+                  periodHours: 24,
+                  headline: needsAttention
+                    ? `${needsAttention} ${needsAttention === 1 ? "item needs" : "items need"} attention`
+                    : "Your media system is running smoothly",
+                  summary: needsAttention
+                    ? "Review the highlighted issues before they interrupt downloads or imports."
+                    : importedRecently || grabbedRecently
+                      ? "Automation is active and no current queue or engine problems were reported."
+                      : "No new problems were reported in the latest operational snapshot.",
+                  counts: {
+                    imported: importedRecently,
+                    grabbed: grabbedRecently,
+                    activeDownloads: queue.length,
+                    arrivingSoon: arrivingSoon,
+                    needsAttention: needsAttention,
+                    selected: selectedRecently,
+                    rejected: rejectedRecently,
+                  },
+                  highlights: [
+                    {
+                      id: "attention",
+                      tone: needsAttention ? "danger" : "good",
+                      label: needsAttention ? "Needs attention" : "System health",
+                      value: needsAttention,
+                      detail: needsAttention
+                        ? `${queueProblems} queue ${queueProblems === 1 ? "issue" : "issues"} · ${health.length} engine ${health.length === 1 ? "notice" : "notices"}`
+                        : "No queue failures or engine notices",
+                      href: session.user.role === "administrator" ? "#operations" : "#health",
+                    },
+                    {
+                      id: "imports",
+                      tone: importedRecently ? "good" : "neutral",
+                      label: "Imported in 24 hours",
+                      value: importedRecently,
+                      detail: grabbedRecently
+                        ? `${grabbedRecently} ${grabbedRecently === 1 ? "release was" : "releases were"} grabbed`
+                        : "No new grabs were recorded",
+                      href: "#history",
+                    },
+                    {
+                      id: "upcoming",
+                      tone: "neutral",
+                      label: "Next 48 hours",
+                      value: arrivingSoon,
+                      detail: arrivingSoon
+                        ? "Scheduled movies and episodes are approaching"
+                        : "Nothing scheduled in the next 48 hours",
+                      href: "#calendar",
+                    },
+                    session.user.role === "administrator" && combinedDashboard
+                      ? {
+                          id: "decisions",
+                          tone: selectedRecently ? "good" : "neutral",
+                          label: "Release decisions",
+                          value: selectedRecently + rejectedRecently,
+                          detail: `${selectedRecently} selected · ${rejectedRecently} rejected in 24 hours`,
+                          href: "#operations",
+                        }
+                      : {
+                          id: "downloads",
+                          tone: queueProblems ? "danger" : "neutral",
+                          label: "Active queue",
+                          value: queue.length,
+                          detail: queueProblems
+                            ? `${queueProblems} ${queueProblems === 1 ? "download needs" : "downloads need"} review`
+                            : "Current downloads and import activity",
+                          href: "#queue",
+                        },
+                  ],
+                };
               return {
                 scope:{movie:{id:movieDashboardId,name:selectedMovieDashboard?.name||"All movie engines",instanceCount:movieDashboardInstances.length},tv:{id:tvDashboardId,name:selectedTvDashboard?.name||"All TV engines",instanceCount:tvDashboardInstances.length}},
                 metrics: {
@@ -16727,6 +16830,7 @@ export function createApplication(options = {}) {
                     analytics.library.tv.sizeOnDisk,
                 },
                 upcoming: upcoming,
+                briefing: briefing,
                 analytics: analytics,
                 recentlyAdded: recentlyAdded,
                 recentActivity: history.slice(0, 8).map(item=>({...item,engineInstanceName:item.engineInstanceName||dashboardInstances.find(instance=>instance.id===item.engineInstanceId)?.name||null})),

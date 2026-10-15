@@ -86,9 +86,19 @@ export interface UpcomingItem {
   mediaId?:string|null;
 }
 
+export interface DashboardBriefing {
+  generatedAt:string;
+  periodHours:number;
+  headline:string;
+  summary:string;
+  counts:{imported:number;grabbed:number;activeDownloads:number;arrivingSoon:number;needsAttention:number;selected:number;rejected:number};
+  highlights:Array<{id:string;tone:'good'|'danger'|'neutral'|'warm';label:string;value:number;detail:string;href:string}>;
+}
+
 export interface DashboardData {
   metrics:DashboardMetrics;
   upcoming?:UpcomingItem[];
+  briefing?:DashboardBriefing;
   analytics?:DashboardAnalytics;
   recentlyAdded?:RecentlyAddedItem[];
   recentActivity?:RecentActivityItem[];
