@@ -1799,7 +1799,7 @@ test('download decision center explains native candidate evidence',async()=>{
   for(const value of ['Download Decision Center','Why a release was accepted or rejected','Custom format','Preferred words','Age (days)','Seeders','Upgrade','Engine rejection evidence'])assert.ok(notifications.includes(value),value);
   for(const value of ['Decision Center','Release decisions','DownloadDecisionList','/api/download-decisions'])assert.ok(operations.includes(value),value);
   for(const value of ['briefing','periodHours: 24','selectedRecently','rejectedRecently'])assert.ok(server.includes(value),value);
-  assert.match(dashboard,/DAILY BRIEFING/);assert.match(dashboard,/dashboard-briefing/);assert.match(dashboardTypes,/interface DashboardBriefing/);assert.match(dashboardStyles,/\.dashboard-briefing-grid/);
+  assert.match(dashboard,/DAILY BRIEFING/);assert.match(dashboard,/dashboard-briefing/);assert.match(dashboardTypes,/interface DashboardBriefing/);assert.match(dashboardStyles,/\.dashboard-briefing-grid/);assert.match(dashboardStyles,/\.dashboard-briefing > header \{/);assert.match(dashboardStyles,/position: static/);assert.match(dashboardStyles,/height: auto/);
   assert.match(types,/interface DownloadDecision/);assert.match(styles,/decision-metrics/);assert.match(styles,/@media\(max-width:700px\)/);
 });
 

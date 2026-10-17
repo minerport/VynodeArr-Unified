@@ -203,7 +203,22 @@
   box-shadow: inset 0 1px 0 rgba(255,255,255,.1),0 16px 38px rgba(0,0,0,.22);
 }
 .dashboard-briefing.attention { border-color: rgba(255,102,123,.38); }
-.dashboard-briefing > header { display:flex;align-items:flex-start;justify-content:space-between;gap:1rem; }
+.dashboard-briefing > header {
+  position: static;
+  z-index: auto;
+  top: auto;
+  display: flex;
+  height: auto;
+  min-height: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  backdrop-filter: none;
+}
+.dashboard-briefing > header > div { min-width: 0; }
 .dashboard-briefing h2 { margin:.2rem 0;font-size:1.35rem; }
 .dashboard-briefing header p:not(.eyebrow),.dashboard-briefing time { margin:0;color:var(--muted);font-size:.75rem; }
 .dashboard-briefing time { white-space:nowrap; }
