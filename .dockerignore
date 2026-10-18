@@ -13,3 +13,6 @@ Dockerfile.unraid
 distribution
 docs
 tests
+
+# Native app is built separately from the server image
+android-companion

@@ -23,6 +23,15 @@ and television engines; VynodeArr brings their library management, discovery,
 monitoring, acquisition, activity, and administration workflows into one
 consistent experience and account system.
 
+## Android companion preview
+
+The optional [Android companion](android-companion/README.md) provides native
+phone and Android TV discovery, account sign-in, short-code pairing, movie and
+series requests, and request tracking. Account sign-in works with existing
+servers; optional short-code pairing requires the accompanying server endpoints.
+This is a local debug preview; physical Shield and Fire OS testing and store
+distribution remain separate release steps. Vega OS is not supported by the APK.
+
 ## Product tour
 
 <table>

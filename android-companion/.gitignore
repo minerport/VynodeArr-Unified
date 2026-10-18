@@ -1,0 +1,15 @@
+.gradle/
+.kotlin/
+**/build/
+local.properties
+keystore.properties
+*.jks
+*.keystore
+.idea/
+
+# Local emulator evidence and installable build artifacts
+/*.txt
+*.apk
+*.aab
+*.apks
+/captures/

@@ -26,6 +26,7 @@ import { ProjectionStore } from "../../../packages/platform/src/projection-store
 import { LibraryCatalogStore } from "../../../packages/platform/src/library-catalog-store.js";
 import { CatalogEventProcessor } from "../../../packages/platform/src/catalog-event-processor.js";
 import { AuthService } from "../../../packages/platform/src/auth-service.js";
+import { CompanionPairing, handleCompanionPairing } from "../../../packages/platform/src/companion-pairing.js";
 import { EngineSettingsService } from "../../../packages/platform/src/engine-settings-service.js";
 import { MasterKeyService } from "../../../packages/platform/src/master-key-service.js";
 import { EngineManagementService } from "../../../packages/platform/src/engine-management-service.js";
@@ -161,6 +162,11 @@ async function staticResponse(
     "cache-control": cacheControl,
     etag: tag,
     "x-content-type-options": "nosniff",
+    ...(path.replaceAll("\\", "/").endsWith("/companion-pair.html") ? {
+      "x-frame-options": "DENY",
+      "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+      "referrer-policy": "no-referrer",
+    } : {}),
   };
   if (compressible.has(extension)) headers.vary = "Accept-Encoding";
   if (req.headers["if-none-match"] === tag) {
@@ -431,6 +437,7 @@ function dashboardAnalytics(
   };
 }
 export function createApplication(options = {}) {
+  const companionPairing = new CompanionPairing();
   const env = options.env || process.env,
     baseConfig = options.config || loadEngineConfiguration(env),
     logger = options.logger || createLogger({env});
@@ -8544,6 +8551,7 @@ export function createApplication(options = {}) {
         return proxyCompatibilityApi(req, res, url, "movie", "/movies");
       if (url.pathname === "/tv" || url.pathname.startsWith("/tv/"))
         return proxyCompatibilityApi(req, res, url, "tv", "/tv");
+      if (await handleCompanionPairing(req, res, url, { pairing: companionPairing, auth, body, json, requireSession, requireCsrf, permitted })) return;
       if (url.pathname === "/api/auth/status" && req.method === "GET") {
         const session = sessionFor(req, auth);
         return json(res, 200, {
