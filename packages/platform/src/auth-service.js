@@ -22,7 +22,7 @@ const normalizeLimit=value=>value==null||value===''?null:Math.max(1,Math.min(100
 const normalizeRequestLimits=(value={})=>({enabled:value?.enabled===true,period:['daily','weekly','monthly'].includes(value?.period)?value.period:'weekly',movie:normalizeLimit(value?.movie),tv:normalizeLimit(value?.tv),maxPending:normalizeLimit(value?.maxPending)});
 const maskIp=(ip='')=>ip.includes(':')?`${ip.split(':').slice(0,3).join(':')}:…`:ip.replace(/\.\d+$/,'.…');
 const clientInfo=(agent='')=>({
-  browser:/Firefox/i.test(agent)?'Firefox':/Edg/i.test(agent)?'Edge':/Chrome/i.test(agent)?'Chrome':/Safari/i.test(agent)?'Safari':'Unknown browser',
+  browser:/VynodeArr Companion/i.test(agent)?'VynodeArr Companion':/Firefox/i.test(agent)?'Firefox':/Edg/i.test(agent)?'Edge':/Chrome/i.test(agent)?'Chrome':/Safari/i.test(agent)?'Safari':'Unknown browser',
   os:/Windows/i.test(agent)?'Windows':/Mac OS/i.test(agent)?'macOS':/Linux/i.test(agent)?'Linux':/Android/i.test(agent)?'Android':/iPhone|iPad/i.test(agent)?'iOS':'Unknown OS'
 });
 
