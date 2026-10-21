@@ -10,9 +10,15 @@ export class JsonStore {
   async write(value) {
     const operation=this.queue.catch(()=>{}).then(async()=>{
       await mkdir(dirname(this.path),{recursive:true});
+      const serialized=JSON.stringify(value,null,2);
+      try {
+        const existing=await readFile(this.path,'utf8');
+        if(existing===serialized)return false;
+      } catch(error) { if(error.code!=='ENOENT')throw error; }
       const temporary=`${this.path}.${process.pid}.tmp`;
-      await writeFile(temporary,JSON.stringify(value,null,2),{mode:0o600});
+      await writeFile(temporary,serialized,{mode:0o600});
       await rename(temporary,this.path);
+      return true;
     });
     this.queue=operation.catch(()=>{});
     return operation;
@@ -21,10 +27,16 @@ export class JsonStore {
     let result;
     const operation=this.queue.catch(()=>{}).then(async()=>{
       const current=await this.read();
+      const before=JSON.stringify(current,null,2);
       result=await mutator(current);
+      const serialized=JSON.stringify(current,null,2);
+      try {
+        await readFile(this.path,'utf8');
+        if(serialized===before)return;
+      } catch(error) { if(error.code!=='ENOENT')throw error; }
       await mkdir(dirname(this.path),{recursive:true});
       const temporary=`${this.path}.${process.pid}.tmp`;
-      await writeFile(temporary,JSON.stringify(current,null,2),{mode:0o600});
+      await writeFile(temporary,serialized,{mode:0o600});
       await rename(temporary,this.path);
     });
     this.queue=operation.catch(()=>{});

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
-import { mkdtemp,rm } from 'node:fs/promises';
+import { mkdtemp,rm,stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { AuthService } from '../.server-build/packages/platform/src/auth-service.js';
@@ -117,7 +117,7 @@ async function appSession(options,run){
   const server=createServer(app.handleRequest);await new Promise((resolve)=>server.listen(0,'127.0.0.1',resolve));const base=`http://127.0.0.1:${server.address().port}`;
   try{
     const setup=await fetch(`${base}/api/auth/setup`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(adminInput)}),result=await setup.json(),cookie=setup.headers.get('set-cookie').split(';')[0];
-    await run({base,cookie,csrf:result.csrf,app});
+    await run({base,cookie,csrf:result.csrf,app,directory});
   }finally{server.closeAllConnections?.();await new Promise((resolve)=>server.close(resolve));app.sync.stopPolling();await rm(directory,{recursive:true,force:true,maxRetries:5,retryDelay:50});}
 }
 test('Reeltrack lists keep API keys server-side and match library titles only by durable external IDs',()=>{
@@ -327,6 +327,23 @@ test('native engine background grabs appear as upgrade decisions',()=>{
     assert.equal(item.title,grabbed.sourceTitle);assert.equal(item.previousQuality,'WEBDL-1080p');assert.equal(item.previousCustomFormatScore,25);assert.equal(item.currentCustomFormatScore,125);assert.equal(item.upgradeEligible,true);assert.match(item.reasons.join(' '),/score improved from 25 to 125/i);
     const activities=(await (await fetch(`${base}/api/search-activities`,{headers:{cookie}})).json()).items,activity=activities.find(value=>value.source==='engine');
     assert.equal(activity.title,'Background Movie');assert.equal(activity.movieId,7);assert.equal(activity.status,'imported');assert.match(activity.message,/imported into the library/i);
+  });
+});
+test('repeated administrator notification polls do not rewrite unchanged activity stores',()=>{
+  const grabbed={id:801,eventType:'grabbed',date:'2026-08-03T01:00:00Z',movie:{id:10,title:'Stable Movie'},sourceTitle:'Stable.Movie.2026.1080p.WEB-DL',downloadId:'rss-801',quality:{quality:{name:'WEBDL-1080p'}},data:{indexer:'RSS Indexer',protocol:'usenet'}};
+  const client={get:async path=>path==='queue'?{records:[]}:path==='history'?{records:[grabbed]}:[]},movie=Object.assign(new MovieFixtureAdapter(),{client}),tv=Object.assign(new TvFixtureAdapter(),{client:{get:async path=>path==='queue'||path==='history'?{records:[]}:[]}});
+  return appSession({movie,tv,env:{VYNODEARR_DATA_MODE:'engine'}},async({base,cookie,directory})=>{
+    assert.equal((await fetch(`${base}/api/notifications`,{headers:{cookie}})).status,200);
+    const paths=['download-decisions.json','notification-events.json','search-activity.json'].map(name=>join(directory,name));
+    const before=await Promise.all(paths.map(path=>stat(path,{bigint:true})));
+    await new Promise(resolve=>setTimeout(resolve,25));
+    const responses=await Promise.all(Array.from({length:6},()=>fetch(`${base}/api/notifications`,{headers:{cookie}})));
+    assert.ok(responses.every(response=>response.status===200));
+    const after=await Promise.all(paths.map(path=>stat(path,{bigint:true})));
+    for(let index=0;index<paths.length;index+=1){
+      assert.equal(after[index].mtimeNs,before[index].mtimeNs,`${paths[index]} must not be rewritten`);
+      assert.equal(after[index].ino,before[index].ino,`${paths[index]} must not be replaced`);
+    }
   });
 });
 test('native replacement events without download IDs still explain same-quality grabs',()=>{

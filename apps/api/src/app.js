@@ -2941,6 +2941,8 @@ export function createApplication(options = {}) {
   let initialized = false,
     queueCompletionTimer = null,
     operationalNotificationTimer = null,
+    operationalNotificationRun = null,
+    operationalNotificationLastRunAt = 0,
     reeltrackAutomationTimer = null,
     plexArtworkRefreshTimer = null,
     liveQueueRun = null,
@@ -6849,29 +6851,48 @@ export function createApplication(options = {}) {
     {
       activeGroups: activeGroups = [],
       suppressExternalIds: suppressExternalIds = new Set(),
+      operationalCheckpoint: operationalCheckpoint = null,
+      initializeOperational: initializeOperational = false,
     } = {},
   ) {
     const now = new Date().toISOString(),
       activeIds = new Set(events.map((item) => item.id)),
       added = [];
     await notificationStore.update((current) => {
+      let changed = false;
       current.version = 1;
       current.events = Array.isArray(current.events) ? current.events : [];
       for (const item of events) {
         const existing = current.events.find(
           (value) =>
             value.recipientUserId === recipientUserId && value.id === item.id,
-        );
-        if (existing) Object.assign(existing, item, { updatedAt: now });
+          ),
+          incoming = Object.fromEntries(
+            Object.entries(item).filter(
+              ([key, value]) => key !== "timestamp" || value != null,
+            ),
+          );
+        if (existing) {
+          const materialChange = Object.entries(incoming).some(
+            ([key, value]) =>
+              JSON.stringify(existing[key]) !== JSON.stringify(value),
+          );
+          if (materialChange) {
+            Object.assign(existing, incoming, { updatedAt: now });
+            changed = true;
+          }
+        }
         else {
           const created = {
-            ...item,
+            ...incoming,
+            timestamp: incoming.timestamp || now,
             recipientUserId: recipientUserId,
             createdAt: now,
             updatedAt: now,
           };
           current.events.push(created);
           added.push(created);
+          changed = true;
         }
       }
       for (const existing of current.events)
@@ -6880,19 +6901,26 @@ export function createApplication(options = {}) {
           existing.actionable &&
           activeGroups.includes(existing.eventGroup) &&
           !activeIds.has(existing.id)
-        )
+        ) {
           Object.assign(existing, {
             actionable: false,
             resolvedAt: now,
             updatedAt: now,
             message: `Resolved · ${existing.message}`,
           });
+          changed = true;
+        }
       current.events = current.events
         .sort((left, right) =>
           String(right.timestamp).localeCompare(String(left.timestamp)),
         )
         .slice(0, 2e3);
-      return events.length;
+      if (operationalCheckpoint && (initializeOperational || changed)) {
+        current.operationalInitializedAt = operationalCheckpoint;
+        current.operationalGrabDeliveryInitializedAt =
+          current.operationalGrabDeliveryInitializedAt || operationalCheckpoint;
+      }
+      return { added: added.length, changed: changed };
     });
     const deliverable = added.filter(
       (item) => !suppressExternalIds.has(item.id),
@@ -6914,10 +6942,6 @@ export function createApplication(options = {}) {
       events = [],
       suppressExternalIds = new Set(),
       activeGroups = ["queue-problem", "engine-health", "search-no-result"];
-    if (firstRun)
-      await notificationStore.update(
-        (current) => (current.operationalInitializedAt = since),
-      );
     if (mode === "engine")
       await liveQueue({ maxAgeMs: 3e4 }).catch(() => []);
     const domainValues =
@@ -6970,7 +6994,7 @@ export function createApplication(options = {}) {
             item.errorMessage ||
             item.statusMessages?.[0]?.messages?.[0] ||
             "The download is stalled or the media engine reported a queue problem.",
-          timestamp: item.added || item.addedAt || new Date().toISOString(),
+          timestamp: item.added || item.addedAt || null,
           href: "#queue",
           requestId: "",
           actionable: true,
@@ -7041,7 +7065,7 @@ export function createApplication(options = {}) {
         type: "failed",
         title: `${item.domain === "tv" ? "Television" : item.domain === "movie" ? "Movies" : "Media engine"} needs attention`,
         message: message,
-        timestamp: item.timestamp || new Date().toISOString(),
+        timestamp: item.timestamp || null,
         href: "#service/library-health",
         requestId: "",
         actionable: true,
@@ -7071,24 +7095,36 @@ export function createApplication(options = {}) {
     await persistNotificationEvents(session.user.id, events, {
       activeGroups: activeGroups,
       suppressExternalIds: suppressExternalIds,
-    });
-    await notificationStore.update((current) => {
-      current.operationalInitializedAt = cycleStartedAt;
-      current.operationalGrabDeliveryInitializedAt =
-        current.operationalGrabDeliveryInitializedAt || cycleStartedAt;
-      return cycleStartedAt;
+      operationalCheckpoint: cycleStartedAt,
+      initializeOperational: firstRun,
     });
   }
-  async function synchronizeAdministratorOperationalNotifications() {
-    const users = await auth.listUsers(),
-      administrator = users.find(
-        (user) => user.role === "administrator" && user.enabled !== false,
-      );
-    if (!administrator) return;
-    await synchronizeOperationalNotifications({ user: administrator });
+  function synchronizeAdministratorOperationalNotifications({
+    maxAgeMs: maxAgeMs = 0,
+  } = {}) {
+    if (operationalNotificationRun) return operationalNotificationRun;
+    if (
+      maxAgeMs > 0 &&
+      operationalNotificationLastRunAt > 0 &&
+      Date.now() - operationalNotificationLastRunAt < maxAgeMs
+    )
+      return Promise.resolve();
+    operationalNotificationRun = (async () => {
+      const users = await auth.listUsers(),
+        administrator = users.find(
+          (user) => user.role === "administrator" && user.enabled !== false,
+        );
+      if (!administrator) return;
+      await synchronizeOperationalNotifications({ user: administrator });
+    })().finally(() => {
+      operationalNotificationLastRunAt = Date.now();
+      operationalNotificationRun = null;
+    });
+    return operationalNotificationRun;
   }
   async function requestNotifications(session) {
-    await synchronizeOperationalNotifications(session);
+    if (session.user.role === "administrator")
+      await synchronizeAdministratorOperationalNotifications({ maxAgeMs: 6e4 });
     const administratorUser = session.user.role === "administrator",
       records = await liveUserRequests(
         administratorUser ? null : session.user.id,
