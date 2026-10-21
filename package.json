@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "scripts": {
     "build:web": "vite build --config apps/web/client/vite.config.ts",
@@ -20,6 +20,7 @@
     "verify": "npm run test && npm run typecheck:web && npm run build && npm run check:web-bundle && npm run check:branding && npm run validate:deployment"
   },
   "dependencies": {
+    "better-sqlite3": "13.0.3",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "sharp": "0.35.3"

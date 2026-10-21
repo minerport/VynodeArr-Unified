@@ -36,6 +36,7 @@ import {
   sanitizePlexEndpoint,
 } from "../../../packages/platform/src/plex-service.js";
 import { JsonStore } from "../../../packages/platform/src/json-store.js";
+import { SqliteDocumentStore } from "../../../packages/platform/src/sqlite-document-store.js";
 import { MediaDestinationService } from "../../../packages/platform/src/media-destination-service.js";
 import { TrailerDownloadService } from "../../../packages/platform/src/trailer-download-service.js";
 import { TrailerPlaybackService } from "../../../packages/platform/src/trailer-playback-service.js";
@@ -600,25 +601,51 @@ export function createApplication(options = {}) {
     });
   const notificationStore =
     options.notificationStore ||
-    new JsonStore(join(dataDir, "notification-events.json"), {
-      version: 1,
-      events: [],
-      reads: {},
-      dismissed: {},
-    });
+    new SqliteDocumentStore(
+      join(dataDir, "notification-events.json"),
+      {
+        version: 1,
+        events: [],
+        reads: {},
+        dismissed: {},
+      },
+      {
+        databasePath: join(dataDir, "vynodearr.db"),
+        namespace: "notifications",
+        itemKeys: {
+          events: (item) => `${item.recipientUserId || ""}:${item.id || ""}`,
+        },
+        dailyBackup: true,
+        backupRetention: 7,
+      },
+    );
   const searchActivityStore =
     options.searchActivityStore ||
-    new JsonStore(join(dataDir, "search-activity.json"), {
-      version: 1,
-      activities: [],
-      dismissed: {},
-    });
+    new SqliteDocumentStore(
+      join(dataDir, "search-activity.json"),
+      {
+        version: 1,
+        activities: [],
+        dismissed: {},
+      },
+      {
+        databasePath: join(dataDir, "vynodearr.db"),
+        namespace: "search-activity",
+      },
+    );
   const downloadDecisionStore =
     options.downloadDecisionStore ||
-    new JsonStore(join(dataDir, "download-decisions.json"), {
-      version: 1,
-      decisions: [],
-    });
+    new SqliteDocumentStore(
+      join(dataDir, "download-decisions.json"),
+      {
+        version: 1,
+        decisions: [],
+      },
+      {
+        databasePath: join(dataDir, "vynodearr.db"),
+        namespace: "download-decisions",
+      },
+    );
   const operationsCenterStore =
     options.operationsCenterStore ||
     new JsonStore(join(dataDir, "operations-center.json"), {
@@ -808,9 +835,17 @@ export function createApplication(options = {}) {
         ...(input.includeHistory === false ? [] : applicationHistoryFiles),
         ...(input.includeAudit === false ? [] : applicationAuditFiles),
       ],
+      sqliteExports = new Map([
+        ["notification-events.json", notificationStore],
+        ["search-activity.json", searchActivityStore],
+        ["download-decisions.json", downloadDecisionStore],
+      ]),
       files = {};
     for (const name of names) {
-      const value = await readFile(join(dataDir, name)).catch(() => null);
+      const sqliteStore = sqliteExports.get(name),
+        value = sqliteStore
+          ? Buffer.from(JSON.stringify(await sqliteStore.read(), null, 2))
+          : await readFile(join(dataDir, name)).catch(() => null);
       if (value) files[name] = value.toString("base64");
     }
     const createdAt = new Date().toISOString(),
@@ -956,11 +991,23 @@ export function createApplication(options = {}) {
     };
   }
   async function restoreApplicationBackup(payload) {
-    const restored = [];
+    const restored = [],
+      sqliteImports = new Map([
+        ["notification-events.json", notificationStore],
+        ["search-activity.json", searchActivityStore],
+        ["download-decisions.json", downloadDecisionStore],
+      ]);
     for (const [name, value] of Object.entries(payload.files)) {
+      const decoded = Buffer.from(String(value), "base64"),
+        sqliteStore = sqliteImports.get(name);
+      if (sqliteStore) {
+        await sqliteStore.write(JSON.parse(decoded.toString("utf8")));
+        restored.push(name);
+        continue;
+      }
       const target = join(dataDir, name),
         temporary = `${target}.restore-${randomUUID()}`;
-      await writeFile(temporary, Buffer.from(String(value), "base64"), {
+      await writeFile(temporary, decoded, {
         mode: name === "master-key" || name === "credentials.enc" ? 384 : 416,
       });
       await rename(temporary, target);
@@ -5812,6 +5859,9 @@ export function createApplication(options = {}) {
         libraryWatchLastSync.clear();
         for (const watcher of libraryWatchers.splice(0)) watcher.close?.();
         void projectionStore.close?.();
+        notificationStore.close?.();
+        searchActivityStore.close?.();
+        downloadDecisionStore.close?.();
       };
       sync.catalogShutdownAttached = true;
     }

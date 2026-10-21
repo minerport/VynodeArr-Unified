@@ -1,5 +1,6 @@
 FROM public.ecr.aws/docker/library/node:24-alpine AS web-build
 WORKDIR /app
+RUN apk add --no-cache python3 make g++
 COPY package.json package-lock.json ./
 RUN npm ci --include=dev --no-audit --no-fund
 COPY apps/web/client ./apps/web/client
@@ -13,7 +14,9 @@ ENV NODE_ENV=production VYNODEARR_LOG_LEVEL=info VYNODEARR_LOG_FORMAT=pretty
 WORKDIR /app
 RUN apk add --no-cache font-dejavu ffmpeg yt-dlp
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev --no-audit --no-fund
+RUN apk add --no-cache --virtual .build-deps python3 make g++ \
+    && npm ci --omit=dev --no-audit --no-fund \
+    && apk del .build-deps
 COPY apps ./apps
 COPY --from=web-build /app/apps/web/public/react ./apps/web/public/react
 COPY --from=web-build /app/.server-build/apps/api ./apps/api

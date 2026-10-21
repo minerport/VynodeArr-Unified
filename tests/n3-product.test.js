@@ -334,7 +334,7 @@ test('repeated administrator notification polls do not rewrite unchanged activit
   const client={get:async path=>path==='queue'?{records:[]}:path==='history'?{records:[grabbed]}:[]},movie=Object.assign(new MovieFixtureAdapter(),{client}),tv=Object.assign(new TvFixtureAdapter(),{client:{get:async path=>path==='queue'||path==='history'?{records:[]}:[]}});
   return appSession({movie,tv,env:{VYNODEARR_DATA_MODE:'engine'}},async({base,cookie,directory})=>{
     assert.equal((await fetch(`${base}/api/notifications`,{headers:{cookie}})).status,200);
-    const paths=['download-decisions.json','notification-events.json','search-activity.json'].map(name=>join(directory,name));
+    const paths=['vynodearr.db','vynodearr.db-wal'].map(name=>join(directory,name));
     const before=await Promise.all(paths.map(path=>stat(path,{bigint:true})));
     await new Promise(resolve=>setTimeout(resolve,25));
     const responses=await Promise.all(Array.from({length:6},()=>fetch(`${base}/api/notifications`,{headers:{cookie}})));

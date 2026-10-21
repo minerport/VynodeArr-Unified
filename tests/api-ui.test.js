@@ -20,7 +20,7 @@ async function fixtureServer(run){
     const setup=await fetch(`${base}/api/auth/setup`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:'Review Administrator',username:'reviewer',email:'reviewer@example.test',password:'Correct-horse-review1',confirmPassword:'Correct-horse-review1'})});
     const setupBody=await setup.json();const cookie=setup.headers.get('set-cookie').split(';')[0];
     await run({base,cookie,csrf:setupBody.csrf});
-  }finally{await new Promise((resolve)=>server.close(resolve));await rm(directory,{recursive:true,force:true});}
+  }finally{await new Promise((resolve)=>server.close(resolve));app.sync.stopPolling();await rm(directory,{recursive:true,force:true});}
 }
 const get=(base,path,cookie)=>fetch(`${base}${path}`,{headers:{cookie}});
 
@@ -73,7 +73,7 @@ test('public errors and health are neutral',async()=>{
   const directory=await mkdtemp(join(tmpdir(),'vynodearr-error-'));const app=createApplication({env:{VYNODEARR_DATA_MODE:'fixture',VYNODEARR_DATA_DIR:directory}});
   const server=createServer(app.handleRequest);await new Promise((resolve)=>server.listen(0,'127.0.0.1',resolve));const base=`http://127.0.0.1:${server.address().port}`;
   try{assert.equal((await fetch(`${base}/healthz`)).status,200);const value=await (await fetch(`${base}/api/media/movies`)).json();assert.match(value.error.message,/Sign in/);assert.doesNotMatch(JSON.stringify(value),/\b(radarr|sonarr)\b/i);}
-  finally{await new Promise((resolve)=>server.close(resolve));await rm(directory,{recursive:true,force:true});}
+  finally{await new Promise((resolve)=>server.close(resolve));app.sync.stopPolling();await rm(directory,{recursive:true,force:true});}
 });
 test('compatibility proxy completes normally and cancels upstream work when the caller disconnects',async()=>{
   let upstreamClosedResolve;const upstreamClosed=new Promise(resolve=>{upstreamClosedResolve=resolve;});
@@ -98,7 +98,7 @@ test('compatibility proxy completes normally and cancels upstream work when the 
     });
     await Promise.race([upstreamClosed,new Promise((_,reject)=>setTimeout(()=>reject(new Error('Upstream response was not canceled promptly')),500))]);
   }finally{
-    await new Promise(resolve=>server.close(resolve));await new Promise(resolve=>upstream.close(resolve));await rm(directory,{recursive:true,force:true});
+    await new Promise(resolve=>server.close(resolve));app.sync.stopPolling();await new Promise(resolve=>upstream.close(resolve));await rm(directory,{recursive:true,force:true});
   }
 });
 test('static assets use safe caching, validation, and gzip compression',()=>fixtureServer(async({base})=>{

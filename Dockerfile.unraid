@@ -10,6 +10,7 @@ RUN apk add --no-cache curl tar \
 
 FROM public.ecr.aws/docker/library/node:24-alpine AS web-build
 WORKDIR /app
+RUN apk add --no-cache python3 make g++
 COPY package.json ./
 RUN npm install --include=dev --no-audit --no-fund
 COPY apps/web/client ./apps/web/client
@@ -30,7 +31,9 @@ LABEL org.opencontainers.image.title="VynodeArr" \
 RUN apk add --no-cache icu-libs sqlite-libs libgcc libstdc++ tzdata tini font-dejavu ffmpeg yt-dlp
 WORKDIR /app
 COPY package.json ./
-RUN npm install --omit=dev --no-audit --no-fund
+RUN apk add --no-cache --virtual .build-deps python3 make g++ \
+    && npm install --omit=dev --no-audit --no-fund \
+    && apk del .build-deps
 COPY apps ./apps
 COPY --from=web-build /app/apps/web/public/react ./apps/web/public/react
 COPY --from=web-build /app/.server-build/apps/api ./apps/api
