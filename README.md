@@ -44,17 +44,33 @@ consistent experience and account system.
 
 ## Current release
 
-Version **2.0.49** is the current stable release and is published as the
+Version **2.0.61** is the current stable release and is published as the
 `latest` image. Administrators can use the bundled media engines, connect one
 existing external movie and television engine, or manage multiple independent
 external instances. Each instance keeps its credentials, settings,
 destinations, requests, searches, queues, profiles, providers, history,
 calendar, and wanted-media workflows isolated.
 
-This release consolidates repeated React loading and error presentation into
-shared typed components and utilities across the application. Existing page
-behavior, actions, fallback messages, and engine workflows remain unchanged,
-while route code is smaller and error handling is consistent.
+This release moves high-churn operational history, notification, and search
+state from whole-file JSON rewrites into a WAL-mode SQLite store. Existing JSON
+state is imported automatically on first use and retained with a pre-migration
+backup. Daily consistent database backups, integrity checks, bounded retention,
+and JSON-compatible application backup and restore preserve recovery paths while
+substantially reducing idle and incremental disk writes.
+
+The dashboard now includes a rolling 24-hour briefing and a Decision Center
+that surfaces issues needing attention, recent imports, upcoming releases, and
+release-selection outcomes. Wanted items can be filtered by status, history
+refreshes on demand without stale results, and the responsive layouts for the
+dashboard, history, selection rules, and custom-format dialogs are usable on
+phone-sized screens.
+
+Discover includes in-app trailer playback and reliable poster loading in
+horizontally scrolling Safari views. Television requests search monitored,
+aired, missing episodes individually, keep results isolated by engine, and
+preserve equivalent releases from every configured indexer. Automated Plex
+artwork refresh can reapply time-sensitive movie and television overlay
+templates on a daily schedule.
 
 New installations can follow the in-app **Setup Center** to configure engines,
 storage and destinations, quality preferences, indexers, download clients,
@@ -71,11 +87,10 @@ continue onto real media when placeholders are replaced, and targeted trailer
 repair can recover failed or missing local extras. New list imports remain
 inactive until their destination and artwork settings are deliberately applied.
 
-The administrator Validation Center checks
-engine connectivity, storage, acquisition providers, scheduled automation,
-credentials, notifications, and application data after startup, updates, and
-restores. It provides guided fixes plus guarded re-synchronization and managed
-connection repair.
+The administrator Validation Center checks engine connectivity, storage,
+acquisition providers, scheduled automation, credentials, notifications, and
+application data after startup, updates, and restores. It provides guided fixes
+plus guarded re-synchronization and managed connection repair.
 
 ## How library data stays current
 

@@ -7,6 +7,103 @@ and releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.61] - 2026-10-21
+
+### Changed
+
+- Migrated download decisions, notification events, and search activity from
+  whole-file JSON persistence to a row-oriented SQLite database in WAL mode.
+- Preserved application backup compatibility by exporting and restoring the
+  migrated stores through their existing JSON archive entries.
+
+### Safety
+
+- Import existing JSON state transactionally on first access while leaving the
+  source untouched and retaining a pre-migration copy.
+- Added startup integrity checks and daily consistent SQLite backups with
+  bounded retention.
+
+### Validation
+
+- Passed all 315 automated tests, TypeScript checks, production builds, bundle
+  and branding gates, deployment validation, and both Docker smoke paths.
+
+## [2.0.60] - 2026-10-21
+
+### Fixed
+
+- Prevented unchanged download-decision, notification-event, and search-activity
+  state from being rewritten during idle polling.
+- Coalesced state mutations so incremental activity no longer triggers repeated
+  full-file writes at the prior polling rate.
+
+## [2.0.59] - 2026-10-17
+
+### Fixed
+
+- Prevented the dashboard's daily briefing header and first decision card from
+  overlapping on phone-sized screens.
+
+## [2.0.58] - 2026-10-17
+
+### Added
+
+- Added a rolling 24-hour dashboard briefing for attention items, imports,
+  upcoming releases, and release-selection decisions.
+- Added a Decision Center that connects dashboard summaries to the underlying
+  operational evidence and actions.
+
+## [2.0.57] - 2026-10-13
+
+### Added
+
+- Added status filtering to the Wanted page so missing and cutoff-unmet work can
+  be reviewed independently.
+
+## [2.0.56] - 2026-10-12
+
+### Added
+
+- Added scheduled automatic Plex artwork refresh for time-sensitive movie and
+  television overlay templates.
+
+## [2.0.55] - 2026-10-11
+
+### Changed
+
+- Reworked television request-time automatic search around monitored, aired,
+  missing individual episodes with bounded parallel searches and visible
+  progress.
+- Applied normal release policy and import guards to each episode result before
+  issuing a grab.
+
+## [2.0.54] - 2026-10-09
+
+### Fixed
+
+- Forced Discover posters in horizontal rows to load eagerly so Safari does not
+  leave valid images with an empty request source.
+- Improved container base-image sourcing for the unified and generic build
+  paths.
+
+## [2.0.53] - 2026-08-19
+
+### Added
+
+- Added trailer links and in-app trailer playback with sound on Discover.
+
+## [2.0.52] - 2026-08-18
+
+### Changed
+
+- Made History request a fresh engine synchronization and condensed its mobile
+  presentation.
+
+### Fixed
+
+- Corrected mobile custom-format profile scoring layouts and made custom-format
+  dialogs scroll through their footer actions.
+
 ## [2.0.51] - 2026-08-17
 
 ### Fixed
