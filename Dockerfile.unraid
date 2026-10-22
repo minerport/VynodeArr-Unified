@@ -1,4 +1,6 @@
-FROM public.ecr.aws/docker/library/alpine:3.22 AS engines
+ARG ALPINE_BASE_IMAGE=alpine:3.22
+ARG NODE_BASE_IMAGE=node:24-alpine
+FROM ${ALPINE_BASE_IMAGE} AS engines
 ARG RADARR_VERSION=6.4.4.10685
 ARG SONARR_VERSION=4.0.20.3014
 RUN apk add --no-cache curl tar \
@@ -8,7 +10,7 @@ RUN apk add --no-cache curl tar \
     && curl -fsSL "https://github.com/Sonarr/Sonarr/releases/download/v${SONARR_VERSION}/Sonarr.main.${SONARR_VERSION}.linux-musl-x64.tar.gz" \
       | tar -xz -C /opt/engines
 
-FROM public.ecr.aws/docker/library/node:24-alpine AS web-build
+FROM ${NODE_BASE_IMAGE} AS web-build
 WORKDIR /app
 RUN apk add --no-cache python3 make g++
 COPY package.json ./
@@ -19,7 +21,7 @@ COPY packages ./packages
 COPY tsconfig.server.json ./
 RUN npm run typecheck:web && npm run build:web && npm run build:server
 
-FROM public.ecr.aws/docker/library/node:24-alpine
+FROM ${NODE_BASE_IMAGE}
 ARG VYNODEARR_VERSION=local
 ARG RADARR_VERSION=6.4.4.10685
 ARG SONARR_VERSION=4.0.20.3014

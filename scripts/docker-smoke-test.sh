@@ -14,12 +14,16 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-docker build -f Dockerfile -t "$image" .
+node_base_image="$(sh scripts/select-container-base-images.sh --node-only | sed -n 's/^node_base_image=//p')"
+test -n "$node_base_image"
+docker build -f Dockerfile \
+  --build-arg "NODE_BASE_IMAGE=$node_base_image" \
+  -t "$image" .
 docker volume create "$data_volume" >/dev/null
 docker volume create "$movie_volume" >/dev/null
 docker volume create "$tv_volume" >/dev/null
 docker volume create "$download_volume" >/dev/null
-docker run --rm -v "$data_volume:/data" public.ecr.aws/docker/library/alpine:3.22 chown -R 10001:1000 /data
+docker run --rm --user 0:0 -v "$data_volume:/data" "$image" chown -R 10001:1000 /data
 docker run -d --name "$container" \
   -e VYNODEARR_DATA_MODE=fixture \
   -e VYNODEARR_SECURE_COOKIES=false \

@@ -1,4 +1,5 @@
-FROM public.ecr.aws/docker/library/node:24-alpine AS web-build
+ARG NODE_BASE_IMAGE=node:24-alpine
+FROM ${NODE_BASE_IMAGE} AS web-build
 WORKDIR /app
 RUN apk add --no-cache python3 make g++
 COPY package.json package-lock.json ./
@@ -9,7 +10,7 @@ COPY packages ./packages
 COPY tsconfig.server.json ./
 RUN npm run typecheck:web && npm run build:web && npm run build:server
 
-FROM public.ecr.aws/docker/library/node:24-alpine
+FROM ${NODE_BASE_IMAGE}
 ENV NODE_ENV=production VYNODEARR_LOG_LEVEL=info VYNODEARR_LOG_FORMAT=pretty
 WORKDIR /app
 RUN apk add --no-cache font-dejavu ffmpeg yt-dlp

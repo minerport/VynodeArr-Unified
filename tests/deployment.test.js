@@ -56,14 +56,18 @@ test('optional Docker main-media override maps the same path into every service'
 });
 
 test('Docker preflight and smoke-test scripts cover configuration and runtime health',async()=>{
-  const [shell,powershell,smoke]=await Promise.all([
+  const [shell,powershell,smoke,bases]=await Promise.all([
     readFile(new URL('../scripts/docker-preflight.sh',import.meta.url),'utf8'),
     readFile(new URL('../scripts/docker-preflight.ps1',import.meta.url),'utf8'),
-    readFile(new URL('../scripts/docker-smoke-test.sh',import.meta.url),'utf8')
+    readFile(new URL('../scripts/docker-smoke-test.sh',import.meta.url),'utf8'),
+    readFile(new URL('../scripts/select-container-base-images.sh',import.meta.url),'utf8')
   ]);
   for(const marker of ['docker info','docker compose','config --quiet','VYNODEARR_MEDIA_PATH'])assert.ok(shell.includes(marker),marker);
   for(const marker of ['docker info','docker compose','config','VYNODEARR_MEDIA_PATH'])assert.ok(powershell.includes(marker),marker);
   for(const marker of ['docker build','/healthz','State.Health.Status','/data','/movies','/tv','/downloads'])assert.ok(smoke.includes(marker),marker);
+  for(const marker of ['node:24-alpine','public.ecr.aws/docker/library/node:24-alpine','"$attempt" -le 3','trying the fallback registry'])assert.ok(bases.includes(marker),marker);
+  assert.match(smoke,/--build-arg "NODE_BASE_IMAGE=\$node_base_image"/);
+  assert.doesNotMatch(smoke,/docker run[^\n]+alpine:3\.22/);
 });
 
 test('1.0 release includes self-contained Unraid and Windows distributions',async()=>{
@@ -99,6 +103,8 @@ test('stable release injects its tag version into the unified image',async()=>{
     readFile(new URL('../Dockerfile.unraid',import.meta.url),'utf8')
   ]);
   assert.match(workflow,/build-args:\s*\|\s*\n\s*VYNODEARR_VERSION=\$\{\{ steps\.meta\.outputs\.version \}\}/);
+  assert.match(workflow,/NODE_BASE_IMAGE=\$\{\{ steps\.base-images\.outputs\.node_base_image \}\}/);
+  assert.match(workflow,/ALPINE_BASE_IMAGE=\$\{\{ steps\.base-images\.outputs\.alpine_base_image \}\}/);
   assert.match(image,/ARG VYNODEARR_VERSION=local/);
   assert.doesNotMatch(image,/ARG VYNODEARR_VERSION=2\.0\.3/);
 });

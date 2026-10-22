@@ -45,6 +45,9 @@ jobs:
       - run: npm install --include=dev --no-audit --no-fund
       - run: npm run verify
       - uses: docker/setup-buildx-action@v3
+      - name: Select reachable container base images
+        id: base-images
+        run: sh scripts/select-container-base-images.sh >> "$GITHUB_OUTPUT"
       - name: Build pinned candidate locally
         run: |
           image="ghcr.io/minerport/vynodearr-unified:engine-candidate-${GITHUB_RUN_ID}"
@@ -52,6 +55,8 @@ jobs:
             --build-arg RADARR_VERSION="${{ inputs.movie_version }}" \
             --build-arg SONARR_VERSION="${{ inputs.tv_version }}" \
             --build-arg VYNODEARR_VERSION="${{ inputs.base_ref }}-engine-candidate" \
+            --build-arg NODE_BASE_IMAGE="${{ steps.base-images.outputs.node_base_image }}" \
+            --build-arg ALPINE_BASE_IMAGE="${{ steps.base-images.outputs.alpine_base_image }}" \
             --tag "$image" .
           echo "CANDIDATE_IMAGE=$image" >> "$GITHUB_ENV"
       - name: Smoke test the complete candidate
